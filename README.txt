@@ -1,12 +1,11 @@
-# SIF-tools
+SIF-tools
+---------
 SIF-tools is part of SIF-basis and contains the executable tools which can also be used seperately.
 SIF-basis is a framework by Sweco for working with iMOD groundwater models.
 
 This tool-set is open source, and free to use and distribute under the 
 GNU General Public License v3.0 (GPLv3) or later. See below for the full 
 license notice. See LICENSE.txt for the full text of the GPLv3. 
-
-***
 
 Contents of this README:
 1.  Licensing
@@ -15,10 +14,11 @@ Contents of this README:
 4.  Contacts
 
 
-# 1. Licensing
-**Copyright (c) 2013-2021 Sweco Nederland B.V.**
+1. Licensing
+------------
+Copyright (c) 2013-2021 Sweco Nederland B.V.
 
-**1a. SIF-tools**\
+1a. SIF-tools
 All rights to this software and documentation, including intellectual
 property rights, are owned by Sweco Nederland B.V., except for third
 party code or libraries which are governed by their own license.
@@ -36,15 +36,15 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with SIF-toolset. If not, see <https://www.gnu.org/licenses/>.
 
-**1b. Third party libraries**\
+1b. Third party libraries
 The following third party libraries are used in some of the SIF-tools:
-* The EPPlus library, version 4.5.3.3 for handling Excel xlsx-files. 
+- The EPPlus library, version 4.5.3.3 for handling Excel xlsx-files. 
   It has the following license: GNU Lesser General Public License v3.0. 
   The dll is included seperately in the tools directory.
   See:
   https://www.nuget.org/packages/EPPlus/4.5.3.3
   https://github.com/JanKallman/EPPlus.  
-* Newtonsoft.Json/Json.NET library, version 13.0.1 (22-03-2021), for 
+- Newtonsoft.Json/Json.NET library, version 13.0.1 (22-03-2021), for 
   serialization to XML. It has the following license: The MIT License (MIT).
   The dll is merged with the iMODValidator.exe tool.
   See:
@@ -53,7 +53,8 @@ The following third party libraries are used in some of the SIF-tools:
 These third party libraries are downloaded/installed via Visual Studio's 
 NuGet Packager Manager. Check above NuGet webpages for more information.
 
-# 2. Documentation
+2. Documentation
+----------------
 The SIF-tools are part of SIF-basis, a framework by Sweco for working with 
 iMOD-groundwatermodels and processing iMOD-files (i.e. IDF, IPF, GEN, etc.).
 For more information about SIF, see: https://github.com/SIF-framework
@@ -63,35 +64,35 @@ No installation is needed for the SIF-tools. The tools should be run via the
 command-line. Each SIF-tool executable shows basic instructions for syntax 
 and use when run without parameters. Currently the following tools are available:
 
-| SIF-tool      | Description  |
-| :------------ |:-------------|
-| Del2Bin       | For deleting files or subdirectories to the recycle bin          |
-| ExcelMapper   | For mapping data from Excel rows to textfile, based on a template file |
-| ExcelSelect   | For selection of rows and/or sheets in Excel file(s)             |
-| GENcreate     | For creating GEN-files for specified extent coordinates          |
-| HydroMonitorIPFconvert   | For converting HydroMonitor Excel-files to IPF-files  |
-| IDFbnd        | For correcting boundary- condition around selected IDF-cells     |
-| IDFexp        | For evaluating multiple (nested) IDF-expressions on IDF-files    |
-| IDFGENconvert | For IDF-GEN (convex hull) or GEN-IDF (polygons/lines) conversion |
-| IDFinfo       | For retrieving info about IDF-file (e.g. extent, cellsize, nr of values) |
-| IDFmath       | For simple math operations on IDF-files (use IDFexp if complex)  |
-| IDFresample   | For resampling values in IDF-file with nearest neighbor method   |
-| IMFcreate     | For creating iMOD IMF-files with specified iMOD-files, legends, etc. |
-| iMODclip      | For clipping iMOD-files (IDF/ASC/IPF) to specified extent        |
-| iMODdel       | For selective deletion of iMOD-files (IDF/IPF/GEN) (e.g. empty files)|
-| iMODmetadata  | For adding or merging metadata to iMOD .MET-files                |
-| iMODstats     | For creating Excelfile with statistics of IDF-file(s)            |
-| iMODValidator | For checking iMOD-models (RUN-file) for some known modelissues   |
-| IPFreorder    | For reordering columns from IPF-file(s) with simple column expressions |
-| LayerManager  | For checking REGIS/iMOD-layermodel for inconsistencies or kD/c-calculation |
-| ReplaceLine   | For replacing line at specified linenumber within a text file    |
-| ReplaceText   | For replacing text in one or more files, optionally using regular expressions |
-| Tee           | for teeing standard output of a command to both standard output and file   |
+SIF-tool                Description
+Del2Bin                 For deleting files or subdirectories to the recycle bin      
+ExcelMapper             For mapping data from Excel rows to textfile, based on a template file
+ExcelSelect             For selection of rows and/or sheets in Excel file(s)
+GENcreate               For creating GEN-files for specified extent coordinates
+HydroMonitorIPFconvert  For converting HydroMonitor Excel-files to IPF-files
+IDFbnd                  For correcting boundary- condition around selected IDF-cells
+IDFexp                  For evaluating multiple (nested) IDF-expressions on IDF-files
+IDFGENconvert           For IDF-GEN (convex hull) or GEN-IDF (polygons/lines) conversion
+IDFinfo                 For retrieving info about IDF-file (e.g. extent, cellsize, nr of values)
+IDFmath                 For simple math operations on IDF-files (use IDFexp if complex)
+IDFresample             For resampling values in IDF-file with nearest neighbor method
+IMFcreate               For creating iMOD IMF-files with specified iMOD-files, legends, etc.
+iMODclip                For clipping iMOD-files (IDF/ASC/IPF) to specified extent
+iMODdel                 For selective deletion of iMOD-files (IDF/IPF/GEN) (e.g. empty files)
+iMODmetadata            For adding or merging metadata to iMOD .MET-files
+iMODstats               For creating Excelfile with statistics of IDF-file(s)
+iMODValidator           For checking iMOD-models (RUN-file) for some known modelissues
+IPFreorder              For reordering columns from IPF-file(s) with simple column expressions
+LayerManager            For checking REGIS/iMOD-layermodel for inconsistencies or kD/c-calculation
+ReplaceLine             For replacing line at specified linenumber within a text file
+ReplaceText             For replacing text in one or more files, optionally using regular expressions
+Tee                     for teeing standard output of a command to both standard output and file
 
 The tools are build and tested for Windows 10, 64bit (x64) with .NET Framework 4.5.
 A release can be downloaded via: https://github.com/SIF-framework/SIF-tools/releases
 
-# 3. Build
+3. Build
+--------
 For building the SIF-tools, Visual Studio Express 2017 was used. 
 For each tool there is a subdirectory Source with the solution file for the tool.
 
@@ -116,12 +117,13 @@ For each tool there is a subdirectory Source with the solution file for the tool
    executable via ILRepack. See: https://github.com/gluck/il-repack.
 
 
-# 4. Contacts
+4. Contacts
+-----------
 If you have a bug, other feedback or a question please contact:
 
-Koen van der Hauw\
-koen.vanderhauw[@]sweco.nl\
-Sweco Nederland B.V.\
-De Holle Bilt 22\
-3732 HM De Bilt, The Netherlands.\
+Koen van der Hauw
+koen.vanderhauw[@]sweco.nl
+Sweco Nederland B.V.
+De Holle Bilt 22
+3732 HM De Bilt, The Netherlands.
 www.sweco.nl

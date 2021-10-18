@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1300
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Del2Bin", "Del2Bin\Del2Bin\Del2Bin.csproj", "{CC8B0F27-7B5C-42E9-88DE-13DD19E8C663}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Del2Bin.Tests", "Del2Bin\Del2Bin.Tests\Del2Bin.Tests.csproj", "{8FC36513-016C-4CBC-81A6-D971BE477B6D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CC8B0F27-7B5C-42E9-88DE-13DD19E8C663}.Debug|x64.ActiveCfg = Debug|x64
+		{CC8B0F27-7B5C-42E9-88DE-13DD19E8C663}.Debug|x64.Build.0 = Debug|x64
+		{CC8B0F27-7B5C-42E9-88DE-13DD19E8C663}.Release|x64.ActiveCfg = Release|x64
+		{CC8B0F27-7B5C-42E9-88DE-13DD19E8C663}.Release|x64.Build.0 = Release|x64
+		{8FC36513-016C-4CBC-81A6-D971BE477B6D}.Debug|x64.ActiveCfg = Debug|x64
+		{8FC36513-016C-4CBC-81A6-D971BE477B6D}.Debug|x64.Build.0 = Debug|x64
+		{8FC36513-016C-4CBC-81A6-D971BE477B6D}.Release|x64.ActiveCfg = Release|x64
+		{8FC36513-016C-4CBC-81A6-D971BE477B6D}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FD5D283A-4D2A-4A8F-9B10-9F9D6C3D56F7}
+	EndGlobalSection
+EndGlobal

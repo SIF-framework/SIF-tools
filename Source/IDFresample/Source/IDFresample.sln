@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1300
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IDFresample", "IDFresample\IDFresample\IDFresample.csproj", "{1A89A317-4E19-47FD-AB0E-C997AF0476E7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IDFresample.Tests", "IDFresample\IDFresample.Tests\IDFresample.Tests.csproj", "{BE22E538-97F3-4CE0-8332-23E39EF06920}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1A89A317-4E19-47FD-AB0E-C997AF0476E7}.Debug|x64.ActiveCfg = Debug|x64
+		{1A89A317-4E19-47FD-AB0E-C997AF0476E7}.Debug|x64.Build.0 = Debug|x64
+		{1A89A317-4E19-47FD-AB0E-C997AF0476E7}.Release|x64.ActiveCfg = Release|x64
+		{1A89A317-4E19-47FD-AB0E-C997AF0476E7}.Release|x64.Build.0 = Release|x64
+		{BE22E538-97F3-4CE0-8332-23E39EF06920}.Debug|x64.ActiveCfg = Debug|x64
+		{BE22E538-97F3-4CE0-8332-23E39EF06920}.Debug|x64.Build.0 = Debug|x64
+		{BE22E538-97F3-4CE0-8332-23E39EF06920}.Release|x64.ActiveCfg = Release|x64
+		{BE22E538-97F3-4CE0-8332-23E39EF06920}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5E342414-A12B-40FA-8292-0A02CD7AE46F}
+	EndGlobalSection
+EndGlobal

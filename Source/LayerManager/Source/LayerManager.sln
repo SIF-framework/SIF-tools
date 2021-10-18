@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1300
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LayerManager", "LayerManager\LayerManager\LayerManager.csproj", "{0A3AC56B-116A-4364-A30D-D0A650ABC37E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LayerManager.Tests", "LayerManager\LayerManager.Tests\LayerManager.Tests.csproj", "{C2C42A8D-AD15-4E6F-9BA5-130A8AFFB99A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0A3AC56B-116A-4364-A30D-D0A650ABC37E}.Debug|x64.ActiveCfg = Debug|x64
+		{0A3AC56B-116A-4364-A30D-D0A650ABC37E}.Debug|x64.Build.0 = Debug|x64
+		{0A3AC56B-116A-4364-A30D-D0A650ABC37E}.Release|x64.ActiveCfg = Release|x64
+		{0A3AC56B-116A-4364-A30D-D0A650ABC37E}.Release|x64.Build.0 = Release|x64
+		{C2C42A8D-AD15-4E6F-9BA5-130A8AFFB99A}.Debug|x64.ActiveCfg = Debug|x64
+		{C2C42A8D-AD15-4E6F-9BA5-130A8AFFB99A}.Debug|x64.Build.0 = Debug|x64
+		{C2C42A8D-AD15-4E6F-9BA5-130A8AFFB99A}.Release|x64.ActiveCfg = Release|x64
+		{C2C42A8D-AD15-4E6F-9BA5-130A8AFFB99A}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0EEE5D4D-761B-47C1-B08C-AA05987129E8}
+	EndGlobalSection
+EndGlobal

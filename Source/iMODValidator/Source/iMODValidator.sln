@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1300
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iMODValidator", "iMODValidator\iMODValidator\iMODValidator.csproj", "{0FBADFD1-8E51-48DD-9DD9-B87EE2197F66}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iMODValidator.Tests", "iMODValidator\iMODValidator.Tests\iMODValidator.Tests.csproj", "{BE2A037C-BEC9-4A40-A44B-8F608F79981D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0FBADFD1-8E51-48DD-9DD9-B87EE2197F66}.Debug|x64.ActiveCfg = Debug|x64
+		{0FBADFD1-8E51-48DD-9DD9-B87EE2197F66}.Debug|x64.Build.0 = Debug|x64
+		{0FBADFD1-8E51-48DD-9DD9-B87EE2197F66}.Release|x64.ActiveCfg = Release|x64
+		{0FBADFD1-8E51-48DD-9DD9-B87EE2197F66}.Release|x64.Build.0 = Release|x64
+		{BE2A037C-BEC9-4A40-A44B-8F608F79981D}.Debug|x64.ActiveCfg = Debug|x64
+		{BE2A037C-BEC9-4A40-A44B-8F608F79981D}.Debug|x64.Build.0 = Debug|x64
+		{BE2A037C-BEC9-4A40-A44B-8F608F79981D}.Release|x64.ActiveCfg = Release|x64
+		{BE2A037C-BEC9-4A40-A44B-8F608F79981D}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0E2C00F4-ECC2-4B67-AC73-CB476F083812}
+	EndGlobalSection
+EndGlobal

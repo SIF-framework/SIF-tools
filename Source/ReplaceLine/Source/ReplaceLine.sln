@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1300
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReplaceLine", "ReplaceLine\ReplaceLine\ReplaceLine.csproj", "{AF5C1D68-CC34-4A6E-9D7A-753A241493D0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReplaceLine.Tests", "ReplaceLine\ReplaceLine.Tests\ReplaceLine.Tests.csproj", "{FCFF3B6F-9450-47D4-B8B5-11A97928C1C2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AF5C1D68-CC34-4A6E-9D7A-753A241493D0}.Debug|x64.ActiveCfg = Debug|x64
+		{AF5C1D68-CC34-4A6E-9D7A-753A241493D0}.Debug|x64.Build.0 = Debug|x64
+		{AF5C1D68-CC34-4A6E-9D7A-753A241493D0}.Release|x64.ActiveCfg = Release|x64
+		{AF5C1D68-CC34-4A6E-9D7A-753A241493D0}.Release|x64.Build.0 = Release|x64
+		{FCFF3B6F-9450-47D4-B8B5-11A97928C1C2}.Debug|x64.ActiveCfg = Debug|x64
+		{FCFF3B6F-9450-47D4-B8B5-11A97928C1C2}.Debug|x64.Build.0 = Debug|x64
+		{FCFF3B6F-9450-47D4-B8B5-11A97928C1C2}.Release|x64.ActiveCfg = Release|x64
+		{FCFF3B6F-9450-47D4-B8B5-11A97928C1C2}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7ED4CF55-E87B-474A-B6A0-15B66B3C56F7}
+	EndGlobalSection
+EndGlobal

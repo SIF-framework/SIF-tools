@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1300
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IDFmath", "IDFmath\IDFmath\IDFmath.csproj", "{0FE0A686-DA79-4F0D-A877-5030D8E15EE2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IDFmath.Tests", "IDFmath\IDFmath.Tests\IDFmath.Tests.csproj", "{96CA4C07-0090-488B-ABEB-CA58801EAFB8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0FE0A686-DA79-4F0D-A877-5030D8E15EE2}.Debug|x64.ActiveCfg = Debug|x64
+		{0FE0A686-DA79-4F0D-A877-5030D8E15EE2}.Debug|x64.Build.0 = Debug|x64
+		{0FE0A686-DA79-4F0D-A877-5030D8E15EE2}.Release|x64.ActiveCfg = Release|x64
+		{0FE0A686-DA79-4F0D-A877-5030D8E15EE2}.Release|x64.Build.0 = Release|x64
+		{96CA4C07-0090-488B-ABEB-CA58801EAFB8}.Debug|x64.ActiveCfg = Debug|x64
+		{96CA4C07-0090-488B-ABEB-CA58801EAFB8}.Debug|x64.Build.0 = Debug|x64
+		{96CA4C07-0090-488B-ABEB-CA58801EAFB8}.Release|x64.ActiveCfg = Release|x64
+		{96CA4C07-0090-488B-ABEB-CA58801EAFB8}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {24A7B49E-B6A6-4C83-B76F-47A6991B2BBD}
+	EndGlobalSection
+EndGlobal

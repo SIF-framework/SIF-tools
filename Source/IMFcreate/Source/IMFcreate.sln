@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1300
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IMFcreate", "IMFcreate\IMFcreate\IMFcreate.csproj", "{B3DB5C3A-54C7-459B-B064-79677ED43825}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IMFcreate.Tests", "IMFcreate\IMFcreate.Tests\IMFcreate.Tests.csproj", "{25C8F043-EF40-4EBB-A0A3-07E69D349E05}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B3DB5C3A-54C7-459B-B064-79677ED43825}.Debug|x64.ActiveCfg = Debug|x64
+		{B3DB5C3A-54C7-459B-B064-79677ED43825}.Debug|x64.Build.0 = Debug|x64
+		{B3DB5C3A-54C7-459B-B064-79677ED43825}.Release|x64.ActiveCfg = Release|x64
+		{B3DB5C3A-54C7-459B-B064-79677ED43825}.Release|x64.Build.0 = Release|x64
+		{25C8F043-EF40-4EBB-A0A3-07E69D349E05}.Debug|x64.ActiveCfg = Debug|x64
+		{25C8F043-EF40-4EBB-A0A3-07E69D349E05}.Debug|x64.Build.0 = Debug|x64
+		{25C8F043-EF40-4EBB-A0A3-07E69D349E05}.Release|x64.ActiveCfg = Release|x64
+		{25C8F043-EF40-4EBB-A0A3-07E69D349E05}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5AA75D82-DC9C-427D-81F3-7382D3233ED9}
+	EndGlobalSection
+EndGlobal

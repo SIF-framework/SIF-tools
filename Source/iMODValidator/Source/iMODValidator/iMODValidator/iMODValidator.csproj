@@ -1,0 +1,171 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+    <ProjectGuid>{0FBADFD1-8E51-48DD-9DD9-B87EE2197F66}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Sweco.SIF.iMODValidator</RootNamespace>
+    <AssemblyName>iMODValidator</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>Sweco.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Newtonsoft.Json.13.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="Sweco.SIF.Common">
+      <HintPath>..\..\Libraries\Sweco.SIF.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="Sweco.SIF.GIS">
+      <HintPath>..\..\Libraries\Sweco.SIF.GIS.dll</HintPath>
+    </Reference>
+    <Reference Include="Sweco.SIF.iMOD">
+      <HintPath>..\..\Libraries\Sweco.SIF.iMOD.dll</HintPath>
+    </Reference>
+    <Reference Include="Sweco.SIF.Spreadsheets">
+      <HintPath>..\..\Libraries\Sweco.SIF.Spreadsheets.dll</HintPath>
+    </Reference>
+    <Reference Include="Sweco.SIF.Statistics, Version=1.0.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Libraries\Sweco.SIF.Statistics.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Actions\ActionManager.cs" />
+    <Compile Include="Actions\ValidatorAction.cs" />
+    <Compile Include="Checks\ANICheck.cs" />
+    <Compile Include="Checks\Check.cs" />
+    <Compile Include="Checks\CheckManager.cs" />
+    <Compile Include="Checks\CheckResults\CheckDetail.cs" />
+    <Compile Include="Checks\CheckResults\CheckDetailLayer.cs" />
+    <Compile Include="Checks\CheckResults\CheckError.cs" />
+    <Compile Include="Checks\CheckResults\CheckErrorLayer.cs" />
+    <Compile Include="Checks\CheckResults\CheckResult.cs" />
+    <Compile Include="Checks\CheckResults\CheckResultHandler.cs" />
+    <Compile Include="Checks\CheckResults\CheckResultLayer.cs" />
+    <Compile Include="Checks\CheckResults\CheckWarning.cs" />
+    <Compile Include="Checks\CheckResults\CheckWarningLayer.cs" />
+    <Compile Include="Checks\CheckSettings.cs" />
+    <Compile Include="Checks\KDCCheck.cs" />
+    <Compile Include="Checks\KVVKHVCheck.cs" />
+    <Compile Include="Checks\OLFCheck.cs" />
+    <Compile Include="Checks\TOPBOTCheck.cs" />
+    <Compile Include="Exceptions\AbortException.cs" />
+    <Compile Include="Models\Files\IDFUpscaler.cs" />
+    <Compile Include="Models\IMODTool.cs" />
+    <Compile Include="Models\Model.cs" />
+    <Compile Include="Models\Packages\ANIPackage.cs" />
+    <Compile Include="Models\Packages\BNDPackage.cs" />
+    <Compile Include="Models\Packages\BOTPackage.cs" />
+    <Compile Include="Models\Packages\CAPPackage.cs" />
+    <Compile Include="Models\Packages\CHDPackage.cs" />
+    <Compile Include="Models\Packages\DRNPackage.cs" />
+    <Compile Include="Models\Packages\Files\ConstantIDFPackageFile.cs" />
+    <Compile Include="Models\Packages\Files\IDFPackageFile.cs" />
+    <Compile Include="Models\Packages\Files\IPFPackageFile.cs" />
+    <Compile Include="Models\Packages\Files\PackageFile.cs" />
+    <Compile Include="Models\Packages\Files\PackageFileFactory.cs" />
+    <Compile Include="Models\Packages\Files\GENPackageFile.cs" />
+    <Compile Include="Models\Packages\GENPackage.cs" />
+    <Compile Include="Models\Packages\HFBPackage.cs" />
+    <Compile Include="Models\Packages\IDFPackage.cs" />
+    <Compile Include="Models\Packages\IPFPackage.cs" />
+    <Compile Include="Models\Packages\KDWPackage.cs" />
+    <Compile Include="Models\Packages\KHVPackage.cs" />
+    <Compile Include="Models\Packages\KVAPackage.cs" />
+    <Compile Include="Models\Packages\KVVPackage.cs" />
+    <Compile Include="Models\Packages\OLFPackage.cs" />
+    <Compile Include="Models\Packages\Package.cs" />
+    <Compile Include="Models\Packages\PackageFactory.cs" />
+    <Compile Include="Models\Packages\PSTPackage.cs" />
+    <Compile Include="Models\Packages\RCHPackage.cs" />
+    <Compile Include="Models\Packages\RIVPackage.cs" />
+    <Compile Include="Models\Packages\SHDPackage.cs" />
+    <Compile Include="Models\Packages\TOPPackage.cs" />
+    <Compile Include="Models\Packages\VCWPackage.cs" />
+    <Compile Include="Models\Packages\WELPackage.cs" />
+    <Compile Include="Models\Runfiles\Runfile.cs" />
+    <Compile Include="Models\Runfiles\V5Runfile.cs" />
+    <Compile Include="Models\StressPeriod.cs" />
+    <Compile Include="Models\SubModel.cs" />
+    <Compile Include="Results\LayerStatistics.cs" />
+    <Compile Include="Results\Result.cs" />
+    <Compile Include="Results\ResultHandler.cs" />
+    <Compile Include="Results\ResultLayer.cs" />
+    <Compile Include="Results\ResultLayerStatistics.cs" />
+    <Compile Include="Results\ResultSheet.cs" />
+    <Compile Include="Results\ResultTable.cs" />
+    <Compile Include="Results\SummaryLegend.cs" />
+    <Compile Include="Results\SummaryResultLayer.cs" />
+    <Compile Include="Settings\GENFileSettings.cs" />
+    <Compile Include="Settings\iMODValidatorSettings.cs" />
+    <Compile Include="Settings\iMODValidatorSettingsManager.cs" />
+    <Compile Include="Settings\MetadataSettings.cs" />
+    <Compile Include="Settings\PropertySorter.cs" />
+    <Compile Include="SIFTool.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SIFToolSettings.cs" />
+    <Compile Include="Validator.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Sweco.ico" />
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PreBuildEvent>REM Ensure Libraries folder exists
+IF NOT EXIST "$(ProjectDir)..\..\Libraries\" MKDIR "$(ProjectDir)..\..\Libraries"
+
+REM Copy used dll's that this tool depends on, to Libraries folder
+COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Common\Bin\$(PlatformName)\Sweco.SIF.Common.*" "$(ProjectDir)..\..\Libraries"
+COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.GIS\Bin\$(PlatformName)\Sweco.SIF.GIS.*" "$(ProjectDir)..\..\Libraries"
+COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.iMOD\Bin\$(PlatformName)\Sweco.SIF.iMOD.*" "$(ProjectDir)..\..\Libraries"
+COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Statistics\Bin\$(PlatformName)\Sweco.SIF.Statistics.*" "$(ProjectDir)..\..\Libraries"
+COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Spreadsheets\Bin\AnyCPU\Sweco.SIF.Spreadsheets.*" "$(ProjectDir)..\..\Libraries"
+COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Spreadsheets\Bin\AnyCPU\EPPlus.*" "$(ProjectDir)..\..\Libraries"
+</PreBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
+</Project>

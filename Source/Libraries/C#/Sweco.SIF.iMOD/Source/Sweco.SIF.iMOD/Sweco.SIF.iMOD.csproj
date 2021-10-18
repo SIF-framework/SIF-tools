@@ -1,0 +1,147 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{35266D0C-288E-40B7-B180-E455FA138F2A}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Sweco.SIF.iMOD</RootNamespace>
+    <AssemblyName>Sweco.SIF.iMOD</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Debug\Sweco.SIF.iMOD.xml</DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <DefineConstants>DEBUG</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <DocumentationFile>bin\x64\Debug\Sweco.SIF.iMOD.xml</DocumentationFile>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <DocumentationFile>bin\x64\Release\Sweco.SIF.iMOD.xml</DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>Sweco.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Sweco.SIF.Common">
+      <HintPath>..\..\Bin\Sweco.SIF.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="Sweco.SIF.GIS">
+      <HintPath>..\..\Bin\Sweco.SIF.GIS.dll</HintPath>
+    </Reference>
+    <Reference Include="Sweco.SIF.Statistics">
+      <HintPath>..\..\Bin\Sweco.SIF.Statistics.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ARR\ARRFile.cs" />
+    <Compile Include="ASC\ASCFile.cs" />
+    <Compile Include="GEN\2D\GENLine.cs" />
+    <Compile Include="GEN\2D\GENPolygon.cs" />
+    <Compile Include="GEN\DATFile.cs" />
+    <Compile Include="GEN\DATRow.cs" />
+    <Compile Include="GEN\GENClipper.cs" />
+    <Compile Include="GEN\GENFeature.cs" />
+    <Compile Include="GEN\GENFile.cs" />
+    <Compile Include="GEN\2D\GENPoint.cs" />
+    <Compile Include="GEN\GENLegend.cs" />
+    <Compile Include="GEN\GENUtils.cs" />
+    <Compile Include="IDF\ConstantIDFFile.cs" />
+    <Compile Include="IDF\IDFCell.cs" />
+    <Compile Include="IDF\IDFCellIterator.cs" />
+    <Compile Include="IDF\IDFFile.cs" />
+    <Compile Include="IDF\IDFLegend.cs" />
+    <Compile Include="IDF\IDFLog.cs" />
+    <Compile Include="IDF\IDFStatistics.cs" />
+    <Compile Include="IDF\IDFUtils.cs" />
+    <Compile Include="IDF\SparseIDFFile.cs" />
+    <Compile Include="IMF\IDFMap.cs" />
+    <Compile Include="IMF\IMFFile.cs" />
+    <Compile Include="IMF\IPFMap.cs" />
+    <Compile Include="IMF\Map.cs" />
+    <Compile Include="IMF\Overlay.cs" />
+    <Compile Include="IMODFile.cs" />
+    <Compile Include="IPF\IPFFile.cs" />
+    <Compile Include="IPF\IPFLegend.cs" />
+    <Compile Include="IPF\IPFPoint.cs" />
+    <Compile Include="IPF\IPFTimeseries.cs" />
+    <Compile Include="IPF\IPFUtils.cs" />
+    <Compile Include="ISG\ISGFile.cs" />
+    <Compile Include="ISG\ISGLegend.cs" />
+    <Compile Include="Legends\ClassLegend.cs" />
+    <Compile Include="Legends\Legend.cs" />
+    <Compile Include="Legends\RangeLegendClass.cs" />
+    <Compile Include="Legends\ValueLegendClass.cs" />
+    <Compile Include="Metadata.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Timeseries.cs" />
+    <Compile Include="Utils\IMODUtils.cs" />
+    <Compile Include="Values\ValueOperator.cs" />
+    <Compile Include="Values\ValueRange.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Sweco.ico" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>REM Copy results to Bin(-platform) folder
+COPY "$(TargetDir)$(TargetName).*" "$(ProjectDir)..\..\Bin\$(PlatformName)"
+DEL /Q "$(ProjectDir)..\..\Bin\*.*"
+</PostBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>REM Ensure Bin folder exists
+IF NOT EXIST "$(ProjectDir)..\..\Bin\$(PlatformName)" MKDIR "$(ProjectDir)..\..\Bin\$(PlatformName)"
+
+REM Copy used dll's that this dll depends on, to Bin folder for this Build-platform 
+COPY "$(SolutionDir)..\..\Sweco.SIF.Common\Bin\$(PlatformName)\Sweco.SIF.Common.*" "$(ProjectDir)..\..\Bin\$(PlatformName)"
+COPY "$(SolutionDir)..\..\Sweco.SIF.GIS\Bin\$(PlatformName)\Sweco.SIF.GIS.*" "$(ProjectDir)..\..\Bin\$(PlatformName)"
+COPY "$(SolutionDir)..\..\Sweco.SIF.Statistics\Bin\$(PlatformName)\Sweco.SIF.Statistics.*" "$(ProjectDir)..\..\Bin\$(PlatformName)"
+
+REM Copy used dll's for Build-platform to Bin folder for this build
+COPY "$(ProjectDir)..\..\Bin\$(PlatformName)\*" "$(ProjectDir)..\..\Bin"
+</PreBuildEvent>
+  </PropertyGroup>
+</Project>

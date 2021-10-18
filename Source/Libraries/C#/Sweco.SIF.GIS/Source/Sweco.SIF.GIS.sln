@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 2012 for Windows Desktop
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sweco.SIF.GIS", "Sweco.SIF.GIS\Sweco.SIF.GIS.csproj", "{6308D05D-40BD-4AA0-94FA-B9EB8AA9D0BD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6308D05D-40BD-4AA0-94FA-B9EB8AA9D0BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6308D05D-40BD-4AA0-94FA-B9EB8AA9D0BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6308D05D-40BD-4AA0-94FA-B9EB8AA9D0BD}.Debug|x64.ActiveCfg = Debug|x64
+		{6308D05D-40BD-4AA0-94FA-B9EB8AA9D0BD}.Debug|x64.Build.0 = Debug|x64
+		{6308D05D-40BD-4AA0-94FA-B9EB8AA9D0BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6308D05D-40BD-4AA0-94FA-B9EB8AA9D0BD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6308D05D-40BD-4AA0-94FA-B9EB8AA9D0BD}.Release|x64.ActiveCfg = Release|x64
+		{6308D05D-40BD-4AA0-94FA-B9EB8AA9D0BD}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

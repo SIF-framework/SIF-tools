@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1300
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iMODclip", "iMODclip\iMODclip\iMODclip.csproj", "{594F5B26-CD3E-4B6D-80C9-0DAD3B2971A4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iMODclip.Tests", "iMODclip\iMODclip.Tests\iMODclip.Tests.csproj", "{83026E7E-9341-4F2D-AA61-8DDA11BF3EEC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{594F5B26-CD3E-4B6D-80C9-0DAD3B2971A4}.Debug|x64.ActiveCfg = Debug|x64
+		{594F5B26-CD3E-4B6D-80C9-0DAD3B2971A4}.Debug|x64.Build.0 = Debug|x64
+		{594F5B26-CD3E-4B6D-80C9-0DAD3B2971A4}.Release|x64.ActiveCfg = Release|x64
+		{594F5B26-CD3E-4B6D-80C9-0DAD3B2971A4}.Release|x64.Build.0 = Release|x64
+		{83026E7E-9341-4F2D-AA61-8DDA11BF3EEC}.Debug|x64.ActiveCfg = Debug|x64
+		{83026E7E-9341-4F2D-AA61-8DDA11BF3EEC}.Debug|x64.Build.0 = Debug|x64
+		{83026E7E-9341-4F2D-AA61-8DDA11BF3EEC}.Release|x64.ActiveCfg = Release|x64
+		{83026E7E-9341-4F2D-AA61-8DDA11BF3EEC}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {862EF60D-0948-473B-947F-2508172D1CA0}
+	EndGlobalSection
+EndGlobal
