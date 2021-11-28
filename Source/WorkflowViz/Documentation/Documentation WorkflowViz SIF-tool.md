@@ -6,6 +6,7 @@ Workflows can get complicated easily when composed of many subdirectory's and ba
 WorkflowViz is a SIF-tool for visualisation van SIF-workflows, where workflows exist of one or multiple combinations of batchfiles and corresponding logfiles and where batchfiles are run in alphabetic order.
 
 ![Figure 1.1](/Source/WorkflowViz/Documentation/media/Image11.png)
+
 Figure 1.1 Example workflow BASIS0 with subworkflows
 
 # WorkflowViz results
@@ -15,7 +16,7 @@ For the creation of the graphs the well-known open source package Graphviz is us
 
 See figure 2.1 for an example graph of a successfully executed workflow with two levels of subworkflows. For demonstration of the tool a few artificial issues have been created, see figure 2.2 and 2.3. The colour of the nodes and arrows shows the status of the batchfile(s) and/or subworkflow(s). See the below table for the definition of the colours.
 
-![Table 2.1](/Source/WorkflowViz/Documentation/media/table21.png)
+![Table 2.1](/Source/WorkflowViz/Documentation/media/Table21.png)
 
 -   Grey items are not run. Two special cases are Settings- and Runscripts-batchfiles. The "00 Settings.bat" batchfiles contain settings, do not modify data themselves and don't generate a logfile. They are important for the overview, but because they do not manipulate data they're shown in a grey colour. The same holds for "Runscripts.bat" batchfiles. These can be used to run the batchfiles of a subworkflow, but can also be skipped, for example when another Runscripts batchfile is already executed from a higher level.
 -   Green items show workflows or batchfiles that are run completely and without error messages. Also the corresponding logfiles are created after the batchfiles.
@@ -23,10 +24,12 @@ See figure 2.1 for an example graph of a successfully executed workflow with two
 -   The colour orange means that a batchfile is modified after the corresponding logfile is created in an earlier run. This earlier run might not be up to date anymore.
 -   The colour red indicates that an error is found in the logfile(s) of one or more batchfiles that are part of a subworkflow.
 
-![Figure 2.1](/Source/WorkflowViz/Documentation/media/image21.png)
+![Figure 2.1](/Source/WorkflowViz/Documentation/media/Image21.png)
+
 Figure 2.1 Example graph of a workflow without issues in its subworkflows
 
-![Figure 2.2](/Source/WorkflowViz/Documentation/media/image22.png)
+![Figure 2.2](/Source/WorkflowViz/Documentation/media/Image22.png)
+
 Figure 2.2 Example graph (at highest level) of workflow with issues in its subworkflows
 
 As described above some issues have been created to illustrate how WorkflowViz works. See the result of running the tool in figure 2.2 (level 1) and figure 2.3 (level 2). The differences between figure 2.1 and 2.2 are explained below:
@@ -39,7 +42,8 @@ As described above some issues have been created to illustrate how WorkflowViz w
 -   Workflow BASIS1:
     -   A batchfile inside workflow BASIS1 is modified after being run earlier. The results of the earlier run are possibly out of date. This is indicated by an orange colour of the subworkflow and the batchfile.
 
-![Figure 2.3](/Source/WorkflowViz/Documentation/media/image23.png)
+![Figure 2.3](/Source/WorkflowViz/Documentation/media/Image23.png)
+
 Figure 2.3 Example graph (at level 2) of workflow with issues
 
 # WorkflowViz options
