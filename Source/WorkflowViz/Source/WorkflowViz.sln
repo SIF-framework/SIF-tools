@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1300
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkflowViz", "WorkflowViz\WorkflowViz\WorkflowViz.csproj", "{3F78D903-DD73-4F9C-950E-16B3606BCE43}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkflowViz.Tests", "WorkflowViz\WorkflowViz.Tests\WorkflowViz.Tests.csproj", "{42946027-D4BB-4FCF-9705-EFF7AF75C366}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3F78D903-DD73-4F9C-950E-16B3606BCE43}.Debug|x64.ActiveCfg = Debug|x64
+		{3F78D903-DD73-4F9C-950E-16B3606BCE43}.Debug|x64.Build.0 = Debug|x64
+		{3F78D903-DD73-4F9C-950E-16B3606BCE43}.Release|x64.ActiveCfg = Release|x64
+		{3F78D903-DD73-4F9C-950E-16B3606BCE43}.Release|x64.Build.0 = Release|x64
+		{42946027-D4BB-4FCF-9705-EFF7AF75C366}.Debug|x64.ActiveCfg = Debug|x64
+		{42946027-D4BB-4FCF-9705-EFF7AF75C366}.Debug|x64.Build.0 = Debug|x64
+		{42946027-D4BB-4FCF-9705-EFF7AF75C366}.Release|x64.ActiveCfg = Release|x64
+		{42946027-D4BB-4FCF-9705-EFF7AF75C366}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6E7E74FB-2564-46D9-9595-6288713ECEC5}
+	EndGlobalSection
+EndGlobal

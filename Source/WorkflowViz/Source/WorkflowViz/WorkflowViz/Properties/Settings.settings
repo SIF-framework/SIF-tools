@@ -1,0 +1,21 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="Sweco.SIF.WorkflowViz.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="DotPath" Type="System.String" Scope="User">
+      <Value Profile="(Default)">graphviz-2.49.1\dot.exe</Value>
+    </Setting>
+    <Setting Name="Node_FontSize" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">14</Value>
+    </Setting>
+    <Setting Name="Node_Margin" Type="System.String" Scope="User">
+      <Value Profile="(Default)">0.11,0.10</Value>
+    </Setting>
+    <Setting Name="Fontname" Type="System.String" Scope="User">
+      <Value Profile="(Default)">arial</Value>
+    </Setting>
+    <Setting Name="LogErrorString" Type="System.String" Scope="User">
+      <Value Profile="(Default)">AN ERROR HAS OCCURRED</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>
