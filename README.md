@@ -86,7 +86,8 @@ and use when run without parameters. Currently the following tools are available
 | LayerManager  | For checking REGIS/iMOD-layermodel for inconsistencies or kD/c-calculation |
 | ReplaceLine   | For replacing line at specified linenumber within a text file    |
 | ReplaceText   | For replacing text in one or more files, optionally using regular expressions |
-| Tee           | for teeing standard output of a command to both standard output and file   |
+| Tee           | for teeing standard output of a command to both standard output and file |
+| [WorkflowViz](https://github.com/SIF-framework/SIF-tools/tree/main/Source/WorkflowViz)   | for visualisation of SIF-workflows with GraphViz-graphs          |
 
 The tools are build and tested for Windows 10, 64bit (x64) with .NET Framework 4.5.
 A release can be downloaded via: https://github.com/SIF-framework/SIF-tools/releases
