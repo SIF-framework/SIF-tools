@@ -263,6 +263,17 @@ namespace Sweco.SIF.iMOD.ASC
         /// <summary>
         /// Write ASC-file data to specified file, using specified format provider with language settings
         /// </summary>
+        /// <param name="filename"></param>
+        /// <param name="formatProvider"></param>
+        public void WriteFile(string filename, IFormatProvider formatProvider)
+        {
+            this.Filename = filename;
+            WriteFile(formatProvider, false);
+        }
+
+        /// <summary>
+        /// Write ASC-file data to file with as defined by Filename, using specified format provider with language settings
+        /// </summary>
         /// <param name="formatProvider"></param>
         /// <param name="copyLastWriteTime"></param>
         public void WriteFile(IFormatProvider formatProvider, bool copyLastWriteTime)
