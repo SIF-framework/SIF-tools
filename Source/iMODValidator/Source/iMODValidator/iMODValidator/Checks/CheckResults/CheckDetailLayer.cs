@@ -47,14 +47,14 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
             resolution = "-";
         }
 
-        public CheckDetailLayer(Model model, Check check, Package package, int kper, int ilay, Legend legend)
-            : this(check, package, kper, ilay, model.StartDate, check.GetIMODFilesPath(model), legend)
+        public CheckDetailLayer(Model model, Check check, Package package, string subString, int kper, int ilay, Legend legend)
+            : this(check, package, subString, kper, ilay, model.StartDate, check.GetIMODFilesPath(model), legend)
         {
             resolution = "-";
         }
 
-        public CheckDetailLayer(Check check, Package package, int kper, int ilay, DateTime? StartDate, string outputPath, Legend legend)
-            : base(check.Name, (package.Key != null) ? package.Key : null, kper, ilay, StartDate,
+        public CheckDetailLayer(Check check, Package package, string subString, int kper, int ilay, DateTime? StartDate, string outputPath, Legend legend)
+            : base(check.Name, package?.Key, subString, kper, ilay, StartDate,
                    new List<string>() { "X", "Y", "ClassNumber", "ClassName", "Filename(s)", "Details", "MoreDetails", "Timeseries" }, 7, outputPath, legend)
         {
             this.check = check;
@@ -71,8 +71,17 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
 
             if (this.Legend is IPFLegend)
             {
+                ((IPFLegend)this.Legend).ColumnNumber = 3;
                 ((IPFLegend)this.Legend).IsLabelShown = true;
-                ((IPFLegend)this.Legend).SelectedLabelColumns = new List<int>() { 4, 5, 6, 7 };
+                if ((legend == null) || (((IPFLegend)legend).SelectedLabelColumns == null) || (((IPFLegend)legend).SelectedLabelColumns.Count == 0))
+                {
+                    // Set default selected labels
+                    ((IPFLegend)this.Legend).SelectedLabelColumns = new List<int>() { 4, 5, 6, 7 };
+                }
+                else
+                {
+                    ((IPFLegend)this.Legend).SelectedLabelColumns = ((IPFLegend)legend).SelectedLabelColumns;
+                }
             }
 
             // Recreate IDF-filename for this checkresultlayer
@@ -108,7 +117,7 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
                 }
                 base.AddResult(checkDetail);
                 IPFPoint ipfPoint = new IPFPoint(ipfFile, new FloatPoint(x, y), new string[] {
-                    x.ToString("F3"), y.ToString("F3"),
+                    x.ToString("F3", SIFTool.EnglishCultureInfo), y.ToString("F3", SIFTool.EnglishCultureInfo),
                     checkDetail.ClassNumber.ToString(),
                     CommonUtils.EnsureDoubleQuotes(checkDetail.ClassName),
                     CommonUtils.EnsureDoubleQuotes(filenamesString),
@@ -127,7 +136,7 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
 
         public override ResultLayer Copy()
         {
-            ResultLayer resultLayer = new CheckDetailLayer(check, package, kper, ilay, startDate, outputPath, Legend);
+            ResultLayer resultLayer = new CheckDetailLayer(check, package, substring, kper, ilay, startDate, outputPath, Legend);
             resultLayer.AddSourceFiles(sourceFiles);
             return resultLayer;
         }

@@ -97,12 +97,18 @@ namespace Sweco.SIF.iMODValidator.Results
             set { levelErrorMargin = value; }
         }
         protected int minKPER;
+        /// <summary>
+        /// Minimum KPER to check. Note: KPER 0 is used for steady-state models.
+        /// </summary>
         public int MinKPER
         {
             get { return minKPER; }
             set { minKPER = value; }
         }
         protected int maxKPER;
+        /// <summary>
+        /// Maximum KPER to check. Note: KPER 0 is used for steady-state models, KPER 1 refers to first timestep in transient models. For steady-state models MaxKPER is reset to 0 automatically.
+        /// </summary>
         public int MaxKPER
         {
             get { return maxKPER; }
@@ -157,6 +163,13 @@ namespace Sweco.SIF.iMODValidator.Results
         {
         }
 
+        /// <summary>
+        /// Creates a ResultHandler object
+        /// </summary>
+        /// <param name="model"></param>
+        /// <param name="resultNoDataValue">NoData-value in resultfiles</param>
+        /// <param name="checkExtent">the extent within which the check is done</param>
+        /// <param name="creator">some string that identifies instance that created this object (e.g. toolname)</param>
         public ResultHandler(Model model, float resultNoDataValue, Extent checkExtent, string creator)
         {
             this.model = model;
@@ -177,7 +190,8 @@ namespace Sweco.SIF.iMODValidator.Results
         /// <param name="outputPath">the outputpath to write modelresults</param>
         /// <param name="resultNoDataValue">NoData-value in resultfiles</param>
         /// <param name="checkExtent">the extent within which the check is done</param>
-        public ResultHandler(string modelFilename, DateTime? startDate, string outputPath, float resultNoDataValue, Extent checkExtent)
+        /// <param name="creator">some string that identifies instance that created this object (e.g. toolname)</param>
+        public ResultHandler(string modelFilename, DateTime? startDate, string outputPath, float resultNoDataValue, Extent checkExtent, string creator)
         {
             this.model = null;
             this.baseModelFilename = modelFilename;
@@ -185,6 +199,7 @@ namespace Sweco.SIF.iMODValidator.Results
             this.outputPath = outputPath;
             this.noDataValue = resultNoDataValue;
             this.extent = checkExtent;
+            this.Creator = creator;
             Initialize();
         }
 
@@ -198,6 +213,11 @@ namespace Sweco.SIF.iMODValidator.Results
             this.resultlayersDictionary.Add(CheckError.TYPENAME, new List<ResultLayer>());
             this.resultlayersDictionary.Add(CheckWarning.TYPENAME, new List<ResultLayer>());
             this.resultlayersDictionary.Add(CheckDetail.TYPENAME, new List<ResultLayer>());
+
+            if (model.IsSteadyStateModel())
+            {
+                this.maxKPER = 0;
+            }
         }
 
         public virtual bool HasResultLayer(ResultLayer resultLayer)
@@ -502,14 +522,17 @@ namespace Sweco.SIF.iMODValidator.Results
                             // Add resultType-specific statistics for this layer to layerstatistics
                             if (layerStatistics != null)
                             {
-                                if (layerStatistics.Contains(resultType))
+                                if (!layerStatistics.Contains(resultType))
+                                {
+                                    ResultLayerStatistics resultLayerStatistics = resultLayer.CreateResultLayerStatistics(resultFilename, resultLocationCount);
+                                    layerStatistics.Add(resultType, resultLayerStatistics);
+
+                                    summaryResultTable.AddRow(layerStatistics);
+                                }
+                                else
                                 {
                                     throw new Exception("A resultlayer of type '" + resultType.ToString() + "' has been added twice. Check '" + resultLayer.Id + "'-implementation");
                                 }
-                                ResultLayerStatistics resultLayerStatistics = resultLayer.CreateResultLayerStatistics(resultFilename, resultLocationCount);
-                                layerStatistics.Add(resultType, resultLayerStatistics);
-
-                                summaryResultTable.AddRow(layerStatistics);
                             }
                         }
                     }
@@ -523,7 +546,7 @@ namespace Sweco.SIF.iMODValidator.Results
 
         public virtual LayerStatistics CreateLayerStatistics(ResultLayer resultLayer, string stressperiodString)
         {
-            return new LayerStatistics(RetrieveLayerStatisticsMainType(resultLayer), RetrieveLayerStatisticsSubType(resultLayer), RetrieveLayerStatisticsMessageType(resultLayer), resultLayer.ILay, stressperiodString);
+            return new LayerStatistics((resultLayer.ResultFile != null) ? resultLayer.ResultFile.Filename : string.Empty, RetrieveLayerStatisticsMainType(resultLayer), RetrieveLayerStatisticsSubType(resultLayer), RetrieveLayerStatisticsMessageType(resultLayer), resultLayer.ILay, stressperiodString);
         }
 
         protected virtual string RetrieveLayerStatisticsMainType(ResultLayer resultLayer)
@@ -564,7 +587,9 @@ namespace Sweco.SIF.iMODValidator.Results
                     // {
                     summaryLayer.ResultFile.Legend = SummaryLegend.CreateSummaryLegend(summaryLayer.ResultFile.MaxValue, resultType, summaryLayer.ResultFile.Filename);
                     // }
-                    imfFile.AddMap(new Map(summaryLayer.ResultFile.Legend, summaryLayer.ResultFile.Filename));
+                    Map summaryMap = IMFFile.CreateMap(summaryLayer.ResultFile.Legend, summaryLayer.ResultFile.Filename);
+                    summaryMap.Selected = true;
+                    imfFile.AddMap(summaryMap);
                 }
             }
 
@@ -588,7 +613,7 @@ namespace Sweco.SIF.iMODValidator.Results
                             {
                                 legend = resultFile.CreateLegend("iMODValidator result file for layer ");
                             }
-                            imfFile.AddMap(new Map(legend, resultFile.Filename));
+                            imfFile.AddMap(legend, resultFile.Filename);
 
                             // add source files as extra mapfiles if present
                             foreach (IMODFile sourceFile in resultLayer.SourceFiles)
@@ -609,11 +634,11 @@ namespace Sweco.SIF.iMODValidator.Results
                     {
                         if (imodFile.Legend != null)
                         {
-                            imfFile.AddMap(new Map(imodFile.Legend, imodFile.Filename));
+                            imfFile.AddMap(imodFile.Legend, imodFile.Filename);
                         }
                         else
                         {
-                            imfFile.AddMap(new Map(imodFile.CreateLegend("IMOD-file source file"), imodFile.Filename));
+                            imfFile.AddMap(imodFile.CreateLegend("IMOD-file source file"), imodFile.Filename);
                         }
                     }
                     else

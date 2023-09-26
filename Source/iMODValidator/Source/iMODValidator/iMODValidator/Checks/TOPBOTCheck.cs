@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -84,11 +85,10 @@ namespace Sweco.SIF.iMODValidator.Checks
             set { outlierMethodMultiplier = value; }
         }
 
-        public TOPBOTCheckSettings(string checkName)
-            : base(checkName)
+        public TOPBOTCheckSettings(string checkName) : base(checkName)
         {
-            minLevel = "-1250";
-            maxLevel = "175";
+            minLevel = "-1750";
+            maxLevel = "500";
             isOutlierChecked = false;
             outlierMethod = OutlierMethodEnum.IQR;
             outlierMethodBaseRange = OutlierBaseRangeEnum.Pct75_25;
@@ -97,8 +97,8 @@ namespace Sweco.SIF.iMODValidator.Checks
 
         public override void LogSettings(Log log, int logIndentLevel = 0)
         {
-            log.AddInfo("Minimum level: " + minLevel + "mNAP", logIndentLevel);
-            log.AddInfo("Maximum level: " + maxLevel + "mNAP", logIndentLevel);
+            log.AddInfo("Minimum level: " + minLevel + " m+NAP", logIndentLevel);
+            log.AddInfo("Maximum level: " + maxLevel + " m+NAP", logIndentLevel);
             if (isOutlierChecked)
             {
                 log.AddInfo("Outlier method: " + outlierMethod.ToString(), logIndentLevel);
@@ -107,7 +107,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             }
             else
             {
-                log.AddInfo("Outliers are not checked");
+                log.AddInfo("Outliers are not checked", logIndentLevel);
             }
         }
     }
@@ -182,7 +182,7 @@ namespace Sweco.SIF.iMODValidator.Checks
         {
             createCheckResultAndLegends();
 
-            log.AddInfo("Checking TOP- and BOT-packages...");
+            log.AddInfo("Checking TOP- and BOT-packages ...");
             settings.LogSettings(log, 1);
 
             // Retrieve used packages
@@ -206,15 +206,13 @@ namespace Sweco.SIF.iMODValidator.Checks
                 log.AddInfo("Checking entry " + (entryIdx + 1) + " with " + Name + " ...", 1);
 
                 // Retrieve IDF files for current layer
-                //long mem1 = GC.GetTotalMemory(true) / 1000000;
                 IDFFile topIDFFile = topPackage.GetIDFFile(entryIdx);
-                //long mem6 = GC.GetTotalMemory(true) / 1000000;
                 IDFFile botIDFFile = botPackage.GetIDFFile(entryIdx);
-                //long mem7 = GC.GetTotalMemory(true) / 1000000;
+
                 if ((topIDFFile != null) && (botIDFFile != null))
                 {
                     // Retrieve statistics for outliers
-                    log.AddInfo("Computing statistics...", 1);
+                    log.AddInfo("Computing statistics ...", 2);
                     IDFStatistics topStats = new IDFStatistics(topIDFFile);
                     IDFStatistics botStats = new IDFStatistics(botIDFFile);
                     bool isOutlierChecked = settings.IsOutlierChecked;
@@ -233,7 +231,6 @@ namespace Sweco.SIF.iMODValidator.Checks
                         botOutlierRangeLowerValue = botStats.OutlierRangeLowerValue;
                         botOutlierRangeUpperValue = botStats.OutlierRangeUpperValue;
                     }
-                    //long mem22 = GC.GetTotalMemory(true) / 1000000;
 
                     float[][] topValues = topIDFFile.Values;
                     float[][] botValues = botIDFFile.Values;
@@ -245,14 +242,12 @@ namespace Sweco.SIF.iMODValidator.Checks
                         lowerTopValues = (lowerTopIDFFile != null) ? lowerTopIDFFile.Values : null;
                     }
 
-                    //long mem36 = GC.GetTotalMemory(true) / 1000000;
-
                     // Create error IDFfile for current layer
-                    CheckErrorLayer errorLayer = CreateErrorLayer(resultHandler, botPackage, 1, entryIdx + 1, botIDFFile.XCellsize, errorLegend);
+                    CheckErrorLayer errorLayer = CreateErrorLayer(resultHandler, botPackage, null, 0, entryIdx + 1, botIDFFile.XCellsize, errorLegend);
                     errorLayer.AddSourceFiles(new List<IDFFile>() { topIDFFile, botIDFFile });
 
                     // Create warning IDFfile for current layer
-                    CheckWarningLayer warningLayer = CreateWarningLayer(resultHandler, botPackage, 1, entryIdx + 1, botIDFFile.XCellsize, warningLegend);
+                    CheckWarningLayer warningLayer = CreateWarningLayer(resultHandler, botPackage, null, 0, entryIdx + 1, botIDFFile.XCellsize, warningLegend);
                     errorLayer.AddSourceFiles(new List<IDFFile>() { topIDFFile, botIDFFile });
 
                     // Compare extent and cellsizes
@@ -352,18 +347,13 @@ namespace Sweco.SIF.iMODValidator.Checks
                     }
 
                     warningLayer.ReleaseMemory(true);
-                    long mem12 = GC.GetTotalMemory(true) / 1000000;
                     errorLayer.ReleaseMemory(true);
-                    long mem13 = GC.GetTotalMemory(true) / 1000000;
 
                     topIDFFile.ReleaseMemory(true);
-                    long mem14 = GC.GetTotalMemory(true) / 1000000;
                     botIDFFile.ReleaseMemory(true);
-                    long mem15 = GC.GetTotalMemory(true) / 1000000;
 
                     minLevelSettingIDFFile.ReleaseMemory(true);
                     maxLevelSettingIDFFile.ReleaseMemory(true);
-                    long mem4 = GC.GetTotalMemory(true) / 1000000;
                 }
                 else
                 {
@@ -373,7 +363,6 @@ namespace Sweco.SIF.iMODValidator.Checks
                 topPackage.ReleaseMemory(true);
                 botPackage.ReleaseMemory(true);
                 GC.Collect();
-                long mem5 = GC.GetTotalMemory(true) / 1000000;
             }
         }
     }

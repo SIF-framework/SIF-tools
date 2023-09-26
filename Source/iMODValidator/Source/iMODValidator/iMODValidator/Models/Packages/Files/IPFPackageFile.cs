@@ -88,7 +88,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
                 log.AddMessage(LogLevel.Trace, "Reading IPF-file " + FName + " ...", logIndentLevel);
             }
             IPFFile.UserDefinedListSeperators = iMODValidatorSettingsManager.Settings.DefaultIPFListSeperators;
-            ipfFile = IPFFile.ReadFile(FName, useLazyLoading, false, log, logIndentLevel);
+            ipfFile = IPFFile.ReadFile(FName, useLazyLoading, log, logIndentLevel);
         }
 
         public override bool Exists()

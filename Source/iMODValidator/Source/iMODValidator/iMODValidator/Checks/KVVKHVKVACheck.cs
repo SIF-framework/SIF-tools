@@ -39,151 +39,105 @@ using System.Threading.Tasks;
 namespace Sweco.SIF.iMODValidator.Checks
 {
     [TypeConverter(typeof(PropertySorter))]
-    class KVVKHVCheckSettings : CheckSettings
+    class KVVKHVKVACheckSettings : CheckSettings
     {
         public const float kValueErrorMargin = 0.001f;
 
-        private string minKHVValue;
-        private string maxKHVValue;
-        private string validKHVValues;
-        private string maxKVAL1Value;
-        private string maxKVAValue;
-        private string minKVVValue;
-        private string maxKVVValue;
-        private string validKVVValues;
-        private OutlierBaseRangeEnum khvOutlierMethodBaseRange;
-        private float khvOutlierMethodMultiplier;
-        private OutlierBaseRangeEnum kvvOutlierMethodBaseRange;
-        private float kvvOutlierMethodMultiplier;
-
         [Category("KHV-properties"), Description("The minimum valid KHV-value for this region"), PropertyOrder(10)]
-        public string MinKHVValue
-        {
-            get { return minKHVValue; }
-            set { minKHVValue = value; }
-        }
-        [Category("KHV-properties"), Description("The maximum valid KHV-value for this region"), PropertyOrder(11)]
-        public string MaxKHVValue
-        {
-            get { return maxKHVValue; }
-            set { maxKHVValue = value; }
-        }
-        [Category("KHV-properties"), Description("Comma-seperated list of extreme, valid integer KHV-values (e.g. for lakes) for this region. If grid value, higher than MaxKHVValue, equals one of these values (within errormargin), no range warning is given."), PropertyOrder(12)]
-        public string ValidKHVValues
-        {
-            get { return validKHVValues; }
-            set { validKHVValues = value; }
-        }
-        private bool isOutlierChecked;
-        [Category("KHV-properties"), Description("Specifies that outliers should be searched"), PropertyOrder(13)]
-        public bool IsOutlierChecked
-        {
-            get { return isOutlierChecked; }
-            set { isOutlierChecked = value; }
-        }
-        private OutlierMethodEnum outlierMethod;
-        [Category("KHV-properties"), Description("The method for identifying spatial outliers"), PropertyOrder(14)]
-        public OutlierMethodEnum OutlierMethod
-        {
-            get { return outlierMethod; }
-            set { outlierMethod = value; }
-        }
-        [Category("KHV-properties"), Description("The valid base range for identifying outliers"), PropertyOrder(15)]
-        public OutlierBaseRangeEnum KHVOutlierMethodBaseRange
-        {
-            get { return khvOutlierMethodBaseRange; }
-            set { khvOutlierMethodBaseRange = value; }
-        }
-        [Category("KHV-properties"), Description("The factor to multiply the base range"), PropertyOrder(16)]
-        public float KHVOutlierMethodMultiplier
-        {
-            get { return khvOutlierMethodMultiplier; }
-            set { khvOutlierMethodMultiplier = value; }
-        }
-        [Category("KVV-properties"), Description("The minimum valid KVV-value for this region"), PropertyOrder(17)]
-        public string MinKVVValue
-        {
-            get { return minKVVValue; }
-            set { minKVVValue = value; }
-        }
-        [Category("KVV-properties"), Description("The maximum valid KVV-value for this region"), PropertyOrder(18)]
-        public string MaxKVVValue
-        {
-            get { return maxKVVValue; }
-            set { maxKVVValue = value; }
-        }
-        [Category("KVV-properties"), Description("Comma-seperated list of extreme, valid integer KVV-values (e.g. for lakes) for this region. If grid value, higher than MaxKVVValue, equals one of these values (within errormargin), no range warning is given."), PropertyOrder(19)]
-        public string ValidKVVValues
-        {
-            get { return validKVVValues; }
-            set { validKVVValues = value; }
-        }
-        [Category("KVV-properties"), Description("The valid base range for identifying outliers"), PropertyOrder(20)]
-        public OutlierBaseRangeEnum KVVOutlierMethodBaseRange
-        {
-            get { return kvvOutlierMethodBaseRange; }
-            set { kvvOutlierMethodBaseRange = value; }
-        }
-        [Category("KVV-properties"), Description("The factor to multiply the base range"), PropertyOrder(21)]
-        public float KVVOutlierMethodMultiplier
-        {
-            get { return kvvOutlierMethodMultiplier; }
-            set { kvvOutlierMethodMultiplier = value; }
-        }
-        [Category("KVA-properties"), Description("The maximum valid KVA-value in L1 for this region (or empty to ignore and use maxKVAValue)"), PropertyOrder(22)]
-        public string MaxKVAL1Value
-        {
-            get { return maxKVAL1Value; }
-            set { maxKVAL1Value = value; }
-        }
-        [Category("KVA-properties"), Description("The maximum valid KVA-value for this region"), PropertyOrder(23)]
-        public string MaxKVAValue
-        {
-            get { return maxKVAValue; }
-            set { maxKVAValue = value; }
-        }
+        public string MinKHVValue { get; set; }
 
-        public KVVKHVCheckSettings(string checkName) : base(checkName)
+        [Category("KHV-properties"), Description("The maximum valid KHV-value for this region"), PropertyOrder(11)]
+        public string MaxKHVValue { get; set; }
+
+        [Category("KHV-properties"), Description("Comma-seperated list of extreme, valid integer KHV-values (e.g. for lakes) for this region. If grid value, higher than MaxKHVValue, equals one of these values (within errormargin), no range warning is given."), PropertyOrder(12)]
+        public string ValidKHVValues { get; set; }
+
+        [Category("KHV-properties"), Description("Specifies that outliers should be searched"), PropertyOrder(13)]
+        public bool IsOutlierChecked { get; set; }
+
+        [Category("KHV-properties"), Description("The method for identifying spatial outliers"), PropertyOrder(14)]
+        public OutlierMethodEnum OutlierMethod { get; set; }
+
+        [Category("KHV-properties"), Description("The valid base range for identifying outliers"), PropertyOrder(15)]
+        public OutlierBaseRangeEnum KHVOutlierMethodBaseRange { get; set; }
+
+        [Category("KHV-properties"), Description("The factor to multiply the base range"), PropertyOrder(16)]
+        public float KHVOutlierMethodMultiplier { get; set; }
+
+        [Category("KVV-properties"), Description("The minimum valid KVV-value for this region"), PropertyOrder(17)]
+        public string MinKVVValue { get; set; }
+
+        [Category("KVV-properties"), Description("The maximum valid KVV-value for this region"), PropertyOrder(18)]
+        public string MaxKVVValue { get; set; }
+
+        [Category("KVV-properties"), Description("Comma-seperated list of extreme, valid integer KVV-values (e.g. for lakes) for this region. If grid value, higher than MaxKVVValue, equals one of these values (within errormargin), no range warning is given."), PropertyOrder(19)]
+        public string ValidKVVValues { get; set; }
+
+        [Category("KVV-properties"), Description("The valid base range for identifying outliers"), PropertyOrder(20)]
+        public OutlierBaseRangeEnum KVVOutlierMethodBaseRange { get; set; }
+
+        [Category("KVV-properties"), Description("The factor to multiply the base range"), PropertyOrder(21)]
+        public float KVVOutlierMethodMultiplier { get; set; }
+
+        [Category("KVA-properties"), Description("The minimum valid KVA-value for this region"), PropertyOrder(22)]
+        public string MinKVAValue { get; set; }
+
+        [Category("KVA-properties"), Description("The maximum valid KVA-value for this region"), PropertyOrder(23)]
+        public string MaxKVAValue { get; set; }
+
+        [Category("KVA-properties"), Description("The maximum valid KVA-value in L1 for this region (or empty to ignore and use maxKVAValue)"), PropertyOrder(24)]
+        public string MaxKVAL1Value { get; set; }
+
+        [Category("KVA-properties"), Description("KVA-value that is allowed for dummy layers (with thickness zero) to prevent crash with PRJ/RUN-file"), PropertyOrder(24)]
+        public string DummyKVAValue { get; set; }
+
+        public KVVKHVKVACheckSettings(string checkName) : base(checkName)
         {
-            outlierMethod = OutlierMethodEnum.IQR;
-            MinKHVValue = ((float)0.05f).ToString(englishCultureInfo);
-            MaxKHVValue = "200";
+            OutlierMethod = OutlierMethodEnum.IQR;
+            MinKHVValue = ((float)0.1f).ToString(englishCultureInfo);
+            MaxKHVValue = "250";
             ValidKHVValues = string.Empty;
-            isOutlierChecked = false;
-            khvOutlierMethodBaseRange = OutlierBaseRangeEnum.Pct95_5;
-            khvOutlierMethodMultiplier = 3.95f;
+            IsOutlierChecked = false;
+            KHVOutlierMethodBaseRange = OutlierBaseRangeEnum.Pct95_5;
+            KHVOutlierMethodMultiplier = 3.95f;
+            MinKVAValue = "0.0000001";
             MaxKVAValue = "1";
             MaxKVAL1Value = "5000";
+            DummyKVAValue = "1";
             MinKVVValue = ((float)0.0000001f).ToString(englishCultureInfo); ;
             MaxKVVValue = ((float)1.0f).ToString(englishCultureInfo);
             ValidKVVValues = string.Empty;
-            kvvOutlierMethodBaseRange = OutlierBaseRangeEnum.Pct95_5;
-            kvvOutlierMethodMultiplier = 3.95f;
+            KVVOutlierMethodBaseRange = OutlierBaseRangeEnum.Pct95_5;
+            KVVOutlierMethodMultiplier = 3.95f;
         }
 
         public override void LogSettings(Log log, int logIndentLevel = 0)
         {
-            log.AddInfo("Minimum KHV-value: " + minKHVValue + " m/d", logIndentLevel);
-            log.AddInfo("Maximum KHV-value: " + maxKHVValue + " m/d", logIndentLevel);
-            log.AddInfo("Maximum KHV-value: " + maxKHVValue + " m/d", logIndentLevel);
-            if (!maxKVAL1Value.Equals(string.Empty))
+            log.AddInfo("Minimum KHV-value: " + MinKHVValue + " m/d", logIndentLevel);
+            log.AddInfo("Maximum KHV-value: " + MaxKHVValue + " m/d", logIndentLevel);
+            log.AddInfo("Maximum KHV-value: " + MaxKHVValue + " m/d", logIndentLevel);
+            if (!MaxKVAL1Value.Equals(string.Empty))
             {
-                log.AddInfo("Extreme, valid KHV-values L1: " + maxKVAL1Value, logIndentLevel);
+                log.AddInfo("Extreme, valid KHV-values L1: " + MaxKVAL1Value, logIndentLevel);
             }
-            if (!maxKVAL1Value.Equals(string.Empty))
+            if (!MaxKVAL1Value.Equals(string.Empty))
             {
-                log.AddInfo("Maximum KVA-value L1: " + maxKVAL1Value, logIndentLevel);
+                log.AddInfo("Maximum KVA-value L1: " + MaxKVAL1Value, logIndentLevel);
             }
-            log.AddInfo("Maximum KVA-value: " + maxKVAValue, logIndentLevel);
-            log.AddInfo("Minimum KVV-value: " + minKVVValue + " m/d", logIndentLevel);
-            log.AddInfo("Maximum KVV-value: " + maxKVVValue + " m/d", logIndentLevel);
-            if (isOutlierChecked)
+            if (!DummyKVAValue.Equals(string.Empty))
             {
-                log.AddInfo("Outlier method: " + outlierMethod.ToString(), logIndentLevel);
-                log.AddInfo("KHV outlier base range method: " + khvOutlierMethodBaseRange.ToString(), logIndentLevel);
-                log.AddInfo("KHV outlier base range multiplier: " + khvOutlierMethodMultiplier.ToString(), logIndentLevel);
-                log.AddInfo("KVV outlier base range method: " + kvvOutlierMethodBaseRange.ToString(), logIndentLevel);
-                log.AddInfo("KVV Outlier base range multiplier: " + kvvOutlierMethodMultiplier.ToString(), logIndentLevel);
+                log.AddInfo("KVA-value for dummy layers: " + DummyKVAValue, logIndentLevel);
+            }
+            log.AddInfo("Maximum KVA-value: " + MaxKVAValue, logIndentLevel);
+            log.AddInfo("Minimum KVV-value: " + MinKVVValue + " m/d", logIndentLevel);
+            log.AddInfo("Maximum KVV-value: " + MaxKVVValue + " m/d", logIndentLevel);
+            if (IsOutlierChecked)
+            {
+                log.AddInfo("Outlier method: " + OutlierMethod.ToString(), logIndentLevel);
+                log.AddInfo("KHV outlier base range method: " + KHVOutlierMethodBaseRange.ToString(), logIndentLevel);
+                log.AddInfo("KHV outlier base range multiplier: " + KHVOutlierMethodMultiplier.ToString(), logIndentLevel);
+                log.AddInfo("KVV outlier base range method: " + KVVOutlierMethodBaseRange.ToString(), logIndentLevel);
+                log.AddInfo("KVV Outlier base range multiplier: " + KVVOutlierMethodMultiplier.ToString(), logIndentLevel);
             }
             else
             {
@@ -192,7 +146,7 @@ namespace Sweco.SIF.iMODValidator.Checks
         }
     }
 
-    class KVVKHVCheck : Check
+    class KVVKHVKVACheck : Check
     {
         // Define available errors and warnings
         protected CheckError KHVZeroValueError;
@@ -202,11 +156,12 @@ namespace Sweco.SIF.iMODValidator.Checks
         protected CheckError KVVNegativeValueError;
         protected CheckError KVVInconsistentValuesError;
         protected CheckError KVANoDataValueError;
+        protected CheckError KVAZeroValueError;
         protected CheckError KVANegativeValueError;
         protected CheckError KVAInconsistentValuesError;
         protected CheckWarning KHVNotZeroValueWarning;
         protected CheckWarning KVVNotZeroValueWarning;
-        protected CheckWarning KVANotZeroValueWarning;
+        protected CheckWarning KVANonNoDataValueWarning;
         protected CheckWarning KHVRangeWarning;
         protected CheckWarning KVVRangeWarning;
         protected CheckWarning KVARangeWarning;
@@ -229,28 +184,28 @@ namespace Sweco.SIF.iMODValidator.Checks
 
         public override string Description
         {
-            get { return "Checks KHV-, KVV-, KVA-, TOP- and BOT-values per layer"; }
+            get { return "Checks KHV-, KVV-, KVA- versus TOP- and BOT-values per layer"; }
         }
 
-        private KVVKHVCheckSettings settings;
+        private KVVKHVKVACheckSettings settings;
         public override CheckSettings Settings
         {
             get { return settings; }
             set
             {
-                if (value is KVVKHVCheckSettings)
+                if (value is KVVKHVKVACheckSettings)
                 {
-                    settings = (KVVKHVCheckSettings)value;
+                    settings = (KVVKHVKVACheckSettings)value;
                 }
             }
         }
 
-        public KVVKHVCheck()
+        public KVVKHVKVACheck()
         {
-            settings = new KVVKHVCheckSettings(this.Name);
+            settings = new KVVKHVKVACheckSettings(this.Name);
         }
 
-        private void createCheckResultAndLegends()
+        private void CreateCheckResultAndLegends()
         {
             // Define KHV Errors
             KHVZeroValueError = new CheckError(1, "Unexpected zero value", "The value is not, but should be, greater than zero (aquifer-thickness is greater than zero).");
@@ -266,13 +221,16 @@ namespace Sweco.SIF.iMODValidator.Checks
 
             // Define KVA Errors
             KVANoDataValueError = new CheckError(1, "Unexpected NoData value", "The value is, but should not be, NoData (aquitard-thickness is greater than zero).");
-            KVANegativeValueError = new CheckError(2, "Unexpected value", "The value is not, but should be, greater than or equal to zero");
-            KVAInconsistentValuesError = new CheckError(4, "Inconsistent values", "TOP, BOT and/or KHV is unexpectedly undefined");
+            KVAZeroValueError = new CheckError(2, "Unexpected zero value", "The KVA-value should never be equal to zero (use NoData if thickness is zero).");
+            KVANegativeValueError = new CheckError(4, "Unexpected value", "The value is not, but should be, greater than or equal to zero");
+            KVAInconsistentValuesError = new CheckError(8, "Inconsistent values", "TOP, BOT and/or KHV is unexpectedly undefined");
             kvaErrorLegend = new IDFLegend("Legend for KVA-file check");
             kvaErrorLegend.AddClass(new ValueLegendClass(0, "No errors found", Color.White));
-            kvaErrorLegend.AddClass(KVANoDataValueError.CreateLegendValueClass(Color.Red, true));
-            kvaErrorLegend.AddClass(KHVNegativeValueError.CreateLegendValueClass(Color.Firebrick, true));
-            kvaErrorLegend.AddClass(KVAInconsistentValuesError.CreateLegendValueClass(Color.Orange, true));
+            kvaErrorLegend.AddClass(KVANoDataValueError.CreateLegendValueClass(Color.Orange, true));
+            kvaErrorLegend.AddClass(KVAZeroValueError.CreateLegendValueClass(Color.Red, true));
+            kvaErrorLegend.AddClass(KVANegativeValueError.CreateLegendValueClass(Color.Firebrick, true));
+            kvaErrorLegend.AddClass(KVAInconsistentValuesError.CreateLegendValueClass(Color.Purple, true));
+            kvaErrorLegend.AddUpperRangeClass(CombinedResultLabel, true);
             kvaErrorLegend.AddInbetweenClasses(CombinedResultLabel, true);
 
             // Define KVV Errors
@@ -304,12 +262,12 @@ namespace Sweco.SIF.iMODValidator.Checks
             }
 
             // Define KVA warnings
-            KVANotZeroValueWarning = new CheckWarning(1, "Unexpected non-zero value", "The value is not, but should be, zero or NoData (aquitard-thickness is zero).");
+            KVANonNoDataValueWarning = new CheckWarning(1, "Unexpected non-NoData value", "The value is not, but should be NoData (aquifer-thickness is zero).");
             KVARangeWarning = new CheckWarning(2, "Value outside expected range [0," + settings.MaxKVAValue.ToString());
             //KVAOutlierWarning = new CheckWarning(8, "Outlier");
             kvaWarningLegend = new IDFLegend("Legend for KVA-file check");
             kvaWarningLegend.AddClass(new ValueLegendClass(0, "No warnings found", Color.White));
-            kvaWarningLegend.AddClass(KVANotZeroValueWarning.CreateLegendValueClass(Color.Blue, true));
+            kvaWarningLegend.AddClass(KVANonNoDataValueWarning.CreateLegendValueClass(Color.Blue, true));
             kvaWarningLegend.AddClass(KVARangeWarning.CreateLegendValueClass(Color.Orange, true));
             //if (settings.IsOutlierChecked)
             //{
@@ -337,9 +295,9 @@ namespace Sweco.SIF.iMODValidator.Checks
 
         public override void Run(Model model, CheckResultHandler resultHandler, Log log)
         {
-            createCheckResultAndLegends();
+            CreateCheckResultAndLegends();
 
-            log.AddInfo("Checking KVV-, KHV, and KVA-packages...");
+            log.AddInfo("Checking KVV-, KHV, and KVA-packages ...");
             settings.LogSettings(log, 1);
             RunKvvKhvCheck1(model, resultHandler, log);
         }
@@ -378,8 +336,10 @@ namespace Sweco.SIF.iMODValidator.Checks
             // Retrieve IDF settingfiles
             IDFFile minKHVSettingIDFFile = settings.GetIDFFile(settings.MinKHVValue, log, 1);
             IDFFile maxKHVSettingIDFFile = settings.GetIDFFile(settings.MaxKHVValue, log, 1);
+            IDFFile minKVASettingIDFFile = settings.GetIDFFile(settings.MinKVAValue, log, 1);
             IDFFile maxKVASettingIDFFile = settings.GetIDFFile(settings.MaxKVAValue, log, 1);
             IDFFile maxKVAL1SettingIDFFile = settings.GetIDFFile(settings.MaxKVAL1Value, log, 1);
+            IDFFile dummyKVAValueIDFFile = settings.GetIDFFile(settings.DummyKVAValue, log, 1);
             IDFFile minKVVSettingIDFFile = settings.GetIDFFile(settings.MinKVVValue, log, 1);
             IDFFile maxKVVSettingIDFFile = settings.GetIDFFile(settings.MaxKVVValue, log, 1);
 
@@ -404,8 +364,9 @@ namespace Sweco.SIF.iMODValidator.Checks
                 IDFFile khvIDFFile = khvPackage.GetIDFFile(entryIdx);
                 IDFFile kvvIDFFile = (entryIdx < kvvPackage.GetEntryCount()) ? kvvPackage.GetIDFFile(entryIdx) : null; // Check for non-existing last kvv-layer
                 IDFFile kvaIDFFile = (kvaPackage != null) ? kvaPackage.GetIDFFile(entryIdx) : null;
-                IDFFile lowerTopIDFFile = ((topPackage != null) && (entryIdx < topPackage.GetEntryCount() - 1)) ? topPackage.GetIDFFile(entryIdx + 1) : null; // If there is a layer below the current layer retrieve its TOP-file
-
+                IDFFile lowerTOPIDFFile = ((topPackage != null) && (entryIdx < topPackage.GetEntryCount() - 1)) ? topPackage.GetIDFFile(entryIdx + 1) : null; // If there is a layer below the current layer retrieve its TOP-file
+                IDFFile lowerBOTIDFFile = ((botPackage != null) && (entryIdx < botPackage.GetEntryCount() - 1)) ? botPackage.GetIDFFile(entryIdx + 1) : null; // If there is a layer below the current layer retrieve its BOT-file
+                
                 // Check retrieved IDF-files
                 if (topIDFFile == null)
                 {
@@ -427,9 +388,14 @@ namespace Sweco.SIF.iMODValidator.Checks
                     log.AddWarning(kvvPackage.Key, null, "KVV IDF-file missing for entry " + (entryIdx + 1) + ", check is canceled", 1);
                     return;
                 }
-                if ((lowerTopIDFFile == null) && (entryIdx < topPackage.GetEntryCount() - 1))
+                if ((lowerTOPIDFFile == null) && (entryIdx < topPackage.GetEntryCount() - 1))
                 {
                     log.AddWarning(topPackage.Key, null, "TOP IDF-file missing for entry " + (entryIdx + 2) + ", check is canceled", 1);
+                    return;
+                }
+                if ((lowerBOTIDFFile == null) && (entryIdx < botPackage.GetEntryCount() - 1))
+                {
+                    log.AddWarning(botPackage.Key, null, "BOT IDF-file missing for entry " + (entryIdx + 2) + ", check is canceled", 1);
                     return;
                 }
                 if (kvaIDFFile == null)
@@ -445,7 +411,6 @@ namespace Sweco.SIF.iMODValidator.Checks
                 {
                     // Retrieve statistics for outliers
                     log.AddInfo("Computing outlier statistics...", 1);
-                    //long mem = GC.GetTotalMemory(true) / 1000000;
                     IDFStatistics khvStats = new IDFStatistics(khvIDFFile);
                     khvStats.AddSkippedValue(0.0f);
                     khvStats.ComputeOutlierStatistics(settings.OutlierMethod, settings.KHVOutlierMethodBaseRange, settings.KHVOutlierMethodMultiplier);
@@ -469,45 +434,47 @@ namespace Sweco.SIF.iMODValidator.Checks
                 idfCellIterator.AddIDFFile(khvIDFFile);
                 idfCellIterator.AddIDFFile(kvvIDFFile);
                 idfCellIterator.AddIDFFile(kvaIDFFile);
-                idfCellIterator.AddIDFFile(lowerTopIDFFile);
+                idfCellIterator.AddIDFFile(lowerTOPIDFFile);
+                idfCellIterator.AddIDFFile(lowerBOTIDFFile);
                 idfCellIterator.AddIDFFile(minKHVSettingIDFFile);
                 idfCellIterator.AddIDFFile(maxKHVSettingIDFFile);
                 idfCellIterator.AddIDFFile(maxKVASettingIDFFile);
                 idfCellIterator.AddIDFFile(maxKVAL1SettingIDFFile);
+                idfCellIterator.AddIDFFile(dummyKVAValueIDFFile);
                 idfCellIterator.AddIDFFile(minKVVSettingIDFFile);
                 idfCellIterator.AddIDFFile(maxKVVSettingIDFFile);
-                idfCellIterator.CheckExtent(log, 2);
+                idfCellIterator.CheckExtent(log, 2, LogLevel.Warning);
 
                 // Create error IDFfiles for current layer
-                CheckErrorLayer khvErrorLayer = CreateErrorLayer(resultHandler, khvPackage, 1, entryIdx + 1, idfCellIterator.XStepsize, khvErrorLegend);
+                CheckErrorLayer khvErrorLayer = CreateErrorLayer(resultHandler, khvPackage, null, 1, entryIdx + 1, idfCellIterator.XStepsize, khvErrorLegend);
                 khvErrorLayer.AddSourceFile(khvIDFFile);
 
                 CheckErrorLayer kvvErrorLayer = null;
                 if (kvvIDFFile != null)
                 {
-                    kvvErrorLayer = CreateErrorLayer(resultHandler, kvvPackage, 1, entryIdx + 1, idfCellIterator.XStepsize, kvvErrorLegend);
+                    kvvErrorLayer = CreateErrorLayer(resultHandler, kvvPackage, null, 1, entryIdx + 1, idfCellIterator.XStepsize, kvvErrorLegend);
                     kvvErrorLayer.AddSourceFile(kvvIDFFile);
                 }
 
                 CheckErrorLayer kvaErrorLayer = null;
                 if (kvaIDFFile != null)
                 {
-                    kvaErrorLayer = CreateErrorLayer(resultHandler, kvaPackage, 1, entryIdx + 1, idfCellIterator.XStepsize, kvaErrorLegend);
+                    kvaErrorLayer = CreateErrorLayer(resultHandler, kvaPackage, null, 1, entryIdx + 1, idfCellIterator.XStepsize, kvaErrorLegend);
                     kvaErrorLayer.AddSourceFile(kvaIDFFile);
                 }
 
                 // Create warning IDFfiles for current layer
-                CheckWarningLayer khvWarningLayer = CreateWarningLayer(resultHandler, khvPackage, 1, entryIdx + 1, idfCellIterator.XStepsize, khvWarningLegend);
+                CheckWarningLayer khvWarningLayer = CreateWarningLayer(resultHandler, khvPackage, null, 0, entryIdx + 1, idfCellIterator.XStepsize, khvWarningLegend);
                 khvWarningLayer.AddSourceFile(khvIDFFile);
 
                 CheckWarningLayer kvvWarningLayer = null;
                 if (kvvIDFFile != null)
                 {
-                    kvvWarningLayer = CreateWarningLayer(resultHandler, kvvPackage, 1, entryIdx + 1, idfCellIterator.XStepsize, kvvWarningLegend);
+                    kvvWarningLayer = CreateWarningLayer(resultHandler, kvvPackage, null, 0, entryIdx + 1, idfCellIterator.XStepsize, kvvWarningLegend);
                     kvvWarningLayer.AddSourceFile(kvvIDFFile);
                 }
 
-                CheckWarningLayer kvaWarningLayer = CreateWarningLayer(resultHandler, kvaPackage, 1, entryIdx + 1, idfCellIterator.XStepsize, kvaWarningLegend);
+                CheckWarningLayer kvaWarningLayer = CreateWarningLayer(resultHandler, kvaPackage, null, 0, entryIdx + 1, idfCellIterator.XStepsize, kvaWarningLegend);
                 kvaWarningLayer.AddSourceFile(kvaIDFFile);
 
                 // Iterate through cells
@@ -524,11 +491,14 @@ namespace Sweco.SIF.iMODValidator.Checks
                         float khvValue = idfCellIterator.GetCellValue(khvIDFFile);
                         float kvvValue = idfCellIterator.GetCellValue(kvvIDFFile);
                         float kvaValue = idfCellIterator.GetCellValue(kvaIDFFile);
-                        float lowerTopValue = idfCellIterator.GetCellValue(lowerTopIDFFile);
+                        float lowerTOPValue = idfCellIterator.GetCellValue(lowerTOPIDFFile);
+                        float lowerBOTValue = idfCellIterator.GetCellValue(lowerBOTIDFFile);
                         float minKHVValue = idfCellIterator.GetCellValue(minKHVSettingIDFFile);
                         float maxKHVValue = idfCellIterator.GetCellValue(maxKHVSettingIDFFile);
+                        float minKVAValue = idfCellIterator.GetCellValue(minKVASettingIDFFile);
                         float maxKVAValue = idfCellIterator.GetCellValue(maxKVASettingIDFFile);
                         float maxKVAL1Value = idfCellIterator.GetCellValue(maxKVAL1SettingIDFFile);
+                        float dummyKVAValue = idfCellIterator.GetCellValue(dummyKVAValueIDFFile);
                         float minKVVValue = idfCellIterator.GetCellValue(minKVVSettingIDFFile);
                         float maxKVVValue = idfCellIterator.GetCellValue(maxKVVSettingIDFFile);
 
@@ -536,6 +506,8 @@ namespace Sweco.SIF.iMODValidator.Checks
                         // Check aquifer //
                         ///////////////////
 
+                        float aquiferThickness = float.NaN;
+                        float lowerAquiferThickness = float.NaN;
                         if (!topValue.Equals(topIDFFile.NoDataValue))
                         {
                             // aquifer TOP-value is defined
@@ -557,7 +529,7 @@ namespace Sweco.SIF.iMODValidator.Checks
 
                                         if (khvValue > maxKHVValue)
                                         {
-                                            if (!ContainsValue(validKHVValues, khvValue, KVVKHVCheckSettings.kValueErrorMargin))
+                                            if (!ContainsValue(validKHVValues, khvValue, KVVKHVKVACheckSettings.kValueErrorMargin))
                                             {
                                                 resultHandler.AddCheckResult(khvWarningLayer, x, y, KHVRangeWarning);
                                             }
@@ -565,7 +537,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                                         else if (khvValue < minKHVValue)
                                         {
                                             // Only add KHVRangeWarning below minValue if there's also an aquitard defined below
-                                            if ((botValue - lowerTopValue) > levelErrorMargin)
+                                            if ((botValue - lowerTOPValue) > levelErrorMargin)
                                             {
                                                 resultHandler.AddCheckResult(khvWarningLayer, x, y, KHVRangeWarning);
                                             }
@@ -581,43 +553,11 @@ namespace Sweco.SIF.iMODValidator.Checks
                                     {
                                         // KHV-value is zero or NoData, which is as expected
                                     }
-
-                                    // aquifer has no thickness, KVA should be zero or NoData (or constant)
-                                    if (!kvaValue.Equals(0) && !kvaValue.Equals(kvaIDFFile.NoDataValue))
-                                    {
-                                        if (!(kvaIDFFile is ConstantIDFFile))
-                                        {
-                                            resultHandler.AddCheckResult(kvaWarningLayer, x, y, KVANotZeroValueWarning);
-                                        }
-
-                                        if (kvaValue < 0)
-                                        {
-                                            resultHandler.AddCheckResult(kvaErrorLayer, x, y, KVANegativeValueError);
-                                        }
-
-                                        // Also check for a range warning
-                                        if (kvaValue > maxKVAValue)
-                                        {
-                                            if ((ilay == 1) && !maxKVAL1Value.Equals(float.NaN))
-                                            {
-                                                if (kvaValue > maxKVAL1Value)
-                                                {
-                                                    resultHandler.AddCheckResult(kvaWarningLayer, x, y, KVARangeWarning);
-                                                }
-                                            }
-                                            else
-                                            {
-                                                resultHandler.AddCheckResult(kvaWarningLayer, x, y, KVARangeWarning);
-                                            }
-                                        }
-                                    }
-                                    else
-                                    {
-                                        // KVA-value is zero or NoData (or constant), which is as expected
-                                    }
                                 }
                                 else
                                 {
+                                    aquiferThickness = topValue - botValue;
+
                                     // aquifer has thickness, KHV should not be zero or NoData
                                     // Note: TOP- and BOT-values are not checked here, but are assumed to be valid
 
@@ -640,7 +580,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                                         // Also check for a range warning
                                         if (khvValue > maxKHVValue)
                                         {
-                                            if (!ContainsValue(validKHVValues, khvValue, KVVKHVCheckSettings.kValueErrorMargin))
+                                            if (!ContainsValue(validKHVValues, khvValue, KVVKHVKVACheckSettings.kValueErrorMargin))
                                             {
                                                 resultHandler.AddCheckResult(khvWarningLayer, x, y, KHVRangeWarning);
                                             }
@@ -649,7 +589,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                                         {
                                             // Only add KHVRangeWarning below minValue if there's also an aquitard defined below
                                             // This because the aquifer could be a complex
-                                            if ((botValue - lowerTopValue) > levelErrorMargin)
+                                            if ((botValue - lowerTOPValue) > levelErrorMargin)
                                             {
                                                 resultHandler.AddCheckResult(khvWarningLayer, x, y, KHVRangeWarning);
                                             }
@@ -659,41 +599,6 @@ namespace Sweco.SIF.iMODValidator.Checks
                                         if (isOutlierChecked && (khvValue > khvRangeUpperValue))
                                         {
                                             resultHandler.AddCheckResult(khvWarningLayer, x, y, KHVOutlierWarning);
-                                        }
-                                    }
-
-                                    // aquifer has thickness, KVA should not be NoData
-                                    // Note: TOP- and BOT-values are not checked here, but are assumed to be valid
-                                    if (kvaValue.Equals(kvaIDFFile.NoDataValue))
-                                    {
-                                        // Only report error if thickness is above level errormargin
-                                        if ((topValue - botValue) > levelErrorMargin)
-                                        {
-                                            resultHandler.AddCheckResult(kvaErrorLayer, x, y, KVANoDataValueError);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        // KVA-value is defined, check for negative (non-NoData) values
-                                        if (kvaValue < 0)
-                                        {
-                                            resultHandler.AddCheckResult(kvaErrorLayer, x, y, KVANegativeValueError);
-                                        }
-
-                                        // Also check for a range warning
-                                        if (kvaValue > maxKVAValue)
-                                        {
-                                            if ((ilay == 1) && !maxKVAL1Value.Equals(float.NaN))
-                                            {
-                                                if (kvaValue > maxKVAL1Value)
-                                                {
-                                                    resultHandler.AddCheckResult(kvaWarningLayer, x, y, KVARangeWarning);
-                                                }
-                                            }
-                                            else
-                                            {
-                                                resultHandler.AddCheckResult(kvaWarningLayer, x, y, KVARangeWarning);
-                                            }
                                         }
                                     }
                                 }
@@ -710,24 +615,6 @@ namespace Sweco.SIF.iMODValidator.Checks
                                 {
                                     // TOP-value is defined, but BOT- and KHV-value not. Ignore possible error: TOP without BOT: TOP-value can be the bottom of the aquitard above (TODO: check?)
                                 }
-                                if (!kvaValue.Equals(kvaIDFFile.NoDataValue))
-                                {
-                                    // aquifer TOP-value and KVA-value are defined, but BOT-value is NoData
-                                    resultHandler.AddCheckResult(kvaErrorLayer, x, y, KVAInconsistentValuesError);
-                                }
-                                else
-                                {
-                                    // TOP-value is defined, but BOT- and KVA-value not. Ignore possible error: TOP without BOT: TOP-value can be the bottom of the aquitard above (TODO: check?)
-                                }
-                                if (!kvaValue.Equals(kvaIDFFile.NoDataValue))
-                                {
-                                    // aquifer TOP-value and KVA-value are defined, but BOT-value is NoData
-                                    resultHandler.AddCheckResult(kvaErrorLayer, x, y, KVAInconsistentValuesError);
-                                }
-                                else
-                                {
-                                    // TOP-value is defined, but BOT- and KVA-value not. Ignore possible error: TOP without BOT: TOP-value can be the bottom of the aquitard above (TODO: check?)
-                                }
                             }
                         }
                         else
@@ -740,20 +627,109 @@ namespace Sweco.SIF.iMODValidator.Checks
                             }
                         }
 
+                        if (!lowerTOPValue.Equals(float.NaN) && !lowerTOPValue.Equals(lowerTOPIDFFile.NoDataValue))
+                        {
+                            if (!lowerBOTValue.Equals(float.NaN) && !lowerBOTValue.Equals(lowerBOTIDFFile.NoDataValue))
+                            {
+                                lowerAquiferThickness = lowerTOPValue - lowerBOTValue;
+                            }
+                        }
+
+                        // Check KVA-factor
+                        if (aquiferThickness > 0)
+                        {
+                            // Aquifer has thickness, KVA should not be NoData
+                            // Note: TOP- and BOT-values are not checked here, but are assumed to be valid
+                            if (kvaValue.Equals(kvaIDFFile.NoDataValue))
+                            {
+                                if (aquiferThickness > levelErrorMargin)
+                                {
+                                    // Only report error if thickness is above level errormargin
+                                    resultHandler.AddCheckResult(kvaErrorLayer, x, y, KVAInconsistentValuesError);
+                                }
+                            }
+                            else if (kvaValue.Equals(0))
+                            {
+                                // Always report zero KVA-values but differentiate between inconsistency or zero KVA-value
+                                if (aquiferThickness > levelErrorMargin)
+                                {
+                                    // Only report inconsistency error if thickness is above level errormargin
+                                    resultHandler.AddCheckResult(kvaErrorLayer, x, y, KVAInconsistentValuesError);
+                                }
+                                else
+                                {
+                                    // For now report zero value with zero thickness as an error (even with zero thickness this leads an iMOD-error (division by zero))
+                                    resultHandler.AddCheckResult(kvaErrorLayer, x, y, KVAZeroValueError);
+                                }
+                            }
+
+                            // KVA-value is defined, check for negative (non-NoData) values
+                            else if (kvaValue < 0)
+                            {
+                                resultHandler.AddCheckResult(kvaErrorLayer, x, y, KVANegativeValueError);
+                            }
+                            else
+                            {
+                                // Check for range warnings
+                                if (kvaValue < minKVAValue)
+                                {
+                                    resultHandler.AddCheckResult(kvaWarningLayer, x, y, KVARangeWarning);
+                                }
+
+                                if (kvaValue > maxKVAValue)
+                                {
+                                    if ((ilay == 1) && !maxKVAL1Value.Equals(float.NaN))
+                                    {
+                                        if (kvaValue > maxKVAL1Value)
+                                        {
+                                            resultHandler.AddCheckResult(kvaWarningLayer, x, y, KVARangeWarning);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        resultHandler.AddCheckResult(kvaWarningLayer, x, y, KVARangeWarning);
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // aquifers have no thickness, KVA should be NoData (or a constant value larger than zero)
+                            if (!kvaValue.Equals(kvaIDFFile.NoDataValue))
+                            {
+                                if (kvaValue.Equals(0))
+                                {
+                                    resultHandler.AddCheckResult(kvaErrorLayer, x, y, KVAZeroValueError);
+                                }
+                                else if (kvaValue < 0)
+                                {
+                                    resultHandler.AddCheckResult(kvaErrorLayer, x, y, KVANegativeValueError);
+                                }
+                                else if (!(kvaIDFFile is ConstantIDFFile) && !kvaValue.Equals(dummyKVAValue))
+                                { 
+                                    resultHandler.AddCheckResult(kvaWarningLayer, x, y, KVANonNoDataValueWarning);
+                                }
+                            }
+                            else
+                            {
+                                // KVA-value is NoData (or constant), which is as expected
+                            }
+                        }
+
                         ////////////////////
                         // Check aquitard //
                         ////////////////////
 
-                        if (!lowerTopValue.Equals(float.NaN))
+                        if (!lowerTOPValue.Equals(float.NaN))
                         {
                             // A TOP-file is available for the modellayer below, an aquitard might be present
                             if (!botValue.Equals(botIDFFile.NoDataValue))
                             {
                                 // aquitard topvalue (BOT-value of modellayer) is defined
-                                if (!lowerTopValue.Equals(lowerTopIDFFile.NoDataValue))
+                                if (!lowerTOPValue.Equals(lowerTOPIDFFile.NoDataValue))
                                 {
                                     // aquitard top- and bottomvalue are defined
-                                    if (botValue.Equals(lowerTopValue) || (botValue < lowerTopValue))
+                                    if (botValue.Equals(lowerTOPValue) || (botValue < lowerTOPValue))
                                     {
                                         // aquitard has no thickness, KVV should be zero or NoData
                                         if (!kvvValue.Equals(0) && !kvvValue.Equals(kvvIDFFile.NoDataValue))
@@ -763,7 +739,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                                             // Also check for a range warning
                                             if ((kvvValue < minKVVValue) || (kvvValue > maxKVVValue))
                                             {
-                                                if (!ContainsValue(validKVVValues, kvvValue, KVVKHVCheckSettings.kValueErrorMargin))
+                                                if (!ContainsValue(validKVVValues, kvvValue, KVVKHVKVACheckSettings.kValueErrorMargin))
                                                 {
                                                     resultHandler.AddCheckResult(kvvWarningLayer, x, y, KVVRangeWarning);
                                                 }
@@ -788,7 +764,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                                         if (kvvValue.Equals(0) || kvvValue.Equals(kvvIDFFile.NoDataValue))
                                         {
                                             // Only report error if thickness is above level errormargin
-                                            if ((botValue - lowerTopValue) > levelErrorMargin)
+                                            if ((botValue - lowerTOPValue) > levelErrorMargin)
                                             {
                                                 resultHandler.AddCheckResult(kvvErrorLayer, x, y, KVVZeroValueError);
                                             }
@@ -804,7 +780,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                                             // Also check for a range warning
                                             if ((kvvValue < minKVVValue) || (kvvValue > maxKVVValue))
                                             {
-                                                if (!ContainsValue(validKVVValues, kvvValue, KVVKHVCheckSettings.kValueErrorMargin))
+                                                if (!ContainsValue(validKVVValues, kvvValue, KVVKHVKVACheckSettings.kValueErrorMargin))
                                                 {
                                                     resultHandler.AddCheckResult(kvvWarningLayer, x, y, KVVRangeWarning);
                                                 }
@@ -829,7 +805,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                                         // Also check for a range warning
                                         if ((kvvValue < minKVVValue) || (kvvValue > maxKVVValue))
                                         {
-                                            if (!ContainsValue(validKVVValues, kvvValue, KVVKHVCheckSettings.kValueErrorMargin))
+                                            if (!ContainsValue(validKVVValues, kvvValue, KVVKHVKVACheckSettings.kValueErrorMargin))
                                             {
                                                 resultHandler.AddCheckResult(kvvWarningLayer, x, y, KVVRangeWarning);
                                             }
@@ -852,7 +828,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                                     // Also check for a range warning
                                     if ((kvvValue < minKVVValue) || (kvvValue > maxKVVValue))
                                     {
-                                        if (!ContainsValue(validKVVValues, kvvValue, KVVKHVCheckSettings.kValueErrorMargin))
+                                        if (!ContainsValue(validKVVValues, kvvValue, KVVKHVKVACheckSettings.kValueErrorMargin))
                                         {
                                             resultHandler.AddCheckResult(kvvWarningLayer, x, y, KVVRangeWarning);
                                         }
@@ -897,9 +873,9 @@ namespace Sweco.SIF.iMODValidator.Checks
                     resultHandler.AddExtraMapFile(topIDFFile);
                     resultHandler.AddExtraMapFile(botIDFFile);
                     resultHandler.AddExtraMapFile(kvvIDFFile);
-                    if (lowerTopIDFFile != null)
+                    if (lowerTOPIDFFile != null)
                     {
-                        resultHandler.AddExtraMapFile(lowerTopIDFFile);
+                        resultHandler.AddExtraMapFile(lowerTOPIDFFile);
                     }
                 }
 
@@ -929,9 +905,9 @@ namespace Sweco.SIF.iMODValidator.Checks
                     resultHandler.AddExtraMapFile(topIDFFile);
                     resultHandler.AddExtraMapFile(botIDFFile);
                     resultHandler.AddExtraMapFile(kvvIDFFile);
-                    if (lowerTopIDFFile != null)
+                    if (lowerTOPIDFFile != null)
                     {
-                        resultHandler.AddExtraMapFile(lowerTopIDFFile);
+                        resultHandler.AddExtraMapFile(lowerTOPIDFFile);
                     }
                 }
 

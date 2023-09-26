@@ -30,9 +30,9 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
     /// <summary>
     /// Factory class for regisering and creating package objects based on package key
     /// </summary>
-    public class PackageFactory
+    public class PackageManager
     {
-        private static PackageFactory packageFactory = null;
+        private static PackageManager packageFactory = null;
         private List<Package> packages = null;
         public List<Package> Packages
         {
@@ -40,7 +40,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
             set { packages = value; }
         }
 
-        public PackageFactory()
+        public PackageManager()
         {
             packages = new List<Package>();
             RegisterPackage(new ANIPackage(ANIPackage.DefaultKey));
@@ -49,6 +49,8 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
             RegisterPackage(new CAPPackage(CAPPackage.DefaultKey));
             RegisterPackage(new CHDPackage(CHDPackage.DefaultKey));
             RegisterPackage(new DRNPackage(DRNPackage.DefaultKey));
+            RegisterPackage(new GHBPackage(GHBPackage.DefaultKey));
+            RegisterPackage(new FHBPackage(FHBPackage.DefaultKey));
             RegisterPackage(new HFBPackage(HFBPackage.DefaultKey));
             RegisterPackage(new KDWPackage(KDWPackage.DefaultKey));
             RegisterPackage(new KHVPackage(KHVPackage.DefaultKey));
@@ -58,24 +60,23 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
             RegisterPackage(new PSTPackage(PSTPackage.DefaultKey));
             RegisterPackage(new RCHPackage(RCHPackage.DefaultKey));
             RegisterPackage(new RIVPackage(RIVPackage.DefaultKey));
+            RegisterPackage(new ISGPackage(ISGPackage.DefaultKey));
             RegisterPackage(new SHDPackage(SHDPackage.DefaultKey));
             RegisterPackage(new TOPPackage(TOPPackage.DefaultKey));
             RegisterPackage(new VCWPackage(VCWPackage.DefaultKey));
             RegisterPackage(new WELPackage(WELPackage.DefaultKey));
-            //registerPackage(new STOPackage(STOPackage.DefaultKey));
-            //registerPackage(new SFTPackage(SFTPackage.DefaultKey));
-            //registerPackage(new HEADPackage(HEADPackage.DefaultKey));
-            //registerPackage(new BDGFLFPackage(BDGFLFPackage.DefaultKey));
-            //registerPackage(new GHBPackage(GHBPackage.DefaultKey));
+            RegisterPackage(new STOPackage(STOPackage.DefaultKey));
+            RegisterPackage(new HEADPackage(HEADPackage.DefaultKey));
+            RegisterPackage(new BDGFLFPackage(BDGFLFPackage.DefaultKey));
         }
 
-        public static PackageFactory Instance
+        public static PackageManager Instance
         {
             get
             {
                 if (packageFactory == null)
                 {
-                    packageFactory = new PackageFactory();
+                    packageFactory = new PackageManager();
                 }
                 return packageFactory;
             }

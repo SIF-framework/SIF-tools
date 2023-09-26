@@ -70,9 +70,26 @@ namespace Sweco.SIF.iMODValidator.Checks
         {
             RegisterAction(new OLFCheck());
             RegisterAction(new TOPBOTCheck());
-            RegisterAction(new KVVKHVCheck());
+            RegisterAction(new KVVKHVKVACheck());
             RegisterAction(new KDCCheck());
             RegisterAction(new ANICheck());
+            RegisterAction(new STOCheck());
+
+            RegisterAction(new BNDCheck());
+
+            RegisterAction(new BDGFLFCheck());
+            RegisterAction(new HEADCheck());
+
+            RegisterAction(new ISGCheck());
+            RegisterAction(new RIVCheck());
+            RegisterAction(new RIVSpatialCheck());
+            RegisterAction(new DRNCheck());
+            RegisterAction(new DRNRIVCheck());
+
+            RegisterAction(new WELCheck());
+
+            RegisterAction(new RCHCheck());
+            RegisterAction(new MetaSWAPCheck());
         }
     }
 }

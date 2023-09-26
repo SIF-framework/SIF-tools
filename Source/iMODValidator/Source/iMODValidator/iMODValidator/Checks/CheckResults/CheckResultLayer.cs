@@ -56,6 +56,7 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
         /// </summary>
         /// <param name="check"></param>
         /// <param name="package"></param>
+        /// <param name="subString">extra substring to add after package name to (file)name of ResultLayer, use null to ignore</param>
         /// <param name="kper"></param>
         /// <param name="ilay"></param>
         /// <param name="startDate"></param>
@@ -65,8 +66,8 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
         /// <param name="outputPath"></param>
         /// <param name="legend"></param>
         /// <param name="useSparseGrid"></param>
-        public CheckResultLayer(Check check, Package package, int kper, int ilay, DateTime? startDate, Extent extent, float cellsize, float noDataValue, string outputPath, Legend legend, bool useSparseGrid = false)
-            : base(check.Name, (package != null) ? package.Key : null, kper, ilay, startDate, extent, cellsize, noDataValue, outputPath, legend, useSparseGrid)
+        public CheckResultLayer(Check check, Package package, string subString, int kper, int ilay, DateTime? startDate, Extent extent, float cellsize, float noDataValue, string outputPath, Legend legend, bool useSparseGrid = false)
+            : base(check.Name, package?.Key, subString, kper, ilay, startDate, extent, cellsize, noDataValue, outputPath, legend, useSparseGrid)
         {
             this.check = check;
             this.package = package;
@@ -88,6 +89,7 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
         /// </summary>
         /// <param name="id"></param>
         /// <param name="id2"></param>
+        /// <param name="subString"></param>
         /// <param name="kper"></param>
         /// <param name="ilay"></param>
         /// <param name="StartDate"></param>
@@ -95,8 +97,8 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
         /// <param name="textFileColumnIndex"></param>
         /// <param name="outputPath"></param>
         /// <param name="legend"></param>
-        public CheckResultLayer(string id, string id2, int kper, int ilay, DateTime? StartDate, List<string> columnNames, int textFileColumnIndex, string outputPath, Legend legend = null)
-            : base(id, id2, kper, ilay, StartDate, outputPath)
+        public CheckResultLayer(string id, string id2, string subString, int kper, int ilay, DateTime? StartDate, List<string> columnNames, int textFileColumnIndex, string outputPath, Legend legend = null)
+            : base(id, id2, subString, kper, ilay, StartDate, outputPath)
         {
             InitializeIPF(columnNames, textFileColumnIndex, legend);
         }
@@ -114,8 +116,8 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
         /// <param name="valueColumnIndex"></param>
         /// <param name="outputPath"></param>
         /// <param name="legend"></param>
-        public CheckResultLayer(Check check, Package package, int kper, int ilay, DateTime? startDate, string outputPath, Legend legend = null)
-            : this(check.Name, (package != null) ? package.Key : null, kper, ilay, startDate, new List<string>() { "X", "Y", "Value", "Message" }, -1, outputPath, legend)
+        public CheckResultLayer(Check check, Package package, string subString, int kper, int ilay, DateTime? startDate, string outputPath, Legend legend = null)
+            : this(check.Name, package?.Key, subString, kper, ilay, startDate, new List<string>() { "X", "Y", "Value", "Message" }, -1, outputPath, legend)
         {
             this.check = check;
             this.package = package;
@@ -138,7 +140,7 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
             this.resultFile = ipfFile;
             ipfFile.ColumnNames = columnNames;
             ipfFile.AssociatedFileColIdx = textFileColumnIndex;
-            this.Legend = (legend != null) ? legend.Copy() : null;
+            this.Legend = legend?.Copy();
             ipfFile.Filename = CreateResultFilename();
             ipfFile.UseLazyLoading = iMODValidatorSettingsManager.Settings.UseLazyLoading;
             ipfFile.NoDataValue = float.NaN;
@@ -206,7 +208,7 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
 
                 if (ipfPoints.Count > 1)
                 {
-                    throw new Exception("More than 1 point in IPF ResultLayer at xy-coordinates (" + x.ToString("F3") + "," + y.ToString("F3") + ") +/-" + IPFXYMargin);
+                    throw new Exception("More than 1 point in IPF ResultLayer at xy-coordinates (" + x.ToString("F3", SIFTool.EnglishCultureInfo) + "," + y.ToString("F3", SIFTool.EnglishCultureInfo) + ") +/-" + IPFXYMargin);
                 }
                 if (ipfPoints.Count == 1)
                 {
@@ -256,7 +258,7 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
             }
             else if (ipfPoints.Count > 1)
             {
-                throw new Exception("More than 1 point in IPF ResultLayer at xy-coordinates (" + x.ToString("F3") + "," + y.ToString("F3") + ") +/-" + IPFXYMargin);
+                throw new Exception("More than 1 point in IPF ResultLayer at xy-coordinates (" + x.ToString("F3", SIFTool.EnglishCultureInfo) + "," + y.ToString("F3", SIFTool.EnglishCultureInfo) + ") +/-" + IPFXYMargin);
             }
             else
             {
@@ -315,7 +317,7 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
             }
             else
             {
-                base.CompressLegend();
+                base.CompressLegend(classLabelSubString);
             }
         }
     }

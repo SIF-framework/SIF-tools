@@ -27,6 +27,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Sweco.SIF.Common;
+using Sweco.SIF.iMODValidator.Settings;
 
 namespace Sweco.SIF.iMODValidator
 {
@@ -38,6 +39,7 @@ namespace Sweco.SIF.iMODValidator
         public string RunFilename { get; set; }
         public string OutputPath { get; set; }
         public string SettingsFilename { get; set; }
+        public bool PreventIMODStart { get; set; }
 
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
@@ -48,6 +50,7 @@ namespace Sweco.SIF.iMODValidator
             RunFilename = null;
             OutputPath = null;
             SettingsFilename = null;
+            PreventIMODStart = false;
         }
 
         /// <summary>
@@ -56,9 +59,11 @@ namespace Sweco.SIF.iMODValidator
         /// </summary>
         protected override void DefineToolSyntax()
         {
-            AddToolParameterDescription("runfile", "iMOD RUN-file with references to files to check", "C:\\Test\\Input");
-            AddToolParameterDescription("outPath", "Path to write results", "C:\\Test\\Output");
-            AddToolOptionDescription("s", "Specify XML-file to retrieve iMODValidator settings from", "/s:Test\\Input\\iMODValidator.xml", "Settings are retrieved from: {0}", new string[] { "s1" });
+            AddToolParameterDescription("runfile", "iMOD RUN-file with references to files to check", "C:\\Test\\Input", 1);
+            AddToolParameterDescription("outPath", "Path to write results", "C:\\Test\\Output", 1);
+            AddToolOptionDescription("s", "specify XML-file to retrieve iMODValidator settings from", "/s:Test\\Input\\iMODValidator.xml", "Settings are retrieved from: {0}", new string[] { "s1" }, null, null, new int[] { 0, 1 });
+            AddToolOptionDescription("i", "prevent starting of iMOD (settings are overruled)", "/i", "Starting of iMOD is prevented", null, null, null, 1);
+            AddToolUsageOptionPostRemark("When run without arguments the iMODValidator user interface version is started");
         }
 
         /// <summary>
@@ -68,12 +73,16 @@ namespace Sweco.SIF.iMODValidator
         /// <param name="groupIndex">returns the index for the argument group for these parameters, 0 if only a single group is defined</param>
         protected override void ParseParameters(string[] parameters, out int groupIndex)
         {
-            if (parameters.Length == 2)
+            if (parameters.Length == 0)
+            {
+                groupIndex = 0;
+            }
+            else if (parameters.Length == 2)
             {
                 // Parse syntax 1:
                 RunFilename = parameters[0];
                 OutputPath = parameters[1];
-                groupIndex = 0;
+                groupIndex = 1;
             }
             else
             {
@@ -101,6 +110,10 @@ namespace Sweco.SIF.iMODValidator
                     throw new ToolException("Parameter value expected for option '" + optionName + "'");
                 }
             }
+            else if (optionName.ToLower().Equals("i"))
+            {
+                PreventIMODStart = true;
+            }
             else
             {
                 // specified option could not be parsed
@@ -118,7 +131,7 @@ namespace Sweco.SIF.iMODValidator
             // Perform syntax checks 
             base.CheckSettings();
 
-            // Retrieve full paths and check existance
+            // Retrieve full paths and check existancex
             if (RunFilename != null)
             {
                 RunFilename = ExpandPathArgument(RunFilename);
@@ -128,18 +141,12 @@ namespace Sweco.SIF.iMODValidator
                 }
             }
 
-            // Check tool parameters
-            if (SettingsFilename != null)
+            if (OutputPath != null)
             {
-                if (SettingsFilename.Equals(string.Empty))
-                {
-                    throw new ToolException("Settings filename cannot be empty");
-                }
-                else if (!File.Exists(SettingsFilename))
-                {
-                    throw new ToolException("Specified settingsfile not found: " + SettingsFilename);
-                }
+                OutputPath = ExpandPathArgument(OutputPath);
             }
+
+            // Check tool parameters
         }
     }
 }

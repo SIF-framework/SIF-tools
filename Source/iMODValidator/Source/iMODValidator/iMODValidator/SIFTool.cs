@@ -22,18 +22,24 @@
 using Sweco.SIF.Common;
 using Sweco.SIF.iMODValidator.Checks;
 using Sweco.SIF.iMODValidator.Exceptions;
+using Sweco.SIF.iMODValidator.Forms;
 using Sweco.SIF.iMODValidator.Settings;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace Sweco.SIF.iMODValidator
 {
     public class SIFTool : SIFToolBase
     {
+        [DllImport("kernel32.dll")]
+        public static extern bool FreeConsole();
+
         #region Constructor
 
         /// <summary>
@@ -48,20 +54,48 @@ namespace Sweco.SIF.iMODValidator
         #endregion
 
         /// <summary>
+        /// Singleton instance of iMODValidator SIFTool object
+        /// </summary>
+        public static SIFTool Instance { get; set; }
+
+        /// <summary>
         /// Entry point of tool
         /// </summary>
         /// <param name="args">command-line arguments</param>
+        [STAThread]
         static void Main(string[] args)
         {
             int exitcode = -1;
             SIFTool tool = null;
+
             try
             {
                 // Use SwecoTool Framework to handle license check, write of toolname and version, parsing arguments, writing of logfile and if specified so handling exeptions
                 SIFToolSettings settings = new SIFToolSettings(args);
                 tool = new SIFTool(settings);
 
-                exitcode = tool.Run();
+                // Store singleton instance
+                Instance = tool;
+
+                if ((args.Length == 1) && (args[0].ToLower().Equals("info") || args[0].ToLower().Equals("help")))
+                {
+                    tool.ShowUsage();
+                }
+                else
+                {
+                    // For iMODValidator first parse settings to check if GUI version should be started
+                    settings.ParseArguments();
+
+                    if ((args.Length > 0) && (settings.ParsedGroupIndex != 0))
+                    {
+                        exitcode = tool.Run(false, true, false);
+                    }
+                    else
+                    {
+                        tool.ShowForm();
+                        exitcode = 0;
+                    }
+                }
             }
             catch (ToolException ex)
             {
@@ -86,6 +120,22 @@ namespace Sweco.SIF.iMODValidator
             ToolPurpose = "SIF-tool for checking iMOD-models for a number of possible modelissues";
         }
 
+        protected virtual void ShowForm()
+        {
+            SIFToolSettings settings = (SIFToolSettings)Settings;
+
+            if (settings.SettingsFilename != null)
+            {
+                Console.Out.WriteLine("Started iMODValidator with settingsfile: " + settings.SettingsFilename);
+            }
+
+            FreeConsole();
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            MainForm mainForm = new MainForm(this, settings.SettingsFilename);
+            Application.Run(mainForm);
+        }
+
         /// <summary>
         /// Starts actual tool process after reading and checking settings
         /// </summary>
@@ -96,37 +146,17 @@ namespace Sweco.SIF.iMODValidator
 
             // Retrieve tool settings that have been parsed from the command-line arguments 
             SIFToolSettings settings = (SIFToolSettings) Settings;
+
             Validator validator = null;
             try
             {
-                base.Log.AddInfo("Starting iMODValidator from command-line: " + CommonUtils.ToString(settings.Args.ToList(), " "));
+                Log.AddInfo("Starting iMODValidator from command-line: " + CommonUtils.ToString(settings.Args.ToList(), " "));
+                Log.Filename = Path.Combine(settings.OutputPath, ToolName + "_" + DateTime.Now.ToString("dd-MM-yyyy HH:mm").Replace(":", ".") + ".log");
 
-                validator = new Validator();
-                validator.ToolName = ToolName;
-                validator.ToolVersion = ToolVersion + ", " + CopyrightNotice;
-                validator.LoadSettings(settings.SettingsFilename);
-                validator.NoDataValue = iMODValidatorSettingsManager.Settings.DefaultNoDataValue;
-                validator.Runfilename = settings.RunFilename;
-                validator.OutputPath = settings.OutputPath;
-                validator.IsModelValidated = true;
+                validator = CreateValidator(Log);
+                InitializeValidator(validator, settings);
 
-                Log.Filename = Path.Combine(validator.OutputPath, ToolName + "_" + DateTime.Now.ToString("dd-MM-yyyy HH:mm").Replace(":", ".") + ".log");
-
-                foreach (Check check in CheckManager.Instance.Checks)
-                {
-                    // First try to load settings from file
-                    try
-                    {
-                        iMODValidatorSettingsManager.LoadCheckSettings(check, check.Name, settings.SettingsFilename);
-                        check.IsActive = ((check.Settings != null) && check.Settings.IsActiveDefault);
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new Exception("Could not load Check-settings for check " + check.Name, ex);
-                    }
-                }
-
-                validator.Run(Log);
+                validator.Run();
             }
             catch (AbortException)
             {
@@ -152,7 +182,43 @@ namespace Sweco.SIF.iMODValidator
             return exitcode;
         }
 
-        public void HandleAbortException(Log log, int logIndentLevel = 0, bool showMessageBox = false)
+        protected virtual Validator CreateValidator(Log log)
+        {
+            return new Validator(Log);
+        }
+
+        protected virtual void InitializeValidator(Validator validator, SIFToolSettings settings)
+        {
+            validator.ToolName = ToolName;
+            validator.ToolVersion = ToolVersion + ", " + CopyrightNotice;
+            validator.NoDataValue = iMODValidatorSettingsManager.Settings.DefaultNoDataValue;
+            validator.RUNFilename = settings.RunFilename;
+            validator.OutputPath = settings.OutputPath;
+            validator.IsModelValidated = true;
+
+            // Load settings
+            validator.LoadSettings(settings.SettingsFilename);
+
+            // Apply overrides
+            validator.IsIMODOpened = validator.IsIMODOpened && !settings.PreventIMODStart;
+
+            // Load check settings
+            foreach (Check check in CheckManager.Instance.Checks)
+            {
+                try
+                {
+                    // Try to load settings from file
+                    iMODValidatorSettingsManager.LoadCheckSettings(check, check.Name, settings.SettingsFilename);
+                    check.IsActive = ((check.Settings != null) && check.Settings.IsActiveDefault);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Could not load Check-settings for check " + check.Name, ex);
+                }
+            }
+        }
+
+        protected void HandleAbortException(Log log, int logIndentLevel = 0, bool showMessageBox = false)
         {
             string msg = "Abort was requested. Checks are cancelled.";
             log.AddInfo("\r\n" + msg);

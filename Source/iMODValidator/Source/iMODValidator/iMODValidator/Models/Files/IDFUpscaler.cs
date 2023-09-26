@@ -95,12 +95,12 @@ namespace Sweco.SIF.iMODValidator.Models.Files
                 if (!scaledIDFFileDictionary.ContainsKey(cellsize) || ((currentAlignExtent != null) && currentAlignExtent.Equals(alignExtent)))
                 {
                     this.currentAlignExtent = alignExtent;
-                    scaledIDFFile = baseIDFFile.Upscale(cellsize, upscaleMethod, scaleExtent, alignExtent);
+                    scaledIDFFile = baseIDFFile.ScaleUp(cellsize, upscaleMethod, scaleExtent, alignExtent);
                     if (log != null)
                     {
                         log.AddInfo("Scaled IDF-file " + Path.GetFileName(baseIDFFile.Filename) + " to cellsize " + cellsize + " with upscalemethod: " + upscaleMethod.ToString(), logIndentLevel);
                     }
-                    if (savePath != null)
+                    if ((scaledIDFFile != null) && (savePath != null))
                     {
                         scaledIDFFile.WriteFile(Path.Combine(savePath, Path.GetFileName(scaledIDFFile.Filename)));
                     }

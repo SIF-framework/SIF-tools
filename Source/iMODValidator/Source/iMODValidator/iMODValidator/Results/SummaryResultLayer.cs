@@ -45,25 +45,25 @@ namespace Sweco.SIF.iMODValidator.Results
         }
 
         protected SummaryResultLayer(int kper, int ilay, DateTime? startDate, string outputPath)
-            : base(SummaryResultLayer.Name, null, kper, ilay, startDate, outputPath)
+            : base(SummaryResultLayer.Name, null, null, kper, ilay, startDate, outputPath)
         {
             this.isResultReAddingAllowed = true;
         }
 
         public SummaryResultLayer(int kper, int ilay, DateTime? startDate, Extent extent, float cellsize, float noDataValue, string outputPath, ClassLegend legend = null)
-            : base(SummaryResultLayer.Name, null, kper, ilay, startDate, extent, cellsize, noDataValue, outputPath, legend)
+            : base(SummaryResultLayer.Name, null, null, kper, ilay, startDate, extent, cellsize, noDataValue, outputPath, legend)
         {
             this.isResultReAddingAllowed = true;
         }
 
         protected SummaryResultLayer(Model model, int kper, int ilay)
-            : base(SummaryResultLayer.Name, null, kper, ilay, model.StartDate, model.ToolOutputPath)
+            : base(SummaryResultLayer.Name, null, null, kper, ilay, model.StartDate, model.ToolOutputPath)
         {
             this.isResultReAddingAllowed = true;
         }
 
         public SummaryResultLayer(Model model, int kper, int ilay, Extent extent, float cellsize, float noDataValue, ClassLegend legend = null)
-            : base(SummaryResultLayer.Name, null, kper, ilay, model.StartDate, extent, cellsize, noDataValue, model.ToolOutputPath, legend)
+            : base(SummaryResultLayer.Name, null, null, kper, ilay, model.StartDate, extent, cellsize, noDataValue, model.ToolOutputPath, legend)
         {
             this.isResultReAddingAllowed = true;
         }

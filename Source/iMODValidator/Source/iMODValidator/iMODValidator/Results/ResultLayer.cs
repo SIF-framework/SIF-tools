@@ -79,6 +79,16 @@ namespace Sweco.SIF.iMODValidator.Results
             }
         }
 
+        protected string substring;
+        /// <summary>
+        /// String that defines the id of this resultlayer as used in it's filename/path and in tables
+        /// </summary>
+        public string SubString
+        {
+            get { return substring; }
+            set { substring = value; }
+        }
+
         protected int ilay;
         public int ILay
         {
@@ -87,6 +97,9 @@ namespace Sweco.SIF.iMODValidator.Results
         }
 
         protected int kper;
+        /// <summary>
+        /// Refers to timestep for layer in model. Note: KPER 0 is used for steady-state models, KPER 1 refers to first timestep in transient models. 
+        /// </summary>
         public int KPER
         {
             get { return kper; }
@@ -214,15 +227,15 @@ namespace Sweco.SIF.iMODValidator.Results
         /// </summary>
         protected ResultLayer()
         {
-            Initialize(null, null, 1, 0, null, string.Empty);
+            Initialize(null, null, null, 1, 0, null, string.Empty);
         }
 
         /// <summary>
         /// General constructor, for inheritance
         /// </summary>
-        protected ResultLayer(string id, string id2, int kper, int ilay, DateTime? startDate, string outputPath)
+        protected ResultLayer(string id, string id2, string subString, int kper, int ilay, DateTime? startDate, string outputPath)
         {
-            Initialize(id, id2, kper, ilay, startDate, outputPath);
+            Initialize(id, id2, subString, kper, ilay, startDate, outputPath);
         }
 
         /// <summary>
@@ -230,6 +243,7 @@ namespace Sweco.SIF.iMODValidator.Results
         /// </summary>
         /// <param name="id"></param>
         /// <param name="id2"></param>
+        /// <param name="subString">extra substring to add after package name to (file)name of ResultLayer, use null to ignore</param>
         /// <param name="kper"></param>
         /// <param name="ilay"></param>
         /// <param name="startDate"></param>
@@ -239,8 +253,8 @@ namespace Sweco.SIF.iMODValidator.Results
         /// <param name="outputPath"></param>
         /// <param name="legend"></param>
         /// <param name="useSparseGrid"></param>
-        public ResultLayer(string id, string id2, int kper, int ilay, DateTime? startDate, Extent extent, float cellsize, float noDataValue, string outputPath, Legend legend = null, bool useSparseGrid = false)
-            : this(id, id2, kper, ilay, startDate, outputPath)
+        public ResultLayer(string id, string id2, string subString, int kper, int ilay, DateTime? startDate, Extent extent, float cellsize, float noDataValue, string outputPath, Legend legend = null, bool useSparseGrid = false)
+            : this(id, id2, subString, kper, ilay, startDate, outputPath)
         {
             InitializeIDF(extent, cellsize, noDataValue, legend, useSparseGrid);
         }
@@ -250,14 +264,16 @@ namespace Sweco.SIF.iMODValidator.Results
         /// </summary>
         /// <param name="id"></param>
         /// <param name="id2"></param>
+        /// <param name="subString">extra substring to add after package name to (file)name of ResultLayer, use null to ignore</param>
         /// <param name="kper"></param>
         /// <param name="ilay"></param>
         /// <param name="startDate"></param>
         /// <param name="outputPath"></param>
-        private void Initialize(string id, string id2, int kper, int ilay, DateTime? startDate, string outputPath)
+        private void Initialize(string id, string id2, string subString, int kper, int ilay, DateTime? startDate, string outputPath)
         {
             this.id = id;
             this.id2 = id2;
+            this.substring = subString;
             this.kper = kper;
             this.ilay = ilay;
             this.startDate = startDate;
@@ -311,6 +327,41 @@ namespace Sweco.SIF.iMODValidator.Results
             }
         }
 
+        public bool ContainsResult(List<int> resultValues)
+        {
+            IDFFile resultIDFFile;
+            if (resultFile is IDFFile)
+            {
+                resultIDFFile = (IDFFile)resultFile;
+            }
+            else
+            {
+                throw new Exception("Result file is no IDFFile");
+            }
+            bool hasResult = false;
+            for (int colIdx = 0; colIdx < resultIDFFile.NCols; colIdx++)
+            {
+                float x = resultIDFFile.GetX(colIdx);
+                for (int rowIdx = 0; rowIdx < resultIDFFile.NRows; rowIdx++)
+                {
+                    float y = resultIDFFile.GetY(rowIdx);
+                    int resultValue = (int)resultIDFFile.GetValue(x, y);
+                    foreach (int checkValue in resultValues)
+                    {
+                        if ((checkValue & resultValue) != 0)
+                        {
+                            hasResult = true;
+                            break;
+                        }
+                    }
+
+                }
+            }
+
+            return hasResult;
+        }
+
+
         public void ResetResultValues()
         {
             if (resultFile is IDFFile)
@@ -330,7 +381,7 @@ namespace Sweco.SIF.iMODValidator.Results
         /// <summary>
         /// Remove unused legend classes, for which no values are present in the iMOD result file
         /// </summary>
-        /// <param name="classLabelSubString">if specified, only classes with the specified substring in its label are checked for remova;</param>
+        /// <param name="classLabelSubString">if specified, only classes with the specified substring in its label are checked for removal</param>
         public virtual void CompressLegend(string classLabelSubString = null)
         {
             if (resultFile is IDFFile)
@@ -416,28 +467,27 @@ namespace Sweco.SIF.iMODValidator.Results
                 kperString = "_" + Model.GetStressPeriodString(startDate, kper);
             }
 
-            if (Id == null)
+            string resultFilePath = outputPath;
+            if (Id != null)
             {
-                if (id2 == null)
-                {
-                    return Path.Combine(outputPath, "L" + ilay + "_" + ResultType.ToLower() + "s" + kperString + "." + ResultFile.Extension);
-                }
-                else
-                {
-                    return Path.Combine(outputPath, id2 + "_L" + ilay + "_" + ResultType.ToLower() + "s" + kperString + "." + ResultFile.Extension);
-                }
+                resultFilePath = FileUtils.EnsureFolderExists(outputPath, Id);
             }
-            else
+
+            string filename = ResultType.ToLower() + "s" + kperString + "." + ResultFile.Extension;
+            if (ilay > 0)
             {
-                if (id2 == null)
-                {
-                    return Path.Combine(FileUtils.EnsureFolderExists(outputPath, Id), "L" + ilay + "_" + ResultType.ToLower() + "s" + kperString + "." + ResultFile.Extension);
-                }
-                else
-                {
-                    return Path.Combine(FileUtils.EnsureFolderExists(outputPath, Id), id2 + "_L" + ilay + "_" + ResultType.ToLower() + "s" + kperString + "." + ResultFile.Extension);
-                }
+                filename = "L" + ilay + "_" + filename;
             }
+            if (substring != null)
+            {
+                filename = substring + "_" + filename;
+            }
+            if (id2 != null)
+            {
+                filename = id2 + "_" + filename;
+            }
+
+            return Path.Combine(resultFilePath, filename);
         }
 
         /// <summary>
@@ -502,8 +552,8 @@ namespace Sweco.SIF.iMODValidator.Results
 
         public bool Equals(ResultLayer other)
         {
-            return ((this.ResultFile == null) || (other.ResultFile == null)
-                        || (Path.GetFileName(this.ResultFile.Filename).ToUpper().Equals(Path.GetFileName(other.ResultFile.Filename).ToUpper())))
+            return ((this.ResultFile != null) && (other.ResultFile != null)
+                        && (Path.GetFileName(this.ResultFile.Filename).ToUpper().Equals(Path.GetFileName(other.ResultFile.Filename).ToUpper())))
                    && this.kper.Equals(other.kper) && this.Id.Equals(other.Id) && this.id2.Equals(other.id2) && (this.ilay == other.ilay) && (this.KPER.Equals(other.KPER));
         }
 

@@ -78,21 +78,20 @@ namespace Sweco.SIF.iMODValidator.Checks
             set { maxLevel = value; }
         }
 
-        public OLFCheckSettings(string checkName)
-            : base(checkName)
+        public OLFCheckSettings(string checkName) : base(checkName)
         {
             distanceBelowSurface = "1";
             minLevel = "-20";
-            maxLevel = "175";
+            maxLevel = "500";
             useDRN_L1 = false;
             upscaleMethod = UpscaleMethodEnum.Minimum;
         }
 
         public override void LogSettings(Log log, int logIndentLevel = 0)
         {
-            log.AddInfo("Distance below surface (legend class level): " + distanceBelowSurface + "m-mv", logIndentLevel);
-            log.AddInfo("Minimum level: " + minLevel + " mNAP", logIndentLevel);
-            log.AddInfo("Maximum level: " + maxLevel + " mNAP", logIndentLevel);
+            log.AddInfo("Distance below surface (legend class level): " + distanceBelowSurface + " m-mv", logIndentLevel);
+            log.AddInfo("Minimum level: " + minLevel + " m+NAP", logIndentLevel);
+            log.AddInfo("Maximum level: " + maxLevel + " m+NAP", logIndentLevel);
             log.AddInfo("Using DRN_L1: " + useDRN_L1.ToString(), logIndentLevel);
             log.AddInfo("Upscale method: " + upscaleMethod.ToString(), logIndentLevel);
         }
@@ -123,6 +122,8 @@ namespace Sweco.SIF.iMODValidator.Checks
             }
         }
 
+        private IDFPackage olfPackage;
+
         private CheckError OLFDefinedLevelOrLessBelowSurfaceError;
         private CheckError OLFDefinedLevelOrMoreBelowSurfaceError;
         private CheckWarning RangeWarning;
@@ -131,6 +132,8 @@ namespace Sweco.SIF.iMODValidator.Checks
 
         public OLFCheck()
         {
+            olfPackage = null;
+
             settings = new OLFCheckSettings(this.Name);
 
             // Define errors
@@ -154,6 +157,14 @@ namespace Sweco.SIF.iMODValidator.Checks
         public override void Run(Model model, CheckResultHandler resultHandler, Log log)
         {
             log.AddInfo("Checking OLF-package...");
+
+            RetrievePackages(model, log);
+            if (olfPackage == null)
+            {
+                // OLF-package not defined, warning has already been shown
+                return;
+            }
+
             settings.LogSettings(log, 1);
             RunOLFCheck1(model, resultHandler, log);
         }
@@ -161,16 +172,169 @@ namespace Sweco.SIF.iMODValidator.Checks
         private void RunOLFCheck1(Model model, CheckResultHandler resultHandler, Log log)
         {
             // Retrieve used packages
-            IDFPackage olfPackage = (IDFPackage)model.GetPackage(OLFPackage.DefaultKey);
+            RetrievePackages(model, log);
+
+            // Check all KPERs
+            for (int kper = resultHandler.MinKPER; (kper <= model.NPER) && (kper <= resultHandler.MaxKPER); kper++)
+            {
+                if (model.NPER > 1)
+                {
+                    log.AddMessage(LogLevel.Info, "Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + "...", 1);
+                }
+                else
+                {
+                    log.AddMessage(LogLevel.Trace, "Checking OLF-file ...", 1);
+                }
+
+                IDFFile olfIDFFile = null;
+                if (olfPackage != null)
+                {
+                    olfIDFFile = olfPackage.GetIDFFile(0, OLFPackage.OLFPartIdx, kper);
+                    if (olfIDFFile == null)
+                    {
+                        log.AddWarning("No OLF-file found, check the logfile/runfile for errors.", 1);
+                        return;
+                    }
+                }
+                else if (kper == 0)
+                {
+                    // No OLF-file defined, check for optional use of DRN_L1 file
+                    if (settings.UseDRN_L1)
+                    {
+                        IDFPackage drnPackage = (IDFPackage)model.GetPackage(DRNPackage.DefaultKey);
+                        if ((drnPackage != null) && drnPackage.IsActive)
+                        {
+                            olfIDFFile = drnPackage.GetIDFFile(0, DRNPackage.LevelPartIdx, kper);
+                            if (olfIDFFile == null)
+                            {
+                                log.AddWarning(this.Name, model.Runfilename, "DRN_L1 file not found, OLF-check is skipped", 1);
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            log.AddWarning(this.Name, model.Runfilename, "No (active) DRN-package, OLF-check is skipped.", 1);
+                            return;
+                        }
+                    }
+                }
+
+                IDFFile surfacelevelIDFFile = model.RetrieveSurfaceLevelFile(log, 1);
+                if (surfacelevelIDFFile == null)
+                {
+                    log.AddWarning("No surface level file defined, check is skipped.", 1);
+                    return;
+                }
+
+                IDFUpscaler surfacelevelUpscaler = new IDFUpscaler(surfacelevelIDFFile, settings.UpscaleMethod, resultHandler.Extent, GetIMODFilesPath(model), log, 2);
+                IDFFile scaledSurfacelevelIDFFile = surfacelevelUpscaler.RetrieveIDFFile(olfIDFFile.XCellsize);
+
+                // Retrieve setting-values
+                IDFFile distanceBelowSurfaceSettingIDFFile = settings.GetIDFFile(settings.DistanceBelowSurface, log, 1);
+                IDFFile minLevelSettingIDFFile = settings.GetIDFFile(settings.MinLevel, log, 1);
+                IDFFile maxLevelSettingIDFFile = settings.GetIDFFile(settings.MaxLevel, log, 1);
+
+                double levelErrorMargin = resultHandler.LevelErrorMargin;
+                IDFCellIterator idfCellIterator = new IDFCellIterator(resultHandler.Extent);
+                idfCellIterator.AddIDFFile(scaledSurfacelevelIDFFile);
+                idfCellIterator.AddIDFFile(olfIDFFile);
+
+                idfCellIterator.AddIDFFile(distanceBelowSurfaceSettingIDFFile);
+                idfCellIterator.AddIDFFile(minLevelSettingIDFFile);
+                idfCellIterator.AddIDFFile(maxLevelSettingIDFFile);
+
+                idfCellIterator.CheckExtent(log, 2, LogLevel.Warning);
+
+                // Create error IDFfiles for current layer
+                CheckErrorLayer errorLayer = CreateErrorLayer(resultHandler, olfPackage, null, kper, 1, idfCellIterator.XStepsize, errorLegend);
+                errorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
+
+                // Create warning IDFfiles for current layer
+                CheckWarningLayer warningLayer = CreateWarningLayer(resultHandler, olfPackage, null, kper, 1, idfCellIterator.XStepsize, warningLegend);
+                errorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
+
+                // Iterate through cells
+                idfCellIterator.Reset();
+                while (idfCellIterator.IsInsideExtent())
+                {
+                    float scaledSurfacelevelValue = idfCellIterator.GetCellValue(scaledSurfacelevelIDFFile);
+                    float olfValue = idfCellIterator.GetCellValue(olfIDFFile);
+
+                    float distanceBelowSurfaceSettingValue = idfCellIterator.GetCellValue(distanceBelowSurfaceSettingIDFFile);
+                    float minLevelSettingValue = idfCellIterator.GetCellValue(minLevelSettingIDFFile);
+                    float maxLevelSettingValue = idfCellIterator.GetCellValue(maxLevelSettingIDFFile);
+                    float x = idfCellIterator.X;
+                    float y = idfCellIterator.Y;
+
+                    if (!olfValue.Equals(olfIDFFile.NoDataValue))
+                    {
+                        if (!scaledSurfacelevelValue.Equals(float.NaN) && !scaledSurfacelevelValue.Equals(surfacelevelIDFFile.NoDataValue))
+                        {
+                            if (olfValue < (scaledSurfacelevelValue - levelErrorMargin))
+                            {
+                                if ((scaledSurfacelevelValue - olfValue) < distanceBelowSurfaceSettingValue)
+                                {
+                                    resultHandler.AddCheckResult(errorLayer, x, y, OLFDefinedLevelOrLessBelowSurfaceError);
+                                }
+                                else
+                                {
+                                    resultHandler.AddCheckResult(errorLayer, x, y, OLFDefinedLevelOrMoreBelowSurfaceError);
+                                }
+                            }
+                        }
+
+                        // Check for a range warning
+                        if ((olfValue < minLevelSettingValue) || (olfValue > maxLevelSettingValue))
+                        {
+                            resultHandler.AddCheckResult(warningLayer, x, y, RangeWarning);
+                        }
+                    }
+
+                    idfCellIterator.MoveNext();
+                }
+
+                // Write OLF-bottom errors
+                if (errorLayer.HasResults())
+                {
+                    errorLayer.CompressLegend(CombinedResultLabel);
+                    errorLayer.WriteResultFile(log);
+                    if (surfacelevelIDFFile != null)
+                    {
+                        resultHandler.AddExtraMapFile(surfacelevelIDFFile);
+                        if ((surfacelevelIDFFile != null) && (scaledSurfacelevelIDFFile != null) && !scaledSurfacelevelIDFFile.XCellsize.Equals(surfacelevelIDFFile.XCellsize))
+                        {
+                            resultHandler.AddExtraMapFile(scaledSurfacelevelIDFFile);
+                        }
+                    }
+                    resultHandler.AddExtraMapFile(olfIDFFile);
+                }
+
+                // Write OLF-bottom warnings
+                if (warningLayer.HasResults())
+                {
+                    warningLayer.CompressLegend(CombinedResultLabel);
+                    warningLayer.WriteResultFile(log);
+                    resultHandler.AddExtraMapFile(olfIDFFile);
+                    if ((surfacelevelIDFFile != null) && (scaledSurfacelevelIDFFile != null) && !scaledSurfacelevelIDFFile.XCellsize.Equals(surfacelevelIDFFile.XCellsize))
+                    {
+                        resultHandler.AddExtraMapFile(scaledSurfacelevelIDFFile);
+                    }
+                }
+            }
+        }
+
+        private void RetrievePackages(Model model, Log log)
+        {
+            olfPackage = (IDFPackage)model.GetPackage(OLFPackage.DefaultKey);
             if (olfPackage == null)
             {
                 if (settings.UseDRN_L1)
                 {
-                    log.AddWarning("OLF-package is not active, using DRN_L1-file as OLF-file...", 1);
+                    log.AddWarning("OLF-package is not defined, using DRN_L1-file as OLF-file...", 1);
                 }
                 else
                 {
-                    log.AddWarning("OLF-package has not been found, check the logfile/runfile for errors.", 1);
+                    log.AddInfo("OLF-package is not defined for model, OLF-checks are skipped", 1);
                     return;
                 }
             }
@@ -185,147 +349,9 @@ namespace Sweco.SIF.iMODValidator.Checks
                     }
                     else
                     {
-                        log.AddWarning("OLF-package is not active. " + this.Name + " is skipped.", 1);
+                        log.AddWarning(this.Name, model.Runfilename, "OLF-package is not active. " + this.Name + " is skipped.", 1);
                         return;
                     }
-                }
-            }
-
-            // TODO: Check all KPERs! It is currently fixed to kper = 0
-            int kper = 0;
-
-            IDFFile olfIDFFile = null;
-            if (olfPackage != null)
-            {
-                olfIDFFile = olfPackage.GetIDFFile(0, OLFPackage.OLFPartIdx, kper);
-                if (olfIDFFile == null)
-                {
-                    log.AddWarning("No OLF-file, check the logfile/runfile for errors.", 1);
-                    return;
-                }
-            }
-            else
-            {
-                // No OLF-file defined, check for optional use of DRN_L1 file
-                if (settings.UseDRN_L1)
-                {
-                    IDFPackage drnPackage = (IDFPackage)model.GetPackage(DRNPackage.DefaultKey);
-                    if ((drnPackage != null) && drnPackage.IsActive)
-                    {
-                        olfIDFFile = drnPackage.GetIDFFile(0, DRNPackage.LevelPartIdx, kper);
-                        if (olfIDFFile == null)
-                        {
-                            log.AddWarning("DRN_L1 file not found, OLF-check is skipped", 1);
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        log.AddWarning("No (active) DRN-package, OLF-check is skipped.", 1);
-                        return;
-                    }
-                }
-            }
-
-            IDFFile surfacelevelIDFFile = model.RetrieveSurfaceLevelFile(log, 1);
-            if (surfacelevelIDFFile == null)
-            {
-                log.AddWarning("No surface level file defined, check is skipped.", 1);
-                return;
-            }
-
-            IDFUpscaler surfacelevelUpscaler = new IDFUpscaler(surfacelevelIDFFile, settings.UpscaleMethod, resultHandler.Extent, GetIMODFilesPath(model), log, 2);
-            IDFFile scaledSurfacelevelIDFFile = surfacelevelUpscaler.RetrieveIDFFile(olfIDFFile.XCellsize);
-
-            // Retrieve setting-values
-            IDFFile distanceBelowSurfaceSettingIDFFile = settings.GetIDFFile(settings.DistanceBelowSurface, log, 1);
-            IDFFile minLevelSettingIDFFile = settings.GetIDFFile(settings.MinLevel, log, 1);
-            IDFFile maxLevelSettingIDFFile = settings.GetIDFFile(settings.MaxLevel, log, 1);
-
-            double levelErrorMargin = resultHandler.LevelErrorMargin;
-            IDFCellIterator idfCellIterator = new IDFCellIterator(resultHandler.Extent);
-            idfCellIterator.AddIDFFile(scaledSurfacelevelIDFFile);
-            idfCellIterator.AddIDFFile(olfIDFFile);
-
-            idfCellIterator.AddIDFFile(distanceBelowSurfaceSettingIDFFile);
-            idfCellIterator.AddIDFFile(minLevelSettingIDFFile);
-            idfCellIterator.AddIDFFile(maxLevelSettingIDFFile);
-
-            idfCellIterator.CheckExtent(log, 2);
-
-            // Create error IDFfiles for current layer
-            CheckErrorLayer errorLayer = CreateErrorLayer(resultHandler, olfPackage, kper, 1, idfCellIterator.XStepsize, errorLegend);
-            errorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
-
-            // Create warning IDFfiles for current layer
-            CheckWarningLayer warningLayer = CreateWarningLayer(resultHandler, olfPackage, kper, 1, idfCellIterator.XStepsize, warningLegend);
-            errorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
-
-            // Iterate through cells
-            idfCellIterator.Reset();
-            while (idfCellIterator.IsInsideExtent())
-            {
-                float scaledSurfacelevelValue = idfCellIterator.GetCellValue(scaledSurfacelevelIDFFile);
-                float olfValue = idfCellIterator.GetCellValue(olfIDFFile);
-
-                float distanceBelowSurfaceSettingValue = idfCellIterator.GetCellValue(distanceBelowSurfaceSettingIDFFile);
-                float minLevelSettingValue = idfCellIterator.GetCellValue(minLevelSettingIDFFile);
-                float maxLevelSettingValue = idfCellIterator.GetCellValue(maxLevelSettingIDFFile);
-                float x = idfCellIterator.X;
-                float y = idfCellIterator.Y;
-
-                if (!olfValue.Equals(olfIDFFile.NoDataValue))
-                {
-                    if (!scaledSurfacelevelValue.Equals(float.NaN) && !scaledSurfacelevelValue.Equals(surfacelevelIDFFile.NoDataValue))
-                    {
-                        if (olfValue < (scaledSurfacelevelValue - levelErrorMargin))
-                        {
-                            if ((scaledSurfacelevelValue - olfValue) < distanceBelowSurfaceSettingValue)
-                            {
-                                resultHandler.AddCheckResult(errorLayer, x, y, OLFDefinedLevelOrLessBelowSurfaceError);
-                            }
-                            else
-                            {
-                                resultHandler.AddCheckResult(errorLayer, x, y, OLFDefinedLevelOrMoreBelowSurfaceError);
-                            }
-                        }
-                    }
-
-                    // Check for a range warning
-                    if ((olfValue < minLevelSettingValue) || (olfValue > maxLevelSettingValue))
-                    {
-                        resultHandler.AddCheckResult(warningLayer, x, y, RangeWarning);
-                    }
-                }
-
-                idfCellIterator.MoveNext();
-            }
-
-            // Write OLF-bottom errors
-            if (errorLayer.HasResults())
-            {
-                errorLayer.CompressLegend(CombinedResultLabel);
-                errorLayer.WriteResultFile(log);
-                if (surfacelevelIDFFile != null)
-                {
-                    resultHandler.AddExtraMapFile(surfacelevelIDFFile);
-                    if ((surfacelevelIDFFile != null) && (scaledSurfacelevelIDFFile != null) && !scaledSurfacelevelIDFFile.XCellsize.Equals(surfacelevelIDFFile.XCellsize))
-                    {
-                        resultHandler.AddExtraMapFile(scaledSurfacelevelIDFFile);
-                    }
-                }
-                resultHandler.AddExtraMapFile(olfIDFFile);
-            }
-
-            // Write OLF-bottom warnings
-            if (warningLayer.HasResults())
-            {
-                warningLayer.CompressLegend(CombinedResultLabel);
-                warningLayer.WriteResultFile(log);
-                resultHandler.AddExtraMapFile(olfIDFFile);
-                if ((surfacelevelIDFFile != null) && (scaledSurfacelevelIDFFile != null) && !scaledSurfacelevelIDFFile.XCellsize.Equals(surfacelevelIDFFile.XCellsize))
-                {
-                    resultHandler.AddExtraMapFile(scaledSurfacelevelIDFFile);
                 }
             }
         }

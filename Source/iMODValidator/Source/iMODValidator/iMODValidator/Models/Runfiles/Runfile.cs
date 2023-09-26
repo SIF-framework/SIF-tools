@@ -239,7 +239,10 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         private string[] SplitLargeString(string runfileString, string[] values, Log log = null)
         {
             DateTime prevTime = DateTime.Now;
-            log.AddInfo("Splitting runfile " + Path.GetFileName(runfilename), 0, false);
+            if (log != null)
+            {
+                log.AddInfo("Splitting runfile " + Path.GetFileName(runfilename) + " ..", 0, false);
+            }
 
             List<string> lineList = new List<string>();
             runfileString += values[0];
@@ -255,6 +258,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                     log.AddInfo(".", 0, false);
                     prevTime = DateTime.Now;
                 }
+
                 string nextLine = runfileString.Substring(startIdx, eolIdx - startIdx).Trim().Replace("\r", "");
                 if (!nextLine.Equals(string.Empty))
                 {
@@ -273,7 +277,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             for (int i = 0; i < values.Length; i++)
             {
                 int idx = inputString.IndexOf(values[i], startIndex);
-                if ((idx > 0) & (idx < minIdx))
+                if ((idx > 0) && (idx < minIdx))
                 {
                     minIdx = idx;
                 }
@@ -562,7 +566,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                 packageKey = RetrievePackageKey(wholeLine);
 
                 // Retrieve the corresponding package object
-                Package package = PackageFactory.Instance.CreatePackageInstance(packageKey, model);
+                Package package = PackageManager.Instance.CreatePackageInstance(packageKey, model);
 
                 // check if package is supported 
                 if (package != null)
@@ -570,7 +574,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                     // Remove (singleton) packagefiles from a previous run that may still be attacked to this model
                     package.ClearFiles();
 
-                    // check if package is active. For the purpose of validation simply all avalaible packages files will be validated
+                    // check if package is active. For the purpose of validation simply all available packages files will be validated
                     package.IsActive = lineParts[0].Equals("1");
                     // todo parse output layers?
 
@@ -605,21 +609,29 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             subModel.IACT = 1;
             subModel.BUFFER = 0;
 
-            Model.Submodels = new SubModel[1];
-            model.Submodels[0] = subModel;
-
             if (lineParts.Length == 1)
             {
                 model.BNDFILE = wholeLine.Trim().Replace("'", string.Empty).Replace("\"", string.Empty);
-                IDFFile bndIDFFile = IDFFile.ReadFile(model.BNDFILE, true);
-                subModel.XMIN = bndIDFFile.Extent.llx;
-                subModel.YMIN = bndIDFFile.Extent.lly;
-                subModel.XMAX = bndIDFFile.Extent.urx;
-                subModel.YMAX = bndIDFFile.Extent.ury;
-                subModel.CSIZE = bndIDFFile.XCellsize;
+
+                if (File.Exists(model.BNDFILE))
+                {
+                    IDFFile bndIDFFile = IDFFile.ReadFile(model.BNDFILE, true, null, 0, Model.GetExtent());
+
+                    // Retrieve submodel extent from BND-file
+                    subModel.XMIN = bndIDFFile.Extent.llx;
+                    subModel.YMIN = bndIDFFile.Extent.lly;
+                    subModel.XMAX = bndIDFFile.Extent.urx;
+                    subModel.YMAX = bndIDFFile.Extent.ury;
+                    subModel.CSIZE = bndIDFFile.XCellsize;
+                }
+                else
+                {
+                    log.AddWarning(RunfileCategoryString, runfilename, "BND-file does not exist: " + model.BNDFILE, 1);
+                }
             }
             else if (lineParts.Length == 4)
             {
+                // Retrieve submodel extent from specified extent
                 subModel.XMIN = float.Parse(lineParts[1], englishCultureInfo);
                 subModel.YMIN = float.Parse(lineParts[2], englishCultureInfo);
                 subModel.XMAX = float.Parse(lineParts[3], englishCultureInfo);
@@ -629,6 +641,13 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             else
             {
                 throw new ToolException("Invalid values for dataset 9: " + wholeLine.Trim());
+            }
+
+            // Store submodel extent of none was defined earlier (in dataset 6)
+            if (Model.Submodels == null)
+            {
+                Model.Submodels = new SubModel[1];
+                model.Submodels[0] = subModel;
             }
         }
 
@@ -715,13 +734,13 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
 
                             if (stressPeriod.KPER > model.NPER)
                             {
-                                log.AddWarning(RunfileCategoryString, runfilename, "Stressperiod (" + stressPeriod.KPER + ") is larger than defined number of stressperiods NPER (" + model.NPER + "). Reading is stopped.", 2);
+                                log.AddWarning(RunfileCategoryString, runfilename, "Stressperiod (" + stressPeriod.KPER + ") larger than defined number of stressperiods NPER (" + model.NPER + "). Reading stopped.", 2);
                                 return;
                             }
 
                             if (stressPeriod.KPER > maxKPER)
                             {
-                                log.AddWarning(RunfileCategoryString, runfilename, "Stressperiod (" + stressPeriod.KPER + ") is larger than specified maximum number of stressperiods maxKPER (" + maxKPER + "). Reading is stopped.", 2);
+                                log.AddWarning(RunfileCategoryString, runfilename, "Stressperiod (" + stressPeriod.KPER + ") larger than specified maximum number of stressperiods maxKPER (" + maxKPER + "). Reading stopped.", 2);
                                 return;
                             }
                         }
@@ -756,6 +775,10 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                     stressPeriodString = " " + stressPeriod.ToString();
                 }
                 log.AddError(RunfileCategoryString, runfilename, "Unexpected line while parsing packagefile for " + packageKey + " package" + stressPeriodString + ", expected {NFILES, KEY}-pair, but found: " + wholeLine.Trim(), 1);
+            }
+            else
+            {
+                log.AddError(RunfileCategoryString, runfilename, "Unexpected line: " + wholeLine.Trim(), 1);
             }
         }
 
@@ -798,7 +821,8 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         private StressPeriod RetrieveTransientStressperiod(string[] lineParts, Model model, Log log)
         {
             // if a new stressperiod is started read it: KPER,DELT,SNAME,ISAVE (, optional number)
-            if ((lineParts.Length != 4) && (lineParts.Length != 5))
+            // Note: In some RUN-files extra info is added after the 5th parameter. Ignore this
+            if (lineParts.Length < 4)
             {
                 return null;
             }
@@ -859,6 +883,24 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         public void ReadDataset11(string packageKey, int fileCount, Log log, StressPeriod stressPeriod = null)
         {
             Package package = Model.GetPackage(packageKey);
+
+            if (package == null)
+            {
+                // Package was not found in modeldefinition, add package now, since it is is used in the RUN-file; check if the package is known
+                package = PackageManager.Instance.CreatePackageInstance(packageKey, model);
+
+                // check if package is supported 
+                if (package != null)
+                {
+                    log.AddWarning("Package " + packageKey + " is used, but not defined as (in)active package in RUN-file header", 1);
+                    // Remove (singleton) packagefiles from a previous run that may still be attacked to this model
+                    package.ClearFiles();
+
+                    package.IsActive = false;
+                    Model.AddPackage(package);
+                }
+            }
+
             if (package != null)
             {
                 // Now start reading packagefiles

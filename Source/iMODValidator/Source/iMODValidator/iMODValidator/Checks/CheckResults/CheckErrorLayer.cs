@@ -45,6 +45,7 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
         /// </summary>
         /// <param name="check"></param>
         /// <param name="package"></param>
+        /// <param name="subString"></param>
         /// <param name="kper"></param>
         /// <param name="ilay"></param>
         /// <param name="startDate"></param>
@@ -54,8 +55,8 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
         /// <param name="outputPath"></param>
         /// <param name="legend"></param>
         /// <param name="useSparseGrid"></param>
-        public CheckErrorLayer(Check check, Package package, int kper, int ilay, DateTime? startDate, Extent extent, float cellsize, float noDataValue, string outputPath, Legend legend, bool useSparseGrid = false)
-            : base(check, package, kper, ilay, startDate, extent, cellsize, noDataValue, outputPath, legend, useSparseGrid)
+        public CheckErrorLayer(Check check, Package package, string subString, int kper, int ilay, DateTime? startDate, Extent extent, float cellsize, float noDataValue, string outputPath, Legend legend, bool useSparseGrid = false)
+            : base(check, package, subString, kper, ilay, startDate, extent, cellsize, noDataValue, outputPath, legend, useSparseGrid)
         {
         }
 
@@ -64,6 +65,7 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
         /// </summary>
         /// <param name="check"></param>
         /// <param name="package"></param>
+        /// <param name="subString"></param>
         /// <param name="kper"></param>
         /// <param name="ilay"></param>
         /// <param name="startDate"></param>
@@ -72,8 +74,8 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
         /// <param name="valueColumnIndex"></param>
         /// <param name="outputPath"></param>
         /// <param name="legend"></param>
-        public CheckErrorLayer(Check check, Package package, int kper, int ilay, DateTime? startDate, string outputPath, Legend legend = null)
-            : base(check, package, kper, ilay, startDate, outputPath, legend)
+        public CheckErrorLayer(Check check, Package package, string subString, int kper, int ilay, DateTime? startDate, string outputPath, Legend legend = null)
+            : base(check, package, subString, kper, ilay, startDate, outputPath, legend)
         {
         }
 
@@ -93,14 +95,14 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
             if (ResultFile is IDFFile)
             {
                 IDFFile idfFile = (IDFFile)resultFile;
-                resultLayer = new CheckErrorLayer(check, package, kper, ilay, startDate, idfFile.Extent, idfFile.XCellsize, idfFile.NoDataValue, outputPath, Legend, idfFile is SparseIDFFile);
+                resultLayer = new CheckErrorLayer(check, package, substring, kper, ilay, startDate, idfFile.Extent, idfFile.XCellsize, idfFile.NoDataValue, outputPath, Legend, idfFile is SparseIDFFile);
                 resultLayer.AddSourceFiles(sourceFiles);
                 return resultLayer;
             }
             else if (ResultFile is IPFFile)
             {
                 IPFFile ipfFile = (IPFFile)resultFile;
-                resultLayer = new CheckErrorLayer(check, package, kper, ilay, startDate, outputPath, Legend);
+                resultLayer = new CheckErrorLayer(check, package, substring, kper, ilay, startDate, outputPath, Legend);
                 resultLayer.AddSourceFiles(sourceFiles);
                 return resultLayer;
             }

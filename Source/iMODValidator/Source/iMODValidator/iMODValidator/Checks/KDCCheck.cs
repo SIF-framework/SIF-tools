@@ -121,8 +121,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             set { isKDCSummed = value; }
         }
 
-        public KDCCheckSettings(string checkName)
-            : base(checkName)
+        public KDCCheckSettings(string checkName) : base(checkName)
         {
             DummyKDValue = "1";
             DummyCValue = "1";
@@ -276,7 +275,16 @@ namespace Sweco.SIF.iMODValidator.Checks
 
         public override void Run(Model model, CheckResultHandler resultHandler, Log log)
         {
-            log.AddInfo("Checking VCW- and KDW-packages...");
+            log.AddInfo("Checking VCW- and KDW-packages ...");
+
+            IDFPackage kdwPackage = (IDFPackage)model.GetPackage(KDWPackage.DefaultKey);
+            IDFPackage vcwPackage = (IDFPackage)model.GetPackage(VCWPackage.DefaultKey);
+            if ((vcwPackage == null) || !vcwPackage.IsActive || (kdwPackage == null) || !kdwPackage.IsActive)
+            {
+                log.AddWarning(this.Name, model.Runfilename, "VCW- and/or KDW-packages are not active. " + this.Name + " is skipped.", 1);
+                return;
+            }
+
             settings.LogSettings(log, 1);
             RunKvvKhvCheck1(model, resultHandler, log);
         }
@@ -289,27 +297,16 @@ namespace Sweco.SIF.iMODValidator.Checks
             IDFPackage kdwPackage = (IDFPackage)model.GetPackage(KDWPackage.DefaultKey);
             IDFPackage vcwPackage = (IDFPackage)model.GetPackage(VCWPackage.DefaultKey);
 
-            if ((topPackage == null) || !topPackage.IsActive)
+            if ((topPackage == null) || !topPackage.IsActive || (botPackage == null) || !botPackage.IsActive)
             {
-                log.AddWarning(this.Name, model.Runfilename, "TOP-package is not active. TOP-BOT part of check is skipped.", 1);
+                log.AddWarning(this.Name, model.Runfilename, "TOP- and/or BOT-package is not active. TOP-BOT part of check is skipped.", 1);
                 topPackage = null;
                 botPackage = null;
-            }
-            if ((botPackage == null) || !topPackage.IsActive)
-            {
-                log.AddWarning(this.Name, model.Runfilename, "BOT-package is not active. TOP-BOT part of check is skipped.", 1);
-                topPackage = null;
-                botPackage = null;
-            }
-            if ((vcwPackage == null) || !vcwPackage.IsActive)
-            {
-                log.AddWarning(this.Name, model.Runfilename, "VCW-package is not active. " + this.Name + " is skipped.", 1);
-                return;
-            }
-            if ((kdwPackage == null) || !kdwPackage.IsActive)
-            {
-                log.AddWarning(this.Name, model.Runfilename, "KDW-package is not active. " + this.Name + " is skipped.", 1);
-                return;
+                if (settings.IsKValueChecked)
+                {
+                    log.AddWarning(this.Name, model.Runfilename, "TOP/BOT-package is not active. Check for k-values is skipped.", 1);
+                    settings.IsKValueChecked = false;
+                }
             }
 
             float levelErrorMargin = resultHandler.LevelErrorMargin;
@@ -399,7 +396,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                 idfCellIterator.AddIDFFile(kdIDFFile);
                 idfCellIterator.AddIDFFile(cIDFFile);
                 idfCellIterator.AddIDFFile(lowerTopIDFFile);
-                idfCellIterator.CheckExtent(log, 2);
+                idfCellIterator.CheckExtent(log, 2, LogLevel.Warning);
 
                 idfCellIterator.AddIDFFile(minKHSettingIDFFile);
                 idfCellIterator.AddIDFFile(maxKHSettingIDFFile);
@@ -410,24 +407,24 @@ namespace Sweco.SIF.iMODValidator.Checks
                 idfCellIterator.AddIDFFile(minKVTotErrorValueIDFFile);
 
                 // Create error IDFfiles for current layer
-                CheckErrorLayer kdErrorLayer = CreateErrorLayer(resultHandler, kdwPackage, 1, entryIdx + 1, idfCellIterator.XStepsize, kdErrorLegend);
+                CheckErrorLayer kdErrorLayer = CreateErrorLayer(resultHandler, kdwPackage, null, 1, entryIdx + 1, idfCellIterator.XStepsize, kdErrorLegend);
                 kdErrorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
 
                 CheckErrorLayer cErrorLayer = null;
                 if (cIDFFile != null)
                 {
-                    cErrorLayer = CreateErrorLayer(resultHandler, vcwPackage, 1, entryIdx + 1, idfCellIterator.XStepsize, cErrorLegend);
+                    cErrorLayer = CreateErrorLayer(resultHandler, vcwPackage, null, 1, entryIdx + 1, idfCellIterator.XStepsize, cErrorLegend);
                     cErrorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
                 }
 
                 // Create warning IDFfiles for current layer
-                CheckWarningLayer kdWarningLayer = CreateWarningLayer(resultHandler, kdwPackage, 1, entryIdx + 1, idfCellIterator.XStepsize, khWarningLegend);
+                CheckWarningLayer kdWarningLayer = CreateWarningLayer(resultHandler, kdwPackage, null, 0, entryIdx + 1, idfCellIterator.XStepsize, khWarningLegend);
                 kdWarningLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
 
                 CheckWarningLayer cWarningLayer = null;
                 if (cIDFFile != null)
                 {
-                    cWarningLayer = CreateWarningLayer(resultHandler, vcwPackage, 1, entryIdx + 1, idfCellIterator.XStepsize, kvWarningLegend);
+                    cWarningLayer = CreateWarningLayer(resultHandler, vcwPackage, null, 0, entryIdx + 1, idfCellIterator.XStepsize, kvWarningLegend);
                     cErrorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
                 }
 

@@ -141,7 +141,8 @@ namespace Sweco.SIF.iMODValidator.Results
                 IWorkbook workbook = sheetManager.CreateWorkbook(true, "iMODValidatorReport");
                 IWorksheet worksheet = workbook.Sheets[0];
                 worksheet.Zoom(80);
-                worksheet.SetBorderColor(Color.White);
+                worksheet.SetBorderColor(new Range(worksheet, 0, 0, 2047,64), Color.White, BorderWeight.Thin, true);
+                // worksheet.SetBorderColor(Color.White);
                 Color headerInteriorColor = Color.FromArgb(0, 112, 192);
 
                 // Get the unique resultTypes over all rows
@@ -513,7 +514,7 @@ namespace Sweco.SIF.iMODValidator.Results
                     {
                         throw new Exception("Unexpected layernumber: " + layerNumberString);
                     }
-                    LayerStatistics layerStat = new LayerStatistics(checkName, packageName, packageName, layerNumber, stressPeriodString);
+                    LayerStatistics layerStat = new LayerStatistics(null, checkName, packageName, packageName, layerNumber, stressPeriodString);
 
                     for (int resultTypeIdx = 0; resultTypeIdx < resultTypes.Count(); resultTypeIdx++)
                     {

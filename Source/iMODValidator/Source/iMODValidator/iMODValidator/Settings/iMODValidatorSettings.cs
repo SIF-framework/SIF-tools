@@ -76,7 +76,7 @@ namespace Sweco.SIF.iMODValidator.Settings
         public string MaxILAY;
         public float DefaultSummaryMinCellSize;
         public string iMODExecutablePath;
-        public bool IsIModOpened;
+        public bool IsIMODOpened;
         public bool IsExcelOpened;
         public bool IsRelativePathIMFAdded;
         public List<GENFileSettings> GENFiles;
@@ -116,7 +116,7 @@ namespace Sweco.SIF.iMODValidator.Settings
             DefaultSummaryMinCellSize = 100;
 
             iMODExecutablePath = @"iMOD\iMOD_V4_4_X64R.exe";
-            IsIModOpened = true;
+            IsIMODOpened = true;
             IsExcelOpened = true;
             IsRelativePathIMFAdded = false;
 

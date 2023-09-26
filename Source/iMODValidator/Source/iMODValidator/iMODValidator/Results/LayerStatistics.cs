@@ -31,10 +31,19 @@ namespace Sweco.SIF.iMODValidator.Results
     /// Used for storing ResultLayer statistics. A layer is defined here as an actual modellayer or 
     /// modelsystem for some stressperiod. So each stressperiod gives another layer. 
     /// In a LayerStatistics object all resultTypes are stored together in one object
-
     /// </summary>
     public class LayerStatistics : IEquatable<LayerStatistics>, IComparable<LayerStatistics>
     {
+        protected string layerName;
+        /// <summary>
+        /// A unique layername for this layer statistic
+        /// </summary>
+        public string LayerName
+        {
+            get { return layerName; }
+            set { layerName = value; }
+        }
+
         protected string mainType;
         /// <summary>
         ///  The main type of this layerstatistic, e.g. the checkname
@@ -44,6 +53,7 @@ namespace Sweco.SIF.iMODValidator.Results
             get { return mainType; }
             set { mainType = value; }
         }
+
         protected string subType;
         /// <summary>
         /// A secondary type of this layerstatistic, e.g. packagename or resultype
@@ -53,6 +63,7 @@ namespace Sweco.SIF.iMODValidator.Results
             get { return subType; }
             set { subType = value; }
         }
+
         protected string messageType;
         /// <summary>
         /// The type used in the messagetables, e.g. one of the other type's or a combination
@@ -62,6 +73,7 @@ namespace Sweco.SIF.iMODValidator.Results
             get { return messageType; }
             set { messageType = value; }
         }
+
         protected int ilay;
         /// <summary>
         /// The layer number
@@ -71,6 +83,7 @@ namespace Sweco.SIF.iMODValidator.Results
             get { return ilay; }
             set { ilay = value; }
         }
+
         protected string stressperiodString;
         /// <summary>
         /// The stressperiod for this layer statistic
@@ -80,17 +93,28 @@ namespace Sweco.SIF.iMODValidator.Results
             get { return stressperiodString; }
             set { stressperiodString = value; }
         }
-        public SortedDictionary<string, ResultLayerStatistics> ResultLayerStatisticsDictionary = null; // (resultType, ResultLayerStatistic)
+
+        public SortedDictionary<string, ResultLayerStatistics> resultLayerStatisticsDictionary = null;
+        /// <summary>
+        /// Dictionary with statistics per ResultType for some ResultLayer-object
+        /// </summary>
+        public SortedDictionary<string, ResultLayerStatistics> ResultLayerStatisticsDictionary
+        {
+            get { return resultLayerStatisticsDictionary; }
+            set { resultLayerStatisticsDictionary = value; }
+        }
 
         /// <summary>
         /// Creates a LayerStatistics object
         /// </summary>
-        /// <param name="mainType">The main type of this layerstatistic, e.g. the checkname</param>
+        /// <param name="layerName">a unique name of the layer, e.g. a filename</param>
+        /// /// <param name="mainType">The main type of this layerstatistic, e.g. the checkname</param>
         /// <param name="subType">A secondary type of this layerstatistic, e.g. packagename or resultype</param>
         /// <param name="messageType">The type used in the messagetables, e.g. one of the other type's or a combination</param>
         /// <param name="ilay">The layer number</param>
-        public LayerStatistics(string mainType, string subType, string messageType, int ilay)
+        public LayerStatistics(string layerName, string mainType, string subType, string messageType, int ilay)
         {
+            this.layerName = layerName;
             this.mainType = mainType;
             this.subType = subType;
             this.messageType = messageType;
@@ -101,13 +125,15 @@ namespace Sweco.SIF.iMODValidator.Results
         /// <summary>
         /// Creates a LayerStatistics object
         /// </summary>
-        /// <param name="mainType">The main type of this layerstatistic, e.g. the checkname</param>
+        /// <param name="layerName">a unique name of the layer, e.g. a filename</param>
+        /// /// <param name="mainType">The main type of this layerstatistic, e.g. the checkname</param>
         /// <param name="subType">A secondary type of this layerstatistic, e.g. packagename or resultype</param>
         /// <param name="messageType">The type used in the messagetables, e.g. one of the other type's or a combination</param>
         /// <param name="ilay">The layer number</param>
         /// <param name="stressperiodString">The stressperiod for this layer statistic</param>
-        public LayerStatistics(string mainType, string subType, string messageType, int ilay, string stressperiodString)
+        public LayerStatistics(string layerName, string mainType, string subType, string messageType, int ilay, string stressperiodString)
         {
+            this.layerName = layerName;
             this.mainType = mainType;
             this.subType = subType;
             this.messageType = messageType;
@@ -130,7 +156,7 @@ namespace Sweco.SIF.iMODValidator.Results
 
         public bool Equals(LayerStatistics other)
         {
-            return this.mainType.Equals(other.mainType) && this.subType.Equals(other.subType) && (this.ilay == other.ilay) && (this.stressperiodString.Equals(other.stressperiodString));
+            return (this.layerName != null) && this.layerName.Equals(other.layerName) && this.mainType.Equals(other.mainType) && this.subType.Equals(other.subType) && (this.ilay == other.ilay) && (this.stressperiodString.Equals(other.stressperiodString));
         }
 
         //public string CreateFilename(string resultType)
@@ -143,34 +169,57 @@ namespace Sweco.SIF.iMODValidator.Results
         //    return filename;
         //}
 
+        /// <summary>
+        /// Return string representation of LayerStatistics by Maintype, Subtype, Ilay and StressperiodString values
+        /// </summary>
+        /// <returns></returns>
         public override string ToString()
         {
             return "(" + mainType + "," + subType + "," + ilay + "," + stressperiodString + ")";
         }
 
+        /// <summary>
+        /// Compare values with other LayerStatistics by comparing strings values of internal properties
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
         public int CompareTo(LayerStatistics other)
         {
-            if (this.mainType.Equals(other.mainType))
+            if (this.layerName != null)
             {
-                if (this.subType.Equals(other.subType))
+                if (this.layerName.Equals(other.layerName))
                 {
-                    if (this.stressperiodString.Equals(other.stressperiodString))
+                    if (this.mainType.Equals(other.mainType))
                     {
-                        return this.ilay.CompareTo(other.ilay);
+                        if (this.subType.Equals(other.subType))
+                        {
+                            if (this.stressperiodString.Equals(other.stressperiodString))
+                            {
+                                return this.ilay.CompareTo(other.ilay);
+                            }
+                            else
+                            {
+                                return this.stressperiodString.CompareTo(other.stressperiodString);
+                            }
+                        }
+                        else
+                        {
+                            return this.subType.CompareTo(other.subType);
+                        }
                     }
                     else
                     {
-                        return this.stressperiodString.CompareTo(other.stressperiodString);
+                        return this.mainType.CompareTo(other.mainType);
                     }
                 }
                 else
                 {
-                    return this.subType.CompareTo(other.subType);
+                    return this.layerName.CompareTo(other.layerName);
                 }
             }
             else
             {
-                return this.mainType.CompareTo(other.mainType);
+                return -1;
             }
         }
 

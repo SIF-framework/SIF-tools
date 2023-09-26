@@ -52,27 +52,18 @@ namespace Sweco.SIF.iMODValidator.Checks
     {
         protected CultureInfo englishCultureInfo = new CultureInfo("en-GB", false);
 
-        private string checkName;
         [Category("\tDescription"), Description("The name of this check")]
-        public string CheckName
-        {
-            get { return checkName; }
-        }
+        public string CheckName { get; }
 
-        private bool isActiveDefault;
         [Category("\tDescription"), Description("Defines if the check is active by default")]
-        public bool IsActiveDefault
-        {
-            get { return isActiveDefault; }
-            set { isActiveDefault = value; }
-        }
+        public bool IsActiveDefault { get; set; }
 
         private List<IDFFile> idfFileList;
 
         protected CheckSettings(string checkName)
         {
-            this.checkName = checkName;
-            this.isActiveDefault = true;
+            this.CheckName = checkName;
+            this.IsActiveDefault = true;
             idfFileList = new List<IDFFile>();
         }
 
@@ -170,20 +161,19 @@ namespace Sweco.SIF.iMODValidator.Checks
         }
 
         /// <summary>
-        /// Converts string with commaseparated integer strings to list of integers
+        /// Converts string with comma-separated integer strings to list of integers
         /// </summary>
-        /// <param name="lgnCityCodes">commaseparated LGN-codes</param>
+        /// <param name="intListString">string with comma-separated integers</param>
         /// <returns>int-list, empty for empty strings</returns>
-        public List<int> ParseIntArrayString(string lgnCityCodes)
+        public List<int> ParseIntArrayString(string intListString)
         {
             List<int> intList = new List<int>();
-            if (!lgnCityCodes.Trim().Equals(string.Empty))
+            if (!intListString.Trim().Equals(string.Empty))
             {
-                string[] stringParts = lgnCityCodes.Trim().Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                string[] stringParts = intListString.Trim().Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                 for (int idx = 0; idx < stringParts.Length; idx++)
                 {
-                    int intValue;
-                    if (int.TryParse(stringParts[idx], out intValue))
+                    if (int.TryParse(stringParts[idx], out int intValue))
                     {
                         if ((intValue >= 0))
                         {

@@ -52,13 +52,6 @@ namespace Sweco.SIF.iMODValidator.Checks
             get { return "Check"; }
         }
 
-        private bool isModelCorrected;
-        public bool IsModelCorrected
-        {
-            get { return isModelCorrected; }
-            set { isModelCorrected = value; }
-        }
-
         /// <summary>
         /// number of CheckError objects that have been created by this Check-object.
         /// the dictionary key specifies a unique index for each new ErrorLayer
@@ -118,14 +111,15 @@ namespace Sweco.SIF.iMODValidator.Checks
         /// </summary>
         /// <param name="resultHandler"></param>
         /// <param name="package"></param>
+        /// <param name="subString"></param>
         /// <param name="kper"></param>
         /// <param name="ilay"></param>
         /// <param name="cellSize"></param>
         /// <param name="legend"></param>
         /// <returns></returns>
-        protected CheckErrorLayer CreateErrorLayer(CheckResultHandler resultHandler, Package package, int kper, int ilay, float cellSize, ClassLegend legend)
+        protected CheckErrorLayer CreateErrorLayer(CheckResultHandler resultHandler, Package package, string subString, int kper, int ilay, float cellSize, ClassLegend legend)
         {
-            CheckErrorLayer checkErrorLayer = new CheckErrorLayer(this, package, kper, ilay, resultHandler.Model.StartDate, resultHandler.Extent, cellSize, resultHandler.NoDataValue, GetIMODFilesPath(resultHandler.Model), legend, resultHandler.UseSparseGrids);
+            CheckErrorLayer checkErrorLayer = new CheckErrorLayer(this, package, subString, kper, ilay, resultHandler.Model.StartDate, resultHandler.Extent, cellSize, resultHandler.NoDataValue, GetIMODFilesPath(resultHandler.Model), legend, resultHandler.UseSparseGrids);
             resultHandler.AddResultLayer(checkErrorLayer);
             return checkErrorLayer;
         }
@@ -135,13 +129,14 @@ namespace Sweco.SIF.iMODValidator.Checks
         /// </summary>
         /// <param name="resultHandler"></param>
         /// <param name="package"></param>
+        /// <param name="substring"></param>
         /// <param name="kper"></param>
         /// <param name="ilay"></param>
         /// <param name="legend"></param>
         /// <returns></returns>
-        protected CheckErrorLayer CreateErrorLayer(CheckResultHandler resultHandler, Package package, int kper, int ilay, ClassLegend legend)
+        protected CheckErrorLayer CreateErrorLayer(CheckResultHandler resultHandler, Package package, string substring, int kper, int ilay, ClassLegend legend)
         {
-            CheckErrorLayer checkErrorLayer = new CheckErrorLayer(this, package, kper, ilay, resultHandler.Model.StartDate, GetIMODFilesPath(resultHandler.Model), legend);
+            CheckErrorLayer checkErrorLayer = new CheckErrorLayer(this, package, substring, kper, ilay, resultHandler.Model.StartDate, GetIMODFilesPath(resultHandler.Model), legend);
             resultHandler.AddResultLayer(checkErrorLayer);
             return checkErrorLayer;
         }
@@ -151,14 +146,15 @@ namespace Sweco.SIF.iMODValidator.Checks
         /// </summary>
         /// <param name="resultHandler"></param>
         /// <param name="package"></param>
+        /// <param name="substring"></param>
         /// <param name="kper"></param>
         /// <param name="ilay"></param>
         /// <param name="cellSize"></param>
         /// <param name="legend"></param>
         /// <returns></returns>
-        protected CheckWarningLayer CreateWarningLayer(CheckResultHandler resultHandler, Package package, int kper, int ilay, float cellSize, ClassLegend legend)
+        protected CheckWarningLayer CreateWarningLayer(CheckResultHandler resultHandler, Package package, string substring, int kper, int ilay, float cellSize, ClassLegend legend)
         {
-            CheckWarningLayer checkWarningLayer = new CheckWarningLayer(this, package, kper, ilay, resultHandler.Model.StartDate, resultHandler.Extent, cellSize, resultHandler.NoDataValue, GetIMODFilesPath(resultHandler.Model), legend, resultHandler.UseSparseGrids);
+            CheckWarningLayer checkWarningLayer = new CheckWarningLayer(this, package, substring, kper, ilay, resultHandler.Model.StartDate, resultHandler.Extent, cellSize, resultHandler.NoDataValue, GetIMODFilesPath(resultHandler.Model), legend, resultHandler.UseSparseGrids);
             resultHandler.AddResultLayer(checkWarningLayer);
             return checkWarningLayer;
         }
@@ -168,13 +164,14 @@ namespace Sweco.SIF.iMODValidator.Checks
         /// </summary>
         /// <param name="resultHandler"></param>
         /// <param name="package"></param>
+        /// <param name="substring"></param>
         /// <param name="kper"></param>
         /// <param name="ilay"></param>
         /// <param name="legend"></param>
         /// <returns></returns>
-        protected CheckWarningLayer CreateWarningLayer(CheckResultHandler resultHandler, Package package, int kper, int ilay, ClassLegend legend)
+        protected CheckWarningLayer CreateWarningLayer(CheckResultHandler resultHandler, Package package, string substring, int kper, int ilay, ClassLegend legend)
         {
-            CheckWarningLayer checkWarningLayer = new CheckWarningLayer(this, package, kper, ilay, resultHandler.Model.StartDate, GetIMODFilesPath(resultHandler.Model), legend);
+            CheckWarningLayer checkWarningLayer = new CheckWarningLayer(this, package, substring, kper, ilay, resultHandler.Model.StartDate, GetIMODFilesPath(resultHandler.Model), legend);
             resultHandler.AddResultLayer(checkWarningLayer);
             return checkWarningLayer;
         }
@@ -184,13 +181,14 @@ namespace Sweco.SIF.iMODValidator.Checks
         /// </summary>
         /// <param name="resultHandler"></param>
         /// <param name="package"></param>
+        /// <param name="subString"></param>
         /// <param name="kper"></param>
         /// <param name="ilay"></param>
         /// <param name="legend"></param>
         /// <returns></returns>
-        protected CheckDetailLayer CreateDetailLayer(CheckResultHandler resultHandler, Package package, int kper, int ilay, ClassLegend legend = null)
+        protected CheckDetailLayer CreateDetailLayer(CheckResultHandler resultHandler, Package package, string subString, int kper, int ilay, ClassLegend legend = null)
         {
-            CheckDetailLayer checkDetailLayer = new CheckDetailLayer(resultHandler.Model, this, package, kper, ilay, legend);
+            CheckDetailLayer checkDetailLayer = new CheckDetailLayer(resultHandler.Model, this, package, subString, kper, ilay, legend);
             resultHandler.AddResultLayer(checkDetailLayer);
             return checkDetailLayer;
         }
@@ -237,10 +235,10 @@ namespace Sweco.SIF.iMODValidator.Checks
 
             if (idfCellIterator.IsEmptyExtent())
             {
-                idfCellIterator.CheckExtent(log, logIndentLevel + 1, ": check extent of RIV-files and/or surface level file");
+                idfCellIterator.CheckExtent(log, logIndentLevel + 1, LogLevel.Warning, ": check extent of RIV-files and/or surface level file");
                 return;
             }
-            idfCellIterator.CheckExtent(log, 2);
+            idfCellIterator.CheckExtent(log, 2, LogLevel.Warning);
 
             int cellDistance = 1;
             int neighbourCellCount = (2 * cellDistance + 1) * (2 * cellDistance + 1) - 1;
@@ -429,24 +427,6 @@ namespace Sweco.SIF.iMODValidator.Checks
         public int CompareTo(Check other)
         {
             return base.CompareTo(other);
-        }
-
-        /// <summary>
-        /// Determines the number of ConstantIDFFile subclassed objects in the give list of IDFFiles
-        /// </summary>
-        /// <param name="idfFileList"></param>
-        /// <returns></returns>
-        public static int GetConstantIDFFileCount(List<IDFFile> idfFileList)
-        {
-            int count = 0;
-            foreach (IDFFile idfFile in idfFileList)
-            {
-                if (idfFile is ConstantIDFFile)
-                {
-                    count++;
-                }
-            }
-            return count;
         }
     }
 }

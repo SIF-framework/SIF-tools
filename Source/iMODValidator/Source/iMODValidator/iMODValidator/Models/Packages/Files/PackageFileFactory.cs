@@ -67,10 +67,10 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
                     case ".gen":
                         return new GENPackageFile(package, fname, ilay, fct, imp, stressPeriod);
                     case ".isg":
-                        return null; // ignore ISG-files
+                        return new ISGPackageFile(package, fname, ilay, fct, imp, stressPeriod);
                     case ".inp":
                     default:
-                        throw new Exception("Unknown file format: " + ext + " for file " + fname);
+                        throw new Exception("Unknown type of iMOD-file: " + ext + " for file " + fname);
                 }
             }
         }

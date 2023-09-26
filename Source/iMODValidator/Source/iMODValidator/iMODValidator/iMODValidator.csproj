@@ -11,6 +11,21 @@
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.2.1.%2a</ApplicationVersion>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DebugSymbols>true</DebugSymbols>
@@ -35,6 +50,26 @@
   <PropertyGroup>
     <ApplicationIcon>Sweco.ico</ApplicationIcon>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\..\packages\Newtonsoft.Json.13.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -58,6 +93,7 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -69,6 +105,8 @@
     <Compile Include="Actions\ActionManager.cs" />
     <Compile Include="Actions\ValidatorAction.cs" />
     <Compile Include="Checks\ANICheck.cs" />
+    <Compile Include="Checks\BDGFLFCheck.cs" />
+    <Compile Include="Checks\BNDCheck.cs" />
     <Compile Include="Checks\Check.cs" />
     <Compile Include="Checks\CheckManager.cs" />
     <Compile Include="Checks\CheckResults\CheckDetail.cs" />
@@ -81,41 +119,76 @@
     <Compile Include="Checks\CheckResults\CheckWarning.cs" />
     <Compile Include="Checks\CheckResults\CheckWarningLayer.cs" />
     <Compile Include="Checks\CheckSettings.cs" />
+    <Compile Include="Checks\DRNCheck.cs" />
+    <Compile Include="Checks\DRNRIVCheck.cs" />
+    <Compile Include="Checks\HEADCheck.cs" />
+    <Compile Include="Checks\ISGCheck.cs" />
     <Compile Include="Checks\KDCCheck.cs" />
-    <Compile Include="Checks\KVVKHVCheck.cs" />
+    <Compile Include="Checks\MetaSWAPCheck.cs" />
+    <Compile Include="Checks\RCHCheck.cs" />
+    <Compile Include="Checks\RIVCheck.cs" />
+    <Compile Include="Checks\RIVSpatialCheck.cs" />
+    <Compile Include="Checks\STOCheck.cs" />
+    <Compile Include="Checks\KVVKHVKVACheck.cs" />
     <Compile Include="Checks\OLFCheck.cs" />
     <Compile Include="Checks\TOPBOTCheck.cs" />
+    <Compile Include="Checks\WELCheck.cs" />
     <Compile Include="Exceptions\AbortException.cs" />
+    <Compile Include="Exceptions\ExceptionUtils.cs" />
+    <Compile Include="Forms\HelpForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\HelpForm.Designer.cs">
+      <DependentUpon>HelpForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\MainForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\MainForm.Designer.cs">
+      <DependentUpon>MainForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\MessageForm.cs" />
     <Compile Include="Models\Files\IDFUpscaler.cs" />
     <Compile Include="Models\IMODTool.cs" />
+    <Compile Include="Models\IMODVersion.cs" />
     <Compile Include="Models\Model.cs" />
     <Compile Include="Models\Packages\ANIPackage.cs" />
+    <Compile Include="Models\Packages\BDGFLFPackage.cs" />
     <Compile Include="Models\Packages\BNDPackage.cs" />
     <Compile Include="Models\Packages\BOTPackage.cs" />
     <Compile Include="Models\Packages\CAPPackage.cs" />
     <Compile Include="Models\Packages\CHDPackage.cs" />
+    <Compile Include="Models\Packages\CustomPackage.cs" />
     <Compile Include="Models\Packages\DRNPackage.cs" />
+    <Compile Include="Models\Packages\FHBPackage.cs" />
     <Compile Include="Models\Packages\Files\ConstantIDFPackageFile.cs" />
+    <Compile Include="Models\Packages\Files\ISGPackageFile.cs" />
+    <Compile Include="Models\Packages\GHBPackage.cs" />
     <Compile Include="Models\Packages\Files\IDFPackageFile.cs" />
     <Compile Include="Models\Packages\Files\IPFPackageFile.cs" />
     <Compile Include="Models\Packages\Files\PackageFile.cs" />
     <Compile Include="Models\Packages\Files\PackageFileFactory.cs" />
     <Compile Include="Models\Packages\Files\GENPackageFile.cs" />
     <Compile Include="Models\Packages\GENPackage.cs" />
+    <Compile Include="Models\Packages\HEADPackage.cs" />
     <Compile Include="Models\Packages\HFBPackage.cs" />
     <Compile Include="Models\Packages\IDFPackage.cs" />
     <Compile Include="Models\Packages\IPFPackage.cs" />
+    <Compile Include="Models\Packages\ISGPackage.cs" />
+    <Compile Include="Models\Packages\ISGRIVConverter.cs" />
     <Compile Include="Models\Packages\KDWPackage.cs" />
     <Compile Include="Models\Packages\KHVPackage.cs" />
     <Compile Include="Models\Packages\KVAPackage.cs" />
     <Compile Include="Models\Packages\KVVPackage.cs" />
     <Compile Include="Models\Packages\OLFPackage.cs" />
     <Compile Include="Models\Packages\Package.cs" />
-    <Compile Include="Models\Packages\PackageFactory.cs" />
+    <Compile Include="Models\Packages\PackageManager.cs" />
     <Compile Include="Models\Packages\PSTPackage.cs" />
     <Compile Include="Models\Packages\RCHPackage.cs" />
     <Compile Include="Models\Packages\RIVPackage.cs" />
     <Compile Include="Models\Packages\SHDPackage.cs" />
+    <Compile Include="Models\Packages\STOPackage.cs" />
+    <Compile Include="Models\Packages\CAPSubPackage.cs" />
     <Compile Include="Models\Packages\TOPPackage.cs" />
     <Compile Include="Models\Packages\VCWPackage.cs" />
     <Compile Include="Models\Packages\WELPackage.cs" />
@@ -140,6 +213,7 @@
     <Compile Include="SIFTool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SIFToolSettings.cs" />
+    <Compile Include="Utils.cs" />
     <Compile Include="Validator.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -149,7 +223,23 @@
   <ItemGroup>
     <Content Include="Sweco.ico" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Forms\HelpForm.resx">
+      <DependentUpon>HelpForm.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\MainForm.resx">
+      <DependentUpon>MainForm.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>REM Ensure Libraries folder exists

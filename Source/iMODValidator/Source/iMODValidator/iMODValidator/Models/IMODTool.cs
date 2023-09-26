@@ -95,7 +95,7 @@ namespace Sweco.SIF.iMODValidator.Models
                 iMODExecutablePath = Path.Combine(Directory.GetCurrentDirectory(), iMODExecutablePath);
             }
 
-            if (File.Exists(iMODValidatorSettingsManager.Settings.iMODExecutablePath))
+            if (File.Exists(iMODExecutablePath))
             {
                 if (log != null)
                 {
@@ -104,8 +104,8 @@ namespace Sweco.SIF.iMODValidator.Models
 
                 try
                 {
-                    string command = Path.GetFileName(iMODValidatorSettingsManager.Settings.iMODExecutablePath) + " \"" + batchFilename + "\"";
-                    int exitCode = CommonUtils.ExecuteCommand(command, timeout, out outputString, Path.GetDirectoryName(iMODValidatorSettingsManager.Settings.iMODExecutablePath));
+                    string command = Path.GetFileName(iMODExecutablePath) + " \"" + batchFilename + "\"";
+                    int exitCode = CommonUtils.ExecuteCommand(command, timeout, out outputString, Path.GetDirectoryName(iMODExecutablePath));
                     LogLevel logLevel = LogLevel.Trace;
                     if (exitCode != 0)
                     {
@@ -126,7 +126,7 @@ namespace Sweco.SIF.iMODValidator.Models
             {
                 if (log != null)
                 {
-                    log.AddWarning("Specified iMOD-executable does not exist: " + iMODValidatorSettingsManager.Settings.iMODExecutablePath);
+                    log.AddWarning("Specified iMOD-executable does not exist: " + iMODExecutablePath);
                 }
             }
             return -1;

@@ -30,6 +30,7 @@ using Sweco.SIF.Common;
 using Sweco.SIF.iMOD;
 using Sweco.SIF.iMODValidator.Models.Runfiles;
 using Sweco.SIF.iMODValidator.Models.Packages.Files;
+using Sweco.SIF.GIS;
 
 namespace Sweco.SIF.iMODValidator.Models.Packages
 {
@@ -405,8 +406,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
                                         if (packageFile != null)
                                         {
                                             string filename = packageFile.FName;
-                                            float fltValue;
-                                            if (!float.TryParse(filename, out fltValue))
+                                            if (!float.TryParse(filename, out float fltValue))
                                             {
                                                 filename = CommonUtils.EnsureDoubleQuotes(filename);
                                             }
@@ -584,7 +584,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
             packageFiles[kper][entryIdx][partIdx] = file;
         }
 
-        public virtual void ReadFiles(Log log, bool useLazyLoading = false, int lazyLoadLogIndentLevel = 0, int minEntryIdx = 0, int maxEntryIdx = 999)
+        public virtual void ReadFiles(Log log, bool useLazyLoading = false, Extent extent = null, int lazyLoadLogIndentLevel = 0, int minEntryIdx = 0, int maxEntryIdx = 999)
         {
             if (minEntryIdx < 0)
             {
@@ -659,7 +659,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
                                         }
                                         else
                                         {
-                                            packageFiles[kper][entryIdx][partIdx].ReadFile(useLazyLoading, log, lazyLoadLogIndentLevel);
+                                            packageFiles[kper][entryIdx][partIdx].ReadFile(useLazyLoading, log, lazyLoadLogIndentLevel, extent);
                                         }
                                     }
                                 }
@@ -711,8 +711,15 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
                 {
                     // simply add the file to the package (and model), also add non-existent file to keep order for adding the same
                     string fname = lineParts[3].Replace("\"", "").Replace("'", "");
-                    AddFile(ilay, float.Parse(lineParts[1], englishCultureInfo), float.Parse(lineParts[2], englishCultureInfo), fname, entryCount, stressPeriod);
-                    log.AddMessage(LogLevel.Trace, "Added file " + entryIdx + " to package " + Key + stressPeriodString + ": " + lineParts[3], 1);
+                    try
+                    {
+                        AddFile(ilay, float.Parse(lineParts[1], englishCultureInfo), float.Parse(lineParts[2], englishCultureInfo), fname, entryCount, stressPeriod);
+                        log.AddMessage(LogLevel.Trace, "Added file " + entryIdx + " to package " + Key + stressPeriodString + ": " + lineParts[3], 1);
+                    }
+                    catch (Exception ex)
+                    {
+                        log.AddError(model.Runfilename, fname, "Could not add file to package for stressperiod: " + stressPeriod + " : " + ex.GetBaseException().Message);
+                    }
                 }
             }
         }

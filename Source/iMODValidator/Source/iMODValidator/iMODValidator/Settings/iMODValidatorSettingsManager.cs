@@ -20,6 +20,7 @@
 // You should have received a copy of the GNU General Public License
 // along with iMODValidator. If not, see <https://www.gnu.org/licenses/>.
 using Newtonsoft.Json;
+using Sweco.SIF.Common;
 using Sweco.SIF.iMODValidator.Checks;
 using System;
 using System.Collections.Generic;
@@ -244,7 +245,9 @@ namespace Sweco.SIF.iMODValidator.Settings
                 }
 
                 // Write iMODValidator settings xml
-                StreamWriter sw = new StreamWriter((settingsFilename != null) ? settingsFilename : GetSettingsFilename());
+                string filename = (settingsFilename != null) ? settingsFilename : GetSettingsFilename();
+                FileUtils.EnsureFolderExists(filename);
+                StreamWriter sw = new StreamWriter(filename);
                 XmlTextWriter xw = new XmlTextWriter(sw);
                 xw.Formatting = System.Xml.Formatting.Indented;
                 validatorSettingsDoc.WriteTo(xw);
@@ -264,6 +267,11 @@ namespace Sweco.SIF.iMODValidator.Settings
                 if (File.Exists(settingsFilename))
                 {
                     xmlDoc.Load(settingsFilename);
+                }
+                else
+                {
+                    XmlElement rootElement = xmlDoc.CreateElement(ApplicationName.Replace(" ", "-"));
+                    xmlDoc.AppendChild(rootElement);
                 }
             }
             else if (File.Exists(GetSettingsFilename()))

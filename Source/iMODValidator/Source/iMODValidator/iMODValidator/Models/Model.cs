@@ -38,56 +38,35 @@ namespace Sweco.SIF.iMODValidator.Models
     /// </summary>
     public class Model
     {
-        //public const int MaxLayers = 25; // 25; // for debugging purpose
-        private string runfilename;
-        private string modelresultsPath;
-        private SubModel[] submodels;
-        private List<Package> packages;
-        private string surfaceLevelFilename;
         private int mxnlay;
         private int nlay;
         private int nper;
         private long sdate;
-        private int nscl;
-        private int iftest;
         private int iconchk;
         private int iipf;
-        private int nmult;
-        private int idebug;
-        private int iexport;
-        private int iposwell;
-        private int iscen;
-        private int ibdg;
-        private float minkd;
-        private float minc;
-        private string bndfile;
         public DateTime? StartDate;
         private string toolOutputPath;
         private Dictionary<string, int> kperDictionary;
 
-        public string Runfilename
-        {
-            get { return runfilename; }
-            set { runfilename = value; }
-        }
         /// <summary>
         /// The outputpath from the runfile that the model results are written to
         /// </summary>
-        public string ModelresultsPath
-        {
-            get { return modelresultsPath; }
-            set { modelresultsPath = value; }
-        }
-        public List<Package> Packages
-        {
-            get { return packages; }
-            set { packages = value; }
-        }
-        public SubModel[] Submodels
-        {
-            get { return submodels; }
-            set { submodels = value; }
-        }
+        public string ModelresultsPath { get; set; }
+        public string Runfilename { get; set; }
+        public List<Package> Packages { get; set; }
+        public SubModel[] Submodels { get; set; }
+        public int NSCL { get; set; }
+        public int IFTEST { get; set; }
+        public int NMULT { get; set; }
+        public int IDEBUG { get; set; }
+        public int IEXPORT { get; set; }
+        public int IPOSWELL { get; set; }
+        public int ISCEN { get; set; }
+        public int IBDG { get; set; }
+        public float MINKD { get; set; }
+        public float MINC { get; set; }
+        public string BNDFILE { get; set; }
+        public string SurfaceLevelFilename { get; set; }
         public int NLAY
         {
             get { return nlay; }
@@ -151,16 +130,6 @@ namespace Sweco.SIF.iMODValidator.Models
                 }
             }
         }
-        public int NSCL
-        {
-            get { return nscl; }
-            set { nscl = value; }
-        }
-        public int IFTEST
-        {
-            get { return iftest; }
-            set { iftest = value; }
-        }
         public int ICONCHK
         {
             get { return iconchk; }
@@ -191,56 +160,7 @@ namespace Sweco.SIF.iMODValidator.Models
                 }
             }
         }
-        public int NMULT
-        {
-            get { return nmult; }
-            set { nmult = value; }
-        }
-        public int IDEBUG
-        {
-            get { return idebug; }
-            set { idebug = value; }
-        }
-        public int IEXPORT
-        {
-            get { return iexport; }
-            set { iexport = value; }
-        }
-        public int IPOSWELL
-        {
-            get { return iposwell; }
-            set { iposwell = value; }
-        }
-        public int ISCEN
-        {
-            get { return iscen; }
-            set { iscen = value; }
-        }
-        public int IBDG
-        {
-            get { return ibdg; }
-            set { ibdg = value; }
-        }
-        public float MINKD
-        {
-            get { return minkd; }
-            set { minkd = value; }
-        }
-        public float MINC
-        {
-            get { return minc; }
-            set { minc = value; }
-        }
-        public string BNDFILE
-        {
-            get { return bndfile; }
-            set { bndfile = value; }
-        }
-        public string SurfaceLevelFilename
-        {
-            get { return surfaceLevelFilename; }
-            set { surfaceLevelFilename = value; }
-        }
+
         /// <summary>
         /// Path that tool can write it's output to
         /// </summary>
@@ -259,7 +179,7 @@ namespace Sweco.SIF.iMODValidator.Models
 
         public Model()
         {
-            packages = new List<Package>();
+            Packages = new List<Package>();
             kperDictionary = new Dictionary<string, int>();
         }
 
@@ -270,7 +190,7 @@ namespace Sweco.SIF.iMODValidator.Models
 
         public void AddPackage(Package package)
         {
-            packages.Add(package);
+            Packages.Add(package);
         }
 
         public bool HasActivePackage(string packageKey)
@@ -281,45 +201,59 @@ namespace Sweco.SIF.iMODValidator.Models
 
         public Package GetPackage(string packageKey)
         {
-            for (int i = 0; i < packages.Count; i++)
+            for (int i = 0; i < Packages.Count; i++)
             {
-                if (packages[i].HasKeyMatch(packageKey))
+                if (Packages[i].HasKeyMatch(packageKey))
                 {
-                    return packages[i];
+                    return Packages[i];
                 }
             }
             return null;
         }
 
         /// <summary>
-        /// returns bounding box extent of all submodels, including buffer
+        /// Checks if this model is a steady-state model
         /// </summary>
         /// <returns></returns>
+        public bool IsSteadyStateModel()
+        {
+            return ((NPER <= 1) && (StartDate == null));
+        }
+
+        /// <summary>
+        /// returns bounding box extent of all submodels, including buffer
+        /// </summary>
+        /// <returns>bounding box extent or null if no submodels are defined</returns>
         public Extent GetExtent()
         {
-            Extent extent = new Extent();
-            extent.llx = float.MaxValue;
-            extent.lly = float.MaxValue;
-            extent.urx = float.MinValue;
-            extent.ury = float.MinValue;
-            for (int i = 0; i < submodels.Length; i++)
+            Extent extent = null;
+
+            if ((Submodels != null) && (Submodels.Length > 0))
             {
-                float buffer = submodels[i].BUFFER;
-                if (submodels[i].XMIN - buffer < extent.llx)
+                extent = new Extent();
+                extent.llx = float.MaxValue;
+                extent.lly = float.MaxValue;
+                extent.urx = float.MinValue;
+                extent.ury = float.MinValue;
+                for (int i = 0; i < Submodels.Length; i++)
                 {
-                    extent.llx = submodels[i].XMIN - buffer;
-                }
-                if (submodels[i].YMIN - buffer < extent.lly)
-                {
-                    extent.lly = submodels[i].YMIN - buffer;
-                }
-                if (submodels[i].XMAX + buffer > extent.llx)
-                {
-                    extent.urx = submodels[i].XMAX + buffer;
-                }
-                if (submodels[i].YMAX + buffer > extent.ury)
-                {
-                    extent.ury = submodels[i].YMAX + buffer;
+                    float buffer = Submodels[i].BUFFER;
+                    if (Submodels[i].XMIN - buffer < extent.llx)
+                    {
+                        extent.llx = Submodels[i].XMIN - buffer;
+                    }
+                    if (Submodels[i].YMIN - buffer < extent.lly)
+                    {
+                        extent.lly = Submodels[i].YMIN - buffer;
+                    }
+                    if (Submodels[i].XMAX + buffer > extent.llx)
+                    {
+                        extent.urx = Submodels[i].XMAX + buffer;
+                    }
+                    if (Submodels[i].YMAX + buffer > extent.ury)
+                    {
+                        extent.ury = Submodels[i].YMAX + buffer;
+                    }
                 }
             }
 
@@ -338,11 +272,11 @@ namespace Sweco.SIF.iMODValidator.Models
         public float GetMinCSize()
         {
             float mincsize = float.MaxValue;
-            for (int i = 0; i < submodels.Length; i++)
+            for (int i = 0; i < Submodels.Length; i++)
             {
-                if (submodels[i].CSIZE < mincsize)
+                if (Submodels[i].CSIZE < mincsize)
                 {
-                    mincsize = submodels[i].CSIZE;
+                    mincsize = Submodels[i].CSIZE;
                 }
             }
 
@@ -356,11 +290,11 @@ namespace Sweco.SIF.iMODValidator.Models
         public float GetMaxCSize()
         {
             float maxcsize = float.MinValue;
-            for (int i = 0; i < submodels.Length; i++)
+            for (int i = 0; i < Submodels.Length; i++)
             {
-                if (submodels[i].CSIZE > maxcsize)
+                if (Submodels[i].CSIZE > maxcsize)
                 {
-                    maxcsize = submodels[i].CSIZE;
+                    maxcsize = Submodels[i].CSIZE;
                 }
             }
 
@@ -379,11 +313,11 @@ namespace Sweco.SIF.iMODValidator.Models
             extent.urx = float.MinValue;
             extent.ury = float.MinValue;
             int idfFileCount = 0;
-            for (int packageIdx = 0; packageIdx < packages.Count; packageIdx++)
+            for (int packageIdx = 0; packageIdx < Packages.Count; packageIdx++)
             {
-                if (packages[packageIdx] is IDFPackage)
+                if (Packages[packageIdx] is IDFPackage)
                 {
-                    IDFPackage idfFilePackage = (IDFPackage)packages[packageIdx];
+                    IDFPackage idfFilePackage = (IDFPackage)Packages[packageIdx];
                     if (idfFilePackage != null)
                     {
                         for (int entryIdx = 0; entryIdx < idfFilePackage.GetEntryCount(); entryIdx++)
@@ -431,11 +365,11 @@ namespace Sweco.SIF.iMODValidator.Models
         public float GetMaxPackageCellSize()
         {
             float maxcsize = 0;
-            for (int packageIdx = 0; packageIdx < packages.Count; packageIdx++)
+            for (int packageIdx = 0; packageIdx < Packages.Count; packageIdx++)
             {
-                if (packages[packageIdx] is IDFPackage)
+                if (Packages[packageIdx] is IDFPackage)
                 {
-                    IDFPackage idfFilePackage = (IDFPackage)packages[packageIdx];
+                    IDFPackage idfFilePackage = (IDFPackage)Packages[packageIdx];
                     if (idfFilePackage != null)
                     {
                         for (int kper = 0; kper <= NPER; kper++)
@@ -473,11 +407,11 @@ namespace Sweco.SIF.iMODValidator.Models
         public float GetMinPackageCellSize()
         {
             float mincsize = float.MaxValue;
-            for (int packageIdx = 0; packageIdx < packages.Count; packageIdx++)
+            for (int packageIdx = 0; packageIdx < Packages.Count; packageIdx++)
             {
-                if (packages[packageIdx] is IDFPackage)
+                if (Packages[packageIdx] is IDFPackage)
                 {
-                    IDFPackage idfFilePackage = (IDFPackage)packages[packageIdx];
+                    IDFPackage idfFilePackage = (IDFPackage)Packages[packageIdx];
                     if (idfFilePackage != null)
                     {
                         for (int kper = 0; kper <= NPER; kper++)
@@ -626,7 +560,7 @@ namespace Sweco.SIF.iMODValidator.Models
         public Metadata CreateMetadata(string description, string source = null)
         {
             Metadata metadata = CreateDefaultMetadata();
-            metadata.Modelversion = this.runfilename;
+            metadata.Modelversion = this.Runfilename;
             if (description != null)
             {
                 metadata.Description = description;
@@ -675,11 +609,11 @@ namespace Sweco.SIF.iMODValidator.Models
         public IDFFile RetrieveSurfaceLevelFile(Log log = null, int logIndentLevel = 0)
         {
             IDFFile surfacelevelIDFFile = null;
-            if (surfaceLevelFilename != null)
+            if (SurfaceLevelFilename != null)
             {
-                if (!(surfaceLevelFilename.Trim().Equals(string.Empty)))
+                if (!(SurfaceLevelFilename.Trim().Equals(string.Empty)))
                 {
-                    surfacelevelIDFFile = IDFFile.ReadFile(surfaceLevelFilename, false, log, logIndentLevel);
+                    surfacelevelIDFFile = IDFFile.ReadFile(SurfaceLevelFilename, false, log, logIndentLevel);
                 }
             }
             return surfacelevelIDFFile;

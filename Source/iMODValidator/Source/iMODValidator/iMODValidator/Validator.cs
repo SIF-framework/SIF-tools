@@ -21,6 +21,7 @@
 // along with iMODValidator. If not, see <https://www.gnu.org/licenses/>.
 using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
+using Sweco.SIF.iMOD;
 using Sweco.SIF.iMOD.IPF;
 using Sweco.SIF.iMODValidator.Checks;
 using Sweco.SIF.iMODValidator.Checks.CheckResults;
@@ -71,54 +72,25 @@ namespace Sweco.SIF.iMODValidator
                 PackageFileFactory.CultureInfo = value;
             }
         }
-        protected float noDataValue;
-        public float NoDataValue
-        {
-            get { return noDataValue; }
-            set { noDataValue = value; }
-        }
-        protected string outputPath;
-        public string OutputPath
-        {
-            get { return outputPath; }
-            set { outputPath = value; }
-        }
-        protected string runfilename;
-        public string Runfilename
-        {
-            get { return runfilename; }
-            set { runfilename = value; }
-        }
-        protected bool isModelValidated;
-        public bool IsModelValidated
-        {
-            get { return isModelValidated; }
-            set { isModelValidated = value; }
-        }
-        protected bool isModelCorrected;
-        public bool IsModelCorrected
-        {
-            get { return isModelCorrected; }
-            set { isModelCorrected = value; }
-        }
-        protected SurfaceLevelMethod surfaceLevelMethod;
-        public SurfaceLevelMethod SurfaceLevelMethod
-        {
-            get { return surfaceLevelMethod; }
-            set { surfaceLevelMethod = value; }
-        }
-        protected string surfaceLevelFilename;
-        public string SurfaceLevelFilename
-        {
-            get { return surfaceLevelFilename; }
-            set { surfaceLevelFilename = value; }
-        }
-        protected float levelErrorMargin;
-        public float LevelErrorMargin
-        {
-            get { return levelErrorMargin; }
-            set { levelErrorMargin = value; }
-        }
+        public Log Log { get; set; }
+        public float NoDataValue { get; set; }
+        public string OutputPath { get; set; }
+        public string RUNFilename { get; set; }
+        public bool IsModelValidated { get; set; }
+        public SurfaceLevelMethod SurfaceLevelMethod { get; set; }
+        public string SurfaceLevelFilename { get; set; }
+        public float LevelErrorMargin { get; set; }
+        public SplitValidationrunSettings.Options SplitValidationrunOption { get; set; }
+        public bool UseSparseGrids { get; set; }
+        public bool IsIMODOpened { get; set; }
+        public bool IsResultSheetOpened { get; set; }
+        public bool IsRelativePathIMFAdded { get; set; }
+        public ExtentMethod ExtentType { get; set; }
+        public Extent Extent { get; set; }
+        public float SummaryMinCellsize { get; set; }
+        public string OutputFilenameSubString { get; set; }
+        public int MinILAY { get; set; }
+        public int MaxILAY { get; set; }
         protected int minKPER;
         public int MinKPER
         {
@@ -135,22 +107,13 @@ namespace Sweco.SIF.iMODValidator
                 }
             }
         }
-        protected SplitValidationrunSettings.Options splitValidationrunOption;
-        public SplitValidationrunSettings.Options SplitValidationrunOption
-        {
-            get { return splitValidationrunOption; }
-            set
-            {
-                splitValidationrunOption = value;
-            }
-        }
         protected int maxKPER;
         public int MaxKPER
         {
             get { return maxKPER; }
             set
             {
-                if (value > 0)
+                if (value >= 0)
                 {
                     maxKPER = value;
                 }
@@ -160,127 +123,64 @@ namespace Sweco.SIF.iMODValidator
                 }
             }
         }
-        protected int minILAY;
-        public int MinILAY
-        {
-            get { return minILAY; }
-            set { minILAY = value; }
-        }
-        protected int maxILAY;
-        public int MaxILAY
-        {
-            get { return maxILAY; }
-            set { maxILAY = value; }
-        }
-        protected bool useSparseGrids;
-        public bool UseSparseGrids
-        {
-            get { return useSparseGrids; }
-            set { useSparseGrids = value; }
-        }
-        protected bool isIModOpened;
-        public bool IsIModOpened
-        {
-            get { return isIModOpened; }
-            set { isIModOpened = value; }
-        }
-        protected bool isResultSheetOpened;
-        public bool IsResultSheetOpened
-        {
-            get { return isResultSheetOpened; }
-            set { isResultSheetOpened = value; }
-        }
-        protected bool isRelativePathIMFAdded;
-        public bool IsRelativePathIMFAdded
-        {
-            get { return isRelativePathIMFAdded; }
-            set { isRelativePathIMFAdded = value; }
-        }
-        protected ExtentMethod extentType;
-        public ExtentMethod ExtentType
-        {
-            get { return extentType; }
-            set { extentType = value; }
-        }
-        protected Extent extent;
-        public Extent Extent
-        {
-            get { return extent; }
-            set { extent = value; }
-        }
-        protected float summaryMinCellsize;
-        public float SummaryMinCellsize
-        {
-            get { return summaryMinCellsize; }
-            set { summaryMinCellsize = value; }
-        }
-        protected string outputFilenameSubString;
-        public string OutputFilenameSubString
-        {
-            get { return outputFilenameSubString; }
-            set { outputFilenameSubString = value; }
-        }
 
-        protected Model model = null;
+        protected Model Model { get; set; }
 
-        public Validator()
+        public Validator(Log log)
         {
             cultureInfo = new CultureInfo("en-GB", false);
-            this.noDataValue = DefaultNoDataValue;
-            this.extentType = ExtentMethod.PackageFileExtent;
-            this.extent = null;
+            this.Log = log;
+            this.NoDataValue = DefaultNoDataValue;
+            this.ExtentType = ExtentMethod.PackageFileExtent;
+            this.Extent = null;
             this.minKPER = 0;
             this.maxKPER = int.MaxValue;
-            this.minILAY = 0;
-            this.maxILAY = int.MaxValue;
-            this.splitValidationrunOption = SplitValidationrunSettings.Options.None;
-            this.outputFilenameSubString = null;
+            this.MinILAY = 0;
+            this.MaxILAY = int.MaxValue;
+            this.SplitValidationrunOption = SplitValidationrunSettings.Options.None;
+            this.OutputFilenameSubString = null;
+            this.Model = null;
         }
 
-        public virtual void Run(Log log)
+        public virtual void Run()
         {
-            PropagateSettings();
             CheckManager.Instance.ResetAbortActions();
             try
             {
-                CheckFileExistance();
-                LogSettings(log);
+                Initialize();
 
-                // Write current intermediate logfile 
-                log.Flush();
+                CheckManager.Instance.CheckForAbort();
 
-                if (isModelValidated)
-                {
-                    CheckManager.Instance.CheckForAbort();
-                    model = ReadModel(log);
-                    ReadModelData(model, log);
-                    Extent = RetrieveExtent(model, extentType, log);
-                }
+                // Read model and data
+                Model = ReadModel();
+                Extent = RetrieveExtent(Model, ExtentType);
+                ReadModelData(Model);
 
                 // Start model validation if requested
-                if (isModelValidated)
+                if (IsModelValidated)
                 {
-                    if (splitValidationrunOption.Equals(SplitValidationrunSettings.Options.Yearly) && (model.StartDate == null))
+                    if (SplitValidationrunOption.Equals(SplitValidationrunSettings.Options.Yearly) && (Model.StartDate == null))
                     {
-                        log.AddWarning("SpitValidationRunOption Yearly is only allowed when model has a startdate defined in the runfile, ignoring option Yearly");
+                        Log.AddWarning("SpitValidationRunOption Yearly is only allowed when model has a startdate defined in the runfile, ignoring option Yearly");
                     }
-                    if (splitValidationrunOption.Equals(SplitValidationrunSettings.Options.Yearly) && (model.StartDate != null))
+                    if (SplitValidationrunOption.Equals(SplitValidationrunSettings.Options.Yearly) && (Model.StartDate != null))
                     {
                         // Split validation run in smaller runs
                         int fullMinKPER = minKPER;
                         int fullMaxKPER = maxKPER;
-                        string baseOutputPath = outputPath;
+                        string baseOutputPath = OutputPath;
                         minKPER = fullMinKPER;
-                        if (this.IsIModOpened)
+                        if (this.IsIMODOpened)
                         {
-                            log.AddInfo("Note: starting iMOD is turned off for Yearly split-validator-run option");
+                            Log.AddInfo("Note: starting iMOD is turned off for Yearly split-validator-run option");
                         }
-                        this.isIModOpened = false;
-                        this.isResultSheetOpened = false;
-                        while ((minKPER <= fullMaxKPER) && (minKPER <= model.NPER))
+                        this.IsIMODOpened = false;
+                        this.IsResultSheetOpened = false;
+
+                        while ((minKPER <= fullMaxKPER) && (minKPER <= Model.NPER))
                         {
                             // Calculate end timestep for this run
-                            DateTime currentStartDate = Model.GetStressPeriodDate((DateTime)model.StartDate, minKPER);
+                            DateTime currentStartDate = Model.GetStressPeriodDate((DateTime)Model.StartDate, minKPER);
                             DateTime currentEndDate = new DateTime(currentStartDate.Year + 1, 1, 1).Subtract(new TimeSpan(1, 0, 0, 0));
                             maxKPER = minKPER + (currentEndDate - currentStartDate).Days;
                             if (maxKPER > fullMaxKPER)
@@ -291,22 +191,21 @@ namespace Sweco.SIF.iMODValidator
                             if ((fullMaxKPER - fullMinKPER) > 366)
                             {
                                 // If more than ome year has to be checked, create a subdir per year
-                                outputPath = Path.Combine(baseOutputPath, currentStartDate.Year.ToString());
-                                model.ToolOutputPath = outputPath;
-                                if (!Directory.Exists(outputPath))
+                                OutputPath = Path.Combine(baseOutputPath, currentStartDate.Year.ToString());
+                                Model.ToolOutputPath = OutputPath;
+                                if (!Directory.Exists(OutputPath))
                                 {
-                                    Directory.CreateDirectory(outputPath);
+                                    Directory.CreateDirectory(OutputPath);
                                 }
-                                outputFilenameSubString = "_" + currentStartDate.Year.ToString(); // +((outputFilenameSubString == null) ? string.Empty : outputFilenameSubString);
+                                OutputFilenameSubString = "_" + currentStartDate.Year.ToString(); // +((outputFilenameSubString == null) ? string.Empty : outputFilenameSubString);
                             }
 
                             // Start run                                
-                            CheckManager.Instance.CheckForAbort();
-                            log.AddInfo("Splitted validation run for year " + currentStartDate.Year.ToString() + ", timesteps " + minKPER + " - " + maxKPER);
-                            ValidateModel(model, log);
+                            Log.AddInfo("Splitted validation run for year " + currentStartDate.Year.ToString() + ", timesteps " + minKPER + " - " + maxKPER);
+                            ValidateModel(Model);
 
                             // Write current intermediate logfile 
-                            log.Flush();
+                            Log.Flush();
 
                             // Calculate new start timestep
                             minKPER = maxKPER + 1;
@@ -314,8 +213,7 @@ namespace Sweco.SIF.iMODValidator
                     }
                     else
                     {
-                        CheckManager.Instance.CheckForAbort();
-                        ValidateModel(model, log);
+                        ValidateModel(Model);
                     }
                 }
             }
@@ -326,12 +224,23 @@ namespace Sweco.SIF.iMODValidator
             // let other exceptions pass, but first free package memory
             catch (Exception ex)
             {
-                if (model != null)
+                if (Model != null)
                 {
-                    model.ReleaseAllPackageMemory();
+                    Model.ReleaseAllPackageMemory();
                 }
-                throw new Exception("Error during validation", ex);
+                throw new Exception("Error while running validator", ex);
             }
+        }
+
+        private void Initialize()
+        {
+            PropagateSettings();
+            CheckFileExistance();
+            ISGRIVConverter.ClearCache();
+            LogSettings(Log);
+
+            // Write current intermediate logfile 
+            Log.Flush();
         }
 
         protected void PropagateSettings()
@@ -344,32 +253,36 @@ namespace Sweco.SIF.iMODValidator
 
         protected void CheckFileExistance()
         {
-            if (!Directory.Exists(outputPath))
+            if (!Directory.Exists(OutputPath))
             {
-                Directory.CreateDirectory(outputPath);
+                Directory.CreateDirectory(OutputPath);
             }
 
-            if (!File.Exists(runfilename))
+            if (!File.Exists(RUNFilename))
             {
-                throw new Exception("Specified runfile doesn't exist: " + runfilename);
+                throw new Exception("Specified runfile doesn't exist: " + RUNFilename);
             }
         }
 
         protected void LogSettings(Log log)
         {
-            log.AddInfo("Basemodel runfilename: " + runfilename);
-            log.AddInfo("Using extent method: " + extentType.ToString() + " (see below for actually used extent)");
-            log.AddInfo("Using surfacelevel method: " + surfaceLevelMethod.ToString());
-            if (surfaceLevelMethod == SurfaceLevelMethod.UseFilename)
+            if (log == null)
             {
-                log.AddInfo("Surfacelevel filename: " + surfaceLevelFilename);
+                throw new Exception("Please add Log object to Validator instance");
             }
-            log.AddInfo("Level-error margin: " + levelErrorMargin + "m");
+
+            log.AddInfo("Using extent method: " + ExtentType.ToString() + " (see below for actually used extent)");
+            log.AddInfo("Using surfacelevel method: " + SurfaceLevelMethod.ToString());
+            if (SurfaceLevelMethod == SurfaceLevelMethod.UseFilename)
+            {
+                log.AddInfo("Surfacelevel filename: " + SurfaceLevelFilename);
+            }
+            log.AddInfo("Level-error margin: " + LevelErrorMargin + "m");
             log.AddInfo("Checked timesteps: " + minKPER + " - " + maxKPER);
-            log.AddInfo("Split validationrun option: " + splitValidationrunOption.ToString());
-            log.AddInfo("Checked layers: " + minILAY + " - " + maxILAY);
-            log.AddInfo("Minimum summary-IDF cellsize: " + summaryMinCellsize + "m");
-            if (useSparseGrids)
+            log.AddInfo("Split validationrun option: " + SplitValidationrunOption.ToString());
+            log.AddInfo("Checked layers: " + MinILAY + " - " + MaxILAY);
+            log.AddInfo("Minimum summary-IDF cellsize: " + SummaryMinCellsize + "m");
+            if (UseSparseGrids)
             {
                 log.AddInfo("Sparse matrices: sparse matrices are use to store IDF-data");
             }
@@ -379,33 +292,99 @@ namespace Sweco.SIF.iMODValidator
             log.AddMessage(LogLevel.Debug, string.Empty);
         }
 
-        protected Model ReadModel(Log log)
+        protected Model ReadModel()
         {
-            Runfile runfile = new V5Runfile(runfilename);
-            Model model = runfile.ReadModel(log, maxKPER);
-            model.ToolOutputPath = outputPath;
+            Runfile runfile = new V5Runfile(RUNFilename);
+            Model model = runfile.ReadModel(Log, maxKPER);
+            model.ToolOutputPath = OutputPath;
 
-            log.AddMessage(LogLevel.Debug, "Allocated memory after reading base runfile: " + GC.GetTotalMemory(true) / 1000000 + "Mb");
-            log.AddMessage(LogLevel.Debug, string.Empty);
+            Log.AddMessage(LogLevel.Debug, "Allocated memory after reading base runfile: " + GC.GetTotalMemory(true) / 1000000 + "Mb");
+            Log.AddMessage(LogLevel.Debug, string.Empty);
 
             return model;
         }
 
-        protected void ReadModelData(Model model, Log log)
+        /// <summary>
+        /// Actually read all data from packages, using lazy loading mechanism
+        /// </summary>
+        /// <param name="model"></param>
+        protected void ReadModelData(Model model)
         {
             // Actually read all data from modelfiles
-            log.AddMessage(LogLevel.Trace, "Reading packagefiles...");
+            Log.AddMessage(LogLevel.Trace, "Reading packagefiles...");
             foreach (Package package in model.Packages)
             {
                 // read packages using lazy loading mechanism
-                package.ReadFiles(log, iMODValidatorSettingsManager.Settings.UseLazyLoading, 2);
+                package.ReadFiles(Log, iMODValidatorSettingsManager.Settings.UseLazyLoading, model.GetExtent(), 2);
             }
-            log.AddMessage(LogLevel.Debug, "Allocated memory after reading base packagefiles: " + GC.GetTotalMemory(true) / 1000000 + "Mb");
-            log.AddMessage(LogLevel.Trace, string.Empty);
+            Log.AddMessage(LogLevel.Debug, "Allocated memory after reading base packagefiles: " + GC.GetTotalMemory(true) / 1000000 + "Mb");
+            Log.AddMessage(LogLevel.Trace, string.Empty);
 
             // Retrieve surface level filename
-            model.SurfaceLevelFilename = RetrieveSurfaceLevelFilename(surfaceLevelMethod, model, log);
+            model.SurfaceLevelFilename = RetrieveSurfaceLevelFilename(SurfaceLevelMethod, model, Log);
         }
+
+        protected virtual void ValidateModel(Model model)
+        {
+            Log.AddInfo(string.Empty);
+            Log.AddInfo("Starting validation...");
+
+            // Now run the available checks
+            CheckResultHandler resultHandler = new CheckResultHandler(model, NoDataValue, Extent, SIFTool.Instance.ToolName + "-tool" + ((SIFTool.Instance.ToolVersion != null) ? (", " + SIFTool.Instance.ToolVersion) : string.Empty));
+            // resultHandler.OutputPath = CheckManager.Instance.GetiMODFilesPath(model);
+            SetResultHandlerSettings(resultHandler);
+
+            List<Check> activeChecks = new List<Check>();
+            foreach (Check check in CheckManager.Instance.Checks)
+            {
+                CheckManager.Instance.CheckForAbort();
+
+                if (check.IsActive)
+                {
+                    Log.AddMessage(LogLevel.Debug, "Allocated memory before check " + check.Name + ": " + GC.GetTotalMemory(false) / 1000000 + "Mb");
+                    activeChecks.Add(check);
+                    check.Reset();
+                    check.Run(model, resultHandler, Log);
+                    if (iMODValidatorSettingsManager.Settings.UseLazyLoading)
+                    {
+                        model.ReleaseAllPackageMemory(Log);
+                    }
+                    Log.AddMessage(LogLevel.Debug, "Allocated memory after check " + check.Name + ": " + GC.GetTotalMemory(true) / 1000000 + "Mb");
+                }
+            }
+
+            if (activeChecks.Count == 0)
+            {
+                Log.AddWarning("No checks have been selected");
+            }
+            if (activeChecks.Count == 1)
+            {
+                // prefix current outputFilenameSubstring with the name of the single check
+                OutputFilenameSubString = "_" + activeChecks[0].Abbreviation + ((OutputFilenameSubString == null) ? string.Empty : OutputFilenameSubString);
+            }
+
+            CheckManager.Instance.CheckForAbort();
+
+            string imfFilename = IMFFilenamePrefix;
+            string fullResultTableFilenamePrefix = ResultTableFilenamePrefix;
+            if ((OutputFilenameSubString != null) && !OutputFilenameSubString.Equals(string.Empty))
+            {
+                imfFilename += OutputFilenameSubString;
+                fullResultTableFilenamePrefix += OutputFilenameSubString;
+            }
+            imfFilename += ".IMF";
+            resultHandler.WriteResults(imfFilename, fullResultTableFilenamePrefix, "No validation problems found.", IsRelativePathIMFAdded, IsIMODOpened, IsResultSheetOpened, Log);
+
+            if (Log.Errors.Count > 0)
+            {
+                Log.AddInfo("There were " + Log.Errors.Count + " unexpected errors during validation, this may affect the result.");
+            }
+            if (Log.Warnings.Count > 0)
+            {
+                Log.AddInfo("There were " + Log.Warnings.Count + " unexpected warnings during validation, this may affect the result.");
+            }
+        }
+
 
         /// <summary>
         /// Sets userdefined options for resulthandler: MaxKPER, LevelErrorMargin, MinEntryNumber, UseSparseGrids, SummaryMinCellSize
@@ -413,16 +392,20 @@ namespace Sweco.SIF.iMODValidator
         /// <param name="resultHandler"></param>
         protected void SetResultHandlerSettings(ResultHandler resultHandler)
         {
-            resultHandler.LevelErrorMargin = levelErrorMargin;
+            resultHandler.LevelErrorMargin = LevelErrorMargin;
             resultHandler.MinKPER = (minKPER >= 0) ? minKPER : 0;
             resultHandler.MaxKPER = (maxKPER >= 0) ? maxKPER : resultHandler.Model.NPER;
-            resultHandler.MinEntryNumber = minILAY;
-            resultHandler.MaxEntryNumber = maxILAY;
-            resultHandler.UseSparseGrids = useSparseGrids;
-            resultHandler.SummaryMinCellsize = summaryMinCellsize;
+            if (resultHandler.Model.IsSteadyStateModel())
+            {
+                resultHandler.MaxKPER = 0;
+            }
+            resultHandler.MinEntryNumber = MinILAY;
+            resultHandler.MaxEntryNumber = MaxILAY;
+            resultHandler.UseSparseGrids = UseSparseGrids;
+            resultHandler.SummaryMinCellsize = SummaryMinCellsize;
         }
 
-        protected Extent RetrieveExtent(Model model, ExtentMethod extentType, Log log)
+        protected Extent RetrieveExtent(Model model, ExtentMethod extentType)
         {
             Extent extent = null;
             switch (extentType)
@@ -435,7 +418,7 @@ namespace Sweco.SIF.iMODValidator
                     break;
                 case ExtentMethod.CustomExtent:
                     // Keep custom extent that already has been set via the Extent-property 
-                    extent = this.extent;
+                    extent = this.Extent;
                     if (extent == null)
                     {
                         throw new Exception("No extent specified for custom extent");
@@ -447,8 +430,7 @@ namespace Sweco.SIF.iMODValidator
 
             if (extent.IsValidExtent())
             {
-                log.AddInfo("Using extent " + extent.ToString(), 1);
-                log.AddInfo(string.Empty);
+                Log.AddInfo("Using extent " + extent.ToString());
                 return extent;
             }
             else
@@ -484,9 +466,10 @@ namespace Sweco.SIF.iMODValidator
                     break;
                 case SurfaceLevelMethod.UseMetaSWAP:
                     CAPPackage capPackage = (CAPPackage)model.GetPackage(CAPPackage.DefaultKey);
-                    if ((capPackage != null) && (capPackage.GetSurfaceLevelFilename() != null))
+                    IMODFile surfaceLevelIDFFile = (capPackage != null) ? capPackage.GetIMODFile(CAPPackage.GetRunFileV5EntryIdx(CAPEntryCode.SEV)) : null;
+                    if ((capPackage != null) && (surfaceLevelIDFFile != null))
                     {
-                        surfaceLevelFilename = capPackage.GetSurfaceLevelFilename();
+                        surfaceLevelFilename = surfaceLevelIDFFile.Filename;
                         if (File.Exists(surfaceLevelFilename))
                         {
                             log.AddInfo("Using CAP surface elevation as model surface level: " + surfaceLevelFilename);
@@ -529,16 +512,16 @@ namespace Sweco.SIF.iMODValidator
                     }
                     break;
                 case SurfaceLevelMethod.UseFilename:
-                    surfaceLevelFilename = this.surfaceLevelFilename;
+                    surfaceLevelFilename = this.SurfaceLevelFilename;
 
-                    if (this.surfaceLevelFilename == null)
+                    if (this.SurfaceLevelFilename == null)
                     {
                         log.AddError("Surfacelevel", null, "Unspecified surfacelevel filename in selected method 'UseFilename'");
                         surfaceLevelFilename = null;
                     }
-                    else if (File.Exists(this.surfaceLevelFilename))
+                    else if (File.Exists(this.SurfaceLevelFilename))
                     {
-                        log.AddInfo("Using specfied file as surface level file: " + surfaceLevelFilename);
+                        log.AddInfo("Using surface level file: " + surfaceLevelFilename);
                     }
                     else
                     {
@@ -554,69 +537,6 @@ namespace Sweco.SIF.iMODValidator
             return surfaceLevelFilename;
         }
 
-
-        private void ValidateModel(Model model, Log log)
-        {
-            log.AddInfo("Starting validation...");
-
-            // Now run the available checks
-            CheckResultHandler resultHandler = new CheckResultHandler(model, noDataValue, extent, ToolName + "-tool" + ((ToolVersion != null) ? (", " + ToolVersion) : string.Empty));
-            // resultHandler.OutputPath = CheckManager.Instance.GetiMODFilesPath(model);
-            SetResultHandlerSettings(resultHandler);
-
-            List<Check> activeChecks = new List<Check>();
-            foreach (Check check in CheckManager.Instance.Checks)
-            {
-                CheckManager.Instance.CheckForAbort();
-
-                if (check.IsActive)
-                {
-                    log.AddMessage(LogLevel.Debug, "Allocated memory before check " + check.Name + ": " + GC.GetTotalMemory(false) / 1000000 + "Mb");
-                    activeChecks.Add(check);
-                    check.Reset();
-                    check.IsModelCorrected = isModelCorrected;
-                    check.Run(model, resultHandler, log);
-                    if (iMODValidatorSettingsManager.Settings.UseLazyLoading)
-                    {
-                        model.ReleaseAllPackageMemory(log);
-                    }
-                    log.AddMessage(LogLevel.Debug, "Allocated memory after check " + check.Name + ": " + GC.GetTotalMemory(true) / 1000000 + "Mb");
-                }
-            }
-
-            if (activeChecks.Count == 0)
-            {
-                log.AddWarning("No checks have been selected");
-            }
-            if (activeChecks.Count == 1)
-            {
-                // prefix current outputFilenameSubstring with the name of the single check
-                outputFilenameSubString = "_" + activeChecks[0].Abbreviation + ((outputFilenameSubString == null) ? string.Empty : outputFilenameSubString);
-            }
-
-            CheckManager.Instance.CheckForAbort();
-
-            string imfFilename = IMFFilenamePrefix;
-            string fullResultTableFilenamePrefix = ResultTableFilenamePrefix;
-            if ((outputFilenameSubString != null) && !outputFilenameSubString.Equals(string.Empty))
-            {
-                imfFilename += outputFilenameSubString;
-                fullResultTableFilenamePrefix += outputFilenameSubString;
-            }
-            imfFilename += ".IMF";
-            resultHandler.WriteResults(imfFilename, fullResultTableFilenamePrefix, "No validation problems found.", isRelativePathIMFAdded, isIModOpened, isResultSheetOpened, log);
-
-            if (log.Errors.Count > 0)
-            {
-                log.AddInfo("There were " + log.Errors.Count + " unexpected errors during validation, this may affect the result.");
-            }
-            if (log.Warnings.Count > 0)
-            {
-                log.AddInfo("There were " + log.Warnings.Count + " unexpected warnings during validation, this may affect the result.");
-            }
-        }
-
-
         /// <summary>
         /// Load settings, from a specified file location or (if settingsFilename is null) from the default location
         /// </summary>
@@ -630,11 +550,11 @@ namespace Sweco.SIF.iMODValidator
                 // Load settings from file
                 iMODValidatorSettingsManager.LoadMainSettings(settingsFilename);
 
-                noDataValue = iMODValidatorSettingsManager.Settings.DefaultNoDataValue;
+                NoDataValue = iMODValidatorSettingsManager.Settings.DefaultNoDataValue;
 
                 // Retrieve output settings
-                isIModOpened = iMODValidatorSettingsManager.Settings.IsIModOpened;
-                isResultSheetOpened = iMODValidatorSettingsManager.Settings.IsExcelOpened;
+                IsIMODOpened = iMODValidatorSettingsManager.Settings.IsIMODOpened;
+                IsResultSheetOpened = iMODValidatorSettingsManager.Settings.IsExcelOpened;
 
                 // Retrieve and check extent settings
                 if (iMODValidatorSettingsManager.Settings.UseCustomExtentMethod)
@@ -658,12 +578,12 @@ namespace Sweco.SIF.iMODValidator
                 // Set default surface level file and method
                 try
                 {
-                    surfaceLevelFilename = iMODValidatorSettingsManager.Settings.DefaultSurfaceLevelFilename;
-                    if (!Path.IsPathRooted(surfaceLevelFilename))
+                    SurfaceLevelFilename = iMODValidatorSettingsManager.Settings.DefaultSurfaceLevelFilename;
+                    if (!Path.IsPathRooted(SurfaceLevelFilename))
                     {
-                        surfaceLevelFilename = Path.Combine(Directory.GetCurrentDirectory(), surfaceLevelFilename);
+                        SurfaceLevelFilename = Path.Combine(Directory.GetCurrentDirectory(), SurfaceLevelFilename);
                     }
-                    if (!File.Exists(surfaceLevelFilename))
+                    if (!File.Exists(SurfaceLevelFilename))
                     {
                         // ignore for now
                     }
@@ -674,41 +594,41 @@ namespace Sweco.SIF.iMODValidator
                 }
                 if (iMODValidatorSettingsManager.Settings.UseSmartSurfaceLevelMethod)
                 {
-                    surfaceLevelMethod = SurfaceLevelMethod.Smart;
-                    surfaceLevelFilename = null;
+                    SurfaceLevelMethod = SurfaceLevelMethod.Smart;
+                    SurfaceLevelFilename = null;
                 }
                 else if (iMODValidatorSettingsManager.Settings.UseMetaSWAPSurfaceLevelMethod)
                 {
-                    surfaceLevelMethod = SurfaceLevelMethod.UseMetaSWAP;
-                    surfaceLevelFilename = null;
+                    SurfaceLevelMethod = SurfaceLevelMethod.UseMetaSWAP;
+                    SurfaceLevelFilename = null;
                 }
                 else if (iMODValidatorSettingsManager.Settings.UseOLFSurfaceLevelMethod)
                 {
-                    surfaceLevelMethod = SurfaceLevelMethod.UseOLF;
-                    surfaceLevelFilename = null;
+                    SurfaceLevelMethod = SurfaceLevelMethod.UseOLF;
+                    SurfaceLevelFilename = null;
                 }
                 else if (iMODValidatorSettingsManager.Settings.UseFileSurfaceLevelMethod)
                 {
                     if ((iMODValidatorSettingsManager.Settings.DefaultSurfaceLevelFilename != null) && (iMODValidatorSettingsManager.Settings.DefaultSurfaceLevelFilename != string.Empty))
                     {
-                        surfaceLevelMethod = SurfaceLevelMethod.UseFilename;
-                        surfaceLevelFilename = iMODValidatorSettingsManager.Settings.DefaultSurfaceLevelFilename;
+                        SurfaceLevelMethod = SurfaceLevelMethod.UseFilename;
+                        SurfaceLevelFilename = iMODValidatorSettingsManager.Settings.DefaultSurfaceLevelFilename;
                     }
                     else
                     {
-                        surfaceLevelMethod = SurfaceLevelMethod.Smart;
-                        surfaceLevelFilename = null;
+                        SurfaceLevelMethod = SurfaceLevelMethod.Smart;
+                        SurfaceLevelFilename = null;
                     }
                 }
                 else
                 {
-                    surfaceLevelMethod = SurfaceLevelMethod.Smart;
-                    surfaceLevelFilename = null;
+                    SurfaceLevelMethod = SurfaceLevelMethod.Smart;
+                    SurfaceLevelFilename = null;
                 }
 
                 // Retrieve and check error margin settings
                 float levelErrorMargin = iMODValidatorSettingsManager.Settings.LevelErrorMargin;
-                this.levelErrorMargin = (levelErrorMargin > 0) ? levelErrorMargin : 0;
+                this.LevelErrorMargin = (levelErrorMargin > 0) ? levelErrorMargin : 0;
 
                 // Retrieve min/max timestep setting
                 int minTimeStep = -1;
@@ -722,27 +642,27 @@ namespace Sweco.SIF.iMODValidator
                     maxKPER = maxTimeStep;
                 }
 
-                splitValidationrunOption = iMODValidatorSettingsManager.Settings.SplitValidationrunOption;
+                SplitValidationrunOption = iMODValidatorSettingsManager.Settings.SplitValidationrunOption;
 
                 // Retrieve ilay settings
-                int minILAYValue = 1;
-                if (int.TryParse(iMODValidatorSettingsManager.Settings.MinILAY, out minILAYValue))
+                if (int.TryParse(iMODValidatorSettingsManager.Settings.MinILAY, out int minILAYValue))
                 {
-                    minILAY = minILAYValue;
+                    MinILAY = minILAYValue;
                 }
-                int maxILAYValue = 1;
-                if (int.TryParse(iMODValidatorSettingsManager.Settings.MaxILAY, out maxILAYValue))
+                if (int.TryParse(iMODValidatorSettingsManager.Settings.MaxILAY, out int maxILAYValue))
                 {
-                    maxILAY = maxILAYValue;
+                    MaxILAY = maxILAYValue;
                 }
 
-                useSparseGrids = iMODValidatorSettingsManager.Settings.UseSparseMatrix;
-                isRelativePathIMFAdded = iMODValidatorSettingsManager.Settings.IsRelativePathIMFAdded;
+                IPFFile.UserDefinedListSeperators = iMODValidatorSettingsManager.Settings.DefaultIPFListSeperators;
+
+                UseSparseGrids = iMODValidatorSettingsManager.Settings.UseSparseMatrix;
+                IsRelativePathIMFAdded = iMODValidatorSettingsManager.Settings.IsRelativePathIMFAdded;
                 // iMODValidatorSettingsManager.Settings.UseIPFWarningForExistingPoints is stored in settings object
                 // iMODValidatorSettingsManager.Settings.UseIPFWarningForColumnMismatch is stored in settings object
 
                 // Retrieve summary min cellsize settings
-                summaryMinCellsize = iMODValidatorSettingsManager.Settings.DefaultSummaryMinCellSize;
+                SummaryMinCellsize = iMODValidatorSettingsManager.Settings.DefaultSummaryMinCellSize;
             }
             catch (Exception ex)
             {
