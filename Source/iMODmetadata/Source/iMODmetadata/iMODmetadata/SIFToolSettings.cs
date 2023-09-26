@@ -190,7 +190,7 @@ namespace Sweco.SIF.iMODmetadata
             newMetadata.Resolution = (parameters.Length > idx + 9) ? RemoveTextQuotes(parameters[idx + 9]) : string.Empty;
             if ((newMetadata.Resolution == null) || newMetadata.Resolution.Trim().Equals(string.Empty))
             {
-                if (Path.GetExtension(iMODFilename).Substring(1).ToUpper().Equals("IDF"))
+                if (Path.HasExtension(iMODFilename) && Path.GetExtension(iMODFilename).Substring(1).ToUpper().Equals("IDF"))
                 {
                     if (File.Exists(iMODFilename))
                     {
