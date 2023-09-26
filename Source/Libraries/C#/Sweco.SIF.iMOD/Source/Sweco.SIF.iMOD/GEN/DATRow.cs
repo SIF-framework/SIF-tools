@@ -48,6 +48,14 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
+        /// Creates a new DATRow object with specified string values
+        /// </summary>
+        /// <param name="values"></param>
+        public DATRow(string[] values) : base(values)
+        {
+        }
+
+        /// <summary>
         /// Creates a copy of this DATRow object
         /// </summary>
         /// <returns></returns>
@@ -61,16 +69,14 @@ namespace Sweco.SIF.iMOD.GEN
         /// </summary>
         public override string ToString()
         {
-            string rowString = string.Empty;
-            for (int colIdx = 0; colIdx < Count; colIdx++)
+            StringBuilder rowStringBuilder = new StringBuilder();
+            for (int colIdx = 0; colIdx < (Count - 1); colIdx++)
             {
-                rowString += GENUtils.CorrectString(this[colIdx]);
-                if (colIdx < Count - 1)
-                {
-                    rowString += ",";
-                }
+                rowStringBuilder.Append(GENUtils.CorrectString(this[colIdx]));
+                rowStringBuilder.Append(",");
             }
-            return rowString;
+            rowStringBuilder.AppendLine(GENUtils.CorrectString(this[Count - 1]));
+            return rowStringBuilder.ToString();
         }
     }
 }

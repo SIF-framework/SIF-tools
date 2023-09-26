@@ -168,6 +168,16 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
+        /// Checks if this GENFeature contains the specified point (which for points means checking for equality)
+        /// </summary>
+        /// <param name="point"></param>
+        /// <returns></returns>
+        public bool Contains(Point point)
+        {
+            return this.Equals(point);
+        }
+
+        /// <summary>
         /// Reverse internal order of points
         /// </summary>
         public override void ReversePoints()
@@ -218,5 +228,79 @@ namespace Sweco.SIF.iMOD.GEN
             return new GENPoint(GENFile, ID, Points[0].Copy());
         }
 
+        /// <summary>
+        /// Clips this feature against specified extent. Only if point is inside extent it is returned
+        /// </summary>
+        /// <param name="clipExtent"></param>
+        /// <returns></returns>
+        public override List<GENFeature> Clip(Extent clipExtent)
+        {
+            List<GENFeature> clippedGENFeatures = new List<GENFeature>();
+
+            GENFile clippedGENFile = new GENFile();
+
+            // Add DATFile
+            DATFile clippedDATFile = CreateDATFile(clippedGENFile, this.GENFile, DATFile.SourceIDColumnName);
+            int sourceIDColIdx = clippedDATFile.GetColIdx(DATFile.SourceIDColumnName);
+
+            // Clip feature
+            if (clipExtent.Contains(this.Point.X, this.Point.Y))
+            {
+                GENPoint genPoint = (GENPoint) this.Copy();
+
+                // Add DATRow
+                DATRow datRow = genPoint.AddDATRow(this);
+                datRow[sourceIDColIdx] = this.ID;
+
+                clippedGENFeatures.Add(genPoint);
+            }
+
+            return clippedGENFeatures;
+        }
+
+        /// <summary>
+        /// Snaps GEN point to features in specified GEN-file
+        /// </summary>
+        /// <param name="genFile2"></param>
+        /// <param name="snapSettings"></param>
+        /// <returns>snapped IPF-point, or null if snap was not possible</returns>
+        public GENFeature Snap(GENFile genFile2, SnapSettings snapSettings = null)
+        {
+            GENPoint genPoint = new GENPoint(null, 0, Point);
+            GENLine genPointLine = new GENLine(null, "999", new List<Point>() { Point, Point });
+            GENFeature snappedGENFeature = genPointLine.Snap(genFile2, snapSettings);
+            //GENFeature snappedGENFeature = genPoint.Snap(genFile, snapSettings); // Snaps to points
+            if (snappedGENFeature != null)
+            {
+                return new GENPoint(null, "0", snappedGENFeature.Points[0]);
+            }
+            else
+            {
+                // No snapline found, return source point
+                return genPoint;
+            }
+        }
+
+        /// <summary>
+        /// Snaps this feature, starting from the given pointIdx to the otherFeature as long as within the specified tolerance distance
+        /// </summary>
+        /// <param name="matchPointIdx"></param>
+        /// <param name="otherFeature">the snapLine to which this feature (the snappedLine) has to be snapped</param>
+        /// <param name="tolerance"></param>
+        /// <returns></returns>
+        public override GENFeature SnapPart(int matchPointIdx, GENFeature otherFeature, double tolerance)
+        {
+            if (matchPointIdx != 0)
+            {
+                throw new Exception("Specified point index (" + matchPointIdx + ") is out of range for specified feature");
+            }
+
+            Point nearestPoint = Point.FindNearestPoint(new List<GENFeature>() { otherFeature }, tolerance);
+            if (Point.FindNearestPoint(new List<GENFeature>() { otherFeature }, tolerance) != null)
+            {
+                return otherFeature;
+            }
+            return null;
+        }
     }
 }

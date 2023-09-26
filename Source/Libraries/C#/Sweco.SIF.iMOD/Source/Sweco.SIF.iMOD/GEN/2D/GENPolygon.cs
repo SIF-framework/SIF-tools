@@ -25,6 +25,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Sweco.SIF.GIS;
+using Sweco.SIF.GIS.Clipping;
 
 namespace Sweco.SIF.iMOD.GEN
 {
@@ -117,24 +118,6 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
-        /// Check if points of polygon are defined in a clockwise direction.
-        /// </summary>
-        /// <returns></returns>
-        public bool IsClockwise()
-        {
-            for (int cntr = 2; cntr < Points.Count; cntr++)
-            {
-                bool? isLeft = IsLeftOf(new LineSegment(Points[0], Points[1]), Points[cntr]);
-                if (isLeft != null)		//	some of the points may be colinear.  That's ok as long as the overall is a polygon
-                {
-                    return !isLeft.Value;
-                }
-            }
-
-            throw new ArgumentException("All the points in the polygon are colinear");
-        }
-
-        /// <summary>
         /// Tells if the test point lies on the left side of the edge line
         /// </summary>
         private static bool? IsLeftOf(LineSegment edge, Point point)
@@ -169,6 +152,182 @@ namespace Sweco.SIF.iMOD.GEN
             GENPolygon genPolygon = new GENPolygon(null, ID, Points.ToList());
             genPolygon.CopyDATRow(GENFile, ID);
             return genPolygon;
+        }
+
+        /// <summary>
+        /// Clip GEN-polygon to specified extent, which may result in or more smaller polygons. When GEN-file has a DAT-file, a SourceID column is added with the source ID.
+        /// </summary>
+        /// <param name="clipExtent"></param>
+        /// <returns></returns>
+        public override List<GENFeature> Clip(Extent clipExtent)
+        {
+            List<GENFeature> clippedGENFeatures = new List<GENFeature>();
+            clippedGENFeatures.AddRange(ClipPolygon(clipExtent));
+            return clippedGENFeatures;
+        }
+
+        /// <summary>
+        /// Clips this polygon and its DATRow (if existing), to specified clipPolygon. Note: ensure order of points is defined clockwise as this defines inside/outside.
+        /// </summary>
+        /// <param name="clipPolygon"></param>
+        /// <returns></returns>
+        public List<GENPolygon> ClipPolygon(GENPolygon clipPolygon)
+        {
+            List<GENPolygon> clippedGENPolygons = new List<GENPolygon>();
+            GENFile clippedGENFile = new GENFile();
+
+            // Add DATFile
+            DATFile clippedDATFile = CreateDATFile(clippedGENFile, this.GENFile, DATFile.SourceIDColumnName);
+            int sourceIDColIdx = clippedDATFile.GetColIdx(DATFile.SourceIDColumnName);
+
+            // Clip feature
+            List<Point> pointList1 = this.Points.ToList();
+            pointList1.RemoveAt(pointList1.Count - 1);
+            List<Point> pointList2 = clipPolygon.Points.ToList();
+            pointList2.RemoveAt(pointList2.Count - 1);
+            List<Point> clippedPointList = CSHFClipper.ClipPolygon(pointList1, pointList2);
+
+            if ((clippedPointList != null) && (clippedPointList.Count() > 0))
+            {
+                clippedPointList.Add(clippedPointList[0]);
+                GENPolygon clippedGENPolygon = new GENPolygon(clippedGENFile, ID, clippedPointList);
+
+                // Add DATRow
+                DATRow datRow = clippedGENPolygon.AddDATRow(this);
+                datRow[sourceIDColIdx] = this.ID;
+
+                clippedGENPolygons.Add(clippedGENPolygon);
+            }
+
+            return clippedGENPolygons;
+        }
+
+        /// <summary>
+        /// Clips this polygon without DATRow to specified clip extent. Note: ensure order of points is defined clockwise as this defines inside/outside.
+        /// </summary>
+        /// <param name="clipExtent"></param>
+        /// <returns></returns>
+        public List<GENPolygon> ClipPolygonWithoutDATRow(Extent clipExtent)
+        {
+            List<GENPolygon> clippedGENPolygons = new List<GENPolygon>();
+            GENFile clippedGENFile = new GENFile();
+
+            // Check if feature is completely inside or outside specified extent
+            Extent featureExtent = this.RetrieveExtent();
+            if (clipExtent.Contains(featureExtent))
+            {
+                // Feature is completely inside clip extent, copy feature and data completely
+                GENPolygon clippedPolygon = new GENPolygon(clippedGENFile, "1", this.Points);
+                clippedGENFile.AddFeature(clippedPolygon);
+                clippedGENPolygons.Add(clippedPolygon);
+            }
+            else if (!clipExtent.Intersects(featureExtent))
+            {
+                // Feature is completely outside specified extent, return empty list
+            }
+            else
+            {
+                // Clip feature
+                List<Point> extentPoints = clipExtent.ToPointList();
+                extentPoints.RemoveAt(extentPoints.Count - 1);
+                List<Point> clippedPointList = CSHFClipper.ClipPolygon(this.Points, extentPoints); // pointList1
+                if ((clippedPointList != null) && (clippedPointList.Count > 0))
+                {
+                    clippedPointList.Add(clippedPointList[0]);
+                    GENPolygon clippedGENPolygon = new GENPolygon(clippedGENFile, ID, clippedPointList);
+                    clippedGENPolygon.RemoveDuplicatePoints();
+                    if (GISUtils.IsClockwise(this.Points) != GISUtils.IsClockwise(clippedGENPolygon.Points))
+                    {
+                        // Ensure order of clipped points is same as source polygon
+                        clippedGENPolygon.ReversePoints();
+                    }
+
+                    if (clippedGENPolygon.CalculateArea() > 0)
+                    {
+                        clippedGENPolygons.Add(clippedGENPolygon);
+                    }
+                }
+            }
+
+            return clippedGENPolygons;
+        }
+
+        public bool Contains(Point point)
+        {
+            return point.IsInside(this.Points);
+        }
+
+        /// <summary>
+        /// Clips this polygon and its DATRow (if existing), to specified clip extent. Note: ensure order of points is defined clockwise as this defines inside/outside.
+        /// </summary>
+        /// <param name="clipExtent"></param>
+        /// <returns></returns>
+        public List<GENPolygon> ClipPolygon(Extent clipExtent)
+        {
+            List<GENPolygon> clippedGENPolygons = new List<GENPolygon>();
+            GENFile clippedGENFile = new GENFile();
+
+            // Add DATFile
+            DATFile clippedDATFile = clippedDATFile = CreateDATFile(clippedGENFile, this.GENFile, DATFile.SourceIDColumnName);
+            int sourceIDColIdx = clippedDATFile.GetColIdx(DATFile.SourceIDColumnName);
+
+            // Check if feature is completely inside or outside specified extent
+            Extent featureExtent = this.RetrieveExtent();
+            if (clipExtent.Contains(featureExtent))
+            {
+                // Feature is completely inside clip extent, copy feature and data completely
+                GENPolygon clippedPolygon = new GENPolygon(clippedGENFile, "1", this.Points);
+                DATRow datRow = clippedPolygon.AddDATRow(this);
+                datRow[sourceIDColIdx] = this.ID;
+                clippedGENFile.AddFeature(clippedPolygon);
+                clippedGENPolygons.Add(clippedPolygon);
+            }
+            else if (!clipExtent.Intersects(featureExtent))
+            {
+                // Feature is completely outside specified extent, return empty list
+            }
+            else
+            {
+                // Clip feature
+                List<Point> extentPoints = clipExtent.ToPointList();
+                extentPoints.RemoveAt(extentPoints.Count - 1);
+                List<Point> clippedPointList = CSHFClipper.ClipPolygon(this.Points, extentPoints); // pointList1
+                if ((clippedPointList != null) && (clippedPointList.Count > 0))
+                {
+                    clippedPointList.Add(clippedPointList[0]);
+                    GENPolygon clippedGENPolygon = new GENPolygon(clippedGENFile, ID, clippedPointList);
+                    clippedGENPolygon.RemoveDuplicatePoints();
+                    if (GISUtils.IsClockwise(this.Points) != GISUtils.IsClockwise(clippedGENPolygon.Points))
+                    {
+                        // Ensure order of clipped points is same as source polygon
+                        clippedGENPolygon.ReversePoints();
+                    }
+
+                    if (clippedGENPolygon.CalculateArea() > 0)
+                    {
+                        // Add DATRow
+                        DATRow datRow = clippedGENPolygon.AddDATRow(this);
+                        datRow[sourceIDColIdx] = this.ID;
+
+                        clippedGENPolygons.Add(clippedGENPolygon);
+                    }
+                }
+            }
+
+            return clippedGENPolygons;
+        }
+
+        /// <summary>
+        /// Snaps this feature, starting from the given pointIdx to the otherFeature as long as within the specified tolerance distance
+        /// Note: This is currently not implemented for polygons
+        /// </summary>
+        /// <param name="matchPointIdx"></param>
+        /// <param name="otherFeature">the snapLine to which this feature (the snappedLine) has to be snapped</param>
+        /// <param name="tolerance"></param>
+        /// <returns></returns>
+        public override GENFeature SnapPart(int matchPointIdx, GENFeature otherFeature, double tolerance)
+        {
+            return null;
         }
     }
 }

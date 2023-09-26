@@ -26,6 +26,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Sweco.SIF.Common;
+using Sweco.SIF.iMOD.Utils;
 
 namespace Sweco.SIF.iMOD.GEN
 {
@@ -36,6 +37,11 @@ namespace Sweco.SIF.iMOD.GEN
     public class DATFile
     {
         /// <summary>
+        /// Encoding used for writing iMOD DAT-files
+        /// </summary>
+        public static Encoding Encoding = Encoding.Default;
+
+        /// <summary>
         /// File extension of DAT-files
         /// </summary>
         public const string Extension = "DAT";
@@ -44,6 +50,11 @@ namespace Sweco.SIF.iMOD.GEN
         /// Default columnname for ID-column
         /// </summary>
         public const string IDColumnName = "ID";
+
+        /// <summary>
+        /// Default columnname for SourceID-column
+        /// </summary>
+        public static string SourceIDColumnName = "SourceID";
 
         /// <summary>
         /// GENFile object that this DAT-file corresponds with
@@ -77,7 +88,7 @@ namespace Sweco.SIF.iMOD.GEN
         public List<string> ColumnNames { get; set; }
 
         /// <summary>
-        /// List with all rows in DAT-file
+        /// List with all rows in DAT-file. Note: adding/removing rows in this list will have no effect on rows in DAT-file. Editing values in existing rows is possible.
         /// </summary>
         public List<DATRow> Rows
         {
@@ -87,7 +98,7 @@ namespace Sweco.SIF.iMOD.GEN
         /// <summary>
         /// Implementation of DATRow collection: a dictionary with ID's and corresponding DATRow objects, for fast search on ID's
         /// </summary>
-        private SortedDictionary<string, DATRow> rowDictionary;
+        protected IDictionary<string, DATRow> rowDictionary;
 
         /// <summary>
         /// Specifies if an error should be thrown if a duplicate ID is found
@@ -107,7 +118,19 @@ namespace Sweco.SIF.iMOD.GEN
         {
             this.GENFile = genFile;
             this.ColumnNames = new List<string>();
-            this.rowDictionary = new SortedDictionary<string,DATRow>();
+            this.rowDictionary = new Dictionary<string,DATRow>();
+        }
+
+        /// <summary>
+        /// Creates an empty DATFile object for the specified GEN-file
+        /// </summary>
+        /// <param name="genFile"></param>
+        /// <param name="capacity"></param>
+        public DATFile(GENFile genFile, int capacity)
+        {
+            this.GENFile = genFile;
+            this.ColumnNames = new List<string>();
+            this.rowDictionary = new Dictionary<string, DATRow>(capacity);
         }
 
         /// <summary>
@@ -128,11 +151,13 @@ namespace Sweco.SIF.iMOD.GEN
         internal void ReadFile()
         {
             Stream stream = null;
-            StreamReader sr = null;
+            StreamReader streamReader = null;
             try
             {
                 stream = File.OpenRead(Filename);
-                sr = new StreamReader(stream);
+                streamReader = new StreamReader(stream);
+                string datFileString = streamReader.ReadToEnd();
+                StringReader sr = new StringReader(datFileString);
                 int lineNumber = 0;
 
                 // Parse first line with columnnames
@@ -167,23 +192,31 @@ namespace Sweco.SIF.iMOD.GEN
                 // Start reading rows
                 this.rowDictionary.Clear();
                 int columnCount = ColumnNames.Count;
-                while (!sr.EndOfStream)
+                while ((wholeLine = sr.ReadLine()) != null)
                 {
-                    wholeLine = sr.ReadLine();
                     lineNumber++;
 
                     // Split current line with listseperator, correcting for single quotes
-                    rowValues = CommonUtils.SplitQuoted(wholeLine, listSeperator, '\'', true, true);
+                    if (wholeLine.Contains("'"))
+                    {
+                        rowValues =  CommonUtils.SplitQuoted(wholeLine, listSeperator, '\'', true, true);
+                    }
+                    else
+                    {
+                        rowValues = wholeLine.Trim().Split(new char[] { listSeperator });
+                    }
                     if (IsWarnedOnColumnMismatch && (rowValues.Length != columnCount))
                     {
                         string msg = "Invalid number of columnvalues for row in line " + (lineNumber) + " of DAT-file " + Path.GetFileName(Filename) + ": "
                             + "\r\n" + columnCount + " columnvalues expected, found: " + wholeLine 
-                            + "\r\nListseperator determined for this IPF-file is '" + listSeperator + "'. Valid listseperators are ',' and ' '"
+                            + "\r\nListseperator determined for this DAT-file is '" + listSeperator + "'. Valid listseperators are ',' and ' '"
                             + "\r\nCheck use of apostrophes and/or quotes in values, e.g. 'S-GRAVELAND";
                         throw new ToolException(msg);
                     }
-                    AddRow(new DATRow(rowValues.ToList()));
+                    AddRow(new DATRow(rowValues));
                 }
+
+                sr.Close();
             }
             catch (ToolException ex)
             {
@@ -195,9 +228,9 @@ namespace Sweco.SIF.iMOD.GEN
             }
             finally
             {
-                if (sr != null)
+                if (streamReader != null)
                 {
-                    sr.Close();
+                    streamReader.Close();
                 }
                 if (stream != null)
                 {
@@ -209,13 +242,21 @@ namespace Sweco.SIF.iMOD.GEN
         /// <summary>
         /// Write DAT-file with filename as defined in this object
         /// </summary>
-        public void WriteFile()
+        /// <param name="log"></param>
+        /// <param name="logIndentLevel"></param>
+        public void WriteFile(Log log = null, int logIndentLevel = 0)
         {
+            if (log != null)
+            {
+                log.AddInfo("Writing DAT-file '" + Path.GetFileName(Filename) + "'...", logIndentLevel);
+            }
+
             StreamWriter sw = null;
             try
             {
                 CheckColumns();
 
+                StringBuilder fileStringBuilder = new StringBuilder();
                 if ((Filename == null) || Filename.Equals(string.Empty))
                 {
                     throw new Exception("No filename specified for DATFile.WriteFile()");
@@ -229,7 +270,6 @@ namespace Sweco.SIF.iMOD.GEN
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(Filename));
                 }
-                sw = new StreamWriter(Filename);
 
                 // Write header
                 string header = string.Empty;
@@ -241,15 +281,49 @@ namespace Sweco.SIF.iMOD.GEN
                         header += ",";
                     }
                 }
-                sw.WriteLine(header);
+                fileStringBuilder.AppendLine(header);
+
+                // Calculate number of points between 5% logmessages, use multiple of 50
+                int rowCount = rowDictionary.Count;
+                int logSnapPointMessageFrequency = (log != null) ? logSnapPointMessageFrequency = Log.GetLogMessageFrequency(rowCount, 5) : 0;
 
                 // Write rows
-                for (int rowIdx = 0; rowIdx < rowDictionary.Count; rowIdx++)
+                if (log != null)
                 {
-                    List<string> row = rowDictionary.ElementAt(rowIdx).Value;
-                    string rowString = row.ToString();
-                    sw.WriteLine(rowString);
+                    int rowIdx = 0;
+                    IEnumerator<DATRow> datRowEnumerator = rowDictionary.Values.GetEnumerator();
+                    while (rowIdx < rowCount)
+                    {
+                        int toRowIdx = rowIdx + logSnapPointMessageFrequency;
+                        if (toRowIdx > rowCount)
+                        {
+                            toRowIdx = rowCount;
+                        }
+
+                        while (rowIdx < toRowIdx)
+                        {
+                            datRowEnumerator.MoveNext();
+                            fileStringBuilder.Append(datRowEnumerator.Current.ToString());
+                            rowIdx++;
+                        }
+
+                        if (rowIdx % logSnapPointMessageFrequency == 0)
+                        {
+                            log.AddInfo("Writing rows " + (rowIdx + 1) + "-" + (int)Math.Min(rowCount, (rowIdx + logSnapPointMessageFrequency)) + " of " + rowCount + " ...", logIndentLevel + 1);
+                        }
+                    }
                 }
+                else
+                {
+                    IEnumerator<DATRow> datRowEnumerator = rowDictionary.Values.GetEnumerator();
+                    while (datRowEnumerator.MoveNext())
+                    {
+                        fileStringBuilder.Append(datRowEnumerator.Current.ToString());
+                    }
+                }
+
+                sw = new StreamWriter(Filename, false, Encoding);
+                sw.Write(fileStringBuilder.ToString());
             }
             catch (IOException ex)
             {
@@ -277,10 +351,12 @@ namespace Sweco.SIF.iMOD.GEN
 
         /// <summary>
         /// Add specified columnnames to this DAT-file. For all existing rows the specified default value is used.
+        /// Use <paramref name="ignoreExistingColumn"/>-setting to specify how to handle existing column names.
         /// </summary>
         /// <param name="columnNames"></param>
         /// <param name="defaultValues">a value for each added column for all existing rows</param>
-        public void AddColumns(List<string> columnNames, List<string> defaultValues = null)
+        /// <param name="ignoreExistingColumns"></param>
+        public void AddColumns(List<string> columnNames, List<string> defaultValues = null, bool ignoreExistingColumns = true)
         {
             if ((defaultValues != null) && (columnNames.Count != defaultValues.Count))
             {
@@ -289,22 +365,27 @@ namespace Sweco.SIF.iMOD.GEN
 
             for (int colIdx = 0; colIdx < columnNames.Count; colIdx++)
             {
-                AddColumn(columnNames[colIdx], (defaultValues != null) ? defaultValues[colIdx] : string.Empty);
+                AddColumn(columnNames[colIdx], (defaultValues != null) ? defaultValues[colIdx] : string.Empty, ignoreExistingColumns);
             }
         }
 
         /// <summary>
-        /// Adds a column with the specified name. If the column already exists, a -1 is returned.
+        /// Adds a column with the specified name. Use <paramref name="ignoreExistingColumn"/>-setting to specify how to handle existing column names.
         /// Existing rows will get the optionally specified default value. 
         /// The first column in the DAT-file should be an ID-column, which is responsibility of caller.
         /// </summary>
         /// <param name="columnName"></param>
         /// <param name="defaultColumnValue"></param>
+        /// <param name="ignoreExistingColumn">if true, column name is not added when already present and -1 is returned; if false, a unique name is created if column name already exists.</param>
         /// <returns>the (zero-based) index of the added column, or -1 if a column with this name already exists</returns>
-        public int AddColumn(string columnName, string defaultColumnValue = "")
+        public int AddColumn(string columnName, string defaultColumnValue = "", bool ignoreExistingColumn = true)
         {
-            int colIdx = -1;
+            if (!ignoreExistingColumn)
+            {
+                columnName = GetUniqueColumnName(columnName);
+            }
 
+            int colIdx = -1;
             if (!this.ColumnNames.Contains(columnName))
             {
                 ColumnNames.Add(columnName);
@@ -385,19 +466,19 @@ namespace Sweco.SIF.iMOD.GEN
         /// When a row with the same ID already exists, an ToolException is thrown (when IsErrorOnDuplicateID is true) or the new row is ignored without a warning.
         /// </summary>
         /// <param name="row"></param>
-        public void AddRow(DATRow row)
+        public void AddRow(DATRow row, bool checkDuplicateIDs = true)
         {
             // Check that number of values matches column count
             if (row.Count != ColumnNames.Count)
             {
-                throw new ToolException("Number of row-values (" + row.Count + ") doesn't match number of columns (" + ColumnNames.Count + ") for added row " + rowDictionary.Count + ": " + row.ToString());
+                throw new ToolException("Number of row-values (" + row.Count + ") doesn't match number of columns (" + ColumnNames.Count + ") for added row " + (rowDictionary.Count + 1) + ": " + row.ToString());
             }
 
             // Retrieve ID-value
             string id = row[0].Replace("'", string.Empty);
 
             // Check that a row with the same id is not yet present
-            if (rowDictionary.ContainsKey(id))
+            if (checkDuplicateIDs && rowDictionary.ContainsKey(id))
             {
                 if (IsErrorOnDuplicateID)
                 {
@@ -476,6 +557,58 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
+        /// Finds zero-based columnindex of specified column string, which is either a columnname or a column index. 
+        /// If the given string contains an integer number, this number is returned as integer index.
+        /// If not found -1 is returned.
+        /// </summary>
+        /// <param name="columnNameOrIdx"></param>
+        /// <param name="isMatchWhole"></param>
+        /// <param name="isMatchCase"></param>
+        /// <param name="isNumber">if true, a numeric <paramref name="columnNameOrIdx"/> string is treated as a columnumber and decreased by one to return a columnindex</param>
+        /// <returns>zero-based columnindex or -1 if not found</returns>
+        public int FindColumnIndex(string columnNameOrIdx, bool isMatchWhole = true, bool isMatchCase = false, bool isNumber = true)
+        {
+            return ParseUtils.FindColumnIndex(ColumnNames, columnNameOrIdx, isMatchWhole, isMatchCase, isNumber);
+        }
+
+        /// <summary>
+        /// Finds zero-based columnindex of specified columnname. If not found -1 is returned.
+        /// </summary>
+        /// <param name="columnName"></param>
+        /// <param name="isMatchWhole">use true to match only whole words</param>
+        /// <param name="isMatchCase">use true to match case</param>
+        /// <returns>zero-based columnindex or -1 if not found</returns>
+        public int FindColumnName(string columnName, bool isMatchWhole = true, bool isMatchCase = false)
+        {
+            return ParseUtils.FindColumnName(ColumnNames, columnName, isMatchWhole, isMatchCase);
+        }
+
+        /// <summary>
+        /// Finds one-based columnnumber of specified columnname or columnnumber. 
+        /// If the given string contains an integer number, the integer number is returned.
+        /// If not found 0 is returned.
+        /// </summary>
+        /// <param name="columnNameOrNr"></param>
+        /// <param name="isMatchWhole"></param>
+        /// <param name="isMatchCase"></param>
+        /// <returns>one-based columnnumber or 0 if not found</returns>
+        public int FindColumnNumber(string columnNameOrNr, bool isMatchWhole = true, bool isMatchCase = false)
+        {
+            return ParseUtils.FindColumnNumber(ColumnNames, columnNameOrNr, isMatchWhole, isMatchCase);
+        }
+
+        /// <summary>
+        /// Find unique name for specified columnname. If it already exists in this GEN/DAT-file, a new name is made unique by adding a sequencenumber starting with 2
+        /// </summary>
+        /// <param name="initialColumnName"></param>
+        /// <param name="initialPostfix">added postfix if columnname already exists</param>
+        /// <returns></returns>
+        public string FindUniqueColumnName(string initialColumnName, string initialPostfix = null)
+        {
+            return ParseUtils.FindUniqueColumnName(ColumnNames, initialColumnName, initialPostfix);
+        }
+
+        /// <summary>
         /// Find (zero-based) index of column with specified columnname
         /// </summary>
         /// <param name="columnName"></param>
@@ -512,7 +645,7 @@ namespace Sweco.SIF.iMOD.GEN
         {
             DATFile datFile = new DATFile(genFile);
             datFile.ColumnNames = ColumnNames.ToList();
-            datFile.rowDictionary = new SortedDictionary<string, DATRow>();
+            datFile.rowDictionary = new Dictionary<string, DATRow>(rowDictionary.Count);
             for (int rowIdx = 0; rowIdx < rowDictionary.Count(); rowIdx++)
             {
                 string id = rowDictionary.ElementAt(rowIdx).Key;
@@ -532,6 +665,14 @@ namespace Sweco.SIF.iMOD.GEN
             {
                 rowDictionary.Remove(id);
             }
+        }
+
+        /// <summary>
+        /// Clear (remove) all rows in this DAT-file
+        /// </summary>
+        public void ClearRows()
+        {
+            rowDictionary.Clear();
         }
 
         /// <summary>
@@ -620,6 +761,18 @@ namespace Sweco.SIF.iMOD.GEN
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Parse string expression with references to columnnames or numbers
+        /// </summary>
+        /// <param name="expressionString"></param>
+        /// <param name="datRow">DATRow object with columnvalues to evaluate expression with</param>
+        /// <param name="isExceptionThrown">if true, errors will lead to an exception, otherwise a null string is returned</param>
+        /// <returns>string value based on specified columnvalues and string expression</returns>
+        public string EvaluateStringExpression(string expressionString, List<string> datRow, bool isExceptionThrown = true)
+        {
+            return ParseUtils.EvaluateStringExpression(ColumnNames, expressionString, datRow, isExceptionThrown, (GENFile != null) ? Path.GetFileName(GENFile.Filename) : null);
         }
 
         /// <summary>

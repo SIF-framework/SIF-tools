@@ -25,11 +25,13 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD.Legends;
 using Sweco.SIF.iMOD.Utils;
+using Sweco.SIF.iMOD.Values;
 
 namespace Sweco.SIF.iMOD.GEN
 {
@@ -38,6 +40,8 @@ namespace Sweco.SIF.iMOD.GEN
     /// </summary>
     public class GENFile : IMODFile
     {
+        private const int MaxStringLength = 10000000; // 1000000000;
+
         /// <summary>
         /// File extension of this iMOD-file without dot-prefix
         /// </summary>
@@ -95,7 +99,7 @@ namespace Sweco.SIF.iMOD.GEN
         /// </summary>
         public static bool IsErrorOnDuplicateID = false;
 
-        private DATFile datFile;
+        protected DATFile datFile;
 
         /// <summary>
         /// Creates an empty GEN-file
@@ -109,6 +113,18 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
+        /// Creates an empty GEN-file
+        /// </summary>
+        /// <param name="capacity"></param>
+        public GENFile(int capacity)
+        {
+            extent = null;
+            fileExtent = null;
+            modifiedExtent = null;
+            Features = new List<GENFeature>(capacity);
+        }
+
+        /// <summary>
         /// Read specified GEN-file (binary or ASCII)
         /// </summary>
         /// <param name="fname"></param>
@@ -118,7 +134,7 @@ namespace Sweco.SIF.iMOD.GEN
         {
             if (IsBinaryGENFile(fname))
             {
-                throw new ToolException("Currently reading binary GEN-files is not supported in SIF-basis: " + Path.GetFileName(fname));
+                return ReadBINGENFile(fname, isIDRecalculated);
             }
             else
             {
@@ -170,72 +186,84 @@ namespace Sweco.SIF.iMOD.GEN
         /// <returns></returns>
         public static GENFile ReadASCIGENFile(string fname, bool isIDRecalculated = false)
         {
-            Stream stream = null;
-            StreamReader sr = null;
             GENFile genFile = null;
             int lineNumber = 0;
             try
             {
                 int currentStartID = 1;
-                stream = File.OpenRead(fname);
-                sr = new StreamReader(stream);
+
+                // Read all lines in GEN-file
+                string[] lines = null;
+                try
+                {
+                    lines = File.ReadAllLines(fname);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Could not read GEN-file: " + fname, ex);
+                }
 
                 genFile = new GENFile();
                 genFile.Filename = fname;
-                while (!sr.EndOfStream)
+                string wholeLine;
+                while (lineNumber < lines.Length)
                 {
-                    string wholeLine = sr.ReadLine();
-                    lineNumber++;
+                    wholeLine = lines[lineNumber++].Trim();
 
-                    if (!wholeLine.Trim().ToUpper().Equals("END") && !wholeLine.Trim().Equals(string.Empty))
+                    if (!wholeLine.ToUpper().Equals("END") && !wholeLine.Equals(string.Empty))
                     {
-                        string id = wholeLine.Trim();
+                        string id = wholeLine;
 
                         List<Point> points = new List<Point>();
+
                         string[] lineValues; // = wholeLine.Trim().Split(new char[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
-                        while (!sr.EndOfStream && !wholeLine.Trim().ToUpper().Equals("END"))
+                        wholeLine = (lineNumber < lines.Length) ? lines[lineNumber++].Trim() : null;
+                        while ((wholeLine != null) && !wholeLine.ToUpper().Equals("END"))
                         {
-                            wholeLine = sr.ReadLine();
-                            lineNumber++;
-                            if (!wholeLine.Trim().ToUpper().Equals("END"))
+                            lineValues = wholeLine.Trim().Split(new char[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            if ((lineValues.Length == 2) || (lineValues.Length == 3))
                             {
-                                lineValues = wholeLine.Trim().Split(new char[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
-                                if ((lineValues.Length == 2) || (lineValues.Length == 3))
+                                if (!double.TryParse(lineValues[0], NumberStyles.Float, EnglishCultureInfo, out double x))
                                 {
-                                    if (!double.TryParse(lineValues[0], NumberStyles.Float, EnglishCultureInfo, out double x))
+                                    throw new ToolException("Invalid x-coordinate at line " + lineNumber + ": " + lineValues[0]);
+                                }
+                                if (!double.TryParse(lineValues[1], NumberStyles.Float, EnglishCultureInfo, out double y))
+                                {
+                                    throw new ToolException("Invalid y-coordinate at line " + lineNumber + ": " + lineValues[1]);
+                                }
+                                Point point = null;
+                                if (lineValues.Length == 3)
+                                {
+                                    if (!double.TryParse(lineValues[2], NumberStyles.Float, EnglishCultureInfo, out double z))
                                     {
-                                        throw new ToolException("Invalid x-coordinate at line " + lineNumber + ": " + lineValues[0]);
+                                        throw new ToolException("Invalid z-coordinate at line " + lineNumber + ": " + lineValues[2]);
                                     }
-                                    if (!double.TryParse(lineValues[1], NumberStyles.Float, EnglishCultureInfo, out double y))
-                                    {
-                                        throw new ToolException("Invalid y-coordinate at line " + lineNumber + ": " + lineValues[1]);
-                                    }
-                                    Point point = null;
-                                    if (lineValues.Length == 3)
-                                    {
-                                        if (!double.TryParse(lineValues[2], NumberStyles.Float, EnglishCultureInfo, out double z))
-                                        {
-                                            throw new ToolException("Invalid z-coordinate at line " + lineNumber + ": " + lineValues[2]);
-                                        }
-                                        point = new DoublePoint3D(x, y, z);
-                                    }
-                                    else
-                                    {
-                                        point = new DoublePoint(x, y);
-                                    }
-                                    points.Add(point);
+                                    point = new DoublePoint3D(x, y, z);
                                 }
                                 else
                                 {
-                                    throw new ToolException("Unexpected coordinate count at line " + lineNumber + ": " + wholeLine);
+                                    point = new DoublePoint(x, y);
                                 }
+                                points.Add(point);
                             }
+                            else
+                            {
+                                throw new ToolException("Unexpected coordinate count at line " + lineNumber + ": " + wholeLine);
+                            }
+
+                            wholeLine = (lineNumber < lines.Length) ? lines[lineNumber++].Trim() : null;
                         }
+
                         GENFeature addedFeature = genFile.AddFeature(points, id, isIDRecalculated, currentStartID);
                         if (isIDRecalculated)
                         {
                             currentStartID = int.Parse(addedFeature.ID) + 1;
                         }
+                    }
+                    else if (lineNumber != lines.Length)
+                    {
+                        throw new Exception("Unexpected data at line " + lineNumber + " in GEN-file: '" + wholeLine + "'");
+                        // lineNumber = lines.Length;
                     }
                 }
             }
@@ -246,17 +274,6 @@ namespace Sweco.SIF.iMOD.GEN
             catch (Exception ex)
             {
                 throw new Exception("Error for line " + lineNumber + " of genfile: " + Path.GetFileName(fname), ex);
-            }
-            finally
-            {
-                if (sr != null)
-                {
-                    sr.Close();
-                }
-                if (stream != null)
-                {
-                    stream.Close();
-                }
             }
 
             genFile.UpdateExtent();
@@ -281,12 +298,200 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
-        /// Checks if this genFile has an existing DAT-file in the same directory as this GEN-file
+        /// Read specified binary GEN-file
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <param name="isIDRecalculated">if true, identical ID's are renumbered for the memory instance, also in the DAT-file if present</param>
+        /// <returns></returns>
+        protected static GENFile ReadBINGENFile(string filename, bool isIDRecalculated = false)
+        {
+            if (!File.Exists(filename))
+            {
+                throw new ToolException("GEN-file does not exist: " + filename);
+            }
+
+            if (!Path.GetExtension(filename).ToLower().Equals(".gen"))
+            {
+                throw new Exception("Unsupported extension for GEN-file: " + filename);
+            }
+
+            GENFile genFile = null;
+
+            genFile = new GENFile();
+            genFile.UseLazyLoading = true;
+            genFile.Filename = filename;
+
+            DATFile datfile = new DATFile(genFile);
+            genFile.DATFile = datfile;
+
+            Stream stream = null;
+            BinaryReader br = null;
+            try
+            {
+                stream = File.OpenRead(filename);
+                br = new BinaryReader(stream);
+
+                // Read Definitions
+                genFile.ReadBINGENFile(br);
+
+                //if (!genFile.useLazyLoading)
+                //{
+                //    // When lazy loading is not used, load values immediately
+                //    ReadFeatures(br);
+                //}
+            }
+            catch (EndOfStreamException ex)
+            {
+                throw new Exception("Unexpected end of file while reading header of " + filename, ex);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Could not read binary GEN-file " + filename, ex);
+            }
+            finally
+            {
+                if (br != null)
+                {
+                    br.Close();
+                }
+            }
+
+            return genFile;
+        }
+
+        /// <summary>
+        /// Read data from GEN-file into a BinaryReader object
+        /// </summary>
+        /// <param name="br"></param>
+        protected void ReadBINGENFile(BinaryReader br)
+        {
+            int controlValue = br.ReadInt32();   // is always 0x20 (32d), ignore
+            if (controlValue != 0x20)
+            {
+                throw new Exception("File is not a binary GEN-file: " + this.Filename);
+            }
+
+            // Read dimensions
+            float llx = (float)br.ReadDouble();
+            float lly = (float)br.ReadDouble();
+            float urx = (float)br.ReadDouble();
+            float ury = (float)br.ReadDouble();
+            this.extent = new Extent(llx, lly, urx, ury);
+
+            // Skip control values
+            controlValue = br.ReadInt32();
+            controlValue = br.ReadInt32();
+
+            long NPOL = br.ReadInt32();
+            long MAXCOL = br.ReadInt32();
+
+            List<int> LWIDTH = null;
+            List<string> columnNames = null;
+            if (MAXCOL > 0)
+            {
+                // Skip control values
+                controlValue = br.ReadInt32();
+                controlValue = br.ReadInt32();
+
+                LWIDTH = new List<int>();
+                for (int idx = 0; idx < MAXCOL; idx++)
+                {
+                    LWIDTH.Add(br.ReadInt32());
+                }
+
+                // Skip control values
+                controlValue = br.ReadInt32();
+                controlValue = br.ReadInt32();
+
+                columnNames = new List<string>();
+                for (int idx = 0; idx < MAXCOL; idx++)
+                {
+                    string columnName = new string(br.ReadChars(11));
+                    int nulIdx = columnName.IndexOf("\0");
+                    if (nulIdx > 0)
+                    {
+                        columnName = columnName.Substring(0, nulIdx);
+                    }
+                    columnNames.Add(columnName.Trim());
+                }
+
+                // Add column names and add sequence number if name is present more than once
+                DATFile.AddColumns(columnNames, null, false);
+            }
+
+            int pointCount = 0;
+            int ITYPE = 0;
+            for (int featureIdx = 0; featureIdx < NPOL; featureIdx++)
+            {
+                List<Point> pointList = new List<Point>();
+
+                // Skip control values
+                controlValue = br.ReadInt32();
+                controlValue = br.ReadInt32();
+
+                pointCount = br.ReadInt32();
+                ITYPE = br.ReadInt32();
+
+                // Skip control values
+                controlValue = br.ReadInt32();
+                controlValue = br.ReadInt32();
+
+                List<string> columnValues = new List<string>();
+                for (int idx = 0; idx < MAXCOL; idx++)
+                {
+                    string columnValue = new string(br.ReadChars(LWIDTH[idx]));
+                    columnValues.Add(columnValue.Trim());
+                }
+
+                // Skip control values
+                controlValue = br.ReadInt32();
+                controlValue = br.ReadInt32();
+
+                // Skip feature extent
+                llx = (float)br.ReadDouble();
+                urx = (float)br.ReadDouble();
+                lly = (float)br.ReadDouble();
+                ury = (float)br.ReadDouble();
+                Extent featureExtent = new Extent(llx, lly, urx, ury);
+
+                // Skip control values
+                controlValue = br.ReadInt32();
+                controlValue = br.ReadInt32();
+
+                // Read feature points
+                for (int pointIdx = 0; pointIdx < pointCount; pointIdx++)
+                {
+                    double x = br.ReadDouble();
+                    double y = br.ReadDouble();
+                    Point point = new FloatPoint((float)x, (float)y);
+                    pointList.Add(point);
+                }
+                if ((ITYPE == 1025) || (ITYPE == 1026)) // polygons: 1025; lines (1028); rectangle (1026); circle (1025); points (1027)
+                {
+                    // Add first point again to close polygon
+                    pointList.Add(pointList[0]);
+                }
+
+                string id = columnValues[0];
+                GENFeature genFeature = AddFeature(pointList, id, false);
+                
+                // Replace default DATRow-object with specified column values
+                DATFile.RemoveRow(id);
+                DATFile.AddRow(new DATRow(columnValues));
+            }
+        }
+
+        /// <summary>
+        /// Checks if this genFile object has a corresponding DATFile object in memory or has an existing DAT-file in the same directory as this GEN-file
         /// </summary>
         /// <returns></returns>
         public bool HasDATFile()
         {
-            if ((Filename != null) && !Filename.Equals(string.Empty))
+            if (DATFile != null)
+            {
+                return true;
+            }
+            else if ((Filename != null) && !Filename.Equals(string.Empty))
             {
                 string datFilename = Path.Combine(Path.GetDirectoryName(Filename), Path.GetFileNameWithoutExtension(Filename) + "." + DATFile.Extension);
                 return File.Exists(datFilename);
@@ -355,6 +560,10 @@ namespace Sweco.SIF.iMOD.GEN
             if (Features != null)
             {
                 Features.Clear();
+                if (HasDATFile())
+                {
+                    DATFile.ClearRows();
+                }
             }
             else
             {
@@ -537,9 +746,9 @@ namespace Sweco.SIF.iMOD.GEN
                     // A single point was defined
                     addedFeature = new GENPoint(this, id, points[0]);
                 }
-                else if (points[0].Equals(points[points.Count - 1]))
+                else if (points[0].Equals(points[points.Count - 1]) && (points.Count > 3))
                 {
-                    // A polygon was defined
+                    // A polygon was defined: last point equals first point and at least 3 points (excluding last point, which equals first point)
                     addedFeature = new GENPolygon(this, id, points);
                 }
                 else
@@ -549,7 +758,6 @@ namespace Sweco.SIF.iMOD.GEN
                 }
 
                 AddFeature(addedFeature, isIDRecalculated, startID);
-                UpdateExtent(Features[Features.Count - 1]);
             }
 
             return addedFeature;
@@ -571,8 +779,26 @@ namespace Sweco.SIF.iMOD.GEN
         /// <param name="metadata"></param>
         public override void WriteFile(string filename, Metadata metadata = null)
         {
+            WriteFile(filename, metadata, null);
+        }
+
+        /// <summary>
+        /// Write GEN-file with specified filename and write intermediate logmessages based on size of GEN-file
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <param name="metadata"></param>
+        /// <param name="log"></param>
+        /// <param name="logIndentLevel"></param>
+        public void WriteFile(string filename, Metadata metadata, Log log, int logIndentLevel = 0)
+        {
+            if (log != null)
+            {
+                log.AddInfo("Writing GEN-file '" + Path.GetFileName(filename) + "'...", logIndentLevel);
+            }
+
             StreamWriter sw = null;
             this.Filename = filename;
+            StringBuilder fileStringBuilder = new StringBuilder();
             try
             {
                 if ((filename == null) || filename.Equals(string.Empty))
@@ -596,15 +822,29 @@ namespace Sweco.SIF.iMOD.GEN
                     filename = Path.Combine(Path.GetDirectoryName(filename), Path.GetFileNameWithoutExtension(filename) + ".GEN");
                 }
 
-                sw = new StreamWriter(filename);
+                // Calculate number of points between 5% logmessages, use multiple of 50
+                int logSnapPointMessageFrequency = (log != null) ? logSnapPointMessageFrequency = Log.GetLogMessageFrequency(this.Count, 5) : 0;
 
                 // Write GEN-features
+                sw = new StreamWriter(filename, false, Encoding);
                 for (int featureIdx = 0; featureIdx < Count; featureIdx++)
                 {
-                    WriteFeature(sw, Features[featureIdx]);
-                }
+                    if ((log != null) && (featureIdx % logSnapPointMessageFrequency == 0))
+                    {
+                        log.AddInfo("Writing features " + (featureIdx + 1) + "-" + (int)Math.Min(this.Count, (featureIdx + logSnapPointMessageFrequency)) + " of " + this.Count + " ...", logIndentLevel + 1);
+                    }
 
-                sw.WriteLine("END");
+                    StringBuilder featureSB = CreateStringBuilder(Features[featureIdx]);
+                    if ((fileStringBuilder.Length + featureSB.Length) > MaxStringLength)
+                    {
+                        sw.Write(fileStringBuilder.ToString());
+                        fileStringBuilder.Clear();
+                    }
+                    fileStringBuilder.Append(featureSB);
+                }
+                fileStringBuilder.AppendLine("END");
+
+                sw.Write(fileStringBuilder.ToString());
             }
             catch (IOException ex)
             {
@@ -631,7 +871,7 @@ namespace Sweco.SIF.iMOD.GEN
 
             if (datFile != null)
             {
-                datFile.WriteFile();
+                datFile.WriteFile(log, logIndentLevel);
             }
 
             if (metadata != null)
@@ -645,12 +885,13 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
-        /// Write single feature to specified StreamWriter
+        /// Create StringBuilder object for specified single feature
         /// </summary>
-        /// <param name="sw"></param>
         /// <param name="feature"></param>
-        private void WriteFeature(StreamWriter sw, GENFeature feature)
+        private StringBuilder CreateStringBuilder(GENFeature feature)
         {
+            StringBuilder stringBuilder = new StringBuilder();
+
             // Write idx and id
             if ((feature.GENFile != null) && (feature.GENFile.datFile != null))
             {
@@ -658,34 +899,36 @@ namespace Sweco.SIF.iMOD.GEN
                 if (feature.ID.Contains(","))
                 {
                     string corrId = GENUtils.CorrectString(feature.ID);
-                    sw.Write(corrId);
+                    stringBuilder.Append(corrId);
                 }
                 else
                 {
-                    sw.Write(feature.ID.ToString());
+                    stringBuilder.Append(feature.ID.ToString());
                 }
             }
             else
             {
-                sw.Write(feature.ID.ToString());
+                stringBuilder.Append(feature.ID.ToString());
             }
-            sw.WriteLine();
+            stringBuilder.AppendLine();
 
             // Write vertices
             for (int pointIdx = 0; pointIdx < feature.Points.Count; pointIdx++)
             {
                 Point point = feature.Points[pointIdx];
-                sw.Write(" " + point.XString + ", " + point.YString);
+                stringBuilder.Append(" " + point.XString + ", " + point.YString);
                 if ((point is Point3D) && !((Point3D)point).Z.Equals(double.NaN))
                 {
-                    sw.WriteLine(", " + ((Point3D)point).ZString);
+                    stringBuilder.AppendLine(", " + ((Point3D)point).ZString);
                 }
                 else
                 {
-                    sw.WriteLine();
+                    stringBuilder.AppendLine();
                 }
             }
-            sw.WriteLine("END");
+            stringBuilder.AppendLine("END");
+
+            return stringBuilder;
         }
 
         /// <summary>
@@ -726,7 +969,7 @@ namespace Sweco.SIF.iMOD.GEN
         /// <returns>GENFile object</returns>
         public GENFile CopyGEN(string newFilename = null)
         {
-            GENFile copiedGENFile = new GENFile();
+            GENFile copiedGENFile = new GENFile(Features.Count);
             for (int featureIdx = 0; featureIdx < Features.Count; featureIdx++)
             {
                 GENFeature feature = Features[featureIdx];
@@ -831,11 +1074,12 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
-        /// Add DAT-file with IDs for all current features. Except for ID-columns no other columns are added.
+        /// Add DAT-file with IDs for all current features. Except for ID-column no other column is added.
         /// </summary>
-        public void AddDATFile()
+        /// <param name="capacity">predefined capacity or leave -1 to ignore</param>
+        public void AddDATFile(int capacity = -1)
         {
-            DATFile datFile = new DATFile(this);
+            DATFile datFile = (capacity >= 0) ? new DATFile(this, capacity) : new DATFile(this);
             datFile.AddIDColumn();
 
             for (int featureIdx = 0; featureIdx < Features.Count; featureIdx++)
@@ -930,6 +1174,734 @@ namespace Sweco.SIF.iMOD.GEN
         public override bool HasEqualContent(IMODFile otherIMODFile, Extent comparedExtent, bool isNoDataCompared, bool isContentComparisonForced = false)
         {
             throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Clip all features in this GEN-file to specified extent
+        /// </summary>
+        /// <param name="clipExtent"></param>
+        /// <returns>IMODFile object</returns>
+        public override IMODFile Clip(Extent clipExtent)
+        {
+            return ClipGEN(clipExtent);
+        }
+
+        /// <summary>
+        /// Clip all features in this GEN-file to specified extent
+        /// </summary>
+        /// <param name="clipExtent"></param>
+        /// <param name="isInvertedClip">if true, the part within the extent is clipped away</param>
+        /// <returns>GENFile object</returns>
+        public GENFile ClipGEN(Extent clipExtent, bool isInvertedClip = false)
+        {
+            if (clipExtent == null)
+            {
+                clipExtent = this.extent;
+            }
+            GENFile clippedGENFile = new GENFile(Features.Count);
+            clippedGENFile.Filename = Filename;
+            int sourceIDColIdx = -1;
+            if (this.HasDATFile() || (this.datFile != null))
+            {
+                clippedGENFile.DATFile = new DATFile(clippedGENFile);
+                clippedGENFile.DATFile.AddColumns(this.DATFile.ColumnNames);
+                string sourceIDColumnName = clippedGENFile.DATFile.GetUniqueColumnName(DATFile.SourceIDColumnName);
+                sourceIDColIdx = clippedGENFile.DATFile.AddColumn(DATFile.SourceIDColumnName);
+            }
+
+            foreach (GENFeature genFeature in Features)
+            {
+                List<GENFeature> clippedFeatures = null;
+                if (genFeature is GENPoint)
+                {
+                    clippedFeatures = ((GENPoint)genFeature).Clip(clipExtent);
+                }
+                else if (genFeature is GENLine)
+                {
+                    clippedFeatures = ((GENLine)genFeature).Clip(clipExtent);
+                }
+                else if (genFeature is GENPolygon)
+                {
+                    clippedFeatures = ((GENPolygon)genFeature).Clip(clipExtent);
+                }
+                if (clippedFeatures != null)
+                {
+                    if (sourceIDColIdx > 0)
+                    {
+                        foreach (GENFeature clippedFeature in clippedFeatures)
+                        {
+                            DATRow datRow = clippedFeature.GENFile.DATFile.GetRow(clippedFeature.ID);
+                            if (datRow != null)
+                            {
+                                datRow[sourceIDColIdx] = genFeature.ID;
+                            }
+                            else
+                            {
+                                string clippedFeatureId = clippedFeature.ID;
+                                if (DATFile.ContainsID(clippedFeatureId))
+                                {
+                                    clippedGENFile.DATFile.AddRow(DATFile.GetRow(clippedFeatureId).Copy());
+                                }
+                            }
+                        }
+                    }
+                    clippedGENFile.AddFeatures(clippedFeatures, true, clippedGENFile.Features.Count + 1);
+                }
+            }
+
+            clippedGENFile.fileExtent = (fileExtent != null) ? fileExtent.Copy() : null;
+            clippedGENFile.modifiedExtent = (clipExtent != null) ? clipExtent.Copy() : null;
+            clippedGENFile.extent = (clipExtent != null) ? clipExtent.Copy() : null;
+
+            //if (DATFile != null)
+            //{
+            //    DATFile clippedDATFile = new DATFile(clippedGENFile);
+            //    clippedGENFile.DATFile = clippedDATFile;
+            //    clippedGENFile.DATFile.ColumnNames.AddRange(DATFile.ColumnNames);
+            //    for (int clippedFeatureIdx = 0; clippedFeatureIdx < clippedGENFile.Features.Count; clippedFeatureIdx++)
+            //    {
+            //        GENFeature clippedFeature = clippedGENFile.Features[clippedFeatureIdx];
+            //        string clippedFeatureId = clippedFeature.ID;
+            //        if (DATFile.ContainsID(clippedFeatureId))
+            //        {
+            //            clippedDATFile.AddRow(DATFile.GetRow(clippedFeatureId).Copy());
+            //        }
+            //    }
+            //}
+
+            if (Legend != null)
+            {
+                clippedGENFile.Legend = Legend.Copy();
+            }
+
+            return clippedGENFile;
+        }
+
+        /// <summary>
+        /// Retrieves a GENFile object with all features in specified GENFile for which the expression evaluates to true
+        /// </summary>
+        /// <param name="colIdx"></param>
+        /// <param name="valueOperator"></param>
+        /// <param name="valueString">string value or a string expression with {colnr}-references, which is only valid for (un)equal-operator</param>
+        /// <param name="srcPointIndices">optional (empty, non-null) list to store indices to selected features in source GEN-file</param>
+        /// <param name="useRegExp">specify true to use regular expressions for equal or unequal operator on strings</param>
+        /// <returns></returns>
+        public GENFile Select(int colIdx, ValueOperator valueOperator, string valueString, List<int> srcPointIndices = null, bool useRegExp = false)
+        {
+            if (!HasDATFile())
+            {
+                throw new Exception("GEN-selection on column values without a DAT-file is not possible: " + Path.GetFileName(Filename));
+            }
+
+            if ((colIdx < 0) || (colIdx > DATFile.ColumnNames.Count))
+            {
+                throw new Exception("Invalid (zero based) columnindex (" + colIdx + ") for IPF-file: " + Path.GetFileName(Filename));
+            }
+
+            if (srcPointIndices == null)
+            {
+                // When no list is specified, Create dummy list to speed up inner loop, actual list contents will not be returned as list is a value parameter
+                srcPointIndices = new List<int>();
+            }
+
+            GENFile newGENFile = new GENFile();
+            newGENFile.AddDATFile();
+            newGENFile.DATFile.ColumnNames = new List<string>(DATFile.ColumnNames);
+            if (this.Features.Count == 0)
+            {
+                return newGENFile;
+            }
+
+            // Determine comparison type
+            FieldType colFieldType = this.GetFieldType(colIdx);
+            FieldType valFieldType = ParseUtils.GetFieldType(valueString);
+            FieldType fieldType = FieldType.Undefined;
+            if ((colFieldType == FieldType.String) || (valFieldType == FieldType.String))
+            {
+                // When either col type or value type is a string, then compare values like string values
+                fieldType = FieldType.String;
+
+            }
+            else if ((colFieldType == FieldType.Double) || (valFieldType == FieldType.Double))
+            {
+                // When either col type or value type is a double, then compare values like double values
+                fieldType = FieldType.Double;
+            }
+            else
+            {
+                fieldType = colFieldType;
+            }
+
+            bool isColRefExpString = valueString.Contains("{") && valueString.Contains("}");
+            object value = ParseUtils.ParseStringValue(valueString, fieldType);
+
+            int featureIdx = 0;
+            long longValue;
+            double dblValue;
+            DateTime datetimeValue;
+            List<string> columnNames = DATFile.ColumnNames;
+
+            // For optimization purpose, combinations of operators and fieldtypes are split out
+            switch (valueOperator)
+            {
+                case ValueOperator.Equal:
+                    for (; featureIdx < Features.Count; featureIdx++)
+                    {
+                        GENFeature genFeature = Features[featureIdx];
+                        DATRow datRow = DATFile.GetRow(genFeature.ID);
+                        if (datRow != null)
+                        {
+                            object columnValue = ParseUtils.ParseStringValue(datRow[colIdx], fieldType);
+                            if (isColRefExpString)
+                            {
+                                value = ParseUtils.EvaluateStringExpression(columnNames, valueString, datRow);
+                            }
+                            if (!srcPointIndices.Contains(featureIdx))
+                            {
+                                if ((useRegExp) && (columnValue is string) && (value is string))
+                                {
+                                    if (Regex.IsMatch((string)columnValue, (string)value))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                                else
+                                {
+                                    if (columnValue.Equals(value))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break;
+                case ValueOperator.GreaterThan:
+                    switch (fieldType)
+                    {
+                        case FieldType.Long:
+                            longValue = (long)value;
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    long pointValue = long.Parse(datRow[colIdx]);
+                                    if ((pointValue > longValue) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.Double:
+                            dblValue = (double)value;
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    double pointValue = double.Parse(datRow[colIdx], EnglishCultureInfo);
+                                    if ((pointValue > dblValue) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.String:
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    if ((datRow[colIdx].CompareTo(valueString) > 0) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.DateTime:
+                            datetimeValue = (DateTime)value;
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    DateTime pointValue = DateTime.Parse(datRow[colIdx]);
+                                    if ((pointValue > datetimeValue) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.Boolean:
+                            throw new Exception("Operator GreaterThan is not defined for fieldType Boolean");
+                        default:
+                            throw new Exception("Select not defined for fieldtype " + fieldType.ToString());
+                    }
+                    break;
+                case ValueOperator.GreaterThanOrEqual:
+                    switch (fieldType)
+                    {
+                        case FieldType.Long:
+                            longValue = (long)value;
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    long pointValue = long.Parse(datRow[colIdx]);
+                                    if ((pointValue >= longValue) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.Double:
+                            dblValue = (double)value;
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    double pointValue = double.Parse(datRow[colIdx], EnglishCultureInfo);
+                                    if ((pointValue >= dblValue) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.String:
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    if ((datRow[colIdx].CompareTo(valueString) >= 0) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.DateTime:
+                            datetimeValue = (DateTime)value;
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    DateTime pointValue = DateTime.Parse(datRow[colIdx]);
+                                    if ((pointValue >= datetimeValue) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.Boolean:
+                            throw new Exception("Operator GreaterThanOrEqual is not defined for fieldType Boolean");
+                        default:
+                            throw new Exception("Select not defined for fieldtype " + fieldType.ToString());
+                    }
+                    break;
+                case ValueOperator.LessThan:
+                    switch (fieldType)
+                    {
+                        case FieldType.Long:
+                            longValue = (long)value;
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    long pointValue = long.Parse(datRow[colIdx]);
+                                    if ((pointValue < longValue) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.Double:
+                            dblValue = (double)value;
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    double pointValue = double.Parse(datRow[colIdx], EnglishCultureInfo);
+                                    if ((pointValue < dblValue) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.String:
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    if ((datRow[colIdx].CompareTo(valueString) < 0) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.DateTime:
+                            datetimeValue = (DateTime)value;
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    DateTime pointValue = DateTime.Parse(datRow[colIdx]);
+                                    if ((pointValue < datetimeValue) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.Boolean:
+                            throw new Exception("Operator LessThan is not defined for fieldType Boolean");
+                        default:
+                            throw new Exception("Select not defined for fieldtype " + fieldType.ToString());
+                    }
+                    break;
+                case ValueOperator.LessThanOrEqual:
+                    switch (fieldType)
+                    {
+                        case FieldType.Long:
+                            longValue = (long)value;
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    long pointValue = long.Parse(datRow[colIdx]);
+                                    if ((pointValue <= longValue) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.Double:
+                            dblValue = (double)value;
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    double pointValue = double.Parse(datRow[colIdx], EnglishCultureInfo);
+                                    if ((pointValue <= dblValue) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.String:
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    if ((datRow[colIdx].CompareTo(valueString) <= 0) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.DateTime:
+                            datetimeValue = (DateTime)value;
+                            for (; featureIdx < Features.Count; featureIdx++)
+                            {
+                                GENFeature genFeature = Features[featureIdx];
+                                DATRow datRow = DATFile.GetRow(genFeature.ID);
+                                if (datRow != null)
+                                {
+                                    DateTime pointValue = DateTime.Parse(datRow[colIdx]);
+                                    if ((pointValue <= datetimeValue) && !srcPointIndices.Contains(featureIdx))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                            break;
+                        case FieldType.Boolean:
+                            throw new Exception("Operator LessThanThanOrEqual is not defined for fieldType Boolean");
+                        default:
+                            throw new Exception("Select not defined for fieldtype " + fieldType.ToString());
+                    }
+                    break;
+                case ValueOperator.Unequal:
+                    for (; featureIdx < Features.Count; featureIdx++)
+                    {
+                        GENFeature genFeature = Features[featureIdx];
+                        DATRow datRow = DATFile.GetRow(genFeature.ID);
+                        if (datRow != null)
+                        {
+                            object pointValue = ParseUtils.ParseStringValue(datRow[colIdx], fieldType);
+                            if (isColRefExpString)
+                            {
+                                value = ParseUtils.EvaluateStringExpression(DATFile.ColumnNames, valueString, datRow);
+                            }
+                            if (!srcPointIndices.Contains(featureIdx))
+                            {
+                                if ((useRegExp) && (pointValue is string) && (value is string))
+                                {
+                                    if (!Regex.IsMatch((string)pointValue, (string)value))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                                else
+                                {
+                                    if (!pointValue.Equals(value))
+                                    {
+                                        newGENFile.AddFeature(genFeature);
+                                        srcPointIndices.Add(featureIdx);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break;
+                default:
+                    throw new Exception("Undefined operator: " + valueOperator.ToString());
+            }
+
+            return newGENFile;
+        }
+
+        /// <summary>
+        /// Retieves field type (boolean, integer, long, double, string or date) of specified column
+        /// </summary>
+        /// <param name="fieldColIdx">a (zero based) index for one specific column</param>
+        /// <returns></returns>
+        public FieldType GetFieldType(int fieldColIdx)
+        {
+            List<FieldType> fieldTypes = GetFieldTypes(new List<int>() { fieldColIdx });
+            return fieldTypes[0];
+        }
+
+        /// <summary>
+        /// Retieves field types (boolean, integer, long, double, string or date) for current column values
+        /// </summary>
+        /// <param name="fieldColIndices">null for all columns, or a list of (zero based) indices for specific columns</param>
+        /// <returns></returns>
+        public List<FieldType> GetFieldTypes(List<int> fieldColIndices = null)
+        {
+            if (!HasDATFile())
+            {
+                throw new Exception("Field types cannot be retrieved for GEN-file without DAT-file: " + Path.GetFileName(Filename));
+            }
+
+            // Initialize fieldTypes to some type
+            List<FieldType> fieldTypes = new List<FieldType>();
+            List<bool> isFieldTypeDefined = new List<bool>();
+
+            if (fieldColIndices == null)
+            {
+                fieldColIndices = new List<int>();
+                for (int colIdx = 0; colIdx < DATFile.ColumnNames.Count; colIdx++)
+                {
+                    fieldColIndices.Add(colIdx);
+                }
+            }
+
+            foreach (int colIdx in fieldColIndices)
+            {
+                isFieldTypeDefined.Add(false);
+                fieldTypes.Add(FieldType.Boolean);
+            }
+
+            for (int featureIdx = 0; featureIdx < Features.Count; featureIdx++)
+            {
+                GENFeature genFeature = Features[featureIdx];
+                DATRow datRow = DATFile.GetRow(genFeature.ID);
+
+                if (datRow != null)
+                {
+                    for (int fieldColIdxIdx = 0; fieldColIdxIdx < fieldColIndices.Count; fieldColIdxIdx++)
+                    {
+                        int colIdx = fieldColIndices[fieldColIdxIdx];
+                        string value = datRow[colIdx];
+
+                        // Check what type the current value has
+                        DateTime dateValue;
+                        bool boolValue;
+                        double doubleValue;
+                        long longValue;
+                        if (bool.TryParse(value, out boolValue))
+                        {
+                            // value is a boolean
+                            if (!isFieldTypeDefined[fieldColIdxIdx])
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.Boolean;
+                                isFieldTypeDefined[fieldColIdxIdx] = true;
+                            }
+                            else if (!fieldTypes[fieldColIdxIdx].Equals(FieldType.Boolean))
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.String;
+                            }
+                            else
+                            {
+                                // leave fieldtype to Bool
+                            }
+                        }
+                        else if (long.TryParse(value, out longValue))
+                        {
+                            // value is a long (or an integer, etc.)
+                            if (!isFieldTypeDefined[fieldColIdxIdx])
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.Long;
+                                isFieldTypeDefined[fieldColIdxIdx] = true;
+                            }
+                            else if (fieldTypes[fieldColIdxIdx].Equals(FieldType.Double))
+                            {
+                                // leave fieldType to shpDouble
+                            }
+                            else if (!fieldTypes[fieldColIdxIdx].Equals(FieldType.Long))
+                            {
+                                // If the current type is other than double or long, a string will be used for this column
+                                fieldTypes[fieldColIdxIdx] = FieldType.String;
+                            }
+                            else
+                            {
+                                // leave fieldType to shpLong
+                            }
+                        }
+                        else if (double.TryParse(value, NumberStyles.Float, EnglishCultureInfo, out doubleValue))
+                        {
+                            // value is a double (or a float)
+                            if (!isFieldTypeDefined[fieldColIdxIdx])
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.Double;
+                                isFieldTypeDefined[fieldColIdxIdx] = true;
+                            }
+                            else if (fieldTypes[fieldColIdxIdx].Equals(FieldType.Long))
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.Double;
+                            }
+                            else if (!fieldTypes[fieldColIdxIdx].Equals(FieldType.Double))
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.String;
+                            }
+                            else
+                            {
+                                // leave fieldType to shpDouble
+                            }
+                        }
+                        else if (DateTime.TryParse(value, out dateValue))
+                        {
+                            // value is a date
+                            if (!isFieldTypeDefined[fieldColIdxIdx])
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.DateTime;
+                                isFieldTypeDefined[fieldColIdxIdx] = true;
+                            }
+                            else if (!fieldTypes[fieldColIdxIdx].Equals(FieldType.DateTime))
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.String;
+                            }
+                            else
+                            {
+                                // leave fieldType to shpDate
+                            }
+                        }
+                        else
+                        {
+                            fieldTypes[fieldColIdxIdx] = FieldType.String;
+                        }
+                    }
+                }
+            }
+
+            return fieldTypes;
+        }
+
+        public GENFeature FindBestMatchingFeature(GENFeature matchedGENFeature, int matchPointIdx, double maxDistance, List<GENFeature> excludedFeatures = null)
+        {
+            // Call extension method
+            return matchedGENFeature.FindBestMatchingFeature(matchPointIdx, Features, maxDistance, excludedFeatures);
+        }
+
+        /// <summary>
+        /// Find nearest feature to the specified feature in this GENFile 
+        /// This is the feature that has a minimum summed distance to all points of the other feature
+        /// </summary>
+        /// <param name="otherFeature"></param>
+        /// <param name="tolerance">Maximum distance to closest point of other feature</param>
+        /// <returns></returns>
+        public GENFeature FindNearestFeature(GENFeature otherFeature, double tolerance)
+        {
+            // Call extension method
+            return otherFeature.FindNearestFeature(Features, tolerance);
+        }
+
+        /// <summary>
+        /// Find feature with nearest segment to the specified feature in this GENFile 
+        /// This is the feature that has the segment that is closest to the specified point
+        /// </summary>
+        /// <param name="point"></param>
+        /// <param name="tolerance">Maximum distance to closest point of other feature</param>
+        /// <param name="excludedFeatures">List of features that should be excluded in the search</param>
+        /// <param name="excludedPoints">List of Point that should be excluded in the search</param>
+        /// <param name="preferredFeature">Preferred feature in case a choice should be made between points less than Point.Tolerance distance apart. 
+        /// Normally this is the feature that was snapped to before.</param>
+        /// <param name="preferredFeatureTolerance">Maximum distance to closest point of preferred feature, default (or when NaN is specified) is Point.Tolerance</param>
+        /// <returns></returns>
+        public GENFeature FindNearestSegmentFeature(Point point, float tolerance, List<GENFeature> excludedFeatures = null,
+            List<Point> excludedPoints = null, GENFeature preferredFeature = null, double preferredFeatureTolerance = double.NaN)
+        {
+            // Call extension method
+            return point.FindNearestSegmentFeature(Features, tolerance, excludedFeatures, excludedPoints, preferredFeature, preferredFeatureTolerance);
         }
     }
 }

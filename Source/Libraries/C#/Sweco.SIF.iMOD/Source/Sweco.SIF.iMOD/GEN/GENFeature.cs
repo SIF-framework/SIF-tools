@@ -58,7 +58,7 @@ namespace Sweco.SIF.iMOD.GEN
         /// <summary>
         /// Creates an empty GENFeature object
         /// </summary>
-        public GENFeature(GENFile genFile) : this(genFile, null)
+        protected GENFeature(GENFile genFile) : this(genFile, null)
         {
         }
 
@@ -201,6 +201,31 @@ namespace Sweco.SIF.iMOD.GEN
                 GENFile.DATFile.RemoveRow(this.ID);
             }
 
+        }
+
+        /// <summary>
+        /// Remove duplicate consequtive points from feature (if feature has more than 2 points)
+        /// </summary>
+        protected virtual void RemoveDuplicatePoints()
+        {
+            if (Points.Count > 2)
+            {
+                Point prevPoint = Points[0];
+                int pointIdx = 1;
+                while (pointIdx < Points.Count)
+                {
+                    Point currentPoint = Points[pointIdx];
+                    if (currentPoint.Equals(prevPoint))
+                    {
+                        RemovePointAt(pointIdx);
+                    }
+                    else
+                    {
+                        prevPoint = currentPoint;
+                        pointIdx++;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -357,15 +382,17 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
-        /// Copies DATRow of given feature to DATRow of this GEN-feature
+        /// Copies DATRow of given feature to DATRow of this GEN-feature. New columns of other GENFeature are added. Values are copied to corresponding columns (using string.Empty as a default).
         /// </summary>
         /// <param name="copiedFeature"></param>
-        protected void CopyDATRow(GENFeature copiedFeature)
+        /// <returns>Copied DATRow is added but also returned</returns>
+        protected DATRow CopyDATRow(GENFeature copiedFeature)
         {
-            if (copiedFeature.GENFile.HasDATFile())
+            DATRow row = null;
+            if ((copiedFeature != null) && (copiedFeature.GENFile != null) && (copiedFeature.GENFile.HasDATFile() || copiedFeature.GENFile.DATFile != null))
             {
                 DATFile copiedDATFile = copiedFeature.GENFile.DATFile;
-                DATRow row = copiedDATFile.GetRow(copiedFeature.ID);
+                row = copiedDATFile.GetRow(copiedFeature.ID);
                 if (row != null)
                 {
                     if (this.GENFile == null)
@@ -379,12 +406,29 @@ namespace Sweco.SIF.iMOD.GEN
                     DATFile datFile = this.GENFile.DATFile;
                     datFile.AddColumns(copiedDATFile.ColumnNames);
 
-                    row = row.Copy();
-                    row[0] = this.ID;
+                    // prepare list of values, add empty string for all old and new columns 
+                    List<string> valueList = new List<string>();
+                    for (int colIdx = 0; colIdx < datFile.ColumnNames.Count; colIdx++)
+                    {
+                        valueList.Add(string.Empty);
+                    }
+                    // Set id to id of new feature
+                    valueList[0] = this.ID;
+
+                    // Find new columnindices for values of added feature
+                    for (int colIdx = 1; colIdx < row.Count; colIdx++)
+                    {
+                        string colName = copiedDATFile.ColumnNames[colIdx];
+                        int datFileColIdx = datFile.GetColIdx(colName);
+                        valueList[datFileColIdx] = row[colIdx];
+                    }
+                    row = new DATRow(valueList);
 
                     datFile.AddRow(row);
                 }
             }
+
+            return row;
         }
 
         /// <summary>
@@ -392,7 +436,7 @@ namespace Sweco.SIF.iMOD.GEN
         /// </summary>
         /// <param name="genFile"></param>
         /// <param name="id"></param>
-        /// <param name="addedValue"></param>
+        /// <param name="addedValue">optional added value to DATRow for missing columns, does not ensure columnname exists for this values in the specified GEN-file</param>
         protected void CopyDATRow(GENFile genFile, string id, string addedValue)
         {
             CopyDATRow(genFile, id, new List<string>() { addedValue });
@@ -404,10 +448,10 @@ namespace Sweco.SIF.iMOD.GEN
         /// </summary>
         /// <param name="genFile"></param>
         /// <param name="id"></param>
-        /// <param name="addedValues">optional added values, not ensure columnnames exist for these value in the specified genfile</param>
+        /// <param name="addedValues">optional added values to DATRow for missing columns, does not ensure columnnames exist for these values in the specified GEN-file</param>
         protected void CopyDATRow(GENFile genFile, string id, List<string> addedValues = null)
         {
-            if (genFile.HasDATFile())
+            if ((genFile != null) && genFile.HasDATFile())
             {
                 if (this.GENFile == null)
                 {
@@ -453,6 +497,63 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
+        /// Create new DATFile for specified GEN-file. Optionally copy columnnames from specified source GEN-file and add unique SourceID column
+        /// </summary>
+        /// <param name="genFile"></param>
+        /// <param name="sourceGENFile"></param>
+        /// <param name="sourceIDColName">a column to add, or null to skip</param>
+        /// <returns></returns>
+        protected DATFile CreateDATFile(GENFile genFile, GENFile sourceGENFile = null, string sourceIDColName = null)
+        {
+            genFile.DATFile = new DATFile(genFile);
+
+            if (this.GENFile.HasDATFile() || (this.GENFile.DATFile != null))
+            {
+                genFile.DATFile.AddColumns(this.GENFile.DATFile.ColumnNames);
+
+                if (sourceIDColName != null)
+                {
+                    string sourceIDColumnName = this.GENFile.DATFile.GetUniqueColumnName(sourceIDColName);
+                    genFile.DATFile.AddColumn(sourceIDColumnName);
+                }
+            }
+            else
+            {
+                genFile.DATFile.AddIDColumn();
+
+                if (sourceIDColName != null)
+                {
+                    genFile.DATFile.AddColumn(sourceIDColName);
+                }
+            }
+
+            return genFile.DATFile;
+        }
+
+        /// <summary>
+        /// Add new DATRow for this GENFeature. Optionally specify source GEN-file to copy DATRow with same ID from
+        /// </summary>
+        /// <param name="sourceGENFeature"></param>
+        protected DATRow AddDATRow(GENFeature sourceGENFeature = null)
+        {
+            DATRow datRow = null;
+            if (sourceGENFeature != null)
+            {
+                datRow = CopyDATRow(sourceGENFeature);
+            }
+            if (datRow == null)
+            {
+                DATFile datFile = GENFile.DATFile;
+                string[] rowValues = new string[datFile.ColumnNames.Count];
+                rowValues[0] = this.ID;
+                datRow = new DATRow(rowValues);
+                datFile.AddRow(datRow);
+            }
+
+            return datRow;
+        }
+
+        /// <summary>
         /// Calculates a measure for this feature, e.q. a length for a line, an area for a polygon
         /// </summary>
         /// <returns></returns>
@@ -464,5 +565,195 @@ namespace Sweco.SIF.iMOD.GEN
         /// <returns></returns>
         public abstract GENFeature Copy();
 
+        /// <summary>
+        /// Clip feature to specified extent, which may result in one or more smaller features
+        /// </summary>
+        /// <param name="clipExtent"></param>
+        /// <returns></returns>
+        public abstract List<GENFeature> Clip(Extent clipExtent);
+
+        /// <summary>
+        /// Snaps this feature, starting from the given pointIdx to the otherFeature as long as within the specified tolerance distance
+        /// </summary>
+        /// <param name="matchPointIdx"></param>
+        /// <param name="otherFeature">the snapLine to which this feature (the snappedLine) has to be snapped</param>
+        /// <param name="tolerance"></param>
+        /// <returns></returns>
+        public abstract GENFeature SnapPart(int matchPointIdx, GENFeature otherFeature, double tolerance);
+
+        public Point FindNearestPoint(Point point, double tolerance)
+        {
+            double minDistance = tolerance;
+            Point minPoint = null;
+            for (int point2Idx = 0; point2Idx < Points.Count; point2Idx++)
+            {
+                Point point2 = Points[point2Idx];
+                double distance = point.GetDistance(point2);
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    minPoint = point2;
+                }
+            }
+            return minPoint;
+        }
+
+        /// <summary>
+        /// Removes redundant point: equal points following each other in the point list
+        /// </summary>
+        /// <param name="otherFeatures">other features that may be connected to this feature</param>
+        /// <param name="tolerance">used for determining equality. Set this parameter to the minimum distance between points to be considered different (default: Point.IdentityTolerance)</param>
+        /// <returns>number of redundant and removed points</returns>
+        public List<Point> RemoveRedundantPoints(List<GENFeature> otherFeatures = null, double tolerance = double.NaN)
+        {
+            if (tolerance.Equals(double.NaN))
+            {
+                tolerance = Point.IdentityTolerance;
+            }
+
+            List<Point> redundantPoints = new List<Point>();
+
+            Point prevPoint = Points[0];
+            int pointIdx = 1;
+            while (pointIdx < Points.Count)
+            {
+                Point point = Points[pointIdx];
+                if (point.Equals(prevPoint))
+                {
+                    // Check which point to remove
+                    if (otherFeatures != null)
+                    {
+                        LineSegment segment1 = null;
+                        Point snappedPoint = null;
+                        double snapDistance1 = float.MaxValue;
+                        GENLine nearestLine1 = (GENLine)point.FindNearestSegmentFeature(otherFeatures, tolerance, new List<GENFeature>() { this });
+                        if (nearestLine1 != null)
+                        {
+                            segment1 = nearestLine1.FindNearestSegment(point); //  float.MaxValue);
+                        }
+                        if (segment1 != null)
+                        {
+                            snappedPoint = point.SnapToLineSegmentOptimized(segment1.P1, segment1.P2);
+                        }
+                        if (snappedPoint != null)
+                        {
+                            snapDistance1 = point.GetDistance(snappedPoint);
+                        }
+
+                        LineSegment segment2 = null;
+                        Point snappedPrevPoint = null;
+                        double snapDistance2 = float.MaxValue;
+                        GENLine nearestLine2 = (GENLine)prevPoint.FindNearestSegmentFeature(otherFeatures, tolerance, new List<GENFeature>() { this });
+                        if (nearestLine2 != null)
+                        {
+                            segment2 = nearestLine2.FindNearestSegment(point);
+                        }
+                        if (segment2 != null)
+                        {
+                            snappedPrevPoint = prevPoint.SnapToLineSegmentOptimized(segment2.P1, segment2.P2);
+                        }
+                        if (snappedPrevPoint != null)
+                        {
+                            snapDistance2 = prevPoint.GetDistance(snappedPrevPoint);
+                        }
+
+                        if (snapDistance1 < snapDistance2)
+                        {
+                            // point 1 is closer to a line segment than the other point
+                            redundantPoints.Add(Points[pointIdx - 1]);
+                            RemovePointAt(pointIdx - 1);
+                            prevPoint = point;
+                        }
+                        else
+                        {
+                            redundantPoints.Add(Points[pointIdx]);
+                            RemovePointAt(pointIdx);
+                        }
+                    }
+                    else
+                    {
+                        redundantPoints.Add(Points[pointIdx]);
+                        RemovePointAt(pointIdx);
+                    }
+                }
+                else
+                {
+                    pointIdx++;
+                    prevPoint = point;
+                }
+            }
+
+            return redundantPoints;
+        }
+
+        /// <summary>
+        /// Retrieves segment of this line that is closest to specified segment, where distance is defined as
+        /// sum of snapdistances from lineSegment.P1 and lineSegment.P2 to this line. 
+        /// P1 of the returned segment will be closest to P1 of the other segment 
+        /// </summary>
+        /// <param name="pointList"></param>
+        /// <param name="lineSegment"></param>
+        /// <param name="maxDistance"></param>
+        /// <returns></returns>
+        public static LineSegment FindNearestSegment(List<Point> pointList, LineSegment lineSegment, float maxDistance = float.NaN)
+        {
+            LineSegment nearestLineSegment = null;
+
+            // Compare with all LineSegments of the given feature
+            double minSegmentDistance = (maxDistance.Equals(float.NaN)) ? float.MaxValue : maxDistance;
+
+            Point startPoint = pointList[0];
+            Point snappedStartPoint = startPoint.SnapToLineSegmentOptimized(lineSegment.P1, lineSegment.P2);
+            double startPointDistance = snappedStartPoint.GetDistance(startPoint);
+            for (int pointIdx = 1; pointIdx < pointList.Count; pointIdx++)
+            {
+                Point endPoint = pointList[pointIdx];
+
+                Point snappedEndPoint = endPoint.SnapToLineSegmentOptimized(lineSegment.P1, lineSegment.P2);
+                double endPointDistance = snappedEndPoint.GetDistance(endPoint);
+                double segmentDistance = startPointDistance + endPointDistance;
+
+                LineSegment overlap = lineSegment.Overlap(startPoint, endPoint);
+                if (overlap != null)
+                {
+                    // Give overlapping segments priority
+                    double overlapLength = overlap.Length;
+                    if ((overlapLength > 0) && (overlapLength >= Point.Tolerance))
+                    {
+                        segmentDistance = -overlapLength;
+                    }
+                }
+
+                if (!startPoint.Equals(endPoint) && (segmentDistance < minSegmentDistance))
+                {
+                    minSegmentDistance = segmentDistance;
+                    nearestLineSegment = new LineSegment(startPoint, endPoint);
+                }
+
+                startPoint = endPoint;
+                snappedStartPoint = snappedEndPoint;
+                startPointDistance = endPointDistance;
+            }
+
+            if (nearestLineSegment != null)
+            {
+                // Check that found nearest line segment is oriented in same direction as this segment
+                double distance1 = lineSegment.P1.GetDistance(nearestLineSegment.P1) + lineSegment.P2.GetDistance(nearestLineSegment.P2);
+                double distance2 = lineSegment.P1.GetDistance(nearestLineSegment.P2) + lineSegment.P2.GetDistance(nearestLineSegment.P1);
+                if (distance1 < distance2)
+                {
+                    return nearestLineSegment;
+                }
+                else
+                {
+                    // Reverse direction of line segment
+                    return new LineSegment(nearestLineSegment.P2, nearestLineSegment.P1);
+                }
+            }
+            else
+            {
+                return null;
+            }
+        }
     }
 }
