@@ -93,7 +93,7 @@ namespace Sweco.SIF.ExcelSelect
                                           "/f:5,4", "Select rows with existing files: {0}", new string[] { "fc" }, new string[] { "p", "x" }, new string[] { string.Empty, string.Empty });
             AddToolOptionDescription("s", "Specify selected sheet(s) (one based, default: 1). If an option to select rows is used, a single sheet\n" +
                                           "can be specified and the other sheets are copied. If no options are used to select rows, one or more\n" +
-                                          "(comma-seperated) sheetnumbers can be specified for sheets to select. Other sheets are deleted.", "/s:2", "Selected sheetnumber: {0}", new string[] { "s1" });
+                                          "(comma-seperated) sheetnumbers can be specified for sheets to select. Other sheets are deleted.", "/s:2", "Selected sheetnumber(s): {0}", new string[] { "s1" });
         }
 
         /// <summary>
@@ -161,12 +161,12 @@ namespace Sweco.SIF.ExcelSelect
                     }
                     else
                     {
-                        throw new ToolException("Missing valid (zero based) rowindex index for option '" + optionName + "': " + optionParametersString);
+                        throw new ToolException("Missing valid (one based) rownumber for option '" + optionName + "': " + optionParametersString);
                     }
                 }
                 else
                 {
-                    throw new ToolException("Missing rowindex for option '" + optionName + "': " + optionParametersString);
+                    throw new ToolException("Missing rownumber for option '" + optionName + "': " + optionParametersString);
                 }
             }
             else if (optionName.ToLower().Equals("f"))
@@ -253,7 +253,7 @@ namespace Sweco.SIF.ExcelSelect
             }
             if (StartRowIdx < 0)
             {
-                throw new ToolException("Starting row index should be greather than or equal to one: " + (StartRowIdx + 1));
+                throw new ToolException("Starting row number should be greather than or equal to one: " + (StartRowIdx + 1));
             }
             for (int sheetIdx = 0; sheetIdx < SheetIndices.Count; sheetIdx++)
             {
