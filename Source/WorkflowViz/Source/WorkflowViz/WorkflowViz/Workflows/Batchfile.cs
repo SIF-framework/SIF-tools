@@ -130,9 +130,10 @@ namespace Sweco.SIF.WorkflowViz.Workflows
                     return RunStatus.Completed;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                throw new Exception("Could not read logfile: " + logfile.Filename, ex);
+                // throw new Exception("Could not read logfile: " + logfile.Filename, ex);
+                return RunStatus.Unknown;
             }
 
 

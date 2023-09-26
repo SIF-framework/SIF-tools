@@ -47,6 +47,7 @@ namespace Sweco.SIF.WorkflowViz
         public bool IsRunScriptsMode { get; set; }
         public int MaxWorkflowLevels { get; set; }
         public int MaxRecursionLevel { get; set; }
+        public List<string> FileListPaths { get; set; }
 
         public bool IsResultOpened { get; set; }
 
@@ -69,13 +70,14 @@ namespace Sweco.SIF.WorkflowViz
 
             IsBatchfileShown = false;
             IsRunScriptsMode = false;
-            
+            IsResultOpened = false;
+
+            FileListPaths = null;
+
             WorkflowSettings = new WorkflowSettings();
             WorkflowSettings.ExcludedStrings = null;
             WorkflowSettings.OrderStrings = null;
             WorkflowSettings.IsEdgeCheckSkipped = false;
-
-            IsResultOpened = false;
         }
 
         /// <summary>
@@ -97,6 +99,7 @@ namespace Sweco.SIF.WorkflowViz
             AddToolOptionDescription("se", "Skip inconsistency check for edges (i.e. date order of logfiles and/or subworkflows, as shown by edge color)", null, "Edge check is skipped");
             AddToolOptionDescription("do", "Specify dot options, use complete substring of options in dot command-line, e.g. /do:\"-Gdpi=300 -Tsvg\"", "/do:\"-Gdpi=300 -Tsvg\"", "Specfied dot option string: {0}", new string[] { "s" } );
             AddToolOptionDescription("or", "Open resulting file after succesful tool runs", "/oh", "Result file is opened after succesful tool runs");
+            AddToolOptionDescription("fl", "Add file list to output Excelsheet for all files under specified (comma-seperated) directories d1, ...", "/fl:Model\\BASISDATA,Model\\EXE", "File list added for directories: {...}", new string[] { "d1" }, new string[] { "..." });
             AddToolOptionDescription("dot", "Path to dot.exe from Graphviz package (see http://graphviz.org)", "/dot:%EXEPATH%\\GraphViz\\dot.exe", "Specified path for dot.exe: {0}", new string[] { "s" });
         }
 
@@ -233,6 +236,27 @@ namespace Sweco.SIF.WorkflowViz
                     {
                         WorkflowSettings.OrderStrings = new List<string>(optionParameters);
                     }
+                }
+            }
+            else if (optionName.ToLower().Equals("fl"))
+            {
+                if (hasOptionParameters)
+                {
+                    FileListPaths = new List<string>();
+                    string[] pathStrings = optionParametersString.Split(new char[] { ',' });
+                    foreach (string pathString in pathStrings)
+                    {
+                        if (!Directory.Exists(pathString))
+                        {
+                            throw new ToolException("Specified path for file list does not exist: " + pathString);
+                        }
+
+                        FileListPaths.Add(pathString);
+                    }
+                }
+                else
+                {
+                    throw new ToolException("Parameter value expected for option '" + optionName + "'");
                 }
             }
             else

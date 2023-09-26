@@ -303,6 +303,8 @@ namespace Sweco.SIF.WorkflowViz.Visualisation
                         node.Color = GetStatusColor(batchfile.RunStatus);
                         node.URL = Path.GetDirectoryName(batchfile.Filename);
 
+                        LogTable.Add(new LogEntry(batchfile));
+
                         // Handle RunScripts batchfiles differently when in RunScripts-mode
                         if (!isRunScriptsMode || (workflowLevel == maxWorkflowLevels) || !Utils.IsRunscriptsName(batchfile.Name))
                         {

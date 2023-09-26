@@ -20,6 +20,8 @@
 // You should have received a copy of the GNU General Public License
 // along with WorkflowViz. If not, see <https://www.gnu.org/licenses/>.
 using Sweco.SIF.Common;
+using Sweco.SIF.Spreadsheets;
+using Sweco.SIF.Spreadsheets.Excel;
 using Sweco.SIF.WorkflowViz.GraphViz;
 using Sweco.SIF.WorkflowViz.Visualisation;
 using Sweco.SIF.WorkflowViz.Workflows;
@@ -107,6 +109,8 @@ namespace Sweco.SIF.WorkflowViz
             GraphSettings graphSettings = CreateGraphSettings(settings);
             WFVisualizer wfVisualizer = CreateWFGraphVisualizer(graphSettings); 
             string graphFilename = wfVisualizer.Visualize(workinWorkflow, settings.OutputPath, 0);
+
+            wfVisualizer.LogTable.CreateExcelFile(settings);
 
             ToolSuccessMessage = "Finished processing " + workinWorkflow.TotalBatchfileCount + " batchfile(s) and " + workinWorkflow.TotalWorkflowCount + " (sub)workflow(s)"; 
 

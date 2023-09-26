@@ -45,8 +45,12 @@
     <Reference Include="Sweco.SIF.iMOD">
       <HintPath>..\..\Libraries\Sweco.SIF.iMOD.dll</HintPath>
     </Reference>
+    <Reference Include="Sweco.SIF.Spreadsheets">
+      <HintPath>..\..\Libraries\Sweco.SIF.Spreadsheets.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -64,6 +68,7 @@
     <Compile Include="GraphViz\RankDefinition.cs" />
     <Compile Include="GraphViz\SubGraph.cs" />
     <Compile Include="GraphViz\SubGraphEdge.cs" />
+    <Compile Include="LogTable.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -105,7 +110,8 @@ COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Common\Bin\$(PlatformName)\Swec
 COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.GIS\Bin\$(PlatformName)\Sweco.SIF.GIS.*" "$(ProjectDir)..\..\Libraries"
 COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.iMOD\Bin\$(PlatformName)\Sweco.SIF.iMOD.*" "$(ProjectDir)..\..\Libraries"
 COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Statistics\Bin\$(PlatformName)\Sweco.SIF.Statistics.*" "$(ProjectDir)..\..\Libraries"
-    </PreBuildEvent>
+COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Spreadsheets\Bin\AnyCPU\Sweco.SIF.Spreadsheets.*" "$(ProjectDir)..\..\Libraries"
+COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Spreadsheets\Bin\AnyCPU\EPPlus.*" "$(ProjectDir)..\..\Libraries"</PreBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
     <PostBuildEvent>

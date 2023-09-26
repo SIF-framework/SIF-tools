@@ -36,11 +36,14 @@ namespace Sweco.SIF.WorkflowViz.Visualisation
         protected Workflow workflow;
         protected Settings settings;
 
+        public LogTable LogTable { get; set; }
+
         public WFVisualizer()
         {
+            LogTable = new LogTable();
         }
 
-        protected WFVisualizer(Settings settings)
+        protected WFVisualizer(Settings settings) : this()
         {
             this.settings = settings;
         }
