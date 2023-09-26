@@ -148,7 +148,7 @@ namespace Sweco.SIF.iMOD.IDF
         /// Redefine the method that is used for determining the iteration extent. MinExtent and MaxExtent values are recalculated.
         /// </summary>
         /// <param name="extentMethod"></param>
-        public void RedefineExtentType(ExtentMethod extentMethod)
+        public void RedefineExtentMethod(ExtentMethod extentMethod)
         {
             if (this.extentMethod != extentMethod)
             {
@@ -286,6 +286,7 @@ namespace Sweco.SIF.iMOD.IDF
 
             if (idfFiles != null)
             {
+                EnsureLoadedValues();
                 RetrieveCellValues();
             }
             else
@@ -347,6 +348,20 @@ namespace Sweco.SIF.iMOD.IDF
         public bool IsInsideExtent()
         {
             return ((X >= iterationExtent.llx) && (X < iterationExtent.urx) && (Y >= iterationExtent.lly) && (Y < iterationExtent.ury));
+        }
+
+        /// <summary>
+        /// Load values into memory for all current IDF-files if not yet loaded
+        /// </summary>
+        private void EnsureLoadedValues()
+        {
+            for (int i = 0; i < idfFiles.Length; i++)
+            {
+                if (idfFiles[i] != null)
+                {
+                    idfFiles[i].EnsureLoadedValues();
+                }
+            }
         }
 
         /// <summary>
@@ -417,17 +432,18 @@ namespace Sweco.SIF.iMOD.IDF
         /// <summary>
         /// Returns and/or logs a standard message about the equality of all added extents
         /// </summary>
-        /// <param name="log"></param>
+        /// <param name="log">Log object to add result message to</param>
         /// <param name="indentLevel">indent level for message</param>
+        /// <param name="logLevel">loglevel to show informative messages</param>
         /// <param name="addedMessage"></param>
-        /// <returns></returns>
-        public string CheckExtent(Log log = null, int indentLevel = 0, string addedMessage = null)
+        /// <returns>result message if a warning/error occurs, otherwise null</returns>
+        public string CheckExtent(Log log = null, int indentLevel = 0, LogLevel logLevel = LogLevel.All, string addedMessage = null)
         {
             string message = null;
 
             if (IsEmptyExtent())
             {
-                message = "IDFFiles don't have overlapping extent";
+                message = "IDF-files don't have overlapping extent";
                 if (addedMessage != null)
                 {
                     message += addedMessage;
@@ -443,30 +459,36 @@ namespace Sweco.SIF.iMOD.IDF
             }
             else
             {
-                if (IsEqualExtent())
+                // Only perform check on extents for non Constant IDF-files
+                List<IDFFile> nonConstantIDFFiles = GetNonConstantIDFFiles();
+                if ((nonConstantIDFFiles != null) && (nonConstantIDFFiles.Count > 0))
                 {
-                    message = "IDFFiles have equal extent: " + MinExtent.ToString();
-                    if (addedMessage != null)
+                    if (IsEqualExtent())
                     {
-                        message += addedMessage;
+                        message = "IDF-files have equal extent: " + MinExtent.ToString();
+                        if ((log != null) && (logLevel <= LogLevel.Info))
+                        {
+                            if (addedMessage != null)
+                            {
+                                message += addedMessage;
+                            }
+
+                            log.AddInfo(message, indentLevel);
+                        }
                     }
-                    if (log != null)
+                    else
                     {
-                        log.AddInfo(message, indentLevel);
-                    }
-                }
-                else
-                {
-                    message = "IDFFiles have different extents."
-                        + " Min extent: " + MinExtent.ToString()
-                        + " Max exent: " + MaxExtent.ToString();
-                    if (addedMessage != null)
-                    {
-                        message += addedMessage;
-                    }
-                    if (log != null)
-                    {
-                        log.AddWarning(message, indentLevel);
+                        message = "IDF-files have different extents."
+                            + " Min extent: " + MinExtent.ToString()
+                            + "; Max exent: " + MaxExtent.ToString();
+                        if (addedMessage != null)
+                        {
+                            message += addedMessage;
+                        }
+                        if (log != null)
+                        {
+                            log.AddWarning(message, indentLevel);
+                        }
                     }
                 }
             }
@@ -668,6 +690,88 @@ namespace Sweco.SIF.iMOD.IDF
                 }
             }
             return constantIDFFiles;
+        }
+
+        /// <summary>
+        /// Retrieve most occurring value from specified cells
+        /// </summary>
+        /// <param name="cellValues"></param>
+        /// <param name="excludedValues"></param>
+        /// <returns></returns>
+        public static float GetMostOccurringValue(float[][] cellValues, float[] excludedValues)
+        {
+            Dictionary<float, int> occurranceDictionary = new Dictionary<float, int>();
+            for (int subRowIdx = 0; subRowIdx < cellValues.Length; subRowIdx++)
+            {
+                for (int subColIdx = 0; subColIdx < cellValues.Length; subColIdx++)
+                {
+                    float cellValue = cellValues[subRowIdx][subColIdx];
+                    if (!excludedValues.Contains(cellValue))
+                    {
+                        if (occurranceDictionary.ContainsKey(cellValue))
+                        {
+                            occurranceDictionary[cellValue] = occurranceDictionary[cellValue] + 1;
+                        }
+                        else
+                        {
+                            occurranceDictionary.Add(cellValue, 1);
+                        }
+                    }
+                }
+            }
+            int maxOccurrance = 0;
+            float mostOccurringValue = float.NaN;
+            foreach (float value in occurranceDictionary.Keys)
+            {
+                int occurrance = occurranceDictionary[value];
+                if (occurrance > maxOccurrance)
+                {
+                    maxOccurrance = occurrance;
+                    mostOccurringValue = value;
+                }
+            }
+            return mostOccurringValue;
+        }
+
+        /// <summary>
+        /// Retrieve minimum and maximum value (excluding specified NoData value)
+        /// </summary>
+        /// <param name="cellValues"></param>
+        /// <param name="excludedValues"></param>
+        /// <param name="minValue"></param>
+        /// <param name="maxValue"></param>
+        /// <returns></returns>
+        public static void GetMinMaxValue(float[][] cellValues, float[] excludedValues, out float minValue, out float maxValue)
+        {
+            minValue = float.MaxValue;
+            maxValue = float.MinValue;
+            Dictionary<float, int> occurranceDictionary = new Dictionary<float, int>();
+            for (int subRowIdx = 0; subRowIdx < cellValues.Length; subRowIdx++)
+            {
+                for (int subColIdx = 0; subColIdx < cellValues.Length; subColIdx++)
+                {
+                    float cellValue = cellValues[subRowIdx][subColIdx];
+                    if (!excludedValues.Contains(cellValue))
+                    {
+                        if (cellValue < minValue)
+                        {
+                            minValue = cellValue;
+                        }
+                        if (cellValue > maxValue)
+                        {
+                            maxValue = cellValue;
+                        }
+                    }
+                }
+            }
+            if (minValue.Equals(float.MaxValue))
+            {
+                minValue = float.NaN;
+            }
+            if (maxValue.Equals(float.MinValue))
+            {
+                maxValue = float.NaN;
+            }
         }
     }
 }
