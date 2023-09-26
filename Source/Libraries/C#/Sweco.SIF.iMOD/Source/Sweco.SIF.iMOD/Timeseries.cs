@@ -30,13 +30,65 @@ using Sweco.SIF.iMOD.Utils;
 
 namespace Sweco.SIF.iMOD
 {
+    public enum SequenceMethod
+    {
+        /// <summary>
+        /// The length of a sequence is measured as the length of the period between first and last date in the sequence
+        /// </summary>
+        Period,
+        /// <summary>
+        /// The length of a sequence is measured as the number of dates/values in the sequence
+        /// </summary>
+        Count
+    }
+
+    public enum TimeStampResolution
+    {
+        /// <summary>
+        /// Day resolution (i.e. no time component)
+        /// </summary>
+        Day
+    }
+
+    /// <summary>
+    /// Avaiable methods for resampling timeseries (changing frequency)
+    /// </summary>
+    public enum ResampleMethod
+    {
+        /// <summary>
+        /// Take first timestamp when multiple timestamps are present that are equal for the specified resolution
+        /// </summary>
+        First,
+        /// <summary>
+        /// Take first non-NoData timestamp when multiple timestamps are present that are equal for the specified resolution
+        /// </summary>
+        FirstNonNoData,
+        ///// <summary>
+        ///// Use mean of values within sampled timespan
+        ///// </summary>
+        //Mean,
+        ///// <summary>
+        ///// Use minimum of values within sampled timespan
+        ///// </summary>
+        //Min,
+        ///// <summary>
+        ///// Use maximum of values within sampled timespan
+        ///// </summary>
+        //Max
+    }
+
     /// <summary>
     /// Class for storing and processing timeseries data. One column of timestamps can be stored together with one or more value columns.
     /// </summary>
     public class Timeseries
     {
         // Note: this implementation stores timestamps and values in different arrays to allow new value series/columns to be added easil
-        
+
+        /// <summary>
+        /// Default value for NoData
+        /// </summary>
+        public const float DefaultNoDataValue = -99999f;
+
         /// <summary>
         /// Language definition for english culture as used in SIFToolSettings
         /// </summary>
@@ -62,7 +114,7 @@ namespace Sweco.SIF.iMOD
         }
 
         /// <summary>
-        /// NoData-values of each value column (series)
+        /// NoData-values of each value column (series). Note: changing this value does NOT change the current NoData values.
         /// </summary>
         public List<float> NoDataValues { get; set; }
 
@@ -72,7 +124,22 @@ namespace Sweco.SIF.iMOD
         public float NoDataValue
         {
             get { return NoDataValues[0]; }
-            set { NoDataValues[0] = value; }
+            set
+            {
+                if (NoDataValues == null)
+                {
+                    NoDataValues = new List<float>();
+                }
+
+                if (NoDataValues.Count == 0)
+                {
+                    NoDataValues.Add(value);
+                }
+                else
+                {
+                    NoDataValues[0] = value;
+                }
+            }
         }
 
         /// <summary>
@@ -90,18 +157,18 @@ namespace Sweco.SIF.iMOD
         /// </summary>
         /// <param name="timestamps"></param>
         /// <param name="values"></param>
-        /// <param name="noDataValue"></param>
+        /// <param name="noDataValue">use float.NaN to take DefaultNoDataValue</param>
         public Timeseries(List<DateTime> timestamps, List<float> values, float noDataValue = float.NaN)
         {
             if (values.Count != timestamps.Count)
             {
-                throw new ToolException("Number of values (" + NoDataValues.Count + ") does not equal number of timestamps (" + values.Count + ")");
+                throw new ToolException("Number of values (" + values.Count + ") does not equal number of timestamps (" + timestamps.Count + ")");
             }
             this.Timestamps = timestamps;
             this.ValueColumns = new List<List<float>>();
             this.ValueColumns.Add(values);
             this.NoDataValues = new List<float>();
-            this.NoDataValues.Add(noDataValue);
+            this.NoDataValues.Add(!noDataValue.Equals(float.NaN) ? noDataValue : DefaultNoDataValue);
         }
 
         /// <summary>
@@ -135,7 +202,7 @@ namespace Sweco.SIF.iMOD
                 this.NoDataValues = new List<float>();
                 for (int colIdx = 0; colIdx < valueColumns.Count; colIdx++)
                 {
-                    this.NoDataValues.Add(float.NaN);
+                    this.NoDataValues.Add(DefaultNoDataValue);
                 }
             }
             else
@@ -143,7 +210,6 @@ namespace Sweco.SIF.iMOD
                 this.NoDataValues = noDataValues;
             }
         }
-
 
         /// <summary>
         /// Calculates average values over all non-data values in specified column
@@ -208,26 +274,14 @@ namespace Sweco.SIF.iMOD
         }
 
         /// <summary>
-        /// Selects values for specified column in specified period, add value before and after specified period if fromDate and toDate are not existing
-        /// </summary>
-        /// <param name="fromDate"></param>
-        /// <param name="toDate"></param>
-        /// <param name="valueColIdx">zero based column index, use -1 to retrieve all value columns</param>
-        /// <returns></returns>
-        public Timeseries Select(DateTime? fromDate = null, DateTime? toDate = null, int valueColIdx = -1)
-        {
-            return Select(fromDate, toDate, true, valueColIdx);
-        }
-
-        /// <summary>
         /// Selects dates/values for specified value column in specified period
         /// </summary>
         /// <param name="fromDate">first date of selection period</param>
         /// <param name="toDate">last date of selection period</param>
-        /// <param name="isAddSurroundingValues">if true, add value before and after specified period if fromDate and toDate are not existing</param>
         /// <param name="valueColIdx">zero based column index, use -1 to retrieve all value columns</param>
+        /// <param name="excludeSurroundingValues">if false, add value before and after specified period if fromDate and toDate are not existing</param>
         /// <returns></returns>
-        public Timeseries Select(DateTime? fromDate, DateTime? toDate, bool isAddSurroundingValues, int valueColIdx = -1)
+        public Timeseries Select(DateTime? fromDate, DateTime? toDate, int valueColIdx, bool excludeSurroundingValues = true)
         {
             if (valueColIdx >= ValueColumns.Count)
             {
@@ -254,8 +308,8 @@ namespace Sweco.SIF.iMOD
                 }
                 else if (Timestamps[dateIdx] > fromDate)
                 {
-                    // if isAddSurroundingValues, use previous date if not equal, otherwise use next value
-                    fromIdx = isAddSurroundingValues ? dateIdx - 1 : dateIdx;
+                    // if excludeSurroundingValues, use next value if not equal, otherwise use previous date 
+                    fromIdx = excludeSurroundingValues ? dateIdx : dateIdx - 1;
                     if (fromIdx < 0)
                     {
                         fromIdx = 0;
@@ -265,9 +319,30 @@ namespace Sweco.SIF.iMOD
             }
             if (fromIdx < 0)
             {
+                // No dates found, return dummy, empty result
                 List<DateTime> noDates = new List<DateTime>();
-                List<float> noValues = new List<float>();
-                Timeseries dummyTs = new Timeseries(noDates, noValues);
+                Timeseries dummyTs = null;
+
+                if (valueColIdx == -1)
+                {
+                    List<List<float>> noValueLists = new List<List<float>>();
+                    List<float> noDataValueList = new List<float>();
+                    for (int colIdx = 0; colIdx < this.ValueColumns.Count; colIdx++)
+                    {
+                        // Copy NoData-values per valuecolumn
+                        noDataValueList.Add(NoDataValues[colIdx]);
+
+                        // Add empty value list per value column
+                        noValueLists.Add(new List<float>());
+                    }
+
+                    dummyTs = new Timeseries(noDates, noValueLists, noDataValueList);
+                }
+                else
+                {
+                    List<float> noValues = new List<float>();
+                    dummyTs = new Timeseries(noDates, noValues);
+                }
                 return dummyTs;
             }
 
@@ -281,8 +356,8 @@ namespace Sweco.SIF.iMOD
                 }
                 else if (Timestamps[dateIdx] > toDate)
                 {
-                    // if isAddSurroundingValues, use next date if not equal, otherwise use previous date
-                    toIdx = isAddSurroundingValues ? dateIdx : (dateIdx - 1);
+                    // if excludeSurroundingValues, use previous date if not equal, otherwise use next date
+                    toIdx = excludeSurroundingValues ? (dateIdx - 1) : dateIdx;
                     if (toIdx < 0)
                     {
                         toIdx = 0;
@@ -435,7 +510,6 @@ namespace Sweco.SIF.iMOD
         //    }
 
         //    Timeseries selectedTimeseries = new Timeseries(selectedDates, selectedValueLists, selectedNoDataValues);
-        //    // selectedTimeseries.filename = FileUtils.AddFilePostFix(filename, "_" + ((DateTime)fromDate).ToShortDateString() + "-" + ((DateTime)toDate).ToShortDateString());
 
         //    return selectedTimeseries;
         //}
@@ -446,8 +520,10 @@ namespace Sweco.SIF.iMOD
         /// <param name="minValue">minValue, use float.NaN to ignore minValue</param>
         /// <param name="maxValue">maxValue, use float.NaN to ignore maxValue</param>
         /// <param name="valueColIdx">zero-based column index</param>
+        /// <param name="isInverted">if true, timestamps outside specified range are selected</param>
+        /// <param name="includeNoData">if true, NoData-values are returned in the result</param>
         /// <returns></returns>
-        public Timeseries Select(float minValue, float maxValue, int valueColIdx = 0)
+        public Timeseries Select(float minValue, float maxValue, int valueColIdx = 0, bool isInverted = false, bool includeNoData = true)
         {
             if (valueColIdx >= ValueColumns.Count)
             {
@@ -468,22 +544,389 @@ namespace Sweco.SIF.iMOD
                 maxValue = float.MaxValue;
             }
 
-            for (int dateIdx = 0; dateIdx < Timestamps.Count(); dateIdx++)
+            if (isInverted)
             {
-                float value = selectedColValues[dateIdx];
-                if ((value >= minValue) && (value <= maxValue))
+                // Select timestamps outside specified range (note: source code of loop is copied for faster computation)
+                for (int dateIdx = 0; dateIdx < Timestamps.Count(); dateIdx++)
                 {
-                    selectedTimestamps.Add(Timestamps[dateIdx]);
-                    selectedValues.Add(value);
+                    float value = selectedColValues[dateIdx];
+
+                    if (value.Equals(noDataValue))
+                    {
+                        if (includeNoData)
+                        {
+                            selectedTimestamps.Add(Timestamps[dateIdx]);
+                            selectedValues.Add(value);
+                        }
+                    }
+                    else if ((value < minValue) || (value > maxValue))
+                    {
+                        selectedTimestamps.Add(Timestamps[dateIdx]);
+                        selectedValues.Add(value);
+                    }
+                }
+            }
+            else
+            {
+                for (int dateIdx = 0; dateIdx < Timestamps.Count(); dateIdx++)
+                {
+                    float value = selectedColValues[dateIdx];
+                    if (value.Equals(noDataValue))
+                    {
+                        if (includeNoData)
+                        {
+                            selectedTimestamps.Add(Timestamps[dateIdx]);
+                            selectedValues.Add(value);
+                        }
+                    }
+                    else if ((value >= minValue) && (value <= maxValue))
+                    {
+                        selectedTimestamps.Add(Timestamps[dateIdx]);
+                        selectedValues.Add(value);
+                    }
                 }
             }
 
-            Timeseries result = new Timeseries(selectedTimestamps, selectedValues);
+            Timeseries result = new Timeseries(selectedTimestamps, selectedValues, noDataValue);
             return result;
         }
 
+
         /// <summary>
-        /// Retrieves a derived timeseries with the change in values of specified column between available timestamps
+        /// Select dates/values from this timeseries that are different from the other timeseries. 
+        /// Only select sequences with specified minimum length without (differing) intermediate dates/values from timeseries 2. Equal dates or dates unique to TS2 are skipped.
+        /// When <paramref name="minSeqLength"/>=0, the check for sequences is skipped and also equal dates will be selected when values are different.
+        /// When <paramref name="minSeqLength"/>=1, only unique TS1-dates will be selected.
+        /// </summary>
+        /// <param name="ts2"></param>
+        /// <param name="valueColIdx1">zero based column index of this TS for value column to process</param>
+        /// <param name="valueColIdx2">zero based column index of TS2 for value column to process</param>
+        /// <param name="valueTolerance">acceptable difference for equal values</param>
+        /// <param name="minSeqLength">minimum length of TS1-sequence without intermediate TS2-dates; use 0 to ignore; use -1 to calculate exclusive difference</param>
+        /// <param name="seqMethod">method for calculating length of sequence</param>
+        /// <returns></returns>
+        public Timeseries RetrieveDifference(Timeseries ts2, int valueColIdx1, int valueColIdx2, float valueTolerance, int minSeqLength, SequenceMethod seqMethod)
+        {
+            Timeseries selectedTimeseries = null;
+            if (ts2 == null)
+            {
+                selectedTimeseries = new Timeseries(Timestamps, ValueColumns[valueColIdx1], NoDataValues[valueColIdx1]);
+                return selectedTimeseries;
+            }
+
+            if ((valueColIdx1 < 0) || valueColIdx1 >= ValueColumns.Count)
+            {
+                throw new Exception("No timeseries values defined for column index 1" + valueColIdx1);
+            }
+            if ((valueColIdx2 < 0) || valueColIdx2 >= ts2.ValueColumns.Count)
+            {
+                throw new Exception("No timeseries values defined for column index 2" + valueColIdx2);
+            }
+
+            List<DateTime> timestamps2 = ts2.Timestamps;
+            List<float> valueColumns1 = ValueColumns[valueColIdx1];
+            List<float> valueColumns2 = ts2.ValueColumns[valueColIdx2];
+
+            List<DateTime> selectedTimestamps = new List<DateTime>();
+            List<float> selectedValues = new List<float>();
+            List<DateTime> currDateSequence = new List<DateTime>();
+            List<float> currValueSequence = new List<float>();
+            DateTime? minSeqDate = null;
+            DateTime? maxSeqDate = null;
+            int seqCount = 0;
+            float selectedNoDataValue = this.NoDataValues[valueColIdx1];
+
+            int dateIdx1 = 0;
+            int dateIdx2 = 0;
+            if (minSeqLength >= 0)
+            {
+                while (dateIdx1 < Timestamps.Count)
+                {
+                    DateTime date1 = Timestamps[dateIdx1];
+                    float value1 = valueColumns1[dateIdx1];
+                    DateTime? date2 = null;
+                    if (dateIdx2 < timestamps2.Count)
+                    {
+                        date2 = timestamps2[dateIdx2];
+                    }
+
+
+                    // Store all TS1-dates/values before TS2-date
+                    while ((dateIdx1 < Timestamps.Count) && ((date2 == null) || (date1 < date2)))
+                    {
+                        currDateSequence.Add(date1);
+                        currValueSequence.Add(value1);
+                        if (minSeqDate == null)
+                        {
+                            minSeqDate = date1;
+                        }
+                        maxSeqDate = date1;
+                        seqCount++;
+                        dateIdx1++;
+                        if (dateIdx1 < Timestamps.Count)
+                        {
+                            date1 = Timestamps[dateIdx1];
+                            value1 = valueColumns1[dateIdx1];
+                        }
+                    }
+                    if ((date2 != null) && date1.Equals(date2))
+                    {
+                        // date2 is equal to date1, compare values
+                        float value2 = valueColumns2[dateIdx2];
+                        if ((minSeqLength == 0) && (Math.Abs(value2 - value1) > valueTolerance))
+                        {
+                            // There is a difference between both series (larger than tolerance), keep marking TS1-dates as part of the sequence
+                            currDateSequence.Add(date1);
+                            currValueSequence.Add(value1);
+                            maxSeqDate = date1;
+                            seqCount++;
+                        }
+                        else
+                        {
+                            // An (intermediate) equal date from series 2 was found, so this is not a unique date for TS1, check sequence length before storing them
+                            if (HasMinSeqLength(seqMethod, minSeqLength, seqCount, minSeqDate, maxSeqDate))
+                            {
+                                selectedTimestamps.AddRange(currDateSequence);
+                                selectedValues.AddRange(currValueSequence);
+                            }
+                            currDateSequence.Clear();
+                            currValueSequence.Clear();
+                            minSeqDate = null;
+                            maxSeqDate = null;
+                            seqCount = 0;
+                        }
+                        dateIdx1++;
+                        dateIdx2++;
+                    }
+                    else
+                    {
+                        // date2 is before date1, read dates from series 2 until equal to or after date1
+                        while (((date2 != null) && (date2 < date1)) && (dateIdx2 < timestamps2.Count))
+                        {
+                            dateIdx2++;
+                            if (dateIdx2 < timestamps2.Count)
+                            {
+                                date2 = timestamps2[dateIdx2];
+                            }
+                            // skip date2/value2 in result
+                        }
+
+                        // One or more (intermediate) dates from series 2 were found, check sequence length before storing them
+                        if (HasMinSeqLength(seqMethod, minSeqLength, seqCount, minSeqDate, maxSeqDate))
+                        {
+                            selectedTimestamps.AddRange(currDateSequence);
+                            selectedValues.AddRange(currValueSequence);
+                        }
+                        currDateSequence.Clear();
+                        currValueSequence.Clear();
+                        minSeqDate = null;
+                        maxSeqDate = null;
+                        seqCount = 0;
+                    }
+                }
+                // Add remaining sequence if large enough
+                if (HasMinSeqLength(seqMethod, minSeqLength, seqCount, minSeqDate, maxSeqDate))
+                {
+                    selectedTimestamps.AddRange(currDateSequence);
+                    selectedValues.AddRange(currValueSequence);
+                }
+            }
+            else
+            {
+                // Exclusive difference is requested: select dates from series 1 that are outside complete period of series 2
+                DateTime firstDate2 = timestamps2[0];
+                DateTime lastDate2 = timestamps2[timestamps2.Count - 1];
+
+                while (dateIdx1 < Timestamps.Count)
+                {
+                    DateTime date1 = Timestamps[dateIdx1];
+                    if ((date1 < firstDate2) || (date1 > lastDate2))
+                    {
+                        selectedTimestamps.Add(date1);
+                        selectedValues.Add(valueColumns1[dateIdx1]);
+                    }
+
+                    dateIdx1++;
+                }
+            }
+
+            selectedTimeseries = new Timeseries(selectedTimestamps, selectedValues, selectedNoDataValue);
+
+            return selectedTimeseries;
+        }
+
+        private bool HasMinSeqLength(SequenceMethod seqMethod, int minSeqLength, int seqCount, DateTime? minSeqDate, DateTime? maxSeqDate)
+        {
+            return ((seqMethod == SequenceMethod.Count) && (seqCount >= minSeqLength))
+                || ((seqMethod == SequenceMethod.Period) && (maxSeqDate != null) && ((((DateTime)maxSeqDate).Subtract((DateTime)minSeqDate).Days + 1) >= minSeqLength));
+        }
+
+        /// <summary>
+        /// Select dates/values from this timeseries that are different from the other timeseries. Equal dates or dates unique to TS2 are skipped.
+        /// </summary>
+        /// <param name="ts2"></param>
+        /// <param name="valueColIdx1">zero based column index of this TS for value column to process</param>
+        /// <param name="valueColIdx2">zero based column index of TS2 for value column to process</param>
+        /// <param name="valueTolerance">acceptable difference for equal values</param>
+        /// <returns></returns>
+        public Timeseries RetrieveDifference(Timeseries ts2, int valueColIdx1 = 0, int valueColIdx2 = 0, float valueTolerance = 0)
+        {
+            Timeseries selectedTimeseries = null;
+            if (ts2 == null)
+            {
+                selectedTimeseries = new Timeseries(Timestamps, ValueColumns[valueColIdx1], NoDataValues[valueColIdx1]);
+                return selectedTimeseries;
+            }
+
+            if ((valueColIdx1 < 0) || valueColIdx1 >= ValueColumns.Count)
+            {
+                throw new Exception("No timeseries values defined for column index 1" + valueColIdx1);
+            }
+            if ((valueColIdx2 < 0) || valueColIdx2 >= ts2.ValueColumns.Count)
+            {
+                throw new Exception("No timeseries values defined for column index 2" + valueColIdx2);
+            }
+
+            List<DateTime> dateList2 = ts2.Timestamps;
+            List<float> valueList1 = ValueColumns[valueColIdx1];
+            List<float> valueList2 = ts2.ValueColumns[valueColIdx2];
+
+            List<DateTime> selectedDates = new List<DateTime>();
+            List<float> selectedValues = new List<float>();
+            float selectedNoDataValue = this.NoDataValues[valueColIdx1];
+
+            int dateIdx1 = 0;
+            int dateIdx2 = 0;
+            while (dateIdx1 < Timestamps.Count)
+            {
+                DateTime date1 = Timestamps[dateIdx1];
+                DateTime? date2 = null;
+                if (dateIdx2 < dateList2.Count)
+                {
+                    date2 = dateList2[dateIdx2];
+                }
+                float value1 = valueList1[dateIdx1];
+                while (((date2 == null) || (date1 < date2)) && (dateIdx1 < Timestamps.Count))
+                {
+                    selectedDates.Add(date1);
+                    selectedValues.Add(value1);
+                    dateIdx1++;
+                    if (dateIdx1 < Timestamps.Count)
+                    {
+                        date1 = Timestamps[dateIdx1];
+                        value1 = valueList1[dateIdx1];
+                    }
+                }
+                while (((date2 != null) && (date2 < date1)) && (dateIdx2 < dateList2.Count))
+                {
+                    dateIdx2++;
+                    if (dateIdx2 < dateList2.Count)
+                    {
+                        date2 = dateList2[dateIdx2];
+                    }
+                    // skip date2/value2 in result
+                }
+                if ((date2 != null) && date1.Equals(date2))
+                {
+                    float value2 = valueList2[dateIdx2];
+                    if (Math.Abs(value2 - value1) > valueTolerance)
+                    {
+                        // Value at same date, but difference is larger than tolerance
+                        selectedDates.Add(date1);
+                        selectedValues.Add(value1);
+                    }
+                    dateIdx1++;
+                    dateIdx2++;
+                }
+            }
+
+            selectedTimeseries = new Timeseries(selectedDates, selectedValues, selectedNoDataValue);
+
+            return selectedTimeseries;
+        }
+
+        /// <summary>
+        /// Select dates/values from this timeseries that are equal to the other timeseries.
+        /// </summary>
+        /// <param name="ts2"></param>
+        /// <param name="valueColIdx1">zero based column index of this TS for value column to process</param>
+        /// <param name="valueColIdx2">zero based column index of TS2 for value column to process</param>
+        /// <param name="valueTolerance">acceptable difference for equal values</param>
+        /// <returns></returns>
+        public Timeseries RetrieveOverlap(Timeseries ts2, int valueColIdx1 = 0, int valueColIdx2 = 0, float valueTolerance = 0)
+        {
+            if (ts2 == null)
+            {
+                return null;
+            }
+
+            if ((valueColIdx1 < 0) || valueColIdx1 >= ValueColumns.Count)
+            {
+                throw new Exception("No timeseries values defined for column index 1" + valueColIdx1);
+            }
+            if ((valueColIdx2 < 0) || valueColIdx2 >= ts2.ValueColumns.Count)
+            {
+                throw new Exception("No timeseries values defined for column index 2" + valueColIdx2);
+            }
+
+            List<DateTime> dateList2 = ts2.Timestamps;
+            List<float> valueList1 = ValueColumns[valueColIdx1];
+            List<float> valueList2 = ts2.ValueColumns[valueColIdx2];
+
+            List<DateTime> selectedDates = new List<DateTime>();
+            List<float> selectedValues = new List<float>();
+            float selectedNoDataValue = this.NoDataValues[valueColIdx1];
+
+            int dateIdx1 = 0;
+            int dateIdx2 = 0;
+            while (dateIdx1 < Timestamps.Count)
+            {
+                DateTime date1 = Timestamps[dateIdx1];
+                DateTime? date2 = null;
+                if (dateIdx2 < dateList2.Count)
+                {
+                    date2 = dateList2[dateIdx2];
+                }
+                float value1 = valueList1[dateIdx1];
+                while (((date2 == null) || (date1 < date2)) && (dateIdx1 < Timestamps.Count))
+                {
+                    dateIdx1++;
+                    if (dateIdx1 < Timestamps.Count)
+                    {
+                        date1 = Timestamps[dateIdx1];
+                        value1 = valueList1[dateIdx1];
+                    }
+                }
+                while (((date2 != null) && (date2 < date1)) && (dateIdx2 < dateList2.Count))
+                {
+                    dateIdx2++;
+                    if (dateIdx2 < dateList2.Count)
+                    {
+                        date2 = dateList2[dateIdx2];
+                    }
+                }
+                if ((date2 != null) && date1.Equals(date2))
+                {
+                    float value2 = valueList2[dateIdx2];
+                    if (Math.Abs(value2 - value1) <= valueTolerance)
+                    {
+                        // Value at same date, but difference is smaller than tolerance
+                        selectedDates.Add(date1);
+                        selectedValues.Add(value1);
+                    }
+                    dateIdx1++;
+                    dateIdx2++;
+                }
+            }
+
+            Timeseries selectedTimeseries = new Timeseries(selectedDates, selectedValues, selectedNoDataValue);
+
+            return selectedTimeseries;
+        }
+
+        /// <summary>
+        /// Retrieves a derived timeseries with the change in values of specified column between available timestamps. 
+        /// Each date/value in the resulting timeseries represents the differences between the value of the next timestamp and current timestamp .
         /// </summary>
         /// <param name="fromDate"></param>
         /// <param name="toDate"></param>
@@ -518,6 +961,10 @@ namespace Sweco.SIF.iMOD
                     if (!selectedColValues[dateIdx].Equals(noDataValue) && !selectedColValues[dateIdx - 1].Equals(noDataValue))
                     {
                         changeValues.Add(selectedColValues[dateIdx] - selectedColValues[dateIdx - 1]);
+                    }
+                    else
+                    {
+                        changeValues.Add(noDataValue);
                     }
                 }
             }
@@ -589,25 +1036,26 @@ namespace Sweco.SIF.iMOD
 
             return 0;
         }
-
+        
         /// <summary>
         /// Change all (non-noData) values in specified column to their absolute values
         /// </summary>
         /// <param name="valueColIdx">zero-based column index</param>
         public void Abs(int valueColIdx = 0)
         {
-            if (valueColIdx >= ValueColumns.Count)
-            {
-                throw new Exception("No timeseries values defined for column index " + valueColIdx);
-            }
-            List<float> selectedColValues = ValueColumns[valueColIdx];
-            float noDataValue = NoDataValues[valueColIdx];
-
             if (ValueColumns != null)
             {
-                for (int valueIdx = 0; valueIdx < ValueColumns.Count(); valueIdx++)
+                if (valueColIdx >= ValueColumns.Count)
                 {
-                    if (!ValueColumns[valueIdx].Equals(noDataValue) && (selectedColValues[valueIdx] < 0))
+                    throw new Exception("No timeseries values defined for column index " + valueColIdx);
+                }
+
+                List<float> selectedColValues = ValueColumns[valueColIdx];
+                float noDataValue = NoDataValues[valueColIdx];
+
+                for (int valueIdx = 0; valueIdx < selectedColValues.Count; valueIdx++)
+                {
+                    if (!selectedColValues[valueIdx].Equals(noDataValue) && (selectedColValues[valueIdx] < 0))
                     {
                         selectedColValues[valueIdx] = -selectedColValues[valueIdx];
                     }
@@ -700,8 +1148,9 @@ namespace Sweco.SIF.iMOD
         /// </summary>
         /// <param name="timestamps2"></param>
         /// <param name="valueColIdx">zero based column index, use -1 to retrieve all value columns</param>
+        /// <param name="isInverted">if true, timestamps that are unequal to specified dates are selected</param>
         /// <returns></returns>
-        public Timeseries Select(List<DateTime> timestamps2, int valueColIdx = -1)
+        public Timeseries Select(List<DateTime> timestamps2, int valueColIdx = -1, bool isInverted = false)
         {
             if (valueColIdx >= ValueColumns.Count)
             {
@@ -733,6 +1182,21 @@ namespace Sweco.SIF.iMOD
                 DateTime date2 = timestamps2[dateIdx2];
                 while ((date1 < date2) && (dateIdx1 < Timestamps.Count))
                 {
+                    if (isInverted)
+                    {
+                        selectedDates.Add(date1);
+                        if (valueColIdx != -1)
+                        {
+                            selectedValueColumns[0].Add(ValueColumns[valueColIdx][dateIdx1]);
+                        }
+                        else
+                        {
+                            for (int colIdx = 0; colIdx < this.ValueColumns.Count; colIdx++)
+                            {
+                                selectedValueColumns[valueColIdx].Add(ValueColumns[valueColIdx][dateIdx1]);
+                            }
+                        }
+                    }
                     dateIdx1++;
                     if (dateIdx1 < Timestamps.Count)
                     {
@@ -747,7 +1211,7 @@ namespace Sweco.SIF.iMOD
                         date2 = timestamps2[dateIdx2];
                     }
                 }
-                if (date1.Equals(date2))
+                if ((!isInverted && date1.Equals(date2)) || (isInverted && !date1.Equals(date2)))
                 {
                     selectedDates.Add(date1);
                     if (valueColIdx != -1)
@@ -764,12 +1228,43 @@ namespace Sweco.SIF.iMOD
                     dateIdx1++;
                     dateIdx2++;
                 }
+                else if (date1.Equals(date2))
+                {
+                    dateIdx1++;
+                    dateIdx2++;
+                }
+            }
+            // Add last part of this timeseries for inverted selection
+            if (isInverted)
+            {
+                while (dateIdx1 < Timestamps.Count)
+                {
+                    DateTime date1 = Timestamps[dateIdx1];
+                    selectedDates.Add(date1);
+                    if (valueColIdx != -1)
+                    {
+                        selectedValueColumns[0].Add(ValueColumns[valueColIdx][dateIdx1]);
+                    }
+                    else
+                    {
+                        for (int colIdx = 0; colIdx < this.ValueColumns.Count; colIdx++)
+                        {
+                            selectedValueColumns[valueColIdx].Add(ValueColumns[valueColIdx][dateIdx1]);
+                        }
+                    }
+                    dateIdx1++;
+                    if (dateIdx1 < Timestamps.Count)
+                    {
+                        date1 = Timestamps[dateIdx1];
+                    }
+                }
             }
 
             Timeseries selectedTimeseries = new Timeseries(selectedDates, selectedValueColumns, selectedNoDataValues);
 
             return selectedTimeseries;
         }
+
 
         /// <summary>
         /// Selects dates/values for specified value column when daynumber matches specified daynrs
@@ -829,27 +1324,418 @@ namespace Sweco.SIF.iMOD
         }
 
         /// <summary>
-        /// Avaiable Methods for resmpling timeseries
+        /// Merge dates/values from this timeseries with dates/values from the other timeseries. In case of equal dates, the date of series 1 is always preserved.
+        /// Only select sequences with specified minimum length without intermediate dates from timeseries 2.
         /// </summary>
-        public enum ResampleMethod
+        /// <param name="ts2"></param>
+        /// <param name="valueColIdx1">zero based column index of this TS for value column to process</param>
+        /// <param name="valueColIdx2">zero based column index of TS2 for value column to process</param>
+        /// <param name="minSeqLength">minimum length of TS1-sequences without intermediate TS2-dates; use 0 or 1 to ignore; use -1 to calculate exclusive difference</param>
+        /// <param name="seqMethod">method for calculating length of sequence (default: Period)</param>
+        /// <returns></returns>
+        public Timeseries Merge(Timeseries ts2, int valueColIdx1 = 0, int valueColIdx2 = 0, int minSeqLength = 1, SequenceMethod seqMethod = SequenceMethod.Period)
         {
-            /// <summary>
-            /// Use mean of values within sampled timespan
-            /// </summary>
-            Mean,
-            /// <summary>
-            /// Use minimum of values within sampled timespan
-            /// </summary>
-            Min,
-            /// <summary>
-            /// Use maximum of values within sampled timespan
-            /// </summary>
-            Max
+            Timeseries mergedTimeseries = null;
+            if ((ts2 == null) || (ts2.Timestamps.Count == 0))
+            {
+                mergedTimeseries = new Timeseries(Timestamps, ValueColumns[valueColIdx1], NoDataValues[valueColIdx1]);
+                return mergedTimeseries;
+            }
+
+            if ((valueColIdx1 < 0) || valueColIdx1 >= ValueColumns.Count)
+            {
+                throw new Exception("No timeseries values defined for column index 1" + valueColIdx1);
+            }
+            if ((valueColIdx2 < 0) || valueColIdx2 >= ts2.ValueColumns.Count)
+            {
+                throw new Exception("No timeseries values defined for column index 2" + valueColIdx2);
+            }
+
+            List<DateTime> timestamps2 = ts2.Timestamps;
+            List<float> valueColumns1 = ValueColumns[valueColIdx1];
+            List<float> valueColumns2 = ts2.ValueColumns[valueColIdx2];
+
+            List<DateTime> mergedDates = new List<DateTime>();
+            List<float> mergedValues = new List<float>();
+            List<DateTime> currDateSequence = new List<DateTime>();
+            List<float> currValueSequence = new List<float>();
+            DateTime? minSeqDate = null;
+            DateTime? maxSeqDate = null;
+            int seqCount = 0;
+            float mergedNoDataValue = this.NoDataValues[valueColIdx1];
+
+            int dateIdx1 = 0;
+            int dateIdx2 = 0;
+            if (minSeqLength >= 0)
+            {
+                while (dateIdx1 < Timestamps.Count)
+                {
+                    DateTime date1 = Timestamps[dateIdx1];
+                    float value1 = valueColumns1[dateIdx1];
+                    DateTime? date2 = null;
+                    if (dateIdx2 < timestamps2.Count)
+                    {
+                        date2 = timestamps2[dateIdx2];
+                    }
+
+                    // Add dates from TS1 as long as date1 < date2
+                    while (((date2 == null) || (date1 < date2)) && (dateIdx1 < Timestamps.Count))
+                    {
+                        // Dates from TS1 are always added 
+                        mergedDates.Add(date1);
+                        mergedValues.Add(value1);
+                        dateIdx1++;
+                        if (dateIdx1 < Timestamps.Count)
+                        {
+                            date1 = Timestamps[dateIdx1];
+                            value1 = valueColumns1[dateIdx1];
+                        }
+                    }
+
+                    // Check TS1-dates for minimum sequence length
+                    bool hasDate2 = false;
+                    while (((date2 != null) && (date2 < date1)) && (dateIdx2 < timestamps2.Count))
+                    {
+                        hasDate2 = true;
+
+                        // Dates from TS2 are only added when sequence count is large enough
+                        if (minSeqDate == null)
+                        {
+                            minSeqDate = date2;
+                        }
+                        maxSeqDate = date2;
+                        currDateSequence.Add((DateTime)date2);
+                        currValueSequence.Add(valueColumns2[dateIdx2]);
+                        seqCount++;
+
+                        dateIdx2++;
+                        if (dateIdx2 < timestamps2.Count)
+                        {
+                            date2 = timestamps2[dateIdx2];
+                        }
+                    }
+
+                    if (hasDate2)
+                    {
+                        // An (intermediate) date from series 1 was found, check sequence length from series 2 were found before adding them
+                        if (HasMinSeqLength(seqMethod, minSeqLength, seqCount, minSeqDate, maxSeqDate))
+                        {
+                            mergedDates.AddRange(currDateSequence);
+                            mergedValues.AddRange(currValueSequence);
+                        }
+                        currDateSequence.Clear();
+                        currValueSequence.Clear();
+                        minSeqDate = null;
+                        maxSeqDate = null;
+                        seqCount = 0;
+                    }
+                    if ((date2 != null) && date1.Equals(date2))
+                    {
+                        // Dates from TS1 and TS2 are equal, use date/value from TS1
+                        mergedDates.Add(date1);
+                        mergedValues.Add(value1);
+
+                        dateIdx1++;
+                        dateIdx2++;
+                    }
+                }
+                // Check for remaining sequence
+                if (seqCount > 0)
+                {
+                    throw new Exception("this should not happen!");
+                }
+            }
+            else
+            {
+                // Add only dates from series 2 outside period with dates for series 1
+                DateTime firstDate1 = Timestamps[0];
+                DateTime lastDate1 = Timestamps[Timestamps.Count - 1];
+                DateTime firstDate2 = timestamps2[0];
+                DateTime lastDate2 = timestamps2[timestamps2.Count - 1];
+
+                // Add dates from series 2 that come before series 1
+                DateTime date2;
+                if (firstDate2 < firstDate1)
+                {
+                    while ((dateIdx2 < timestamps2.Count) && ((date2 = timestamps2[dateIdx2]) < firstDate1))
+                    {
+                        mergedDates.Add(date2);
+                        mergedValues.Add(valueColumns2[dateIdx2]);
+                        dateIdx2++;
+                        date2 = timestamps2[dateIdx2];
+                    }
+                }
+
+                // Add dates from series 1
+                while (dateIdx1 < Timestamps.Count)
+                {
+                    mergedDates.Add(Timestamps[dateIdx1]);
+                    mergedValues.Add(valueColumns1[dateIdx1]);
+                    dateIdx1++;
+                }
+
+                // Add dates from series 2 that come after series 1
+                if (lastDate2 > lastDate1)
+                {
+                    while ((dateIdx2 < timestamps2.Count) && ((date2 = timestamps2[dateIdx2]) <= lastDate1))
+                    {
+                        dateIdx2++;
+                        date2 = timestamps2[dateIdx2];
+                    }
+                    while ((dateIdx2 < timestamps2.Count))
+                    {
+                        mergedDates.Add(timestamps2[dateIdx2]);
+                        mergedValues.Add(valueColumns2[dateIdx2]);
+                        dateIdx2++;
+                    }
+                }
+            }
+
+            mergedTimeseries = new Timeseries(mergedDates, mergedValues, mergedNoDataValue);
+
+            return mergedTimeseries;
         }
 
-        public Timeseries Resample(TimeSpan frequency, ResampleMethod resampleMethod)
+        /// <summary>
+        /// Resample timeseries
+        /// </summary>
+        /// <param name="resolution"></param>
+        /// <param name="resampleMethod"></param>
+        /// <returns></returns>
+        public Timeseries Resample(TimeStampResolution resolution, ResampleMethod resampleMethod)
         {
-            throw new NotSupportedException();
+            List<DateTime> newDateList = new List<DateTime>();
+            List<List<float>> newValueLists = new List<List<float>>();
+            List<float> newNoDataValues = new List<float>();
+            for (int colIdx = 0; colIdx < this.ValueColumns.Count; colIdx++)
+            {
+                newValueLists.Add(new List<float>());
+                newNoDataValues.Add(this.NoDataValues[colIdx]);
+            }
+
+
+            int timeStampIdx = 0;
+            int newTimeStampIdx = 0;
+            DateTime prevTimeStamp = DateTime.MinValue;
+            while (timeStampIdx < Timestamps.Count)
+            {
+                DateTime currentTimeStamp = Timestamps[timeStampIdx];
+                if (IsEqualTimeStamp(currentTimeStamp, prevTimeStamp, resolution))
+                {
+                    switch (resampleMethod)
+                    {
+                        case ResampleMethod.First:
+                            // ignore other dates
+                            break;
+                        case ResampleMethod.FirstNonNoData:
+                            bool hasNonNoDataValues = false;
+                            for (int colIdx = 0; colIdx < this.ValueColumns.Count; colIdx++)
+                            {
+                                if (!newValueLists[colIdx][newTimeStampIdx - 1].Equals(newNoDataValues[colIdx]))
+                                {
+                                    hasNonNoDataValues = true;
+                                }
+                            }
+                            if (!hasNonNoDataValues)
+                            {
+                                // Copy values of this timestamp over values of previous timestamp
+                                newDateList[newTimeStampIdx - 1] = currentTimeStamp.Date;
+                                for (int colIdx = 0; colIdx < this.ValueColumns.Count; colIdx++)
+                                {
+                                    newValueLists[colIdx][newTimeStampIdx - 1] = ValueColumns[colIdx][timeStampIdx];
+                                }
+                            }
+                            break;
+                        default:
+                            throw new Exception("Unknown resample method: " + resampleMethod);
+                    }
+                }
+                else
+                {
+                    // Add new value
+                    newDateList.Add(currentTimeStamp.Date);
+                    for (int colIdx = 0; colIdx < this.ValueColumns.Count; colIdx++)
+                    {
+                        newValueLists[colIdx].Add(ValueColumns[colIdx][timeStampIdx]);
+                    }
+                    newTimeStampIdx++;
+                }
+
+                prevTimeStamp = currentTimeStamp;
+                timeStampIdx++;
+            }
+
+            Timeseries newTimeseries = new Timeseries(newDateList, newValueLists, newNoDataValues);
+            return newTimeseries;
+        }
+
+        /// <summary>
+        /// Retrieve (linearly) interpolated values based on date distance between values, use defined period of timeseries
+        /// </summary>
+        /// <param name="fromDate"></param>
+        /// <param name="toDate"></param>
+        /// <param name="dayStep">timestep in days, between interpolated values</param>
+        /// <returns></returns>
+        public Timeseries InterpolateTimeseries(DateTime? fromDate = null, DateTime? toDate = null, int dayStep = 0)
+        {
+            List<DateTime> interpolatedTimeStamps = new List<DateTime>();
+            List<float> interpolatedValues = new List<float>();
+
+            if (fromDate == null)
+            {
+                fromDate = Timestamps[0];
+            }
+            if (toDate == null)
+            {
+                toDate = Timestamps[Timestamps.Count() - 1];
+            }
+
+            int dateIdx = 0;
+            if (dayStep == 0)
+            {
+                // When no timestep is specified, use minimum timestep between defined dates
+                dayStep = int.MaxValue;
+                for (dateIdx = 0; dateIdx < Timestamps.Count() - 1; dateIdx++)
+                {
+                    int diff = Timestamps[dateIdx + 1].Subtract(Timestamps[dateIdx]).Days;
+                    if ((diff < dayStep) && (diff > 0))
+                    {
+                        dayStep = diff;
+                    }
+                }
+            }
+            if (dayStep > 365)
+            {
+                dayStep = 365;
+            }
+
+            // Find first date larger than fromDate
+            dateIdx = 0;
+            DateTime date1;
+            float value1 = float.NaN;
+            while ((dateIdx < Timestamps.Count()) && (Timestamps[dateIdx] <= fromDate))
+            {
+                dateIdx++;
+            }
+            date1 = (DateTime)fromDate;
+            value1 = (dateIdx > 0) ? Values[dateIdx - 1] : 0;
+            interpolatedTimeStamps.Add((DateTime)fromDate);
+            interpolatedValues.Add(value1);
+
+            // Now process date until first date after toDate
+            while ((dateIdx < Timestamps.Count()) && (Timestamps[dateIdx] <= toDate))
+            {
+                DateTime date2 = Timestamps[dateIdx];
+                float value2 = Values[dateIdx];
+                int distance = date2.Subtract(date1).Days;
+                float margin = distance * 0.1f; // for avoiding getting too close or equal to date2
+                for (int ts = dayStep; ts < (distance - margin); ts += dayStep)
+                {
+                    interpolatedTimeStamps.Add(date1.AddDays(ts));
+                    interpolatedValues.Add(value1);
+                }
+                interpolatedTimeStamps.Add(date2);
+                interpolatedValues.Add(value2);
+                date1 = date2;
+                value1 = value2;
+                dateIdx++;
+            }
+            if (date1 < toDate)
+            {
+                // selected period is not yet complete, check this
+                int distance = ((DateTime)toDate).Subtract(date1).Days;
+                if (distance > dayStep)
+                {
+                    // selected period is not complete, fill it with last value
+                    float margin = distance * 0.1f; // for avoiding getting too close or equal to date2
+                    for (int ts = dayStep; ts < (distance - margin); ts += dayStep)
+                    {
+                        interpolatedTimeStamps.Add(date1.AddDays(ts));
+                        interpolatedValues.Add(value1);
+                    }
+                    interpolatedTimeStamps.Add((DateTime)toDate);
+                    interpolatedValues.Add(value1);
+                }
+            }
+
+            Timeseries interpolatedTimeseries = new Timeseries(interpolatedTimeStamps, interpolatedValues);
+
+            return interpolatedTimeseries;
+        }
+
+        /// <summary>
+        /// Retrieve all date/value-pairs with NoData-values for specified column
+        /// </summary>
+        /// <param name="valueColIdx">zero based column index</param>
+        public Timeseries RetrieveNoDataSeries(int valueColIdx = 0)
+        {
+            if (valueColIdx >= ValueColumns.Count)
+            {
+                throw new Exception("No timeseries values defined for column index " + valueColIdx);
+            }
+            List<float> selectedColValues = ValueColumns[valueColIdx];
+            float noDataValue = NoDataValues[valueColIdx];
+
+            List<DateTime> selectedTimestamps = new List<DateTime>();
+            List<float> selectedValues = new List<float>();
+
+            for (int timestampIdx = 0; timestampIdx < Timestamps.Count(); timestampIdx++)
+            {
+                float value = selectedColValues[timestampIdx];
+                if (value.Equals(noDataValue))
+                {
+                    selectedTimestamps.Add(Timestamps[timestampIdx]);
+                    selectedValues.Add(value);
+                }
+            }
+
+            Timeseries result = new Timeseries(selectedTimestamps, selectedValues, noDataValue);
+            return result;
+        }
+
+        /// <summary>
+        /// Check if specified timestamps are equal at specified resolution (e.g. time is ignored when Day is specified)
+        /// </summary>
+        /// <param name="timestamp1"></param>
+        /// <param name="timestamp2"></param>
+        /// <param name="resolution"></param>
+        /// <returns></returns>
+        protected bool IsEqualTimeStamp(DateTime timestamp1, DateTime timestamp2, TimeStampResolution resolution)
+        {
+            switch (resolution)
+            {
+                case TimeStampResolution.Day:
+                    return timestamp1.Date.Equals(timestamp2.Date);
+                default:
+                    throw new Exception("Unknown TimeStampResolution: " + resolution);
+            }
+        }
+
+        /// <summary>
+        /// Replace all occurances of some value in specified column by specified new value
+        /// </summary>
+        /// <param name="replacedValue"></param>
+        /// <param name="newValue"></param>
+        /// <param name="valueColIdx">zero based column index</param>
+        public void Replace(float replacedValue, float newValue, int valueColIdx = 0)
+        {
+            if (ValueColumns!= null)
+            {
+                if (valueColIdx >= ValueColumns.Count)
+                {
+                    throw new Exception("No timeseries values defined for column index " + valueColIdx);
+                }
+
+                List<float> selectedColValues = ValueColumns[valueColIdx];
+
+                for (int valueIdx = 0; valueIdx < selectedColValues.Count(); valueIdx++)
+                {
+                    if (selectedColValues[valueIdx].Equals(replacedValue))
+                    {
+                        selectedColValues[valueIdx] = newValue;
+                    }
+                }
+            }
         }
 
         /// <summary>

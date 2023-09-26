@@ -36,6 +36,11 @@ namespace Sweco.SIF.iMOD.IPF
     public class IPFTimeseries : Timeseries
     {
         /// <summary>
+        /// Encoding used for writing timeseries file
+        /// </summary>
+        public static Encoding Encoding = Encoding.Default;
+
+        /// <summary>
         /// Filename to read or write this timeseries from/to
         /// </summary>
         public string Filename { get; set; }
@@ -73,6 +78,11 @@ namespace Sweco.SIF.iMOD.IPF
         public List<List<float>> InvalidValueLists { get; private set; }
 
         /// <summary>
+        /// NoData-string of timestamp column. Note1: changing this value does NOT change the current NoData timestamps. Note2: timestamp/value-pairs with this value are removed when reading/writing and IPFTimeseries-file.
+        /// </summary>
+        public string TimestampNoDataString { get; set; }
+
+        /// <summary>
         /// Describes type of associated files (see iMOD-manual)
         /// </summary>
         public int ITYPE { get; protected set; }
@@ -85,6 +95,7 @@ namespace Sweco.SIF.iMOD.IPF
             InvalidTimestamps = null;
             ColumnNames = new List<string>();
             InvalidValueLists = new List<List<float>>();
+            TimestampNoDataString = DefaultNoDataValue.ToString();
             ITYPE = 0;
         }
 
@@ -101,6 +112,7 @@ namespace Sweco.SIF.iMOD.IPF
             InvalidTimestamps = null;
             ColumnNames = new List<string>(new string[] { valueColumnName ?? "values" });
             InvalidValueLists = new List<List<float>>();
+            TimestampNoDataString = DefaultNoDataValue.ToString();
             ITYPE = 0;
         }
 
@@ -136,6 +148,7 @@ namespace Sweco.SIF.iMOD.IPF
 
             InvalidTimestamps = null;
             InvalidValueLists = new List<List<float>>();
+            TimestampNoDataString = DefaultNoDataValue.ToString();
             ITYPE = 0;
         }
 
@@ -144,17 +157,14 @@ namespace Sweco.SIF.iMOD.IPF
         /// </summary>
         /// <param name="timeseries"></param>
         /// <param name="columnNames"></param>
-        public IPFTimeseries(Timeseries timeseries, List<string> columnNames) : base(timeseries.Timestamps, timeseries.ValueColumns, timeseries.NoDataValues)
+        /// <param name="ipfTSFilename"></param>
+        public IPFTimeseries(Timeseries timeseries, List<string> columnNames, string ipfTSFilename = null) : base(timeseries.Timestamps, timeseries.ValueColumns, timeseries.NoDataValues)
         {
-            InvalidTimestamps = null;
-            InvalidValueLists = new List<List<float>>();
-            ITYPE = 0;
-
             if (columnNames != null)
             {
                 if ((columnNames == null) && (columnNames.Count != timeseries.ValueColumns.Count))
                 {
-                    throw new Exception("Number of column names (" + ((columnNames != null) ? columnNames.Count : 0) + ") does not match number of value columns (" + timeseries.ValueColumns.Count);
+                    throw new Exception("Number of column names (" + ((columnNames != null) ? columnNames.Count : 0) + ") does not match number of value columns (" + timeseries.ValueColumns.Count + ")");
                 }
                 this.ColumnNames = new List<string>(columnNames);
             }
@@ -162,6 +172,13 @@ namespace Sweco.SIF.iMOD.IPF
             {
                 throw new Exception("Column names cannot be null in IPFTimeseries() constructor");
             }
+
+            this.Filename = ipfTSFilename;
+
+            InvalidTimestamps = null;
+            InvalidValueLists = new List<List<float>>();
+            TimestampNoDataString = DefaultNoDataValue.ToString();
+            ITYPE = 0;
         }
 
         /// <summary>
@@ -169,9 +186,10 @@ namespace Sweco.SIF.iMOD.IPF
         /// </summary>
         /// <param name="filename"></param>
         /// <param name="isCommaCorrected">correct possible comma's (dutch decimal seperator, replace by english decimal seperator) in values when list seperator seems to be a space</param>
+        /// <param name="isNoDataValueSkipped">Skip timeseries entries that have a NoData-value</param>
         /// <param name="listSeperators">string with possible list seperators, or leave null to use current default listseperators</param>
         /// <returns></returns>
-        public static IPFTimeseries ReadFile(string filename, bool isCommaCorrected = true, string listSeperators = null)
+        public static IPFTimeseries ReadFile(string filename, bool isCommaCorrected = true, bool isNoDataValueSkipped = true, string listSeperators = null)
         {
             IPFTimeseries ipfTimeseries = null;
 
@@ -196,6 +214,10 @@ namespace Sweco.SIF.iMOD.IPF
                 try
                 {
                     line = sr.ReadLine();
+                    if (line == null)
+                    {
+                        throw new Exception("Timeseries-file is empty");
+                    }
                     timestampCount = long.Parse(line.Trim());
                 }
                 catch (Exception ex)
@@ -238,7 +260,7 @@ namespace Sweco.SIF.iMOD.IPF
                 char[] listSeperatorExCommmaChars = listSeperators.Replace(",", string.Empty).ToCharArray();
 
                 // Parse column and nodata definitions
-                string noTimestampString = null;
+                string timestampNoDataString = null;
                 if (columnCount > 0)
                 {
                     for (int i = 0; i < columnCount; i++)
@@ -259,13 +281,14 @@ namespace Sweco.SIF.iMOD.IPF
                         }
                         if (i == 0)
                         {
-                            noTimestampString = lineValues[1];
+                            timestampNoDataString = lineValues[1];
+                            ipfTimeseries.TimestampNoDataString = timestampNoDataString;
                         }
                         else
                         {
                             if (!float.TryParse(lineValues[1], NumberStyles.Float, englishCultureInfo, out float noValueValue))
                             {
-                                throw new Exception("Invalid value used in noValue definition: " + lineValues[1]);
+                                throw new Exception("Invalid value used in noValue definition, floating point value expected: " + lineValues[1]);
                             }
 
                             ipfTimeseries.ColumnNames.Add(lineValues[0].Trim());
@@ -315,7 +338,7 @@ namespace Sweco.SIF.iMOD.IPF
                         }
 
                         string timestampString = columnValueStrings[0];
-                        if (!timestampString.Equals(noTimestampString))
+                        if (!timestampString.Equals(timestampNoDataString))
                         {
                             DateTime timestamp;
                             try
@@ -338,10 +361,11 @@ namespace Sweco.SIF.iMOD.IPF
                                 }
                             }
 
+                            bool hasUnwantedNoDataValue = false;
                             List<float> columnValues = new List<float>();
-                            for (int colIdx = 1; colIdx < columnCount; colIdx++)
+                            for (int colNr = 1; colNr < columnCount; colNr++)
                             {
-                                string valueString = columnValueStrings[colIdx];
+                                string valueString = columnValueStrings[colNr];
 
                                 if (isCommaCorrected)
                                 {
@@ -358,7 +382,7 @@ namespace Sweco.SIF.iMOD.IPF
                                     throw new Exception("Could not parse value '" + valueString + "' in timestamp/value definition in line " + line, ex);
                                 }
 
-                                // Even if the value could be parsed, check for ','-symbols in the valuestring as they may not be read correctly
+                                // Even if the value could be parsed, check for ','-symbols in the valuestring as they may have been read incorrectly
                                 if (valueString.Contains(","))
                                 {
                                     if (!valueString.Contains("."))
@@ -368,6 +392,12 @@ namespace Sweco.SIF.iMOD.IPF
                                 }
 
                                 columnValues.Add(value);
+                                hasUnwantedNoDataValue |= isNoDataValueSkipped && value.Equals(ipfTimeseries.NoDataValues[colNr - 1]);
+                            }
+
+                            if (isNoDataValueSkipped && hasUnwantedNoDataValue)
+                            {
+                                continue;
                             }
 
                             // Check for invalid timestamps, that are before previously processed timestamps
@@ -387,6 +417,10 @@ namespace Sweco.SIF.iMOD.IPF
                                     valueColumns[colIdx - 1].Add(columnValues[colIdx - 1]);
                                 }
                             }
+                        }
+                        else
+                        {
+                            // Note: timestamps with NoData-value are ignored.
                         }
                     }
                 }
@@ -470,7 +504,7 @@ namespace Sweco.SIF.iMOD.IPF
         }
 
         /// <summary>
-        /// Write timeseries, excluding invalid timestamps, to specifed file
+        /// Write timeseries, excluding invalid/NoData timestamps, to specified file
         /// </summary>
         /// <param name="filename"></param>
         /// <param name="decimalCount">Number of decimals for non-NoData-values when writing timeseries file. Use -1 to keep all decimals</param>
@@ -499,7 +533,7 @@ namespace Sweco.SIF.iMOD.IPF
                 StreamWriter sw = null;
                 try
                 {
-                    sw = new StreamWriter(filename, false);
+                    sw = new StreamWriter(filename, false, Encoding);
 
                     // Write first line with number of timestamps
                     sw.WriteLine(Timestamps.Count());
@@ -508,53 +542,46 @@ namespace Sweco.SIF.iMOD.IPF
                     sw.WriteLine(ColumnNames.Count + 1);
 
                     // Write column definitions
-                    sw.WriteLine("Date,-99999");
+                    sw.WriteLine("Date," + TimestampNoDataString);
                     for (int colIdx = 0; colIdx < ColumnNames.Count; colIdx++)
                     {
-                        sw.WriteLine(ColumnNames[colIdx] + "," + NoDataValues[colIdx].ToString(englishCultureInfo));
+                        sw.WriteLine(ColumnNames[colIdx].Replace(" ", "_") + "," + NoDataValues[colIdx].ToString(englishCultureInfo));
                     }
 
-                    // Check if timestamps have hour/second resolution
-                    bool hasHourResolution = false;
-                    for (int timestampIdx = 0; timestampIdx < Timestamps.Count(); timestampIdx++)
-                    {
-                        DateTime timestamp = Timestamps[timestampIdx];
-                        if ((timestamp.Hour != 0) || (timestamp.Minute != 0) || (timestamp.Second != 0))
-                        {
-                            hasHourResolution = true;
-                            break;
-                        }
-                    }
+                    bool isTimeComponentDefined = IsTimeDefined();
 
                     // Write timestamps/values
                     for (int timestampIdx = 0; timestampIdx < Timestamps.Count(); timestampIdx++)
                     {
                         DateTime timestamp = Timestamps[timestampIdx];
-                        string rowString = timestamp.Year.ToString() + timestamp.Month.ToString("D2") + timestamp.Day.ToString("D2");
-                        if (hasHourResolution)
+                        if (!timestamp.Equals(TimestampNoDataString))
                         {
-                            rowString += timestamp.Hour.ToString("D2") + timestamp.Second.ToString("D2") + timestamp.Minute.ToString("D2");
-                        }
-                        for (int colIdx = 0; colIdx < ValueColumns.Count; colIdx++)
-                        {
-                            float value = ValueColumns[colIdx][timestampIdx];
-                            if (value.Equals(float.NaN) || value.Equals(NoDataValues[colIdx]))
+                            string rowString = timestamp.Year.ToString() + timestamp.Month.ToString("D2") + timestamp.Day.ToString("D2");
+                            if (isTimeComponentDefined)
                             {
-                                rowString += "," + NoDataValues[colIdx].ToString(englishCultureInfo);
+                                rowString += timestamp.Hour.ToString("D2") + timestamp.Second.ToString("D2") + timestamp.Minute.ToString("D2");
                             }
-                            else
+                            for (int colIdx = 0; colIdx < ValueColumns.Count; colIdx++)
                             {
-                                if (decimalCount >= 0)
+                                float value = ValueColumns[colIdx][timestampIdx];
+                                if (value.Equals(float.NaN) || value.Equals(NoDataValues[colIdx]))
                                 {
-                                    rowString += "," + Math.Round(value, decimalCount).ToString("F" + decimalCount, englishCultureInfo);
+                                    rowString += "," + NoDataValues[colIdx].ToString(englishCultureInfo);
                                 }
                                 else
                                 {
-                                    rowString += "," + value.ToString(englishCultureInfo);
+                                    if (decimalCount >= 0)
+                                    {
+                                        rowString += "," + Math.Round(value, decimalCount).ToString("F" + decimalCount, englishCultureInfo);
+                                    }
+                                    else
+                                    {
+                                        rowString += "," + value.ToString(englishCultureInfo);
+                                    }
                                 }
                             }
+                            sw.WriteLine(rowString);
                         }
-                        sw.WriteLine(rowString);
                     }
                     this.Filename = filename;
                 }
@@ -566,12 +593,12 @@ namespace Sweco.SIF.iMOD.IPF
                     }
                     else
                     {
-                        throw new Exception("Unexpected error while writing timeseries file: " + Filename, ex);
+                        throw new Exception("Unexpected error while writing timeseries file: " + filename, ex);
                     }
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception("Unexpected error while writing timeseries file: " + Filename, ex);
+                    throw new Exception("Unexpected error while writing timeseries file: " + filename, ex);
                 }
                 finally
                 {
@@ -622,8 +649,9 @@ namespace Sweco.SIF.iMOD.IPF
         /// </summary>
         /// <param name="valueColIdx">zero based column index, use -1 to retrieve all value columns</param>
         /// <returns></returns>
-        /// <param name="dates"></param>
-        public new IPFTimeseries Select(List<DateTime> dates, int valueColIdx = 0)
+        /// <param name="timestamps"></param>
+        /// <param name="isInverted">if true, timestamps that are unequal to specified dates are selected</param>
+        public new IPFTimeseries Select(List<DateTime> timestamps, int valueColIdx = 0, bool isInverted = false)
         {
             List<string> selColumnNames = new List<string>();
             if (valueColIdx == -1)
@@ -645,7 +673,7 @@ namespace Sweco.SIF.iMOD.IPF
                 }
             }
 
-            return new IPFTimeseries(base.Select(dates, valueColIdx), selColumnNames);
+            return new IPFTimeseries(base.Select(timestamps, valueColIdx, isInverted), selColumnNames);
         }
 
         /// <summary>
@@ -654,8 +682,10 @@ namespace Sweco.SIF.iMOD.IPF
         /// <param name="minValue">minValue, use float.NaN to ignore minValue</param>
         /// <param name="maxValue">maxValue, use float.NaN to ignore maxValue</param>
         /// <param name="valueColIdx">zero based column index</param>
+        /// <param name="isInverted">if true, timestamps outside specified range are selected</param>
+        /// <param name="includeNoData">if true, NoData-values are returned in the result</param>
         /// <returns></returns>
-        public new IPFTimeseries Select(float minValue, float maxValue, int valueColIdx = 0)
+        public new IPFTimeseries Select(float minValue, float maxValue, int valueColIdx = 0, bool isInverted = false, bool includeNoData = true)
         {
             List<string> selColumnNames = new List<string>();
             if (valueColIdx < ColumnNames.Count)
@@ -667,7 +697,7 @@ namespace Sweco.SIF.iMOD.IPF
                 throw new Exception("Invalid value column index (larger or equal to value column count): " + valueColIdx);
             }
 
-            return new IPFTimeseries(base.Select(minValue, maxValue, valueColIdx), selColumnNames);
+            return new IPFTimeseries(base.Select(minValue, maxValue, valueColIdx, isInverted, includeNoData), selColumnNames);
         }
 
         /// <summary>
@@ -676,8 +706,9 @@ namespace Sweco.SIF.iMOD.IPF
         /// <param name="fromDate"></param>
         /// <param name="toDate"></param>
         /// <param name="valueColIdx">zero based column index, use -1 to retrieve all value columns</param>
+        /// <param name="excludeSurroundingValues">if false, add value before and after specified period if fromDate and toDate are not existing</param>
         /// <returns></returns>
-        public new IPFTimeseries Select(DateTime? fromDate = null, DateTime? toDate = null, int valueColIdx = -1)
+        public new IPFTimeseries Select(DateTime? fromDate = null, DateTime? toDate = null, int valueColIdx = -1, bool excludeSurroundingValues = true)
         {
             List<string> selColumnNames = new List<string>();
             if (valueColIdx == -1)
@@ -699,7 +730,230 @@ namespace Sweco.SIF.iMOD.IPF
                 }
             }
 
-            return new IPFTimeseries(base.Select(fromDate, toDate, valueColIdx), selColumnNames);
+            return new IPFTimeseries(base.Select(fromDate, toDate, valueColIdx, excludeSurroundingValues), selColumnNames);
+        }
+
+        /// <summary>
+        /// Replace both definition and all NoData-values in specified valuecolumn with new NoData-value
+        /// </summary>
+        /// <param name="newNoDataValue"></param>
+        /// <param name="valueColIdx"></param>
+        public void ReplaceNoDataValue(float newNoDataValue, int valueColIdx = 0)
+        {
+            float noDataValue = NoDataValues[valueColIdx];
+            if (!noDataValue.Equals(newNoDataValue))
+            {
+                List<float> valueColumn = ValueColumns[valueColIdx];
+                for (int idx = 0; idx < valueColumn.Count; idx++)
+                {
+                    if (valueColumn[idx].Equals(noDataValue))
+                    {
+                        valueColumn[idx] = newNoDataValue;
+                    }
+                }
+                NoDataValues[valueColIdx] = newNoDataValue;
+            }
+        }
+
+        /// <summary>
+        /// Retrieves a derived timeseries with the change in values of specified column between available timestamps
+        /// </summary>
+        /// <param name="fromDate"></param>
+        /// <param name="toDate"></param>
+        /// <param name="valueColIdx">zero-based column index</param>
+        /// <returns></returns>
+        public new IPFTimeseries RetrieveDifferences(DateTime? fromDate = null, DateTime? toDate = null, int valueColIdx = 0)
+        {
+            List<string> selColumnNames = new List<string>();
+            if ((valueColIdx >= 0) && (valueColIdx < ColumnNames.Count))
+            {
+                selColumnNames.Add(ColumnNames[valueColIdx]);
+            }
+            else
+            {
+                throw new Exception("Invalid value column index (negative or larger or equal to value column count): " + valueColIdx);
+            }
+
+            IPFTimeseries ipfTS = new IPFTimeseries(base.RetrieveDifferences(fromDate, toDate, valueColIdx), selColumnNames);
+            return ipfTS;
+        }
+
+        /// <summary>
+        /// Select dates/values from this timeseries that are different from the other timeseries. Equal dates or dates unique to TS2 are skipped.
+        /// Note: filename will be based on filename of this IPFTimeseries object with postfix '_diff' and excluding Directory path.
+        /// </summary>
+        /// <param name="ts2"></param>
+        /// <param name="valueColIdx1">zero based column index of this TS for value column to process</param>
+        /// <param name="valueColIdx2">zero based column index of TS2 for value column to process</param>
+        /// <param name="valueTolerance">acceptable difference for equal values</param>
+        /// <returns></returns>
+        public IPFTimeseries RetrieveDifference(IPFTimeseries ts2, int valueColIdx1 = 0, int valueColIdx2 = 0, float valueTolerance = 0)
+        {
+            List<string> selColumnNames = new List<string>();
+            if ((valueColIdx1 >= 0) && (valueColIdx1 < ColumnNames.Count))
+            {
+                selColumnNames.Add(ColumnNames[valueColIdx1]);
+            }
+            else
+            {
+                throw new Exception("Invalid value column index (negative or larger or equal to value column count): " + valueColIdx1);
+            }
+
+            IPFTimeseries ipfTS = new IPFTimeseries(base.RetrieveDifference(ts2, valueColIdx1, valueColIdx2, valueTolerance), selColumnNames);
+            return ipfTS;
+        }
+
+        /// <summary>
+        /// Select dates/values from this timeseries that are different from the other timeseries. 
+        /// Only select sequences with specified minimum length without (differing) intermediate dates/values from timeseries 2. Equal dates or dates unique to TS2 are skipped.
+        /// When <paramref name="minSeqLength"/>=0, the check for sequences is skipped and also equal dates will be selected when values are different.
+        /// When <paramref name="minSeqLength"/>=1, only unique TS1-dates will be selected.
+        /// Note: filename will be based on filename of this IPFTimeseries object with postfix '_diff' and excluding Directory path.
+        /// </summary>
+        /// <param name="ts2"></param>
+        /// <param name="valueColIdx1">zero based column index of this TS for value column to process</param>
+        /// <param name="valueColIdx2">zero based column index of TS2 for value column to process</param>
+        /// <param name="valueTolerance">acceptable difference for equal values</param>
+        /// <param name="minSeqLength">minimum length of TS1-sequence without intermediate TS2-dates; use 0 to ignore; use -1 to calculate exclusive difference</param>
+        /// <param name="seqMethod">method for calculating length of sequence</param>
+        /// <returns></returns>
+        public new IPFTimeseries RetrieveDifference(Timeseries ts2, int valueColIdx1, int valueColIdx2, float valueTolerance, int minSeqLength, SequenceMethod seqMethod)
+        {
+            List<string> selColumnNames = new List<string>();
+            if ((valueColIdx1 >= 0) && (valueColIdx1 < ColumnNames.Count))
+            {
+                selColumnNames.Add(ColumnNames[valueColIdx1]);
+            }
+            else
+            {
+                throw new Exception("Invalid value column index (negative or larger or equal to value column count): " + valueColIdx1);
+            }
+
+            IPFTimeseries ipfTS;
+            if (minSeqLength != 0)
+            {
+                ipfTS = new IPFTimeseries(base.RetrieveDifference(ts2, valueColIdx1, valueColIdx2, valueTolerance, minSeqLength, seqMethod), selColumnNames);
+            }
+            else
+            {
+                ipfTS = new IPFTimeseries(base.RetrieveDifference(ts2, valueColIdx1, valueColIdx2, valueTolerance), selColumnNames);
+            }
+            return ipfTS;
+        }
+
+        /// <summary>
+        /// Select dates/values from this timeseries that have overlap with the other timeseries. Only equal dates/values are selected.
+        /// Note: filename will be based on filename of this IPFTimeseries object with postfix '_overlap' and excluding Directory path.
+        /// </summary>
+        /// <param name="ts2"></param>
+        /// <param name="valueColIdx1">zero based column index of this TS for value column to process</param>
+        /// <param name="valueColIdx2">zero based column index of TS2 for value column to process</param>
+        /// <param name="valueTolerance">acceptable difference for equal values</param>
+        /// <returns></returns>
+        public IPFTimeseries RetrieveOverlap(IPFTimeseries ts2, int valueColIdx1 = 0, int valueColIdx2 = 0, float valueTolerance = 0)
+        {
+            List<string> selColumnNames = new List<string>();
+            if ((valueColIdx1 >= 0) && (valueColIdx1 < ColumnNames.Count))
+            {
+                selColumnNames.Add(ColumnNames[valueColIdx1]);
+            }
+            else
+            {
+                throw new Exception("Invalid value column index (negative or larger or equal to value column count): " + valueColIdx1);
+            }
+
+            IPFTimeseries ipfTS = new IPFTimeseries(base.RetrieveOverlap(ts2, valueColIdx1, valueColIdx2, valueTolerance), selColumnNames);
+            return ipfTS;
+        }
+
+        /// <summary>
+        /// Merge dates/values from this timeseries with dates/values from the other timeseries. 
+        /// Only merge sequences with specified minimum length without intermediate dates from timeseries 2. 
+        /// Note: filename will be based on filename of this IPFTimeseries object with postfix '_merge' and excluding Directory path.
+        /// </summary>
+        /// <param name="ts2"></param>
+        /// <param name="valueColIdx1">zero based column index of this TS for value column to process</param>
+        /// <param name="valueColIdx2">zero based column index of TS2 for value column to process</param>
+        /// <param name="minSeqLength">minimum length of TS1-sequences without intermediate TS2-dates; use 0 or 1 to ignore; use -1 for exclusive merge (only TS2-dates outside TS1-period)</param>
+        /// <param name="seqMethod">method for calculating length of sequence (default: Period)</param>
+        /// <returns></returns>
+        public IPFTimeseries Merge(IPFTimeseries ts2, int valueColIdx1 = 0, int valueColIdx2 = 0, int minSeqLength = 0, SequenceMethod seqMethod = SequenceMethod.Period)
+        {
+            List<string> selColumnNames = new List<string>();
+            if ((valueColIdx1 >= 0) && (valueColIdx1 < ColumnNames.Count))
+            {
+                selColumnNames.Add(ColumnNames[valueColIdx1]);
+            }
+            else
+            {
+                throw new Exception("Invalid value column index (negative or larger or equal to value column count): " + valueColIdx1);
+            }
+
+            IPFTimeseries ipfTS = new IPFTimeseries(base.Merge(ts2, valueColIdx1, valueColIdx2, minSeqLength, seqMethod), selColumnNames);
+            return ipfTS;
+        }
+
+        /// <summary>
+        /// Checks if a time component (hour, minute or second) is present in the timestamps of this timeseries
+        /// </summary>
+        /// <returns></returns>
+        public bool IsTimeDefined()
+        {
+            for (int dateIdx = 0; dateIdx < Timestamps.Count; dateIdx++)
+            {
+                DateTime dateTime = Timestamps[dateIdx];
+                if (dateTime.TimeOfDay.Ticks != 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Retrieve all date/value-pairs with NoData-values for specified column
+        /// </summary>
+        /// <param name="valueColIdx">zero based column index</param>
+        /// <returns></returns>
+        public new IPFTimeseries RetrieveNoDataSeries(int valueColIdx = 0)
+        {
+            List<string> selColumnNames = new List<string>();
+            if (valueColIdx < ColumnNames.Count)
+            {
+                selColumnNames.Add(ColumnNames[valueColIdx]);
+            }
+            else
+            {
+                throw new Exception("Invalid value column index (larger or equal to value column count): " + valueColIdx);
+            }
+
+            return new IPFTimeseries(base.RetrieveNoDataSeries(valueColIdx), selColumnNames);
+        }
+
+        /// <summary>
+        /// Resample timeseries
+        /// </summary>
+        /// <param name="resolution"></param>
+        /// <param name="resampleMethod"></param>
+        /// <returns></returns>
+        public new IPFTimeseries Resample(TimeStampResolution resolution, ResampleMethod resampleMethod)
+        {
+            return new IPFTimeseries(base.Resample(resolution, resampleMethod), ColumnNames);
+        }
+
+        /// <summary>
+        /// Retrieve (linearly) interpolated values based on date distance between values, use defined period of timeseries
+        /// </summary>
+        /// <param name="fromDate"></param>
+        /// <param name="toDate"></param>
+        /// <param name="dayStep"></param>
+        /// <returns></returns>
+        public new IPFTimeseries InterpolateTimeseries(DateTime? fromDate = null, DateTime? toDate = null, int dayStep = 0)
+        {
+            IPFTimeseries ipfTS=  new IPFTimeseries(base.InterpolateTimeseries(fromDate, toDate, dayStep), ColumnNames);
+            ipfTS.Filename = FileUtils.AddFilePostFix(ipfTS.Filename, "_interpolated.txt");
+
+            return ipfTS;
         }
     }
 }
