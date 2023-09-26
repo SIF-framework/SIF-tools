@@ -90,7 +90,7 @@ namespace Sweco.SIF.Common
         {
             if (log != null)
             {
-                log.AddError("Unexpected toolerror: " + ex.GetBaseException().Message);
+                log.AddError(ex.GetBaseException().Message);
             }
             if ((log == null) || (log.Listeners.Count == 0))
             {

@@ -73,6 +73,16 @@ namespace Sweco.SIF.Common.Tests
             Assert.IsTrue(exitCode == 0);
         }
 
+        [TestMethod]
+        public void TestMethod4()
+        {
+            Console.WriteLine("Testing CommonUtils ...");
+
+            string line = "1000000,1000000,b920e90c4-5a59-79b0-e5ad-9c9ab9047655,2016-12-14,NL.IMGeo,W0155.00dd119b7bdf400db29e3e0208f8b454,2021-05-21T08:52:48,2021-05-21T10:18:19,W0155,0,0,bestaand,watervlakte,,,'meer, plas, ven, vijver',";
+            string[] lineValues = CommonUtils.SplitQuoted(line, ',', '\'', true, true);
+            Assert.IsTrue(lineValues.Length == 17);
+        }
+
     }
 }
 

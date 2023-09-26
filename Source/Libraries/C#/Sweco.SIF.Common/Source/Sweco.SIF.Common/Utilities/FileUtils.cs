@@ -23,6 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -48,24 +49,43 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Adds specified postfix at the end of the filename, before the extension. No underscores or other characters are added by this function
+        /// Adds specified postfix at the end of the filename, before the extension. No underscores or other characters are added by this method
         /// </summary>
         /// <param name="filename"></param>
         /// <param name="postfix"></param>
-        /// <param name="maxFilenameLength"></param>
+        /// <param name="maxFilenameLength">maximum length of filename exluding extension</param>
+        /// <param name="maxPathLength">maximum length of complete path, including filename and extension</param>
         /// <returns></returns>
-        public static string AddFilePostFix(string filename, string postfix, int maxFilenameLength = 0)
+        public static string AddFilePostFix(string filename, string postfix, int maxFilenameLength = 0, int maxPathLength = 0)
         {
             if (filename != null)
             {
-                string shortName = Path.GetFileNameWithoutExtension(filename) + postfix;
-                if ((maxFilenameLength > 0) && (shortName.Length > maxFilenameLength))
+                int pathLength = filename.Length;
+                string directoryname = Path.GetDirectoryName(((maxPathLength > 0) && (pathLength > maxPathLength)) ? filename.Substring(0, maxPathLength - 1) : filename);
+                string filenameWithExtension = Path.GetFileName(((maxPathLength > 0) && (pathLength > maxPathLength)) ? filename.Substring(pathLength - maxPathLength) : filename);
+                string filenameWithoutExtension = Path.GetFileNameWithoutExtension(filenameWithExtension);
+                string extension = Path.GetExtension(filenameWithExtension);
+
+                string newFilenameWithoutExtension = filenameWithoutExtension + postfix;
+                if ((maxFilenameLength > 0) && (newFilenameWithoutExtension.Length > maxFilenameLength))
                 {
-                    shortName = shortName.Substring(shortName.Length - 50);
+                    newFilenameWithoutExtension = newFilenameWithoutExtension.Substring(0, maxFilenameLength - 1);
                 }
 
-                string newFilename = Path.Combine(Path.GetDirectoryName(filename), shortName + Path.GetExtension(filename));
-                return newFilename;
+                string directorynameWithSeperator = directoryname.Equals(string.Empty) ? string.Empty : EnsureTrailingSlash(directoryname);
+                string newFilename = newFilenameWithoutExtension + extension;
+                string newFullFilename = directorynameWithSeperator + newFilename;
+                if ((maxPathLength > 0) && (newFullFilename.Length > maxPathLength))
+                {
+                    int maxAvailableFilenameLength = maxPathLength - (directorynameWithSeperator.Length + postfix.Length + extension.Length);
+                    if (maxAvailableFilenameLength <= 0)
+                    {
+                        throw new Exception("Directory name is too long (" + (directorynameWithSeperator.Length - 1) + "), no space left for (shortened) filename and postfix: " + newFullFilename);
+                    }
+                    newFullFilename = directorynameWithSeperator + newFilenameWithoutExtension.Substring(0, maxAvailableFilenameLength - 1) + postfix + extension;
+                }
+
+                return newFullFilename;
             }
             else
             {
@@ -119,7 +139,7 @@ namespace Sweco.SIF.Common
         /// Retrieve filename from a path string that refers to either a directory or a file
         /// </summary>
         /// <param name="pathString"></param>
-        /// <returns>null for null/empty-string input</returns>
+        /// <returns>null for directory or null/empty-string input</returns>
         public static string GetFilename(string pathString)
         {
             if ((pathString == null) || pathString.Equals(string.Empty))
@@ -169,17 +189,21 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Creates the folders in the specified path if not yet existing, otherwise nothing is done
+        /// Creates the folders in the specified filename path if not yet existing, otherwise nothing is done
         /// </summary>
         /// <param name="path"></param>
-        /// <returns></returns>
-        public static string EnsureFolderExists(string path)
+        /// <returns>specified filenameName is returned</returns>
+        public static string EnsureFolderExists(string filenamePath)
         {
-            if (!Directory.Exists(Path.GetDirectoryName(path)))
+            string directoryName = Path.GetDirectoryName(filenamePath);
+            if ((directoryName != null) && !directoryName.Equals(string.Empty))
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                if (!Directory.Exists(directoryName))
+                {
+                    Directory.CreateDirectory(directoryName);
+                }
             }
-            return path;
+            return filenamePath;
         }
 
         /// <summary>
@@ -295,6 +319,36 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
+        /// Remove invalid (symbols according to Path-class) from specified path string
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        public static string RemoveInvalidPathCharacters(string path)
+        {
+            string corrPath = path;
+            foreach (char c in Path.GetInvalidPathChars())
+            {
+                corrPath.Replace(c.ToString(), string.Empty);
+            }
+            return corrPath;
+        }
+
+        /// <summary>
+        /// Remove invalid symbols )according to Path-class) from specified filename
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <returns></returns>
+        public static string RemoveInvalidFilenameCharacters(string filename)
+        {
+            string corrFilename = filename;
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                corrFilename.Replace(c.ToString(), string.Empty);
+            }
+            return corrFilename;
+        }
+
+        /// <summary>
         /// Retrieves the relative path for a given absolute filename, relative to the specified basePath
         /// </summary>
         /// <param name="filename"></param>
@@ -376,8 +430,14 @@ namespace Sweco.SIF.Common
         /// <param name="filename">filename of file to write</param>
         /// <param name="text">text to write to file (an EOL is added)</param>
         /// <param name="append">true to append text to the file, false to overwrite an existing file</param>
-        public static void WriteFile(string filename, string text, bool append = false)
+        /// <param name="encoding">encoding used for writing file, or null for Encoding.Default</param>
+        public static void WriteFile(string filename, string text, bool append = false, Encoding encoding = null)
         {
+            if (encoding == null)
+            {
+                encoding = Encoding.Default;
+            }
+
             if (!Directory.Exists(Path.GetDirectoryName(filename)))
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(filename));
@@ -386,8 +446,8 @@ namespace Sweco.SIF.Common
             StreamWriter sw = null;
             try
             {
-                sw = new StreamWriter(filename, append);
-                sw.WriteLine(text);
+                sw = new StreamWriter(filename, append, encoding);
+                sw.Write(text);
             }
             catch (Exception ex)
             {
@@ -415,6 +475,62 @@ namespace Sweco.SIF.Common
                 if ((Directory.GetFiles(subdirectoryPath).Length == 0) && (Directory.GetDirectories(subdirectoryPath).Length == 0))
                 {
                     Directory.Delete(subdirectoryPath, false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks if the specified file has write access
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <returns></returns>
+        public static bool HasWriteAccess(string filename)
+        {
+            FileStream fs = null;
+            try
+            {
+                if (File.Exists(filename))
+                {
+                    fs = new FileStream(filename, FileMode.Open);
+                    return fs.CanWrite;
+                }
+
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            finally
+            {
+                if (fs != null)
+                {
+                    fs.Close();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Calculates standard MD5 hash for specified file, using System.Security.Cryptography.MD5 
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <returns>MD5    x</returns>
+        public static string CalculateMD5Checksum(string filename)
+        {
+            Stream stream = null;
+            try
+            {
+                stream = File.OpenRead(filename);
+                MD5 md5 = MD5.Create();
+                byte[] hash = md5.ComputeHash(stream);
+
+                return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
+            }
+            finally
+            {
+                if (stream != null)
+                {
+                    stream.Close();
                 }
             }
         }

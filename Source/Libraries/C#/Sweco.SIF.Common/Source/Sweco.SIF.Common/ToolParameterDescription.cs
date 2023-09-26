@@ -43,6 +43,7 @@ namespace Sweco.SIF.Common
         /// <param name="name">short, abbreviated name of parameter</param>
         /// <param name="description">short description of parameter, use '\n' to mark end-of-line</param>
         /// <param name="example">an example string for use of this parameter, or null when no example should be shown</param>
+        /// <param name="isRepetitive">if true, this tool parameter is allowed to be repeated, individual values seperated by spaces</param>
         public ToolParameterDescription(string name, string description, string example, bool isRepetitive) : base(name, description, example)
         {
             this.IsRepetitive = isRepetitive;

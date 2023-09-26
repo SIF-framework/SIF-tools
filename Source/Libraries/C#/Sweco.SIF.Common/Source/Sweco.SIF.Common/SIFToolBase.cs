@@ -394,6 +394,35 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
+        /// Retrieves full filename for resultfile depending on relative path of input filename and specified settings
+        /// </summary>
+        /// <param name="inputFilename">the full filename of the input file, including path</param>
+        /// <param name="outputBasePath">the base output path</param>
+        /// <param name="inputBasePath">the base input path; the input file should be somewhere under this path</param>
+        /// <param name="outputFilename">if not null, this filename (excluding path) will be used for the output filename</param>
+        /// <param name="extension">if not null, this extension is forced to the output filename; an exception is thrown is different from optionally specified output filename</param>
+        protected virtual string RetrieveOutputFilename(string inputFilename, string outputBasePath, string inputBasePath = null, string outputFilename = null, string extension = null)
+        {
+            if (outputFilename != null)
+            {
+                // IF an extension was defined check that specified extension is the same as the output filename that the user has specified
+                if ((extension != null) && !Path.GetExtension(outputFilename).Replace(".", string.Empty).ToLower().Equals(extension.ToLower()))
+                {
+                    throw new ToolException("Specified output filename should have extension '" + extension + "'");
+                }
+
+                // If a specific output filename was specified, simply use that filename and add it to the specified output path
+                outputFilename = Path.Combine(outputBasePath, outputFilename);
+            }
+            else
+            {
+                // If no output filename was specified, use input filename with output extension and same relative path of input file under input path
+                outputFilename = Path.Combine(outputBasePath, FileUtils.GetRelativePath(Path.ChangeExtension(inputFilename, extension), inputBasePath));
+            }
+            return Path.GetFullPath(outputFilename);
+        }
+
+        /// <summary>
         /// Show lines with possible tool syntax and explanation of options and parameters. And optionally show some example command-lines.
         /// </summary>
         private void WriteToolSyntax()

@@ -23,8 +23,10 @@ using Sweco.SIF.Common.Properties;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Management;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -253,7 +255,7 @@ namespace Sweco.SIF.Common
         /// <param name="isQuoteRemoved">true if quotes should be removed from the resulting substrings</param>
         /// <param name="isWhitespaceTrimmed">true if the resulting substrings should be trimmed for whitespace, default is false</param>
         /// <returns></returns>
-        public static string[] SplitQuoted(string inputString, char listseperator, char quote = '\"', bool isQuoteRemoved = false, bool isWhitespaceTrimmed = false)
+        public static string[] SplitQuotedDeprecated(string inputString, char listseperator, char quote = '\"', bool isQuoteRemoved = false, bool isWhitespaceTrimmed = false)
         {
             // for non-whitespace listseperators, from: http://stackoverflow.com/questions/3776458/split-a-comma-separated-string-with-both-quoted-and-unquoted-strings
             // for non-whitespace listseperators, from: http://stackoverflow.com/questions/554013/regular-expression-to-split-on-spaces-unless-in-quotes
@@ -327,6 +329,253 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
+        /// Splits a given string with the specified listseperator and excludes the specified quote symbols from the split
+        /// </summary>
+        /// <param name="inputString"></param>
+        /// <param name="listseperator"></param>
+        /// <param name="quote">quote symbol, default is double quote symbol</param>
+        /// <param name="isQuoteRemoved">true if quotes should be removed from the resulting substrings</param>
+        /// <param name="isWhitespaceTrimmed">true if the resulting substrings should be trimmed for whitespace, default is false</param>
+        /// <returns></returns>
+        public static string[] SplitQuoted(string inputString, char listseperator, char quote = '\"', bool isQuoteRemoved = false, bool isWhitespaceTrimmed = false)
+        {
+            int inputStringLength = inputString.Length;
+            bool isWhiteSpaceListSeperator = listseperator.Equals(' ') || listseperator.Equals('\t');
+
+            // Create empty list to store temporary result
+            List<string> values = new List<string>();
+
+            // Loop through input string and find/process substrings between list seperator
+            int charIdx = 0;
+            StringBuilder sb = new StringBuilder();
+            while (charIdx < inputStringLength)
+            {
+                // Read current substring
+                sb.Clear();
+
+                if (inputString[charIdx] == quote)
+                {
+                    if (!isQuoteRemoved)
+                    {
+                        sb.Append(quote);
+                    }
+                    // Skip first quote
+                    charIdx++;
+
+                    // Substring starts with a quote, read string until next quote (followed by list seperator or end-of-string), skipping all intermediate list seperators and quotes
+                    while ((charIdx < inputStringLength) 
+                        && ((inputString[charIdx] != quote) || ((inputString[charIdx] == quote) && ((charIdx == inputStringLength - 1) || (inputString[charIdx + 1] != listseperator)))))
+                    {
+                        if (inputString[charIdx] == quote)
+                        {
+                            // Add intermediate quote when it is not an ending quote (before a listseperator or as the last character of the line)
+                            if (((charIdx < inputStringLength - 1) && (inputString[charIdx + 1] != listseperator)))
+                            {
+                                sb.Append(quote);
+                            }
+                            charIdx++;
+                        }
+
+                        // a quote was found, read string until next quote, skipping all intermediate list seperators
+                        while ((charIdx < inputStringLength) && (inputString[charIdx] != quote))
+                        {
+                            sb.Append(inputString[charIdx++]);
+                        }
+                    }
+
+                    // Check that a quote was found
+                    if (((charIdx < inputStringLength) && (inputString[charIdx] != quote)) || ((charIdx == inputStringLength) && (inputString[charIdx - 1] != quote)))
+                    {
+                        throw new ToolException("Missing quote character (" + quote  + ") after initially quoted substring and before next list seperator (" + listseperator + "): " + sb.ToString() 
+                            + "\nNote: Ensure closing quote is the last symbol of the line or is followed immediately by the list seperator (" + listseperator + ")");
+                    }
+
+                    if (!isQuoteRemoved)
+                    {
+                        sb.Append(quote);
+                    }
+
+                    // Skip last quote
+                    charIdx++;
+
+                    if (isWhitespaceTrimmed && !isWhiteSpaceListSeperator)
+                    {
+                        // Skip whitespace
+                        while ((charIdx < inputStringLength) && !inputString[charIdx].Equals(listseperator) && (inputString[charIdx].Equals('\t') || inputString[charIdx].Equals(' ')))
+                        {
+                            charIdx++;
+                        }
+                    }
+
+                    // check for list seperator or end-of-string and continue with next character
+                    if ((charIdx < inputStringLength) && (inputString[charIdx++] != listseperator))
+                    {
+                        throw new ToolException("Unexpected character '" + inputString[charIdx] + "' after quoted substring: " + sb.ToString());
+                    }
+                }
+                else
+                {
+                    // Substring does not start with a quote, read string until next list seperator
+                    while ((charIdx < inputStringLength) && (inputString[charIdx] != listseperator))
+                    {
+                        sb.Append(inputString[charIdx++]);
+                    }
+
+                    // Skip list seperator
+                    charIdx++;
+
+                    if (isWhiteSpaceListSeperator)
+                    {
+                        // Skip consequtive whitespace list seperators
+                        while ((charIdx < inputStringLength) && (inputString[charIdx] == listseperator))
+                        {
+                            charIdx++;
+                        }
+                    }
+                }
+
+                string value = sb.ToString();
+                if (isWhitespaceTrimmed)
+                {
+                    value = value.Trim();
+                }
+                values.Add(value);
+            }
+
+            // When string ends with a listseperator, add an empty substring
+            if (inputString[inputStringLength - 1] == listseperator)
+            {
+                values.Add(string.Empty);
+            }
+
+            return values.ToArray();
+        }
+
+        /// <summary>
+        /// Splits a given string with the specified listseperator and excludes the specified quote symbols from the split
+        /// </summary>
+        /// <param name="inputString"></param>
+        /// <param name="listseperator"></param>
+        /// <param name="startQuote">starting quote symbol</param>
+        /// <param name="endQuote">ending quote symbol</param>
+        /// <param name="isQuoteRemoved">true if quotes should be removed from the resulting substrings</param>
+        /// <param name="isWhitespaceTrimmed">true if the resulting substrings should be trimmed for whitespace, default is false</param>
+        /// <returns></returns>
+        public static string[] SplitQuoted(string inputString, char listseperator, char startQuote, char endQuote, bool isQuoteRemoved = false, bool isWhitespaceTrimmed = false)
+        {
+            int inputStringLength = inputString.Length;
+            bool isWhiteSpaceListSeperator = listseperator.Equals(' ') || listseperator.Equals('\t');
+
+            // Create empty list to store temporary result
+            List<string> values = new List<string>();
+
+            // Loop through input string and find/process substrings between list seperator
+            int charIdx = 0;
+            StringBuilder sb = new StringBuilder();
+            while (charIdx < inputStringLength)
+            {
+                // Read current substring
+                sb.Clear();
+
+                if (inputString[charIdx] == startQuote)
+                {
+                    if (!isQuoteRemoved)
+                    {
+                        sb.Append(startQuote);
+                    }
+                    // Skip first quote
+                    charIdx++;
+
+                    // Substring starts with a quote, read string until next quote (followed by list seperator or end-of-string), skipping all intermediate list seperators and quotes
+                    while ((charIdx < inputStringLength)
+                        && ((inputString[charIdx] != endQuote) || ((inputString[charIdx] == endQuote) && ((charIdx == inputStringLength - 1) || (inputString[charIdx + 1] != listseperator)))))
+                    {
+                        if (inputString[charIdx] == endQuote)
+                        {
+                            // Add intermediate quote when it is not an ending quote (before a listseperator or as the last character of the line)
+                            if (((charIdx < inputStringLength - 1) && (inputString[charIdx + 1] != listseperator)))
+                            {
+                                sb.Append(endQuote);
+                            }
+                            charIdx++;
+                        }
+
+                        // a quote was found, read string until next end quote, skipping all intermediate list seperators
+                        while ((charIdx < inputStringLength) && (inputString[charIdx] != endQuote))
+                        {
+                            sb.Append(inputString[charIdx++]);
+                        }
+                    }
+
+                    // Check that a quote was found
+                    if (((charIdx < inputStringLength) && (inputString[charIdx] != endQuote)) || ((charIdx == inputStringLength) && (inputString[charIdx - 1] != endQuote)))
+                    {
+                        throw new ToolException("Missing end quote character (" + endQuote + ") after initially quoted substring and before next list seperator (" + listseperator + "): " + sb.ToString()
+                            + "\nNote: Ensure end quote is the last symbol of the line or is followed immediately by the list seperator (" + listseperator + ")");
+                    }
+
+                    if (!isQuoteRemoved)
+                    {
+                        sb.Append(endQuote);
+                    }
+
+                    // Skip last quote
+                    charIdx++;
+
+                    if (isWhitespaceTrimmed && !isWhiteSpaceListSeperator)
+                    {
+                        // Skip whitespace
+                        while ((charIdx < inputStringLength) && !inputString[charIdx].Equals(listseperator) && (inputString[charIdx].Equals('\t') || inputString[charIdx].Equals(' ')))
+                        {
+                            charIdx++;
+                        }
+                    }
+
+                    // check for list seperator or end-of-string and continue with next character
+                    if ((charIdx < inputStringLength) && (inputString[charIdx++] != listseperator))
+                    {
+                        throw new ToolException("Unexpected character '" + inputString[charIdx] + "' after quoted substring: " + sb.ToString());
+                    }
+                }
+                else
+                {
+                    // Substring does not start with a quote, read string until next list seperator
+                    while ((charIdx < inputStringLength) && (inputString[charIdx] != listseperator))
+                    {
+                        sb.Append(inputString[charIdx++]);
+                    }
+
+                    // Skip list seperator
+                    charIdx++;
+
+                    if (isWhiteSpaceListSeperator)
+                    {
+                        // Skip consequtive whitespace list seperators
+                        while ((charIdx < inputStringLength) && (inputString[charIdx] == listseperator))
+                        {
+                            charIdx++;
+                        }
+                    }
+                }
+
+                string value = sb.ToString();
+                if (isWhitespaceTrimmed)
+                {
+                    value = value.Trim();
+                }
+                values.Add(value);
+            }
+
+            // When string ends with a listseperator, add an empty substring
+            if (inputString[inputStringLength - 1] == listseperator)
+            {
+                values.Add(string.Empty);
+            }
+
+            return values.ToArray();
+        }
+
+        /// <summary>
         /// Retrieve maximum of two integers
         /// </summary>
         /// <param name="value1"></param>
@@ -381,6 +630,50 @@ namespace Sweco.SIF.Common
         public static long Min(long value1, long value2)
         {
             return (value1 < value2) ? value1 : value2;
+        }
+
+        /// <summary>
+        /// Retrieve minimum value in list
+        /// </summary>
+        public static float Min(List<float> values)
+        {
+            if ((values == null) || (values.Count == 0))
+            {
+                return float.NaN;
+            }
+
+            float min = float.MaxValue;
+            foreach(float value in values)
+            {
+                if (value < min)
+                {
+                    min = value;
+                }
+            }
+
+            return min;
+        }
+
+        /// <summary>
+        /// Retrieve maximum value in list
+        /// </summary>
+        public static float Max(List<float> values)
+        {
+            if ((values == null) || (values.Count == 0))
+            {
+                return float.NaN;
+            }
+
+            float max = float.MinValue;
+            foreach (float value in values)
+            {
+                if (value > max)
+                {
+                    max = value;
+                }
+            }
+
+            return max;
         }
 
         /// <summary>
@@ -550,66 +843,250 @@ namespace Sweco.SIF.Common
 
         /// <summary>
         /// Executes the specified command in a DOS-box. This can be an MSDOS-command or a filename to start some executable or open some file.
+        /// Starts the specified executable
         /// </summary>
-        /// <param name="command"></param>
-        /// <param name="Timeout">Timeout in milliseconds, 0 to wait indefinitely, or negative value for no timeout (and skip errorcheck for started process)</param>
-        /// <param name="outputString"></param>
-        /// <param name="workingdirectory"></param>
-        /// <param name="windowsStyle"></param>
-        /// <returns></returns>
-        public static int ExecuteCommand(string command, int Timeout, out string outputString, string workingdirectory = null, ProcessWindowStyle windowsStyle = ProcessWindowStyle.Hidden)
+        /// <param name="cmdPath"></param>
+        /// <param name="parameterString">parameters to add to cmdPath, use null to skip</param>
+        /// <param name="log"></param>
+        /// <param name="indentLevel"></param>
+        /// <param name="timeout">Timeout in milliseconds, 0 to wait indefinitely for process to finish (default), or negative value for no timeout and return immediately</param>
+        /// <returns>exitcode of executed command; when a timeout occurs -1 is returned and a Timeout message is added to specified log</returns>
+        public static int ExecuteCommand(string cmdPath, string parameterString, Log log, int indentLevel = 0, int timeout = 0)
         {
-            int ExitCode = 0;
-            ProcessStartInfo ProcessInfo;
-            Process Process;
-
-            ProcessInfo = new ProcessStartInfo("cmd.exe", "/C " + command);
-            ProcessInfo.CreateNoWindow = true;
-            ProcessInfo.UseShellExecute = (Timeout < 0) ? true : false;
-            if (workingdirectory == null)
+            string outputString;
+            string fullCmdPath = cmdPath;
+            if (!Path.IsPathRooted(cmdPath))
             {
-                ProcessInfo.WorkingDirectory = Directory.GetCurrentDirectory();
+                fullCmdPath = Path.Combine(Directory.GetCurrentDirectory(), cmdPath);
+            }
+
+            if (File.Exists(fullCmdPath))
+            {
+                try
+                {
+                    string command = "\"" + fullCmdPath + "\"" + ((parameterString == null) ? string.Empty : (" " + "\"" + parameterString + "\""));
+                    int exitCode = ExecuteCommand(command, timeout, out outputString, Path.GetDirectoryName(fullCmdPath));
+                    LogLevel logLevel = LogLevel.Trace;
+                    if (exitCode != 0)
+                    {
+                        logLevel = LogLevel.Error;
+                    }
+                    if ((log != null) && (outputString.Length > 0))
+                    {
+                        log.AddMessage(logLevel, outputString);
+                    }
+                    return exitCode;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Error while starting " + Path.GetFileName(fullCmdPath), ex);
+                }
             }
             else
             {
-                ProcessInfo.WorkingDirectory = workingdirectory;
+                if (log != null)
+                {
+                    log.AddWarning("Specified command file does not exist: " + cmdPath);
+                }
             }
-            if (Timeout >= 0)
+            return -1;
+        }
+
+        /// <summary>
+        /// Executes the specified command in a DOS-box. This can be an MSDOS-command or a filename to start some executable or open some file.
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="timeout">Timeout in milliseconds, 0 to wait indefinitely for process to finish, or negative value for no timeout and return immediately (and skip errorcheck for started process)</param>
+        /// <param name="outputString">output string of executed command; when a timeout occurs outputstring is set to "Timeout occurred"</param>
+        /// <param name="workingdirectory"></param>
+        /// <param name="windowsStyle"></param>
+        /// <returns>exitcode of executed command; when a timeout occurs, -1 is returned and outputstring is set to "Timeout occurred"</returns>
+        public static int ExecuteCommand(string command, int timeout, out string outputString, string workingdirectory = null, ProcessWindowStyle windowsStyle = ProcessWindowStyle.Hidden)
+        {
+            int exitCode = 0;
+            ProcessStartInfo processInfo;
+            Process process;
+
+            processInfo = new ProcessStartInfo("cmd.exe", "/C " + command);
+            processInfo.CreateNoWindow = true;
+            processInfo.UseShellExecute = (timeout < 0) ? true : false;
+            if (workingdirectory == null)
             {
-                ProcessInfo.RedirectStandardError = true;
-                ProcessInfo.RedirectStandardOutput = true;
+                processInfo.WorkingDirectory = Directory.GetCurrentDirectory();
             }
-            ProcessInfo.WindowStyle = windowsStyle;
+            else
+            {
+                processInfo.WorkingDirectory = workingdirectory;
+            }
+            if (timeout >= 0)
+            {
+                processInfo.RedirectStandardError = true;
+                processInfo.RedirectStandardOutput = true;
+            }
+            processInfo.WindowStyle = windowsStyle;
 
             outputString = string.Empty;
-            ExitCode = 0;
-            Process = Process.Start(ProcessInfo);
-            Process.PriorityBoostEnabled = true;
+            exitCode = 0;
+            process = Process.Start(processInfo);
+            process.PriorityBoostEnabled = true;
             // Process.PriorityClass = ProcessPriorityClass.AboveNormal;
             //            Process.BeginOutputReadLine();
-            if (Timeout >= 0)
+
+            try
             {
-                if (Timeout == 0)
+                if (timeout >= 0)
                 {
-                    Process.WaitForExit();
-                }
-                else
-                {
-                    Process.WaitForExit(Timeout);
-                }
-                if (Process.HasExited)
-                {
-                    outputString = Process.StandardOutput.ReadToEnd() + Process.StandardError.ReadToEnd();
-                    ExitCode = Process.ExitCode;
-                    Process.Close();
-                }
-                else
-                {
-                    outputString = string.Empty;
-                    ExitCode = 0;
+                    if (timeout == 0)
+                    {
+                        process.WaitForExit();
+                    }
+                    else
+                    {
+                        process.WaitForExit(timeout);
+                    }
+                    if (process.HasExited)
+                    {
+                        outputString = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
+                        exitCode = process.ExitCode;
+                        process.Close();
+                    }
+                    else
+                    {
+                        outputString = "Timeout occurred";
+                        exitCode = -1;
+                        KillProcessAndChildren(process.Id); // Process.Kill();
+                    }
                 }
             }
-            return ExitCode;
+            catch (Exception ex)
+            {
+                KillProcessAndChildren(process.Id);
+                throw ex;
+            }
+            return exitCode;
+        }
+
+        /// <summary>
+        /// Kill a process, and all of its children, grandchildren, etc.
+        /// </summary>
+        /// <param name="pid">Process ID.</param>
+        private static void KillProcessAndChildren(int pid)
+        {
+            // Code from: https://stackoverflow.com/questions/5901679/kill-process-tree-programmatically-in-c-sharp
+
+            // Cannot close 'system idle process'.
+            if (pid == 0)
+            {
+                return;
+            }
+            ManagementObjectSearcher searcher = new ManagementObjectSearcher
+                    ("Select * From Win32_Process Where ParentProcessID=" + pid);
+            ManagementObjectCollection moc = searcher.Get();
+            foreach (ManagementObject mo in moc)
+            {
+                KillProcessAndChildren(Convert.ToInt32(mo["ProcessID"]));
+            }
+            try
+            {
+                Process proc = Process.GetProcessById(pid);
+                proc.Kill();
+            }
+            catch (ArgumentException)
+            {
+                // Process already exited.
+            }
+        }
+
+        /// <summary>
+        /// Starts the specified batch file
+        /// </summary>
+        /// <param name="batchFilename"></param>
+        /// <param name="arguments">space seperated command-line arguments for batchfile, ensure arguments with spaces are surrounded with double quotes</param>
+        /// <param name="outputString">output string that is written to console by batchfile. This string is also logged as Info when log is defined and an error occurs</param>
+        /// <param name="log"></param>
+        /// <param name="logIndentLevel"></param>
+        /// <param name="timeout">Timeout in milliseconds, 0 to wait indefinitely, or negative value for no timeout</param>
+        /// <returns>iMOD-exitcode</returns>
+        public static int RunBatchfile(string batchFilename, string arguments, out string outputString, Log log, int logIndentLevel = 0, int timeout = 0)
+        {
+            outputString = null;
+            if (File.Exists(batchFilename))
+            {
+                if (log != null)
+                {
+                    log.AddInfo("Running batchfile " + Path.GetFileName(batchFilename) + " ...", logIndentLevel);
+                }
+
+                try
+                {
+                    string command = EnsureDoubleQuotes(Path.GetFileName(batchFilename)) + " " + arguments;
+                    outputString = string.Empty;
+                    // int exitCode = ExecuteCommand(batchFilename, arguments, log, timeout);
+                    int exitCode = CommonUtils.ExecuteCommand(command, timeout, out outputString, Path.GetDirectoryName(batchFilename));
+
+                    LogLevel logLevel = LogLevel.Trace;
+                    if (exitCode != 0)
+                    {
+                        logLevel = LogLevel.Info;
+                    }
+                    if ((log != null) && (outputString.Length > 0))
+                    {
+                        log.AddMessage(logLevel, outputString);
+                    }
+                    return exitCode;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Error while starting iMOD", ex);
+                }
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.AddWarning("Specified batchfile does not exist: " + batchFilename);
+                }
+                else
+                {
+                    throw new Exception("Specified batchfile does not exist: " + batchFilename);
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Convert the color from a Color object to an RGB long value (as used for colors in the iMOD IMF-file)
+        /// </summary>
+        /// <param name="color"></param>
+        /// <returns></returns>
+        public static long Color2Long(Color color)
+        {
+            return color.R + color.G * 256 + color.B * 65536;
+        }
+
+        /// <summary>
+        /// Convert an RGB long value (as used for colors in the iMOD IMF-file) to a Color object
+        /// </summary>
+        /// <param name="color"></param>
+        /// <returns></returns>
+        public static Color Long2Color(long color)
+        {
+            return Color.FromArgb((int)color % 256, (int)(color % 65536) / 256, (int)color / 65536);
+        }
+
+        /// <summary>
+        /// Removes all specified substrings from a string
+        /// </summary>
+        /// <param name="someString"></param>
+        /// <param name="stringList"></param>
+        /// <returns></returns>
+        public static string RemoveStrings(string someString, List<string> stringList)
+        {
+            for (int stringIdx = 0; stringIdx < stringList.Count; stringIdx++)
+            {
+                someString = someString.Replace(stringList[stringIdx], string.Empty);
+            }
+            return someString;
         }
     }
 }

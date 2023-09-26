@@ -32,6 +32,21 @@ namespace Sweco.SIF.Common
     public abstract class SIFToolSettingsBase
     {
         /// <summary>
+        /// Command-line arguments
+        /// </summary>
+        public string[] Args { get; }
+
+        /// <summary>
+        /// Argument group that was parsed based on specified arguments, or -1 if no group was or could be parsed (yet)
+        /// </summary>
+        public int ParsedGroupIndex { get; set; }
+
+        /// <summary>
+        /// String that is show in log strings when no defaultvalue is defined for an option parameter
+        /// </summary>
+        protected const string DefaultParameterValueString = "[default]";
+
+        /// <summary>
         /// Language definition for english culture as used in SIFToolSettings
         /// </summary>
         protected static CultureInfo EnglishCultureInfo = new CultureInfo("en-GB", false);
@@ -42,20 +57,9 @@ namespace Sweco.SIF.Common
         protected SIFToolBase SIFTool { get; private set; }
 
         /// <summary>
-        /// Command-line arguments
-        /// </summary>
-        public string[] Args { get; }
-
-        /// <summary>
         /// Arguments that have been parsed, including specified values
         /// </summary>
         protected List<ToolArgumentDescription> ParsedArgumentDescriptions { get; set; }
-
-        /// <summary>
-        /// Argument group that was parsed based on specified arguments, or -1 if no group was or could be parsed (yet)
-        /// </summary>
-        protected int ParsedGroupIndex { get; set; }
-
 
         // List of strings, one of which can be passed on the command-line to requested tool information. E.g. 'help' and/or 'info'
         private List<string> toolHelpArgStrings;
@@ -76,16 +80,22 @@ namespace Sweco.SIF.Common
         public SIFToolSettingsBase(string[] args)
         {
             this.Args = args;
-            this.toolHelpArgStrings = new List<string>() { "info", "help" };
-            this.toolUsageParameterDescriptions = new Dictionary<int, List<ToolParameterDescription>>();
-            this.toolUsageOptionDescriptions = new Dictionary<int, List<ToolOptionDescription>>();
-            this.toolUsageOptionPreRemarks = new Dictionary<int, List<string>>();
-            this.toolUsageOptionPostRemarks = new Dictionary<int, List<string>>();
-            this.toolUsageFinalRemarks = new List<string>();
-            this.ParsedArgumentDescriptions = new List<ToolArgumentDescription>();
+            toolHelpArgStrings = new List<string>() { "info", "help" };
+            InitializeSettings();
 
             // Allow the subclass to define the tool syntax
             DefineToolSyntax();
+        }
+
+        private void InitializeSettings()
+        {
+            toolUsageParameterDescriptions = new Dictionary<int, List<ToolParameterDescription>>();
+            toolUsageOptionDescriptions = new Dictionary<int, List<ToolOptionDescription>>();
+            toolUsageOptionPreRemarks = new Dictionary<int, List<string>>();
+            toolUsageOptionPostRemarks = new Dictionary<int, List<string>>();
+            toolUsageFinalRemarks = new List<string>();
+            ParsedArgumentDescriptions = new List<ToolArgumentDescription>();
+            ParsedGroupIndex = -1;
         }
 
         /// <summary>
@@ -202,6 +212,10 @@ namespace Sweco.SIF.Common
                     ParsedArgumentDescriptions.Add(new ToolParameterDescription(parameterDescription.Name, specifiedParameterValue));
                 }
             }
+            else if (toolUsageOptionDescriptions.ContainsKey(groupIndex))
+            {
+                // Ignore group without parameters, e.g. to allow the tool to start in GUI mode with some specific settings
+            }
             else
             {
                 throw new Exception("Unexisting group returned (" + groupIndex + ") by method ParseParameters() for parameters: " + CommonUtils.ToString(parList));
@@ -252,22 +266,34 @@ namespace Sweco.SIF.Common
                         string logString = optionDescription.LogSettingsFormatString;
 
                         // Retrieve parametervalues as specified by user for this option
-                        List<string> optionParameters = new List<string>();
+                        List<string> optionParameterValues = new List<string>();
                         if (argDescription.Value != null)
                         {
-                            optionParameters.AddRange(argDescription.Value.Split(new char[] { ',' }));
+                            int maxOptionParameterCount = ((optionDescription.Parameters != null) ? optionDescription.Parameters.Length : 0)
+                                + ((optionDescription.OptionalParameters != null) ? optionDescription.OptionalParameters.Length : 0);
+
+                            if (maxOptionParameterCount > 1)
+                            {
+                                string[] stringValues = CommonUtils.SplitQuoted(argDescription.Value, ',', '\'', true);
+                                optionParameterValues.AddRange(stringValues);  // argDescription.Value.Split(new char[] { ',' }))
+                            }
+                            else
+                            {
+                                // ensre that parameter string is not split if max expected parameters is one
+                                optionParameterValues.Add(argDescription.Value);  // argDescription.Value.Split(new char[] { ',' }))
+                            }
                         }
 
                         // Replace specified empty values for optional parameters by defaultvalues if defined
-                        for (int parIdx = 0; parIdx < optionParameters.Count; parIdx++)
+                        for (int parIdx = 0; parIdx < optionParameterValues.Count; parIdx++)
                         {
-                            if (optionParameters[parIdx].Equals(string.Empty))
+                            if (optionParameterValues[parIdx].Equals(string.Empty))
                             {
                                 // An empty value was specified
                                 int optionalParameterIdx = parIdx - ((optionDescription.Parameters != null) ? optionDescription.Parameters.Length : 0);
                                 if ((optionDescription.OptionalParameterDefaults != null) && (optionalParameterIdx >= 0) && (optionalParameterIdx < optionDescription.OptionalParameterDefaults.Length))
                                 {
-                                    optionParameters[parIdx] = optionDescription.OptionalParameterDefaults[optionalParameterIdx];
+                                    optionParameterValues[parIdx] = optionDescription.OptionalParameterDefaults[optionalParameterIdx];
                                 }
                             }
                         }
@@ -277,13 +303,13 @@ namespace Sweco.SIF.Common
                         {
                             // Calculate maximum of (expected and optional) parameters. Note: a '...' value for an optional parameter is not replaced with int.MaxValue here.
                             int maxParameterCount = ((optionDescription.Parameters != null) ? optionDescription.Parameters.Length : 0) + optionDescription.OptionalParameters.Length;
-                            for (int parIdx = optionParameters.Count; parIdx < maxParameterCount; parIdx++)
+                            for (int parIdx = optionParameterValues.Count; parIdx < maxParameterCount; parIdx++)
                             {
                                 int optionalParameterIdx = parIdx - ((optionDescription.Parameters != null) ? optionDescription.Parameters.Length : 0);
                                 if ((optionDescription.OptionalParameterDefaults != null) && (optionalParameterIdx >= 0) && (optionalParameterIdx < optionDescription.OptionalParameterDefaults.Length))
                                 {
                                     // A default value has been defined for this option
-                                    optionParameters.Add(optionDescription.OptionalParameterDefaults[optionalParameterIdx]);
+                                    optionParameterValues.Add(optionDescription.OptionalParameterDefaults[optionalParameterIdx]);
                                 }
                                 else
                                 {
@@ -291,23 +317,64 @@ namespace Sweco.SIF.Common
                                     if ((optionalParameterIdx >= 0) && ((optionalParameterIdx >= optionDescription.OptionalParameters.Length) 
                                         || !optionDescription.OptionalParameters[optionalParameterIdx].Equals("...")))
                                     {
-                                        optionParameters.Add("[default]");
+                                        optionParameterValues.Add(DefaultParameterValueString);
                                     }
                                 }
                             }
                         }
 
+                        // Retrieve numbers of parameters for this option
+                        int optionDescriptionParametersLength = (optionDescription.Parameters != null) ? optionDescription.Parameters.Length : 0;
+                        int optionDescriptionOptionalParametersLength = (optionDescription.OptionalParameters != null) ? optionDescription.OptionalParameters.Length : 0;
+                        List<string> parameterList = (optionDescription.OptionalParameters != null) ? new List<string>(optionDescription.OptionalParameters) : null;
+                        bool hasRepetitiveOptionalParameter = (parameterList != null) ? parameterList.Contains("...") : false;
+
+                        // Replace parameter values by optional user defined formatting in subclass
+                        List<string> formattedOptionParameterValues = new List<string>();
+                        for (int optionParameterIdx = 0; optionParameterIdx < optionParameterValues.Count; optionParameterIdx++)
+                        {
+                            if (optionParameterIdx < optionDescriptionParametersLength)
+                            {
+                                formattedOptionParameterValues.Add(FormatLogStringParameter(optionDescription.Name, optionDescription.Parameters[optionParameterIdx], optionParameterValues[optionParameterIdx], optionParameterValues));
+                            }
+                            else if ((optionParameterIdx - optionDescriptionParametersLength) < optionDescriptionOptionalParametersLength)
+                            {
+                                formattedOptionParameterValues.Add(FormatLogStringParameter(optionDescription.Name, optionDescription.OptionalParameters[optionParameterIdx - optionDescriptionParametersLength],
+                                    optionParameterValues[optionParameterIdx], optionParameterValues));
+                            }
+                            else if (hasRepetitiveOptionalParameter)
+                            {
+                                formattedOptionParameterValues.Add(FormatLogStringParameter(optionDescription.Name, "...", optionParameterValues[optionParameterIdx], optionParameterValues));
+                            }
+                            else
+                            {
+                                throw new Exception("Invalid number of option parameters for log format string: " + logString + ". Use {...} instead of {0} for multiple values");
+                            }
+                        }
+                        optionParameterValues = formattedOptionParameterValues;
+
                         if (logString.Contains("{...}"))
                         {
                             // replace with all optional parameters
                             List<int> parIndices = CommonUtils.GetFormatStringIndices(logString);
-                            List<string> remainingParameters = CommonUtils.SelectItems<string>(optionParameters, parIndices, true);
+                            List<string> remainingParameters = CommonUtils.SelectItems<string>(optionParameterValues, parIndices, true);
                             logString = logString.Replace("{...}", CommonUtils.ToString(remainingParameters));
+                            // remove optional parameters from option parameter values
+                            for (int parIdx = 0; parIdx < remainingParameters.Count; parIdx++)
+                            {
+                                if (optionParameterValues.Contains(remainingParameters[parIdx]))
+                                {
+                                    optionParameterValues.Remove(remainingParameters[parIdx]);
+                                }
+                            }
                         }
 
                         try
                         {
-                            logString = string.Format(logString, optionParameters.ToArray());
+                            if (optionParameterValues.Count > 0)
+                            {
+                                logString = string.Format(logString, optionParameterValues.ToArray());
+                            }
                             log.AddInfo(logString, 1);
                         }
                         catch (Exception ex)
@@ -336,23 +403,40 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
+        /// Format specified option parameter value in logstring with a new (readable) string
+        /// </summary>
+        /// <param name="optionName">name of option for which a formatted parameter value is required</param>
+        /// <param name="parameter">name of option parameter for which a formatted parameter value is required</param>
+        /// <param name="parameterValue">the parameter value that has to be formatted</param>
+        /// <param name="parameterValues">for reference, all specified parameter values for this option</param>
+        /// <returns>a readable form of specified parameter value</returns>
+        protected virtual string FormatLogStringParameter(string optionName, string parameter, string parameterValue, List<string> parameterValues)
+        {
+            // As a default, do not use special formatting and simply return parameter value
+            return parameterValue;
+        }
+
+        /// <summary>
         /// Check the number of parsed arguments against the number of expected arguments. Override to check actual values.
         /// </summary>
         public virtual void CheckSettings()
         {
-            // First check tool parameters
-            List<ToolParameterDescription> expectedParameterDescriptions = toolUsageParameterDescriptions[this.ParsedGroupIndex];
-            int usedParameterCount = 0;
-            foreach (ToolArgumentDescription parsedArgumentDescription in ParsedArgumentDescriptions)
+            // First check tool parameters (if this group has parameters)
+            if (toolUsageParameterDescriptions.ContainsKey(this.ParsedGroupIndex))
             {
-                if (parsedArgumentDescription is ToolParameterDescription)
+                List<ToolParameterDescription> expectedParameterDescriptions = toolUsageParameterDescriptions[this.ParsedGroupIndex];
+                int usedParameterCount = 0;
+                foreach (ToolArgumentDescription parsedArgumentDescription in ParsedArgumentDescriptions)
                 {
-                    usedParameterCount++;
+                    if (parsedArgumentDescription is ToolParameterDescription)
+                    {
+                        usedParameterCount++;
+                    }
                 }
-            }
-            if (usedParameterCount != expectedParameterDescriptions.Count)
-            {
-                throw new ToolException("Number of specified parameters (" + usedParameterCount + ") does not equal expected number (" + expectedParameterDescriptions.Count + "). Check tool usage.");
+                if (usedParameterCount != expectedParameterDescriptions.Count)
+                {
+                    throw new ToolException("Number of specified parameters (" + usedParameterCount + ") does not equal expected number (" + expectedParameterDescriptions.Count + "). Check tool usage.");
+                }
             }
 
             // Check tool options
@@ -366,9 +450,20 @@ namespace Sweco.SIF.Common
                         throw new ToolException("Option '" + parsedArgDescription.Name + "' is not allowed for syntax " + GetGroupNumber(ParsedGroupIndex) + ". Check tool usage.");
                     }
 
-                    string[] usedOptionParameters = GetOptionParameters(parsedArgDescription.Value);
+                    string[] usedOptionParameters = null;
                     int minExpectedOptionParameterCount = (expectedOptionDescription.Parameters != null) ? expectedOptionDescription.Parameters.Length : 0;
                     int maxExpectedOptionParameterCount = minExpectedOptionParameterCount + ((expectedOptionDescription.OptionalParameters != null) ? expectedOptionDescription.OptionalParameters.Length : 0);
+                    if ((maxExpectedOptionParameterCount == 1) && (parsedArgDescription.Value != null))
+                    {
+                        // Ensure parameter string is not split if the expected number of parameters is one.
+                        usedOptionParameters = new string[1];
+                        usedOptionParameters[0] = parsedArgDescription.Value;
+                    }
+                    else
+                    {
+                        usedOptionParameters = GetOptionParameters(parsedArgDescription.Value);
+                    }
+
                     if (expectedOptionDescription.Parameters != null)
                     {
                         List<string> parameterList = new List<string>(expectedOptionDescription.Parameters);
@@ -397,6 +492,23 @@ namespace Sweco.SIF.Common
                             + parsedArgDescription.Name + "' is less than number of specified parameters: " + parsedArgDescription.Value);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Throws exception for invalid number of tool parameters
+        /// </summary>
+        /// <param name="parameters"></param>
+        /// <param name="groupIndex"></param>
+        protected void HandleInvalidParameterCount(string[] parameters, out int groupIndex)
+        {
+            if (parameters.Length == 0)
+            {
+                throw new Exception("Zero parameters is not supported, check groupindex definitions in tool implementation.");
+            }
+            else
+            {
+                throw new ToolException("Invalid number of parameters (" + parameters.Length + "), check tool usage");
             }
         }
 
@@ -795,6 +907,15 @@ namespace Sweco.SIF.Common
                     }
                 }
             }
+            // Remove specified parameter from remaining other groups
+            foreach (int groupIndex in toolUsageParameterDescriptions.Keys)
+            {
+                int idx = FindToolParameterDescriptionListIndex(name, groupIndex);
+                if (idx >= 0)
+                {
+                    toolUsageParameterDescriptions[groupIndex].RemoveAt(idx);
+                }
+            }
 
             if (parameterDescription != null)
             {
@@ -804,7 +925,20 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Replace the description of option name in all groups with the specified values
+        /// Replace the description of option name in the specified syntax group with the specified values
+        /// </summary>
+        /// <param name="name">parameter name to replace</param>
+        /// <param name="description">short description, use '\n' for end-of-lines</param>
+        /// <param name="example">valid example substring for this parameter</param>
+        /// <param name="isRepetitive">if true parameter can be specified zero or more times</param>
+        /// <param name="groupIndex">syntax group index to replace this option for</param>
+        protected void ReplaceToolParameterDescription(string name, string description, string example, bool isRepetitive, int groupIndex = 0)
+        {
+            ReplaceToolParameterDescription(name, description, example, isRepetitive, new int[] { groupIndex });
+        }
+
+        /// <summary>
+        /// Replace the description of option name in all syntax groups with the specified values
         /// </summary>
         /// <param name="name">parameter name to replace</param>
         /// <param name="description">short description, use '\n' for end-of-lines</param>
@@ -826,13 +960,10 @@ namespace Sweco.SIF.Common
                     int idx = FindToolParameterDescriptionListIndex(name, groupIndex);
                     if (idx >= 0)
                     {
-                        toolUsageParameterDescriptions[groupIndex].RemoveAt(idx);
+                        toolUsageParameterDescriptions[groupIndex][idx] = new ToolParameterDescription(name, description, example, isRepetitive);
                     }
                 }
             }
-
-            // Add description again
-            AddToolParameterDescription(name, description, example, isRepetitive, groupIndices);
         }
 
         /// <summary>
@@ -907,7 +1038,23 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Replace the description of option name in all groups with the specified values
+        /// Replace the description of option name in the specified syntax group with the specified values
+        /// </summary>
+        /// <param name="name">option name to replace</param>
+        /// <param name="description">short description, use '\n' for end-of-lines</param>
+        /// <param name="example">valid example substring for this option, including slash</param>
+        /// <param name="logSettingsFormatString">format string (see string.Format() for more info) to use for logging settings for this option</param>
+        /// <param name="parameters">short (syntax) names of parameters for this option</param>
+        /// <param name="optionalParameters">short (syntax) names of optional parameters for this option. Use '...' for undefined number of optional parameters.</param>
+        /// <param name="optionalParameterDefaults">default values for optional parameters for this option</param>
+        /// <param name="groupIndex">syntax group index to replace this option for</param>
+        protected void ReplaceToolOptionDescription(string name, string description, string example, string logSettingsFormatString, string[] parameters, string[] optionalParameters, string[] optionalParameterDefaults, int groupIndex = 0)
+        {
+            ReplaceToolOptionDescription(name, description, example, logSettingsFormatString, parameters, optionalParameters, optionalParameterDefaults, new int[] { groupIndex });
+        }
+
+        /// <summary>
+        /// Replace the description of option name in all syntax groups with the specified values
         /// </summary>
         /// <param name="name">option name to replace</param>
         /// <param name="description">short description, use '\n' for end-of-lines</param>
@@ -932,13 +1079,11 @@ namespace Sweco.SIF.Common
                     int idx = FindToolOptionDescriptionListIndex(name);
                     if (idx >= 0)
                     {
-                        toolUsageOptionDescriptions[groupIndex].RemoveAt(idx);
+                        // Replace option description
+                        toolUsageOptionDescriptions[groupIndex][idx] = new ToolOptionDescription(name, description, parameters, optionalParameters, optionalParameterDefaults, example, logSettingsFormatString); 
                     }
                 }
             }
-
-            // Add description again
-            AddToolOptionDescription(name, description, example, logSettingsFormatString, parameters, optionalParameters, optionalParameterDefaults, groupIndices);
         }
 
         /// <summary>
@@ -1239,7 +1384,7 @@ namespace Sweco.SIF.Common
         /// </summary>
         /// <param name="idx">index for option in arguments array</param>
         /// <returns>null if no parameters are present for the specified option</returns>
-        protected string[] GetOptionParameters(int idx)
+        private string[] GetOptionParameters(int idx)
         {
             return GetOptionParameters(Args, idx);
         }
@@ -1250,7 +1395,7 @@ namespace Sweco.SIF.Common
         /// <param name="args"></param>
         /// <param name="idx">index for option in arguments array</param>
         /// <returns>null if no parameters are present for the specified option</returns>
-        protected static string[] GetOptionParameters(string[] args, int idx)
+        private static string[] GetOptionParameters(string[] args, int idx)
         {
             string parameterString = GetOptionParameterString(args, idx);
             if (parameterString != null)
@@ -1267,12 +1412,14 @@ namespace Sweco.SIF.Common
         /// Retrieve individual parameters from a string with comma separated parameters
         /// </summary>
         /// <param name="parameterString"></param>
+        /// <param name="listSeperator">character that is used to seperate parameter strings</param>
+        /// <param name="quote">character that is used to surround individual parameters that contain the list seperator; quotes are removed</param>
         /// <returns></returns>
-        protected string[] GetOptionParameters(string parameterString)
+        protected string[] GetOptionParameters(string parameterString, char listSeperator = ',', char quote = '\'')
         {
             if (parameterString != null)
             {
-                return parameterString.Split(new char[] { ',' });
+                return CommonUtils.SplitQuoted(parameterString, listSeperator, quote, true);
             }
             else
             {
@@ -1302,6 +1449,26 @@ namespace Sweco.SIF.Common
             }
 
             return path;
+        }
+
+        /// <summary>
+        /// Splits specified path to a directoryname and a filename. Input path is refers to either a directory or a filename (wildcards allowed)
+        /// </summary>
+        /// <param name="sourcePath">path to directory of specified source path</param>
+        /// <param name="resultPath">directory specified by source path</param>
+        /// <param name="resultFilename">filename if present in specified source path, or null otherwise</param>
+        protected void SplitPathArgument(string sourcePath, out string resultPath, out string resultFilename)
+        {
+            if (Path.GetExtension(sourcePath).Length > 0)
+            {
+                resultFilename = Path.GetFileName(sourcePath);
+                resultPath = Path.GetDirectoryName(sourcePath);
+            }
+            else
+            {
+                resultFilename = null;
+                resultPath = sourcePath;
+            }
         }
 
         /// <summary>
@@ -1459,6 +1626,20 @@ namespace Sweco.SIF.Common
                 if (groupMinParameterCount < minParameterCount)
                 {
                     minParameterCount = groupMinParameterCount;
+                }
+            }
+            foreach (int groupIndex in toolUsageOptionDescriptions.Keys)
+            {
+                List<ToolOptionDescription> optionGroupDescriptions = toolUsageOptionDescriptions[groupIndex];
+                int groupMinParameterCount = optionGroupDescriptions.Count;
+                if (groupMinParameterCount < minParameterCount)
+                {
+                    // Check if option group is a group without parameters
+                    if (!toolUsageParameterDescriptions.ContainsKey(groupIndex))
+                    {
+                        // This options is allowed for a group without parameters (i.e. to start GUI-tool with some specific setting)
+                        minParameterCount = 0;
+                    }
                 }
             }
             if (minParameterCount == int.MaxValue)

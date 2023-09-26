@@ -29,14 +29,14 @@ using System.Windows.Forms;
 
 namespace Sweco.SIF.Common
 {
-    /// Note: all messages will be written to the logfile. When a log message is written with WriteMessage() the minimum level can be defined for showing that message. 
+    /// Note: all messages will be written to the logfile. When a log message is written with AddMessage() the minimum level can be defined for showing that message. 
 
     /// <summary>
-    /// LogLevel defines the type/level of logmessages that can be written by a tool and will be reported by some provider (logfile or listerer (e.g. console)). 
+    /// LogLevel defines the type/level of logmessages that can be written by a tool and will be reported by some provider (logfile or listener (e.g. console)). 
     /// Each log request R (the point where an application reports/writes a logmessage) has an associated log level that gives an indication of the importance and urgency of the message.
     /// A log request is handled by a provider P (logfile and/or listener). For each provider the LogLevel can be defined which indicates the type of messages that are actually shown or saved to the logfile
     /// A log request with level R is enabled (or actually shown) for a Log provider with LogLevel P, if R >= P. 
-    /// For example: Log.WriteInfo("Some message") is only shown in the console, if the LogLevel of the Console provider (ConsoleLogLevel) is Info or Debug
+    /// For example: Log.AddInfo("Some message") is only shown in the console, if the LogLevel of the Console provider (ConsoleLogLevel) is Info or Debug
     /// Levels are based on log4j: https://en.wikipedia.org/wiki/Log4j#Log4j_log_levels.
     /// </summary>
     public enum LogLevel
@@ -129,12 +129,12 @@ namespace Sweco.SIF.Common
         /// <summary>
         /// Complete log message with the combination of all log messages as will be written to the logfile
         /// </summary>
-        public StringBuilder LogFileString { get; protected set; }
+        public StringBuilder LogString { get; protected set; }
 
         /// <summary>
-        /// Part of logfileString that has not yet been written to file
+        /// Part of logString that has not yet been written to file
         /// </summary>
-        protected StringBuilder pendingLogfileString;
+        protected StringBuilder pendingLogStringBuilder;
 
         /// <summary>
         /// Specifies if log messages are sent to listeners or not
@@ -154,9 +154,9 @@ namespace Sweco.SIF.Common
             Listeners = new List<AddMessageDelegate>();
             ListenerLogLevels = new List<LogLevel>();
             isListenerActive = true;
-            FileLogLevel = LogLevel.Debug;
-            LogFileString = new StringBuilder();
-            pendingLogfileString = new StringBuilder();
+            FileLogLevel = LogLevel.Info;
+            LogString = new StringBuilder();
+            pendingLogStringBuilder = new StringBuilder();
             Warnings = new List<LogMessage>();
             Errors = new List<LogMessage>();
             IsWriteFileAppend = false;
@@ -298,17 +298,17 @@ namespace Sweco.SIF.Common
             // Process log request for each of the providers
 
             // Process log request for the logfile
-            if ((LogFileString != null) && (logLevel >= FileLogLevel))
+            if ((LogString != null) && (logLevel >= FileLogLevel))
             {
                 if (isEolAdded)
                 {
-                    LogFileString.AppendLine(message);
-                    pendingLogfileString.AppendLine(message);
+                    LogString.AppendLine(message);
+                    pendingLogStringBuilder.AppendLine(message);
                 }
                 else
                 {
-                    LogFileString.Append(message);
-                    pendingLogfileString.Append(message);
+                    LogString.Append(message);
+                    pendingLogStringBuilder.Append(message);
                 }
             }
 
@@ -395,8 +395,8 @@ namespace Sweco.SIF.Common
                     }
                     stream = File.Open(logfilename, IsWriteFileAppend ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.Read);
                     sw = new StreamWriter(stream);
-                    sw.Write(pendingLogfileString);
-                    pendingLogfileString = new StringBuilder();
+                    sw.Write(pendingLogStringBuilder);
+                    pendingLogStringBuilder = new StringBuilder();
                     if (isWritingLogged)
                     {
                         AddInfo("\r\nLogfile has been written to " + Path.GetFileName(logfilename), logIndentLevel);
@@ -485,6 +485,54 @@ namespace Sweco.SIF.Common
         public void ActivateListener()
         {
             isListenerActive = true;
+        }
+
+
+        /// <summary>
+        /// Retrieve number of processed items between logmessages given specified percentage of total number of items to process
+        /// </summary>
+        /// <param name="count"></param>
+        /// <param name="logMessagePercentage"></param>
+        /// <returns></returns>
+        public static int GetLogMessageFrequency(int count, int logMessagePercentage = 5)
+        {
+            int logSnapPointMessageFrequency = (int)(count * logMessagePercentage / 100);
+            if (logSnapPointMessageFrequency > 100000)
+            {
+                return 100000;
+            }
+            if (logSnapPointMessageFrequency > 50000)
+            {
+                return 50000;
+            }
+            if (logSnapPointMessageFrequency > 25000)
+            {
+                return 25000;
+            }
+            if (logSnapPointMessageFrequency > 7500)
+            {
+                return 10000;
+            }
+            if (logSnapPointMessageFrequency > 2500)
+            {
+                return 5000;
+            }
+            if (logSnapPointMessageFrequency > 750)
+            {
+                return 1000;
+            }
+            if (logSnapPointMessageFrequency > 250)
+            {
+                return 500;
+            }
+            if (logSnapPointMessageFrequency > 75)
+            {
+                return 100;
+            }
+            else
+            {
+                return 50;
+            }
         }
     }
 
