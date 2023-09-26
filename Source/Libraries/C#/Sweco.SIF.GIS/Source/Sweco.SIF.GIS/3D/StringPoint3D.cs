@@ -90,7 +90,7 @@ namespace Sweco.SIF.GIS
             {
                 zString = value;
                 // Check if string represents a valid double value
-                if (!double.TryParse(zString, NumberStyles.Float, englishCultureInfo, out double zValue))
+                if ((zString != null) && !double.TryParse(zString, NumberStyles.Float, englishCultureInfo, out double zValue))
                 {
                     throw new Exception("Invalid z-value for point: " + zString);
                 }

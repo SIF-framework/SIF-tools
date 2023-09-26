@@ -326,6 +326,199 @@ namespace Sweco.SIF.GIS
             return hashCode;
         }
 
+        /// <summary>
+        /// Calculate the distance between point and this segment
+        /// </summary>
+        /// <param name="point"></param>
+        /// <param name="closest"></param>
+        /// <returns></returns>
+        public double GetDistance(Point point, out Point closest)
+        {
+            // Source: http://csharphelper.com/blog/2014/08/find-the-shortest-distance-between-two-line-segments-in-c/
+            // Author: Rod Stephens
+            // License: none
+
+            double dx = P2.X - P1.X;
+            double dy = P2.Y - P1.Y;
+            if ((dx == 0) && (dy == 0))
+            {
+                // It's a point not a line segment.
+                closest = P1;
+                dx = point.X - P1.X;
+                dy = point.Y - P1.Y;
+                return Math.Sqrt(dx * dx + dy * dy);
+            }
+
+            // Calculate the t that minimizes the distance.
+            double t = ((point.X - P1.X) * dx + (point.Y - P1.Y) * dy) / (dx * dx + dy * dy);
+
+            // See if this represents one of the segment's
+            // end points or a point in the middle.
+            if (t < 0)
+            {
+                closest = new DoublePoint(P1.X, P1.Y);
+                dx = point.X - P1.X;
+                dy = point.Y - P1.Y;
+            }
+            else if (t > 1)
+            {
+                closest = new DoublePoint(P2.X, P2.Y);
+                dx = point.X - P2.X;
+                dy = point.Y - P2.Y;
+            }
+            else
+            {
+                closest = new DoublePoint(P1.X + t * dx, P1.Y + t * dy);
+                dx = point.X - closest.X;
+                dy = point.Y - closest.Y;
+            }
+
+            return Math.Sqrt(dx * dx + dy * dy);
+        }
+
+        /// <summary>
+        /// Return the shortest distance between this linesegment (P1 --> P2) and another (p3 --> p4).
+        /// </summary>
+        /// <param name="p3"></param>
+        /// <param name="p4"></param>
+        /// <param name="close1"></param>
+        /// <param name="close2"></param>
+        /// <returns></returns>
+        public double GetDistance(Point p3, Point p4, out Point close1, out Point close2)
+        {
+            // Source: http://csharphelper.com/blog/2014/08/find-the-shortest-distance-between-two-line-segments-in-c/
+            // Author: Rod Stephens
+            // License: none
+
+            // See if the segments intersect.
+            bool lines_intersect, segments_intersect;
+            Point intersection;
+            FindIntersection(p3, p4, out lines_intersect, out segments_intersect, out intersection, out close1, out close2);
+            if (segments_intersect)
+            {
+                // They intersect.
+                close1 = intersection;
+                close2 = intersection;
+                return 0;
+            }
+
+            // Find the other possible distances.
+            Point closest;
+            LineSegment S2 = new LineSegment(p3, p4);
+            double best_dist = double.MaxValue, test_dist;
+
+            // Try P1.
+            test_dist = S2.GetDistance(P1, out closest);
+            if (test_dist < best_dist)
+            {
+                best_dist = test_dist;
+                close1 = P1;
+                close2 = closest;
+            }
+
+            // Try P2.
+            test_dist = S2.GetDistance(P2, out closest);
+            if (test_dist < best_dist)
+            {
+                best_dist = test_dist;
+                close1 = P2;
+                close2 = closest;
+            }
+
+            // Try p3.
+            test_dist = GetDistance(p3, out closest);
+            if (test_dist < best_dist)
+            {
+                best_dist = test_dist;
+                close1 = closest;
+                close2 = p3;
+            }
+
+            // Try p4.
+            test_dist = GetDistance(p4, out closest);
+            if (test_dist < best_dist)
+            {
+                best_dist = test_dist;
+                close1 = closest;
+                close2 = p4;
+            }
+
+            return best_dist;
+        }
+
+        /// <summary>
+        /// Find the point of intersection between this linesegment (P1 --> P2) and another (p3 --> p4).
+        /// </summary>
+        /// <param name="p3"></param>
+        /// <param name="p4"></param>
+        /// <param name="lines_intersect"></param>
+        /// <param name="segments_intersect"></param>
+        /// <param name="intersection"></param>
+        /// <param name="close_p1"></param>
+        /// <param name="close_p2"></param>
+        protected void FindIntersection(Point p3, Point p4, out bool lines_intersect, out bool segments_intersect, out Point intersection, out Point close_p1, out Point close_p2)
+        {
+            // Source: http://csharphelper.com/blog/2014/08/find-the-shortest-distance-between-two-line-segments-in-c/
+            // Author: Rod Stephens
+            // License: none
+
+            // Get the segments' parameters.
+            double dx12 = P2.X - P1.X;
+            double dy12 = P2.Y - P1.Y;
+            double dx34 = p4.X - p3.X;
+            double dy34 = p4.Y - p3.Y;
+
+            // Solve for t1 and t2
+            double denominator = (dy12 * dx34 - dx12 * dy34);
+
+            double t1;
+            try
+            {
+                t1 = ((P1.X - p3.X) * dy34 + (p3.Y - P1.Y) * dx34) / denominator;
+            }
+            catch
+            {
+                // The lines are parallel (or close enough to it).
+                lines_intersect = false;
+                segments_intersect = false;
+                intersection = new DoublePoint(double.NaN, double.NaN);
+                close_p1 = new DoublePoint(double.NaN, double.NaN);
+                close_p2 = new DoublePoint(double.NaN, double.NaN);
+                return;
+            }
+            lines_intersect = true;
+
+            double t2 = ((p3.X - P1.X) * dy12 + (P1.Y - p3.Y) * dx12) / -denominator;
+
+            // Find the point of intersection.
+            intersection = new DoublePoint(P1.X + dx12 * t1, P1.Y + dy12 * t1);
+
+            // The segments intersect if t1 and t2 are between 0 and 1.
+            segments_intersect = ((t1 >= 0) && (t1 <= 1) && (t2 >= 0) && (t2 <= 1));
+
+            // Find the closest points on the segments.
+            if (t1 < 0)
+            {
+                t1 = 0;
+            }
+            else if (t1 > 1)
+            {
+                t1 = 1;
+            }
+
+            if (t2 < 0)
+            {
+                t2 = 0;
+            }
+            else if (t2 > 1)
+            {
+                t2 = 1;
+            }
+
+            close_p1 = new DoublePoint(P1.X + dx12 * t1, P1.Y + dy12 * t1);
+            close_p2 = new DoublePoint(p3.X + dx34 * t2, p3.Y + dy34 * t2);
+        }
+
         ///// <summary>
         ///// Checks for simularity between this object's and given point object's coordinates: distances more than Point.Tolerance result in a difference
         ///// </summary>

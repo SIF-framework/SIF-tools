@@ -134,7 +134,7 @@ namespace Sweco.SIF.GIS
         /// <returns></returns>
         public override string ToString()
         {
-            return "[(" + llx.ToString("F0") + "," + lly.ToString("F0") + "),(" + urx.ToString("F0") + "," + ury.ToString("F0") + ")]";
+            return "[(" + llx.ToString(englishCultureInfo) + "," + lly.ToString(englishCultureInfo) + "),(" + urx.ToString(englishCultureInfo) + "," + ury.ToString(englishCultureInfo) + ")]";
         }
 
         /// <summary>
@@ -327,13 +327,13 @@ namespace Sweco.SIF.GIS
         }
 
         /// <summary>
-        /// Check if this extent intersects the specified other extent 
+        /// Check if this extent intersects the specified other extent. Note touching extents do not intersect.
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
         public bool Intersects(Extent other)
         {
-            return (other != null) && !((urx < other.llx) || (ury < other.lly) || (llx > other.urx) || (lly > other.ury));
+            return (other != null) && !((urx <= other.llx) || (ury <= other.lly) || (llx >= other.urx) || (lly >= other.ury));
         }
 
         /// <summary>

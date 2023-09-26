@@ -72,6 +72,8 @@
     <Compile Include="3D\Point3D.cs" />
     <Compile Include="3D\StringPoint3D.cs" />
     <Compile Include="3D\Vector3D.cs" />
+    <Compile Include="Clipping\ClipperLib.cs" />
+    <Compile Include="Clipping\CSHFClipper.cs" />
     <Compile Include="ConvexHull.cs" />
     <Compile Include="PointDataset.cs" />
     <Compile Include="Properties\GlobalSuppressions.cs" />
@@ -85,6 +87,7 @@
     <Compile Include="IPoint.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utilities\GISUtils.cs" />
+    <Compile Include="Utilities\MatrixUtils.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

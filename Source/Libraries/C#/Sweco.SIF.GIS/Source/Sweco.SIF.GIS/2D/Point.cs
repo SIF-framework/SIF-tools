@@ -85,7 +85,7 @@ namespace Sweco.SIF.GIS
         /// <summary>
         /// The tolerance/margin for equality as used in for example IndexOf-method to really retrieve this (unique) point from a list.
         /// </summary>
-        protected static double IdentityTolerance { get; } = 0.000000001;
+        public static double IdentityTolerance { get; } = 0.000000001;
 
         /// <summary>
         /// The square of tolerance/margin for equality, precalculated for faster performance
@@ -574,6 +574,13 @@ namespace Sweco.SIF.GIS
         /// <returns></returns>
         public bool IsInside(List<Point> points)
         {
+            // Copyright(c) 1970 - 2003, Wm.Randolph Franklin
+            // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files(the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/ or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+            // 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimers.
+            // 2. Redistributions in binary form must reproduce the above copyright notice in the documentation and / or other materials provided with the distribution.
+            // 3. The name of W. Randolph Franklin may not be used to endorse or promote products derived from this Software without specific prior written permission.
+            // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
             bool isInside = false;
             int i, j;
             int nvert = points.Count;
@@ -589,6 +596,94 @@ namespace Sweco.SIF.GIS
                 }
             }
             return isInside;
+        }
+
+        /// <summary>
+        /// Interpolate value at this point from values at specified points using Inverse Distance Weighted (IDW) method.
+        /// If the smoothing is zero and the power is high, the interpolation changes a lot around the points to give them their exact value.
+        /// If the smoothing is high and the power is one, the result is much smoother, but the values at the points are not maintained.
+        /// </summary>
+        /// <param name="points"></param>
+        /// <param name="values"></param>
+        /// <param name="power">power to apply to distance to weight it</param>
+        /// <param name="smoothing">higher value gives more distance than actual distance, lowering influence around points</param>
+        /// <param name="maxDistance"></param>
+        /// <returns>float if denominator is zero</returns>
+        public float InterpolateIDW(List<Point> points, List<float> values, float power = 2, float smoothing = 0, float maxDistance = float.NaN)
+        {
+            // code based on: http://geoexamples.blogspot.com/2012/05/creating-grid-from-scattered-data-using.html
+            // The distance is the Cartesian one, plus the smoothing factor. 
+            // If the distance is close to the precision of the float numbers, the source data value is used instead of the interpolated one, to avoid strange results.
+            double nominator = 0;
+            double denominator = 0;
+            double dist;
+            double distPow;
+            double smoothingSquared = smoothing * smoothing;
+            bool isMaxDistanceDefined = !maxDistance.Equals(float.NaN);
+
+            for (int i = 0; i < points.Count; i++)
+            {
+                Point point = points[i];
+                dist = Math.Sqrt((X - point.X) * (X - point.X) + (Y - point.Y) * (Y - point.Y) + smoothingSquared);
+                
+                if (dist < 0.0000000001)
+                {
+                    // If the point is really close to one of the data points, return the data point value to avoid singularities
+                    return values[i];
+                }
+                if (isMaxDistanceDefined && (dist > maxDistance))
+                {
+                    continue;
+                }
+                distPow = Math.Pow(dist, power);
+                nominator = nominator + (values[i] / distPow);
+                denominator = denominator + (1 / distPow);
+            }
+
+            // Return NoData if the denominator is zero
+            if (denominator > 0)
+            {
+                return (float) (nominator / denominator);
+            }
+            else
+            {
+                return float.NaN;
+            }
+        }
+
+        /// <summary>
+        /// Retrieve minimum distance to specified extent
+        /// </summary>
+        /// <param name="extent"></param>
+        /// <returns></returns>
+        public double GetDistance(Extent extent)
+        {
+            double minX = extent.llx;
+            double minY = extent.lly;
+            if (X > minX)
+            {
+                if (X > extent.urx)
+                {
+                    minX = extent.urx;
+                }
+                else
+                {
+                    minX = X;
+                }
+            }
+            if (Y > minY)
+            {
+                if (Y > extent.ury)
+                {
+                    minY = extent.ury;
+                }
+                else
+                {
+                    minY = Y;
+                }
+            }
+
+            return GetDistance((float)minX, (float)minY);
         }
     }
 }
