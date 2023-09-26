@@ -35,8 +35,13 @@ namespace Sweco.SIF.Tee
     /// </summary>
     public class SIFToolSettings : SIFToolSettingsBase
     {
+        public const string ErrorMessagePrefix = "ERROR:";
+
         public string OutputFilename { get; set; }
         public bool IsOutputAppended { get; set; }
+        public bool IsErrorLevelSet { get; set; }
+        public bool IsQuestionEchoed { get; set; }
+        public int MaxQuestionLines { get; set; }
 
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
@@ -46,6 +51,8 @@ namespace Sweco.SIF.Tee
             // Set default values for settings
             OutputFilename = null;
             IsOutputAppended = false;
+            IsErrorLevelSet = true;
+            IsQuestionEchoed = false;
         }
 
         /// <summary>
@@ -55,7 +62,11 @@ namespace Sweco.SIF.Tee
         protected override void DefineToolSyntax()
         {
             AddToolParameterDescription("outFile", "Full path and filename of outputfile", "C:\\Test\\Output\\SomeTool.log");
-            AddToolOptionDescription("a", "Append output to outputfile. Otherwise an existing outputfile is overwritten.", "/a");
+            AddToolOptionDescription("a", "Append output to outputfile. Otherwise an existing outputfile is overwritten.");
+            AddToolOptionDescription("e", "Turn off setting of ERRORLEVEL environment variable.\n" +
+                                          "Default ERRORLEVEL is set to 1 when one or more lines start with '" + ErrorMessagePrefix + "'.");
+            AddToolOptionDescription("?", "Only echo lines to console that end with a question mark. All previous lines upto first empty line are\n" +
+                                          "shown (default), limited by maximum number of lines c. Use c=1 to show only line with question mark.", null, null, null, new string[] { "c" }, new string[] { "0" });
         }
 
         /// <summary>
@@ -89,6 +100,23 @@ namespace Sweco.SIF.Tee
             if (optionName.ToLower().Equals("a"))
             {
                 IsOutputAppended = true;
+            }
+            else if (optionName.ToLower().Equals("e"))
+            {
+                IsErrorLevelSet = false;
+            }
+            else if (optionName.ToLower().Equals("?"))
+            {
+                IsQuestionEchoed = true;
+                if (hasOptionParameters)
+                {
+                    if (!int.TryParse(optionParametersString, out int count))
+                    {
+                        throw new ToolException("Invalid maximum number of question lines for option '" + optionName + "':" + optionParametersString);
+                    }
+                    MaxQuestionLines = count;
+                }
+
             }
             else
             {

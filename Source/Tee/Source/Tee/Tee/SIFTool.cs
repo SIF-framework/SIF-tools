@@ -44,6 +44,8 @@ namespace Sweco.SIF.Tee
 
         #endregion
 
+        Queue<string> questionLineQueue;
+
         /// <summary>
         /// Entry point of tool
         /// </summary>
@@ -94,6 +96,7 @@ namespace Sweco.SIF.Tee
             // Retrieve tool settings that have been parsed from the command-line arguments 
             SIFToolSettings settings = (SIFToolSettings) Settings;
 
+            questionLineQueue = new Queue<string>();
             StreamWriter sw = null;
             try
             {
@@ -104,7 +107,11 @@ namespace Sweco.SIF.Tee
                 string line;
                 while ((line = Console.ReadLine()) != null)
                 {
-                    ProcessLine(line, sw, settings);
+                    int errorLevel = ProcessLine(line, sw, settings);
+                    if (errorLevel > exitcode)
+                    {
+                        exitcode = errorLevel;
+                    }
                 }
             }
             finally
@@ -126,11 +133,76 @@ namespace Sweco.SIF.Tee
         /// <param name="line"></param>
         /// <param name="sw"></param>
         /// <param name="settings"></param>
-        protected virtual void ProcessLine(string line, StreamWriter sw, SIFToolSettings settings)
+        protected virtual int ProcessLine(string line, StreamWriter sw, SIFToolSettings settings)
         {
-            Console.WriteLine(line);
+            if (!settings.IsQuestionEchoed)
+            {
+                Console.WriteLine(line);
+            }
+            else
+            {
+                HandleQuestionLines(line, sw, settings);
+            }
+
             sw.WriteLine(line);
             sw.Flush();
+
+            int errorlevel = 0;
+            if (line.StartsWith(SIFToolSettings.ErrorMessagePrefix))
+            {
+                errorlevel = 1;
+            }
+
+            return errorlevel;
+        }
+
+        /// <summary>
+        /// Handle lines when settings.IsQuestionEchoed is true. Line are cached until a line that ends with a question mark
+        /// </summary>
+        /// <param name="line"></param>
+        /// <param name="sw"></param>
+        /// <param name="settings"></param>
+        protected void HandleQuestionLines(string line, StreamWriter sw, SIFToolSettings settings)
+        {
+            if (line.Trim().Replace("\r", string.Empty).Replace("\n", string.Empty).EndsWith("?"))
+            {
+                // Write queued lines
+                StringBuilder sb = new StringBuilder();
+                while (questionLineQueue.Count > 0)
+                {
+                    string queuedLine = questionLineQueue.Dequeue();
+                    if (queuedLine.Trim().Equals(string.Empty))
+                    {
+                        sb.Clear();
+                    }
+                    else
+                    {
+                        sb.AppendLine(queuedLine);
+                    }
+                }
+                Console.Write(sb.ToString());
+                // Write question mark line
+                Console.WriteLine(line);
+
+                questionLineQueue.Clear();
+            }
+            else
+            {
+                // Check for empty lines
+                if (line.Trim().Equals(string.Empty))
+                {
+                    questionLineQueue.Clear();
+                }
+                else
+                {
+                    // Queue line, but limit to defined maximum (including new line)
+                    questionLineQueue.Enqueue(line);
+                    if ((settings.MaxQuestionLines > 0) && (questionLineQueue.Count >= settings.MaxQuestionLines))
+                    {
+                        questionLineQueue.Dequeue();
+                    }
+                }
+            }
         }
     }
 }
