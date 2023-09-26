@@ -63,7 +63,7 @@ namespace Sweco.SIF.iMOD.IPF
         {
             get
             {
-                if ((timeseries == null) && HasTimeseries())
+                if ((timeseries == null) && HasTimeseriesDefined())
                 {
                     LoadTimeseries();
                 }
@@ -152,20 +152,20 @@ namespace Sweco.SIF.iMOD.IPF
         /// <returns></returns>
         public float GetFloatValue(int colIdx)
         {
-            try
+            if ((colIdx > 0) && (colIdx < columnValues.Count()))
             {
-                if (colIdx < columnValues.Count())
+                try
                 {
                     return float.Parse(columnValues[colIdx], englishCultureInfo);
                 }
-                else
+                catch (Exception ex)
                 {
-                    throw new Exception("Invalid column index for IPFPoint " + ToString());
+                    throw new Exception("Invalid float value at index " + colIdx + " for IPFPoint " + ToString() + ": " + columnValues[colIdx], ex);
                 }
             }
-            catch (Exception ex)
+            else
             {
-                throw new Exception("Invalid float value at index " + colIdx + " for IPFPoint " + ToString(), ex);
+                throw new Exception("Invalid column index for IPFPoint " + ToString() + ": " + colIdx);
             }
         }
 
@@ -191,15 +191,75 @@ namespace Sweco.SIF.iMOD.IPF
         }
 
         /// <summary>
+        /// Checks if a timeseries is present for this IPF-point: 1) an existing timeseries filename is defined or 2) a timeseries is present in memory
+        /// </summary>
+        /// <returns></returns>
+        public bool HasTimeseries()
+        {
+            return IsTimeseriesLoaded() || HasAssociatedFile();
+        }
+
+        /// <summary>
         /// Check if a timeseries is defined for this IPF-point. 
         /// </summary>
         /// <param name="isFloatTXTFilenameAllowed">specify if a float value in the column defined by TextFileColumnIdx is allowed as a valid filename for IPF-timeseries files (default is false)</param>
         /// <returns>true, if a timeseries is defined</returns>
-        public bool HasTimeseries(bool isFloatTXTFilenameAllowed = false)
+        public bool HasTimeseriesDefined(bool isFloatTXTFilenameAllowed = false)
         {
             // Check for positive TextFileColumnIdx and non-null, non-empty, non-numeric value.  
-            return ((IPFFile.AssociatedFileColIdx >= 0) && (columnValues[IPFFile.AssociatedFileColIdx] != null) 
-                && !columnValues[IPFFile.AssociatedFileColIdx].Equals(string.Empty) && (isFloatTXTFilenameAllowed || !HasFloatValue(IPFFile.AssociatedFileColIdx)));
+            return ((IPFFile.AssociatedFileColIdx >= 0) && (IPFFile.AssociatedFileColIdx < ColumnValues.Count) && (columnValues[IPFFile.AssociatedFileColIdx] != null) 
+                && !columnValues[IPFFile.AssociatedFileColIdx].Trim().Equals(string.Empty) && (isFloatTXTFilenameAllowed || !HasFloatValue(IPFFile.AssociatedFileColIdx)));
+        }
+
+        /// <summary>
+        /// Check if a an associated file (e.g. TXT) is defined for this IPF-point
+        /// </summary>
+        /// <returns></returns>
+        public bool HasAssociatedFile()
+        {
+            if (IPFFile.Filename == null)
+            {
+                return false;
+            }
+
+            string basePath = Path.GetDirectoryName(IPFFile.Filename);
+            if (basePath.Equals(string.Empty))
+            {
+                basePath = Directory.GetCurrentDirectory();
+            }
+
+            if (!Directory.Exists(basePath))
+            {
+                return false;
+            }
+
+            if (IPFFile.AssociatedFileColIdx == 0)
+            {
+                return false;
+            }
+
+            if (!((IPFFile.AssociatedFileColIdx > 0) && (IPFFile.AssociatedFileColIdx < columnValues.Count())))
+            {
+                return false;
+            }
+
+            string timeseriesFilename = columnValues[IPFFile.AssociatedFileColIdx] + ".txt";
+            if (!Path.IsPathRooted(timeseriesFilename))
+            {
+                timeseriesFilename = Path.Combine(basePath, timeseriesFilename);
+            }
+            return File.Exists(timeseriesFilename);
+        }
+
+        /// <summary>
+        /// Enusre timeseries is loaded if it is available
+        /// </summary>
+        public void EnsureTimeseriesIsLoaded()
+        {
+            if (!IsTimeseriesLoaded() && HasAssociatedFile())
+            {
+                LoadTimeseries();
+            }
         }
 
         /// <summary>
@@ -214,35 +274,46 @@ namespace Sweco.SIF.iMOD.IPF
         /// <summary>
         /// Actually load timeseries data from file into memory
         /// </summary>
-        public void LoadTimeseries()
+        /// <param name="tsIPFFilename">Full filename of IPF-file that defines base path to determine full path of this timeseries, or leave null to retrieve from associated IPF-file</param>
+        public void LoadTimeseries(string tsIPFFilename = null)
         {
-            string basePath = Path.GetDirectoryName(IPFFile.Filename);
+            string basePath = Path.GetDirectoryName((tsIPFFilename != null) ? tsIPFFilename : IPFFile.Filename);
+            if (basePath == null)
+            {
+                throw new Exception("IPFFile.Filename should be defined when Timeseries should be loaded");
+            }
             if (basePath.Equals(string.Empty))
             {
                 basePath = Directory.GetCurrentDirectory();
             }
             if (!Directory.Exists(basePath))
             {
-                throw new Exception("IPF-file path not found: " + basePath);
+                throw new ToolException("IPF-file path not found: " + basePath);
             }
             if (IPFFile.AssociatedFileColIdx <= 0)
             {
-                throw new Exception("Column index for associated filenames is less than or equal to zero, timeseriesfile is not defined for IPF-file " + Path.GetFileName(IPFFile.Filename));
+                throw new ToolException("Column index for associated filenames is less than or equal to zero, timeseriesfile is not defined for IPF-file " + Path.GetFileName(IPFFile.Filename));
             }
             if (!((IPFFile.AssociatedFileColIdx > 0) && (IPFFile.AssociatedFileColIdx < columnValues.Count())))
             {
-                throw new Exception("Invalid column index for associated filenames: " + IPFFile.AssociatedFileColIdx + " for IPF-file " + Path.GetFileName(IPFFile.Filename));
+                throw new ToolException( "Invalid column index for associated filenames: " + IPFFile.AssociatedFileColIdx + " for IPF-file " + Path.GetFileName(IPFFile.Filename));
             }
-            string timeseriesFilename = columnValues[IPFFile.AssociatedFileColIdx] + "." + IPFFile.AssociatedFileExtension;
+            string timeseriesFilename = columnValues[IPFFile.AssociatedFileColIdx];
+            if ((timeseriesFilename == null) || timeseriesFilename.Equals(string.Empty))
+            {
+                return;
+                // throw new Exception("No timeseries defined for point " + this.ToString() + " in IPFFile" + Path.GetFileName(ipfFile.Filename));
+            }
+            timeseriesFilename += "." + IPFFile.AssociatedFileExtension;
             if (!Path.IsPathRooted(timeseriesFilename))
             {
                 timeseriesFilename = Path.Combine(basePath, timeseriesFilename);
             }
             if (!File.Exists(timeseriesFilename))
             {
-                throw new Exception("Timeseries file not found: " + timeseriesFilename + " for point " + this.ToString() + " in IPFFile" + Path.GetFileName(IPFFile.Filename));
+                throw new ToolException("Timeseries file not found: " + timeseriesFilename + " for point " + this.ToString() + " in IPFFile " + Path.GetFileName(IPFFile.Filename));
             }
-            this.timeseries = IPFTimeseries.ReadFile(timeseriesFilename, IPFFile.IsCommaCorrectedInTimeseries);
+            this.timeseries = IPFTimeseries.ReadFile(timeseriesFilename, IPFFile.IsCommaCorrectedInTimeseries, IPFFile.SkipTimeseriesNoDataValues);
         }
 
         /// <summary>
@@ -258,15 +329,15 @@ namespace Sweco.SIF.iMOD.IPF
             string basePath = Path.GetDirectoryName(IPFFile.Filename);
             if (!Directory.Exists(basePath))
             {
-                throw new Exception("IPF-file path not found: " + basePath);
+                throw new ToolException("IPF-file path not found: " + basePath);
             }
             if (IPFFile.AssociatedFileColIdx == 0)
             {
-                throw new Exception("Column index for associated filenames  is zero, timeseries file is not defined for IPF-file " + Path.GetFileName(IPFFile.Filename));
+                throw new ToolException("Column index for associated filenames  is zero, timeseries file is not defined for IPF-file " + Path.GetFileName(IPFFile.Filename));
             }
             if (!((IPFFile.AssociatedFileColIdx > 0) && (IPFFile.AssociatedFileColIdx < columnValues.Count())))
             {
-                throw new Exception("Invalid column index for associated filenames: " + IPFFile.AssociatedFileColIdx + " for IPF-file " + Path.GetFileName(IPFFile.Filename));
+                throw new ToolException("Invalid column index for associated filenames: " + IPFFile.AssociatedFileColIdx + " for IPF-file " + Path.GetFileName(IPFFile.Filename));
             }
             string timeseriesFilename = columnValues[IPFFile.AssociatedFileColIdx];
             if ((timeseriesFilename != null) && !timeseriesFilename.Equals(string.Empty))
@@ -293,7 +364,7 @@ namespace Sweco.SIF.iMOD.IPF
             }
             else
             {
-                throw new Exception("Missing associated filename for IPF-point " + this.ToString() + " with timeseries data in IPF-file " + Path.GetFileName(IPFFile.Filename));
+                throw new ToolException("Missing associated filename for IPF-point " + this.ToString() + " with timeseries data in IPF-file " + Path.GetFileName(IPFFile.Filename));
             }
         }
 
@@ -309,12 +380,19 @@ namespace Sweco.SIF.iMOD.IPF
         /// Retrieve average value for this file, either from the corresponding timeseries or use the column value from the column that is defined by the ValueColIdx property.
         /// </summary>
         /// <param name="valueColIdx">index of column to take average value for, or -1 to use associated file index</param>
-        /// <returns></returns>
+        /// <returns>average value (or NaN if not present and no timeseries is in memory)</returns>
         private float GetAverageValue(int valueColIdx = -1)
         {
-            if (((valueColIdx == -1) || (valueColIdx == this.IPFFile.AssociatedFileColIdx)) && HasTimeseries())
+            if (((valueColIdx == -1) || (valueColIdx == this.IPFFile.AssociatedFileColIdx)) && HasTimeseriesDefined())
             {
-                return Timeseries.CalculateAverage();
+                if (HasTimeseries())
+                {
+                    return Timeseries.CalculateAverage();
+                }
+                else
+                {
+                    throw new Exception("Cannot calculate average: defined timeseries file does not exist: " + columnValues[IPFFile.AssociatedFileColIdx]);
+                }
             }
             else
             {
@@ -328,7 +406,6 @@ namespace Sweco.SIF.iMOD.IPF
                 }
             }
         }
-
 
         /// <summary>
         /// Check is other IPFPoint object is equal to this object by comparing x,y,z coordinates and columnvalues

@@ -40,9 +40,9 @@ namespace Sweco.SIF.iMOD.IPF
         public int Thickness { get; set; }
 
         /// <summary>
-        /// Zero-based index of column that legend is used for
+        /// One-based number of column that legend is used for coloring points
         /// </summary>
-        public int ColumnIndex { get; set; }
+        public int ColumnNumber { get; set; }
 
         /// <summary>
         /// Specifies if selected labels of IPF-file should be shown
@@ -55,6 +55,11 @@ namespace Sweco.SIF.iMOD.IPF
         public List<int> SelectedLabelColumns { get; set; }
 
         /// <summary>
+        /// Textsize of labels to shown, use 0 to hide labels
+        /// </summary>
+        public int TextSize { get; set; }
+
+        /// <summary>
         /// Create empty IPF-legend
         /// </summary>
         protected IPFLegend()
@@ -62,15 +67,16 @@ namespace Sweco.SIF.iMOD.IPF
         }
 
         /// <summary>
-        /// Create default IPF-legend with specified description: thickness is 1, no labels shown, column index for legend is 3, empty class list
+        /// Create default IPF-legend with specified description: thickness is 1, no labels shown, column number for legend is 3, empty class list
         /// </summary>
         public IPFLegend(string description)
         {
             this.Description = description;
             ClassList = new List<RangeLegendClass>();
             Thickness = 1;
-            ColumnIndex = 3;
+            ColumnNumber = 3;
             SelectedLabelColumns = null;
+            this.TextSize = 7;
         }
 
         /// <summary>
@@ -83,7 +89,8 @@ namespace Sweco.SIF.iMOD.IPF
         public static IPFLegend CreateLegend(string description, string label, Color color)
         {
             IPFLegend legend = new IPFLegend(description);
-            legend.AddClass(new RangeLegendClass(float.MinValue, float.MaxValue, label, color));
+            // Note: use min and max slightly smaller than C# float.MinValue/MaxValue since iMOD allows less digits in IMF-files
+            legend.AddClass(new RangeLegendClass(-3.4E+38f, 3.4E+38f, label, color));
             return legend;
         }
 
@@ -135,6 +142,7 @@ namespace Sweco.SIF.iMOD.IPF
             legend.ClassList.AddRange(this.ClassList);
             ((IPFLegend)legend).IsLabelShown = this.IsLabelShown;
             ((IPFLegend)legend).SelectedLabelColumns = (this.SelectedLabelColumns != null) ? new List<int>(this.SelectedLabelColumns) : null;
+            ((IPFLegend)legend).TextSize = this.TextSize;
 
             return legend;
         }
