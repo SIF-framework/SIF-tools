@@ -133,13 +133,7 @@ namespace Sweco.SIF.LayerManager.LayerModels
             }
             else
             {
-                TOPFilenames = IMODUtils.SortiMODLayerFilenames(TOPFilenames);
-                BOTFilenames = IMODUtils.SortiMODLayerFilenames(BOTFilenames);
-                KHVFilenames = IMODUtils.SortiMODLayerFilenames(KHVFilenames);
-                KVVFilenames = IMODUtils.SortiMODLayerFilenames(KVVFilenames);
-                KDWFilenames = IMODUtils.SortiMODLayerFilenames(KDWFilenames);
-                VCWFilenames = IMODUtils.SortiMODLayerFilenames(VCWFilenames);
-                KVAFilenames = IMODUtils.SortiMODLayerFilenames(KVAFilenames);
+                // Do not sort
             }
 
             // Check that filenames in both arrays have equal prefixes

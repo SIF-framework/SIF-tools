@@ -69,12 +69,12 @@ namespace Sweco.SIF.LayerManager
             catch (ToolException ex)
             {
                 ExceptionHandler.HandleToolException(ex, tool?.Log);
-                exitcode = 1;
+                exitcode = -1;
             }
             catch (Exception ex)
             {
                 ExceptionHandler.HandleException(ex, tool?.Log);
-                exitcode = 1;
+                exitcode = -1;
             }
 
             Environment.Exit(exitcode);
@@ -195,7 +195,11 @@ namespace Sweco.SIF.LayerManager
             }
             if (settings.IsModelChecked)
             {
+                // For checking KVA-factor should not be used
+                string[] kvaFilenames = inputLayerModelMap.KVAFilenames;
+                inputLayerModelMap.KVAFilenames = null;
                 exitcode = layerModelManager.Check(inputLayerModelMap, settings, null, log, logIndentLevel) ? 0 : 1;
+                inputLayerModelMap.KVAFilenames = kvaFilenames;
             }
             if (!settings.IsModelChecked && !settings.IsKDCCalculated)
             {

@@ -276,7 +276,7 @@ namespace Sweco.SIF.LayerManager.LayerModels
                     catch (Exception)
                     {
                         // File doesn't have REGIS format, check c- or kD-columns: when nothing is defined aquifer is the default
-                        isAquitard = ((VCWFilenames[fileIdx] != null) && !VCWFilenames[fileIdx].Equals(string.Empty));
+                        isAquitard = (VCWFilenames != null) && ((VCWFilenames[fileIdx] != null) && !VCWFilenames[fileIdx].Equals(string.Empty));
                     }
                 }
             }
@@ -317,7 +317,7 @@ namespace Sweco.SIF.LayerManager.LayerModels
                     catch (Exception)
                     {
                         // File doesn't have REGIS format, check c- or kD-columns: when nothing is defined aquifer is the default
-                        throw new ToolException("IsAquifer: unknown file format, layer type cannot be determiend: " + Path.GetFileName(regisFilename));
+                        throw new ToolException("IsAquifer: unknown file format, layer type cannot be determined: " + Path.GetFileName(regisFilename));
                         // isAquifer = !((VCWFilenames != null) && (VCWFilenames[fileIdx] != null) && !VCWFilenames[fileIdx].Equals(string.Empty));
                     }
                 }
@@ -568,8 +568,31 @@ namespace Sweco.SIF.LayerManager.LayerModels
                 int dashIndex2 = regisFilename.IndexOf("-", dashIndex1 + 1);
                 if (dashIndex2 > 0)
                 {
+                    string postfix = string.Empty;
+                    if (ContainsDigits(layerName))
+                    {
+                        // check for postfix after layer unit index, e.g.KIk1a or KIz2b
+                        int postfixIdx = dashIndex1 - 1;
+                        while (postfixIdx > 0)
+                        {
+                            if (!int.TryParse(regisFilename.Substring(postfixIdx, 1), out int digit))
+                            {
+                                postfix = regisFilename.Substring(postfixIdx, 1) + postfix;
+                            }
+                            else
+                            {
+                                postfixIdx = 0;
+                            }
+                            postfixIdx--;
+                        }
+                    }
+                    else
+                    {
+                        postfix = string.Empty;
+                    }
+
                     index = 0;
-                    int charIdx = dashIndex1 - 1;
+                    int charIdx = dashIndex1 - 1 - postfix.Length;
                     int factor = 1;
                     while (charIdx > 0)
                     {
@@ -632,6 +655,11 @@ namespace Sweco.SIF.LayerManager.LayerModels
                         throw new Exception("Unknown REGIS lithology code in filename: " + regisFilename);
                 }
             }
+        }
+
+        private static bool ContainsDigits(string layerName)
+        {
+            return layerName.Any(c => char.IsDigit(c));
         }
 
         /// <summary>

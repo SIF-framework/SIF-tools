@@ -365,7 +365,7 @@ namespace Sweco.SIF.LayerManager.LayerModels
                                     lowerAquiferThicknessIDFFile = (lowerBotIDFFile != null) ? (lowerTopIDFFile - lowerBotIDFFile) : null;
                                     if (lowerAquiferThicknessIDFFile != null)
                                     {
-                                        IDFFile cAqf2 = (lowerAquiferThicknessIDFFile * 0.5f) / (KVAIDFFiles[layerNumber] * KHVIDFFiles[layerNumber + 1]);
+                                        IDFFile cAqf2 = (lowerAquiferThicknessIDFFile * 0.5f) / (KVAIDFFiles[layerNumber + 1] * KHVIDFFiles[layerNumber + 1]);
                                         cAqf2.NoDataCalculationValue = 0;
                                         VCWIDFFiles[layerNumber] += cAqf2;
                                     }

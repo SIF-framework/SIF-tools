@@ -492,7 +492,7 @@ namespace Sweco.SIF.LayerManager.LayerModels
         {
             if ((log != null) && (warningCount < Properties.Settings.Default.MaxWarningMessageCount))
             {
-                string warningMessage = "Unexpected kD/c-value (TOP=BOT, kDc<>0/noData) in " + GetLayerName(LayerType, ModellayerNumber) + " at " + GISUtils.GetXYString(x, y);
+                string warningMessage = Warning1String_unexpectedKDC + " in " + GetLayerName(LayerType, ModellayerNumber) + " at " + GISUtils.GetXYString(x, y);
                 log.AddWarning(warningMessage, x, y, GetLayerName(LayerType, ModellayerNumber), Warning1Code_unexpectedKDC, logIndentLevel);
             }
             else
@@ -507,7 +507,7 @@ namespace Sweco.SIF.LayerManager.LayerModels
             {
                 if (isWarningMessageWritten)
                 {
-                    string errorMessage = "Missing kD/c-value (TOP>BOT, kDc=0/noData) in " + GetLayerName(LayerType, ModellayerNumber) + " at " + GISUtils.GetXYString(x, y);
+                    string errorMessage = Error2String_missingKDC + " in " + GetLayerName(LayerType, ModellayerNumber) + " at " + GISUtils.GetXYString(x, y);
                     log.AddError(errorMessage, x, y, GetLayerName(LayerType, ModellayerNumber), Error2Code_missingKDC, topValue - botValue, logIndentLevel);
                 }
                 else
