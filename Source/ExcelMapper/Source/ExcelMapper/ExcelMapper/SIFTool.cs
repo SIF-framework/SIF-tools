@@ -107,14 +107,24 @@ namespace Sweco.SIF.ExcelMapper
             IWorkbook workbook = null;
             try
             {
-                excelManager = ExcelManagerFactory.CreateExcelManager(ExcelManagerFactory.ExcelManagerType.EPPlus);
+                // Retrieve base string(s)
+                string baseStringPath = null;
+                BaseString = RetrieveString(settings.BaseString);
+                bool isBaseStringFile = false;
+                if (!BaseString.Equals(settings.BaseString))
+                {
+                    Log.AddInfo("Base string from file:");
+                    Log.AddInfo(BaseString);
+                    isBaseStringFile = true;
+                    baseStringPath = Path.GetDirectoryName(settings.BaseString);
+                }
 
                 // Retrieve insert string
                 InsertedString = null;
                 bool isInsertStringFile = false;
                 if (settings.InsertedString != null)
                 {
-                    InsertedString = RetrieveString(settings.InsertedString);
+                    InsertedString = RetrieveString(settings.InsertedString, baseStringPath);
                     if (!InsertedString.Equals(settings.InsertedString))
                     {
                         Log.AddInfo("Inserted string from file:");
@@ -123,22 +133,12 @@ namespace Sweco.SIF.ExcelMapper
                     }
                 }
 
-                // Retrieve base string(s)
-                BaseString = RetrieveString(settings.BaseString);
-                bool isBaseStringFile = false;
-                if (!BaseString.Equals(settings.BaseString))
-                {
-                    Log.AddInfo("Base string from file:");
-                    Log.AddInfo(BaseString);
-                    isBaseStringFile = true;
-                }
-
                 // Retrieve append string(s)
                 AppendedString = null;
                 bool isAppendStringFile = false;
                 if (settings.AppendedString != null)
                 {
-                    AppendedString = RetrieveString(settings.AppendedString);
+                    AppendedString = RetrieveString(settings.AppendedString, baseStringPath);
                     if (!AppendedString.Equals(settings.AppendedString))
                     {
                         Log.AddInfo("Appended string from file:");
@@ -149,6 +149,7 @@ namespace Sweco.SIF.ExcelMapper
 
                 // Open Excelsheet
                 Log.AddInfo("Reading Excelsheet '" + Path.GetFileName(settings.ExcelFilename) + "' ...");
+                excelManager = ExcelManagerFactory.CreateExcelManager(settings.ExcelFilename);
                 workbook = excelManager.OpenWorkbook(settings.ExcelFilename);
                 IWorksheet sheet = workbook.GetSheet(settings.SheetNumber - 1);
 
@@ -167,7 +168,7 @@ namespace Sweco.SIF.ExcelMapper
                 List<string> corrBaseStringLinesList = new List<string>();
                 for (int lineIdx = 0; lineIdx < baseStringLines.Length; lineIdx++)
                 {
-                    string corrBaseStringLine = ParseMappingString(baseStringLines[lineIdx], sheet, ref maxColIdx, out List<int> colIndices, out List<string> colFormulas);
+                    string corrBaseStringLine = ParseMappingString(baseStringLines[lineIdx], sheet, ref maxColIdx, out List<int> colIndices, out List<string> colFormulas, settings.IsEmptyCellAllowed);
                     if (corrBaseStringLine != null)
                     {
                         corrBaseStringLinesList.Add(corrBaseStringLine);
@@ -210,11 +211,19 @@ namespace Sweco.SIF.ExcelMapper
                         {
                             int colIdx = colMapping[colIndices[i]];
                             string cellValue = sheet.GetCellValue(rowIdx, colIdx);
-                            if ((cellValue == null) || cellValue.Equals(string.Empty))
+                            if (((cellValue == null) || cellValue.Equals(string.Empty)) && !settings.IsEmptyCellAllowed)
                             {
                                 // one of the columns specified in the base string is empty
                                 hasEmptyValue = true;
                             }
+                            else if (settings.ReplacedCellStrings.Count > 0)
+                            {
+                                for (int j = 0; j < settings.ReplacedCellStrings.Count; j++)
+                                {
+                                    cellValue = cellValue.Replace(settings.ReplacedCellStrings[j], settings.ReplacementCellStrings[j]);
+                                }
+                            }
+
                             if ((cellValue != null) && (colFormulas[i] != null))
                             {
                                 cellValue = ProcessFormula(cellValue, colFormulas[i]);
@@ -222,7 +231,7 @@ namespace Sweco.SIF.ExcelMapper
                             colValues[i] = cellValue;
                         }
 
-                        string outputLine = string.Format(corrBasestringLine, colValues).Trim();
+                        string outputLine = string.Format(corrBasestringLine, colValues);
                         if (!hasEmptyValue)
                         {
                             // When none of the requested column values have empty values for this row and base string line, write base string line with column values from this row
@@ -231,13 +240,13 @@ namespace Sweco.SIF.ExcelMapper
                             {
                                 outputLine = Environment.ExpandEnvironmentVariables(outputLine);
                             }
-                            if (settings.ReplacedCellStrings.Count > 0)
-                            {
-                                for (int i = 0; i < settings.ReplacedCellStrings.Count; i++)
-                                {
-                                    outputLine = outputLine.Replace(settings.ReplacedCellStrings[i], settings.ReplacementCellStrings[i]);
-                                }
-                            }
+                            //if (settings.ReplacedCellStrings.Count > 0)
+                            //{
+                            //    for (int i = 0; i < settings.ReplacedCellStrings.Count; i++)
+                            //    {
+                            //        outputLine = outputLine.Replace(settings.ReplacedCellStrings[i], settings.ReplacementCellStrings[i]);
+                            //    }
+                            //}
                             if (!settings.IsDoubleEmptyLineRemoved || !(outputLine.Equals(string.Empty) && prevOutputLine.Equals(string.Empty)))
                             {
                                 outputString.AppendLine(outputLine);
@@ -246,7 +255,7 @@ namespace Sweco.SIF.ExcelMapper
                         }
                         else
                         {
-                            Log.AddInfo("Row " + (rowIdx + 1) + ", line " + (lineIdx + 1) + " is skipped because of empty values: " + outputLine, 1);
+                            Log.AddInfo("Row " + (rowIdx + 1) + " (in xlsx), line " + (lineIdx + 1) + " (in template) is skipped because of empty values: " + outputLine, 1);
                         }
                     }
 
@@ -278,13 +287,14 @@ namespace Sweco.SIF.ExcelMapper
                         for (int lineIdx = 0; lineIdx < insertedStringLines.Length; lineIdx++)
                         {
                             maxColIdx = -1;
-                            string corrInsertedStringLine = ParseMappingString(insertedStringLines[lineIdx], sheet, ref maxColIdx, out List<int> colIndices, out List<string> colFormulas);
+                            string corrInsertedStringLine = ParseMappingString(insertedStringLines[lineIdx], sheet, ref maxColIdx, out List<int> colIndices, out List<string> colFormulas, settings.IsEmptyCellAllowed);
                             if (maxColIdx != -1)
                             {
                                 throw new ToolException("Column indices are not allowed in inserted string, only cell references: " + insertedStringLines[lineIdx]);
                             }
                             if (corrInsertedStringLine != null)
                             {
+                                // Skip invalid strings (i.e. that refer to not existing IDF-file)
                                 sw.WriteLine(corrInsertedStringLine.Replace("\\n", "\n"));
                             }
                         }
@@ -304,13 +314,17 @@ namespace Sweco.SIF.ExcelMapper
                         for (int lineIdx = 0; lineIdx < appendedStringLines.Length; lineIdx++)
                         {
                             maxColIdx = -1;
-                            string corrAppendedString = ParseMappingString(appendedStringLines[lineIdx], sheet, ref maxColIdx, out List<int> colIndices, out List<string> colFormulas);
+                            string corrAppendedString = ParseMappingString(appendedStringLines[lineIdx], sheet, ref maxColIdx, out List<int> colIndices, out List<string> colFormulas, settings.IsEmptyCellAllowed);
                             if (maxColIdx != -1)
                             {
                                 throw new ToolException("Column indices are not allowed in inserted string, only cell references: " + appendedStringLines[lineIdx]);
                             }
 
-                            sw.WriteLine(corrAppendedString.Replace("\\n", "\n"));
+                            if (corrAppendedString != null)
+                            {
+                                // Skip invalid strings (i.e. that refer to not existing IDF-file)
+                                sw.WriteLine(corrAppendedString.Replace("\\n", "\n"));
+                            }
                         }
                     }
                 }
@@ -402,7 +416,7 @@ namespace Sweco.SIF.ExcelMapper
         /// <param name="colIndices"></param>
         /// <param name="colFormulas"></param>
         /// <returns></returns>
-        protected virtual string ParseMappingString(string baseString, IWorksheet sheet, ref int maxParIdx, out List<int> colIndices, out List<string> colFormulas)
+        protected virtual string ParseMappingString(string baseString, IWorksheet sheet, ref int maxParIdx, out List<int> colIndices, out List<string> colFormulas, bool isEmptyCellAllowed)
         {
             string corrBaseString = string.Empty; // copy of baseString but with lowered colIndices (zero based instead of one based)
             int idx1 = baseString.IndexOf('{');
@@ -413,6 +427,10 @@ namespace Sweco.SIF.ExcelMapper
             {
                 corrBaseString += baseString.Substring(idx2 + 1, idx1 - idx2 - 1);
                 idx2 = baseString.IndexOf('}', idx1 + 1);
+                if (idx2 == -1)
+                {
+                    throw new ToolException("Missing rightside bracket after '" + corrBaseString + "{' for mapping string: " + baseString);
+                }
                 string parIdxString = baseString.Substring(idx1 + 1, idx2 - idx1 - 1);
                 int parIdx = -1;
 
@@ -444,7 +462,7 @@ namespace Sweco.SIF.ExcelMapper
                     }
 
                     formulaString = baseString.Substring(idx1 + 2, parenthesisIdx1 - idx1 - 2);
-                    parIdxString = baseString.Substring(parenthesisIdx1 + 1, parenthesisIdx2 - parenthesisIdx1 - 1).Trim();
+                    parIdxString = baseString.Substring(parenthesisIdx1 + 1, parenthesisIdx2 - parenthesisIdx1 - 1);
 
                     if (parIdxString.Equals(string.Empty))
                     {
@@ -522,6 +540,7 @@ namespace Sweco.SIF.ExcelMapper
                         {
                             cellValue = sheet.GetCellValue(cellRowNr - 1, cellColNr - 1);
                         }
+
                         if ((cellValue != null) && !cellValue.Equals(string.Empty))
                         {
                             if (formulaString != null)
@@ -532,7 +551,15 @@ namespace Sweco.SIF.ExcelMapper
                         }
                         else
                         {
-                            return null;
+                            if (isEmptyCellAllowed)
+                            {
+                                // Note both null and string.Empty indicate an empty cell. Worksheet.GetCell() returns null for an empty cell.
+                                cellValue = string.Empty;
+                            }
+                            else
+                            {
+                                return null;
+                            }
                         }
                     }
                     else
@@ -608,9 +635,22 @@ namespace Sweco.SIF.ExcelMapper
         /// </summary>
         /// <param name="p"></param>
         /// <returns></returns>
-        protected string RetrieveString(string filenameOrString)
+        protected string RetrieveString(string filenameOrString, string baseStringPath = null)
         {
             string fullString;
+            if (!File.Exists(filenameOrString) && (baseStringPath != null))
+            {
+                // Try path of BaseString (which is a filename in this case)
+                if ((baseStringPath.IndexOfAny(Path.GetInvalidPathChars()) == -1) && (filenameOrString.IndexOfAny(Path.GetInvalidFileNameChars()) == -1))
+                {
+                    string testFilename = Path.Combine(baseStringPath, filenameOrString);
+                    if (File.Exists(testFilename))
+                    {
+                        filenameOrString = testFilename;
+                    }
+                }
+            }
+
             if (File.Exists(filenameOrString))
             {
                 Stream stream = null;

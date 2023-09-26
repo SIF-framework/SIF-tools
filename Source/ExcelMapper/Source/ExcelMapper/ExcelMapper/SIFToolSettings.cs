@@ -49,6 +49,7 @@ namespace Sweco.SIF.ExcelMapper
         public int SheetNumber { get; set; }
         public List<string> ReplacedCellStrings { get; set; }
         public List<string> ReplacementCellStrings { get; set; }
+        public bool IsEmptyCellAllowed { get; set; }
 
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
@@ -70,6 +71,7 @@ namespace Sweco.SIF.ExcelMapper
             AppendedString = null;
             ReplacedCellStrings = new List<string>();
             ReplacementCellStrings = new List<string>();
+            IsEmptyCellAllowed = false;
         }
 
         /// <summary>
@@ -78,7 +80,7 @@ namespace Sweco.SIF.ExcelMapper
         /// </summary>
         protected override void DefineToolSyntax()
         {
-            AddToolParameterDescription("xlsx", "Filename of Excelfile with input to process", "C:\\Test\\Input.xslx");
+            AddToolParameterDescription("inFile", "Filename of Excel- or CSV-file with input to process", "C:\\Test\\Input.xslx");
             AddToolParameterDescription("bstr", "Base string, or filename with base string(s), to write to the outputfile for each row in the Excelsheet\n"
                 + "- '{i}'-substrings with i an integer (one based) or an alphabetic column character, are replaced with \n"
                 + "  the row value in column i\n"
@@ -91,17 +93,18 @@ namespace Sweco.SIF.ExcelMapper
                 + "- when str is an empty string, the contents of the first column are simply exported\n" 
                 + "- when a filename is not used: add newlines with \\n",
                 "\"ECHO Input{1} {2}.IDF Output{3}.IDF >> info.txt\"");
-            AddToolParameterDescription("outf", "Name of output textfile to create or add to", "Test\\Script.bat");
+            AddToolParameterDescription("outFile", "Name of output textfile to create or add to", "Test\\Script.bat");
 
             AddToolOptionDescription("a", "Define appended string, or filename with appended string(s), to add to output after processing Excel-rows", null, "Append string: {0}", new string[] { "a1" });
             AddToolOptionDescription("i", "Define inserted string, or filename with inserted string(s), to add to output before processing Excel-rows", null, "Insert string: {0}", new string[] { "i1" });
             AddToolOptionDescription("r", "Start processing at row r1 of input sheet (one based, default is 1)", "/r:4", "Start processing at (one-based) row: {0}", new string[] { "r1" });
             AddToolOptionDescription("s", "Use Excelsheet s1 for input (default 1)", "/s:2", "Process data from (one-based) sheet: {0}", new string[] { "s1" });
             AddToolOptionDescription("m", "Do not overwrite an existing output file, but merge to existing outputfile", "/m", "Result is merged with existing output file");
-            AddToolOptionDescription("p", "Replace substrings si in selected cells with other strings ri (use english notation for values)", "/p:typeA,1,typeB,2", "The following search/replacement strings are used for cellvalues: {...}", new string[] { "s1", "r1", "..." });
-            AddToolOptionDescription("x", "Expansd enviroment variables in output strings. Note: variables between {}-symbols are always expanded.", "/x", "Environment variables are expanded");
+            AddToolOptionDescription("p", "Replace substrings si in selected cellvalues with other strings ri (use English notation for values)", "/p:typeA,1,typeB,2", "The following search/replacement strings are used for cellvalues: {...}", new string[] { "s1", "r1" }, new string[] { "..." });
+            AddToolOptionDescription("x", "Expand enviroment variables in output strings. Note: variables between {}-symbols are always expanded.", "/x", "Environment variables are expanded");
             AddToolOptionDescription("u", "Process rows from bottom upwards, upto startrow (default is downwards from startrow)", "/u", "Rows are processed from bottom upwards");
             AddToolOptionDescription("e", "Remove empty lines below an other empty line in result file", "/e", "Consequtive empty lines are removed");
+            AddToolOptionDescription("aec", "Allow empty cells in a row, do not skip rows with some empty cells", "/e", "Empty cells are allowed");
 
             AddToolUsageOptionPostRemark("Note: Surround with double quotes in case of spaces in command or option");
         }
@@ -230,6 +233,10 @@ namespace Sweco.SIF.ExcelMapper
                 {
                     throw new ToolException("Please specify parameters for option 'p:'");
                 }
+            }
+            else if (optionName.ToLower().Equals("aec"))
+            {
+                IsEmptyCellAllowed = true;
             }
             else
             {

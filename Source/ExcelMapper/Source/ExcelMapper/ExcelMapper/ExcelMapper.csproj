@@ -39,12 +39,6 @@
     <Reference Include="Sweco.SIF.Common">
       <HintPath>..\..\Libraries\Sweco.SIF.Common.dll</HintPath>
     </Reference>
-    <Reference Include="Sweco.SIF.GIS">
-      <HintPath>..\..\Libraries\Sweco.SIF.GIS.dll</HintPath>
-    </Reference>
-    <Reference Include="Sweco.SIF.iMOD">
-      <HintPath>..\..\Libraries\Sweco.SIF.iMOD.dll</HintPath>
-    </Reference>
     <Reference Include="Sweco.SIF.Spreadsheets">
       <HintPath>..\..\Libraries\Sweco.SIF.Spreadsheets.dll</HintPath>
     </Reference>
@@ -75,8 +69,6 @@ IF NOT EXIST "$(ProjectDir)..\..\Libraries\" MKDIR "$(ProjectDir)..\..\Libraries
 
 REM Copy used dll's that this tool depends on, to Libraries folder
 COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Common\Bin\$(PlatformName)\Sweco.SIF.Common.*" "$(ProjectDir)..\..\Libraries"
-COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.GIS\Bin\$(PlatformName)\Sweco.SIF.GIS.*" "$(ProjectDir)..\..\Libraries"
-COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.iMOD\Bin\$(PlatformName)\Sweco.SIF.iMOD.*" "$(ProjectDir)..\..\Libraries"
 COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Spreadsheets\Bin\AnyCPU\Sweco.SIF.Spreadsheets.*" "$(ProjectDir)..\..\Libraries"
 COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Spreadsheets\Bin\AnyCPU\EPPlus.*" "$(ProjectDir)..\..\Libraries"
 </PreBuildEvent>
