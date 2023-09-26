@@ -34,6 +34,11 @@ namespace Sweco.SIF.iMOD
     public class Metadata
     {
         /// <summary>
+        /// Encoding used for writing metadata files
+        /// </summary>
+        public static Encoding Encoding = Encoding.Default;
+
+        /// <summary>
         /// Full Filename for MET-file with this metadata. If not defined, it is derived from IMODFilename
         /// </summary>
         public string METFilename { get; set; }
@@ -249,7 +254,7 @@ namespace Sweco.SIF.iMOD
             StreamWriter sw = null;
             try
             {
-                sw = new StreamWriter(METFilename);
+                sw = new StreamWriter(METFilename, false, Encoding);
                 sw.Write(metString);
             }
             catch (Exception ex)
