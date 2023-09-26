@@ -107,7 +107,7 @@ namespace Sweco.SIF.IDFinfo
 
             try
             {
-                IDFFile idfFile = IDFFile.ReadFile(inputFilenames[0]);
+                IDFFile idfFile = IDFFile.ReadFile(inputFilenames[0], true);
 
                 RetrieveInfo(idfFile, settings);
             }
@@ -172,10 +172,10 @@ namespace Sweco.SIF.IDFinfo
         protected virtual string GetExtentString(IDFFile idfFile, SIFToolSettings settings)
         {
             string extentString1 = idfFile.Extent.llx.ToString("F3", EnglishCultureInfo) + "," + idfFile.Extent.lly.ToString("F3", EnglishCultureInfo) + "," + idfFile.Extent.urx.ToString("F3", EnglishCultureInfo) + "," + idfFile.Extent.ury.ToString("F3", EnglishCultureInfo);
-            string extentString2 = idfFile.Extent.llx + "," + idfFile.Extent.lly + "," + idfFile.Extent.urx + "," + idfFile.Extent.ury;
+            string extentString2 = idfFile.Extent.llx.ToString(EnglishCultureInfo) + "," + idfFile.Extent.lly.ToString(EnglishCultureInfo) + "," + idfFile.Extent.urx.ToString(EnglishCultureInfo) + "," + idfFile.Extent.ury.ToString(EnglishCultureInfo);
             string extentString = (extentString1.Length < extentString2.Length) ? extentString1 : extentString2;
 
-            return extentString;
+            return extentString1;
         }
     }
 }
