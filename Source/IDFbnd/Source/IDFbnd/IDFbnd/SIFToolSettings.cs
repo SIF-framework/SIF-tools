@@ -43,7 +43,9 @@ namespace Sweco.SIF.IDFbnd
         public float InactiveValue { get; set; }
         public string OutputPath { get; set; }
         public bool IsOverwrite { get; set; }
+        public bool IsDiagonallyChecked { get; set; }
         public bool IsOuterCorrection { get; set; }
+        public bool KeepInactiveCells { get; set; }
         public Extent Extent { get; set; }
 
         /// <summary>
@@ -59,8 +61,10 @@ namespace Sweco.SIF.IDFbnd
             InactiveValue = float.NaN;
             OutputPath = null;
             IsOverwrite = false;
-            IsOuterCorrection = true;
             Extent = null;
+            KeepInactiveCells = false;
+            IsOuterCorrection = true;
+            IsDiagonallyChecked = false;
         }
 
         /// <summary>
@@ -76,8 +80,11 @@ namespace Sweco.SIF.IDFbnd
             AddToolParameterDescription("inact", "Value to use for inactive cells outside boundary", "0");
             AddToolParameterDescription("outPath", "Path to write results", "C:\\Test\\Output");
             AddToolOptionDescription("o", "Overwrite existing outputfiles", "/o", "Existing output files are overwritten");
+            AddToolOptionDescription("d", "Check neighbours also diagonally during boundary search", "/d", "Neighbours cells are also checked diagonally during boundary search");
+            AddToolOptionDescription("e", "Extent for boundary (xll,yll,xur,yur). Boundary is searched inwards from this extent.\n" + 
+                                          "Cells outside extent will be inactivated.", "/e:184000,352500,200500,371000", "Extent used for boundary cells: {0},{1},{2},{2}", new string[] { "xll", "yll", "xur", "yur" });
+            AddToolOptionDescription("i", "Prevent inactive (or NoData-)cells to be converted to boundary cells, leave inactive cells.", "/i", "Inactive cells are not changed into boundary cells");
             AddToolOptionDescription("p", "Prevent inactivation of cells outside specified extent", "/p", "Cells outside specified extent will not be inactivated");
-            AddToolOptionDescription("e", "Extent for boundary (xll,yll,xur,yur)", "/e:184000,352500,200500,371000", "Extent used for boundary cells: {0},{1},{2},{2}", new string[] { "xll", "yll", "xur", "yur" });
         }
 
         /// <summary>
@@ -129,6 +136,10 @@ namespace Sweco.SIF.IDFbnd
             {
                 IsOverwrite = true;
             }
+            else if (optionName.ToLower().Equals("d"))
+            {
+                IsDiagonallyChecked = true;
+            }
             else if (optionName.ToLower().Equals("e"))
             {
                 if (hasOptionParameters)
@@ -144,6 +155,10 @@ namespace Sweco.SIF.IDFbnd
                 {
                     throw new ToolException("Coordinate values expected for option '" + optionName + "'");
                 }
+            }
+            else if (optionName.ToLower().Equals("i"))
+            {
+                KeepInactiveCells = true;
             }
             else if (optionName.ToLower().Equals("p"))
             {

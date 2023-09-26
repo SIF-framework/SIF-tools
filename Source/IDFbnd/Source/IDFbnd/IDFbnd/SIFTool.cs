@@ -137,20 +137,35 @@ namespace Sweco.SIF.IDFbnd
             float activeValue = settings.ActiveValue;
             float inactiveValue = settings.InactiveValue;
 
-            IDFFile resultBNDIDFFile = bndLayer.BNDIDFFile.CorrectBoundary(activeValue, boundaryValue, inactiveValue, settings.Extent);
+            IDFFile resultBNDIDFFile = bndLayer.BNDIDFFile.CorrectBoundary(activeValue, boundaryValue, inactiveValue, settings.Extent, false, settings.KeepInactiveCells, settings.IsDiagonallyChecked);
             resultBNDIDFFile.Filename = Path.Combine(settings.OutputPath, Path.GetFileName(bndLayer.BNDFilename));
 
             // Now remove cells outside boundary
             if (settings.IsOuterCorrection)
             {
                 CorrectOuterCells(resultBNDIDFFile, activeValue, boundaryValue, inactiveValue, settings.Extent, log);
+
+                // Correct for diagonal cells when not diagonally checked
+                if (!settings.IsDiagonallyChecked)
+                {
+                    CorrectOuterBoundary(resultBNDIDFFile, activeValue, boundaryValue, inactiveValue, log);
+                }
             }
 
             log.AddInfo("Writing result file " + Path.GetFileName(resultBNDIDFFile.Filename), 1);
             Metadata metadata = CreateMetadata(bndLayer, settings);
             resultBNDIDFFile.WriteFile(metadata);
         }
-
+            
+        /// <summary>
+        /// Inactivate cell outside boundary cells
+        /// </summary>
+        /// <param name="outputIDFFile"></param>
+        /// <param name="activeValue"></param>
+        /// <param name="bndValue"></param>
+        /// <param name="inactiveValue"></param>
+        /// <param name="extent"></param>
+        /// <param name="log"></param>
         protected void CorrectOuterCells(IDFFile outputIDFFile, float activeValue, float bndValue, float inactiveValue, Extent extent, Log log)
         {
             if (extent != null)
@@ -288,6 +303,106 @@ namespace Sweco.SIF.IDFbnd
             }
         }
 
+        protected void CorrectOuterBoundary(IDFFile idfFile, float activeValue, float bndValue, float inactiveValue, Log log)
+        {
+            float[][] idfValues = idfFile.values;
+            float idfNoDataValue = idfFile.NoDataValue;
+
+            int bndBotRow = idfFile.NRows - 1;
+            int bndRightCol = idfFile.NCols - 1;
+            for (int rowIdx = 0; rowIdx < idfFile.NRows; rowIdx++)
+            {
+                for (int colIdx = 0; colIdx < idfFile.NCols; colIdx++)
+                {
+                    if (idfValues[rowIdx][colIdx].Equals(bndValue))
+                    {
+                        bool hasTopBndCell = (rowIdx > 0) && idfValues[rowIdx - 1][colIdx].Equals(bndValue);
+                        bool hasLeftBndCell = (colIdx > 0) && idfValues[rowIdx][colIdx - 1].Equals(bndValue);
+                        bool hasBotBndCell = (rowIdx < bndBotRow) && idfValues[rowIdx + 1][colIdx].Equals(bndValue);
+                        bool hasRightBndCell = (colIdx < bndRightCol) && idfValues[rowIdx][colIdx + 1].Equals(bndValue);
+                        if (hasTopBndCell && hasLeftBndCell)
+                        {
+                            // Check topleft cell for active value
+                            if ((rowIdx > 0) && (colIdx > 0) && idfValues[rowIdx - 1][colIdx - 1].Equals(activeValue))
+                            {
+                                // AB?
+                                // BB?
+                                // ???
+                                if (((rowIdx < bndBotRow) && idfValues[rowIdx + 1][colIdx].Equals(inactiveValue)) || ((colIdx < bndRightCol) && idfValues[rowIdx][colIdx + 1].Equals(inactiveValue)))
+                                {
+                                    idfValues[rowIdx][colIdx] = inactiveValue;
+                                }
+                                else if (((rowIdx < bndBotRow) && idfValues[rowIdx + 1][colIdx].Equals(inactiveValue)) || ((colIdx < bndRightCol) && idfValues[rowIdx][colIdx + 1].Equals(idfNoDataValue)))
+                                {
+                                    idfValues[rowIdx][colIdx] = inactiveValue;
+                                }
+                            }
+                        }
+                        if (hasTopBndCell && hasRightBndCell)
+                        {
+                            // Check topright cell for active value
+                            if ((rowIdx > 0) && (colIdx < bndRightCol) && idfValues[rowIdx - 1][colIdx + 1].Equals(activeValue))
+                            {
+                                // ?BA
+                                // ?BB
+                                // ???
+                                if (((colIdx > 0) && idfValues[rowIdx][colIdx - 1].Equals(inactiveValue)) || ((rowIdx < bndBotRow) && idfValues[rowIdx + 1][colIdx].Equals(inactiveValue)))
+                                {
+                                    idfValues[rowIdx][colIdx] = inactiveValue;
+                                }
+                                else if (((rowIdx > 0) && idfValues[rowIdx - 1][colIdx].Equals(inactiveValue)) || ((rowIdx < bndBotRow) && idfValues[rowIdx + 1][colIdx].Equals(idfNoDataValue)))
+                                {
+                                    idfValues[rowIdx][colIdx] = inactiveValue;
+                                }
+                            }
+                        }
+                        if (hasBotBndCell && hasRightBndCell)
+                        {
+                            // Check botright cell for active value
+                            if ((rowIdx < bndBotRow) && (colIdx < bndRightCol) && idfValues[rowIdx + 1][colIdx + 1].Equals(activeValue))
+                            {
+                                // ???
+                                // ?BB
+                                // ?BA
+                                if (((rowIdx > 0) && idfValues[rowIdx - 1][colIdx].Equals(inactiveValue)) || ((colIdx > 0) && idfValues[rowIdx][colIdx - 1].Equals(inactiveValue)))
+                                {
+                                    idfValues[rowIdx][colIdx] = inactiveValue;
+                                }
+                                else if (((rowIdx > 0) && idfValues[rowIdx - 1][colIdx].Equals(inactiveValue)) || ((colIdx < bndRightCol) && idfValues[rowIdx][colIdx + 1].Equals(idfNoDataValue)))
+                                {
+                                    idfValues[rowIdx][colIdx] = inactiveValue;
+                                }
+                            }
+                        }
+                        if (hasBotBndCell && hasLeftBndCell)
+                        {
+                            // Check botleft cell for active value
+                            if ((rowIdx < bndBotRow) && (colIdx > 0) && idfValues[rowIdx + 1][colIdx - 1].Equals(activeValue))
+                            {
+                                // ???
+                                // BB?
+                                // AB?
+                                if (((rowIdx < bndBotRow) && idfValues[rowIdx + 1][colIdx].Equals(inactiveValue)) || ((colIdx < bndRightCol) && idfValues[rowIdx][colIdx + 1].Equals(inactiveValue)))
+                                {
+                                    idfValues[rowIdx][colIdx] = inactiveValue;
+                                }
+                            }
+                            else if (((rowIdx < bndBotRow) && idfValues[rowIdx + 1][colIdx].Equals(inactiveValue)) || ((colIdx < bndRightCol) && idfValues[rowIdx][colIdx + 1].Equals(idfNoDataValue)))
+                            {
+                                idfValues[rowIdx][colIdx] = inactiveValue;
+                            }
+                        }
+                        if ((rowIdx > 0) && (colIdx > 0) && (rowIdx < bndBotRow) && (colIdx < bndRightCol) &&
+                            !idfValues[rowIdx + 1][colIdx].Equals(activeValue) && !idfValues[rowIdx][colIdx + 1].Equals(activeValue)
+                            && !idfValues[rowIdx - 1][colIdx].Equals(activeValue) && !idfValues[rowIdx][colIdx - 1].Equals(activeValue))
+                        {
+                            idfValues[rowIdx][colIdx] = inactiveValue;
+                        }
+                    }
+                }
+            }
+        }
+
         protected virtual Metadata CreateMetadata(BNDLayer bndLayer, SIFToolSettings settings)
         {
             // Create metadata for outputfile
@@ -297,6 +412,10 @@ namespace Sweco.SIF.IDFbnd
             {
                 metadata.Description += ", starting at extent " + settings.Extent.ToString();
                 metadata.ProcessDescription += ", starting at specified extent";
+            }
+            if (settings.IsDiagonallyChecked)
+            {
+                metadata.ProcessDescription += "; neighbour cells are diagonally checked to find boundary";
             }
             metadata.Unit = "-";
             metadata.Resolution = "-";
@@ -308,7 +427,10 @@ namespace Sweco.SIF.IDFbnd
         protected virtual BNDLayer GetBoundaryLayer(string bndFilename, int fileIdx, SIFToolSettings settings)
         {
             BNDLayer bndLayer = new BNDLayer(bndFilename);
-
+            if (settings.Extent != null)
+            {
+                bndLayer.Enlarge(settings.Extent);
+            }
             return bndLayer;
         }
 

@@ -19,6 +19,7 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with IDFbnd. If not, see <https://www.gnu.org/licenses/>.
+using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD.IDF;
 
 namespace Sweco.SIF.IDFbnd
@@ -28,13 +29,25 @@ namespace Sweco.SIF.IDFbnd
     /// </summary>
     public class BNDLayer
     {
-        public string BNDFilename { get; private set; }
-        public IDFFile BNDIDFFile { get; private set; }
+        public string BNDFilename { get; protected set; }
+        public IDFFile BNDIDFFile { get; protected set; }
 
         public BNDLayer(string bndFilename)
         {
             this.BNDFilename = bndFilename;
             this.BNDIDFFile = IDFFile.ReadFile(BNDFilename);
+        }
+
+        /// <summary>
+        /// Enlarge IDF-file if specified extent is larger
+        /// </summary>
+        /// <param name="extent"></param>
+        public virtual void Enlarge(Extent extent)
+        {
+            if (!BNDIDFFile.Extent.Contains(extent))
+            {
+                BNDIDFFile = BNDIDFFile.EnlargeIDF(extent);
+            }
         }
     }
 }
