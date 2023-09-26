@@ -72,16 +72,18 @@ namespace Sweco.SIF.IMFcreate
                                      "ADDONCE=<0|1>                   To skip files with the same filename as files already added once choose 1, otherwise 0\n" +
                                      "\n" +
                                      "[CROSSSECTION]                  Optional section/keys that define files/settings for 2D cross section tool\n" +
-                                     "REGIS=<path>                    Define directory of REGIS IDF-files to load\n" +
+                                     "REGIS=<path>                    Define path with REGIS IDF-files to load.\n" +
+                                     "                                Note: REGIS-layers are added only when TOP-files (*-t-*.IDF) are present\n" +
                                      "REGISORDER=<filename>           Define filename for ASCI-file (txt) with ordered lines with a REGIS-prefix,\n" +
                                      "                                as a single value or the last value in multiple comma seperated values.\n" +
                                      "REGISCOLORS=TNO|AQF|<filename>  Define Excel filename (XSLX) with colors per REGIS-layer with header in row 1 and\n" +
                                      "                                rows with REGIS (sub)strings in column 1 and RGB (integer) values in columns 2 to 4\n" +
                                      "                                Or use 'TNO' for TNO REGIS-colors, or 'AQF' for yellow/green hues for aquifer/aquitards\n" +
-                                     "LAYERSASLINES=<paths>           Define one or more (';' seperated) directories with TOP/BOT IDF-files to show as lines\n" +
-                                     "LINECOLOR=r1,g1,b1[;r2,g2;b2]   Define RGB (integer values) for color of TOP/BOT-line. As a default red hues are used\n" +
-                                     "LAYERSASPLANES=<paths>          Define one or more (';' seperated) directories with TOP/BOT IDF-files to show as planes\n" +
+                                     "LAYERSASLINES=<paths>           Define one or more (';' seperated) directories with " + Properties.Settings.Default.TOPFilePrefix + "/" + Properties.Settings.Default.BOTFilePrefix + " IDF-files to show as lines\n" +
+                                     "LINECOLOR=r1,g1,b1[;r2,g2;b2]   Define RGB (integer values) for color of " + Properties.Settings.Default.TOPFilePrefix + "/" + Properties.Settings.Default.BOTFilePrefix + "-line. As a default red hues are used\n" +
+                                     "LAYERSASPLANES=<paths>          Define one or more (';' seperated) directories with " + Properties.Settings.Default.TOPFilePrefix + "/" + Properties.Settings.Default.BOTFilePrefix + " IDF-files to show as planes\n" +
                                      "                                Colors are defined automatically with yellow for aquifers, green for aquitards\n" +
+                                     "SELECTED=<0|1>                  Use 1 to select the IDF-file(s), 0 if otherwise. Default is 1 for REGIS/Modellayers.\n" +
                                      "\n" +
                                      "[MAPS]                          Optional section/keys that define paths/settings for map iMOD-files\n" +
                                      "FILE=<path>                     Specify one or more FILE-lines with <path> a filename/path (wildcards are allowed)\n" +
@@ -89,9 +91,11 @@ namespace Sweco.SIF.IMFcreate
                                      "                                If the file type is equal to type of the previous file, the previous settings are reused\n" +
                                      "For IDF-files, the following optional keys are available to define settings:\n" +
                                      "LEGEND=<filename>               Define path of an iMOD legend (.LEG) file\n" +
+                                     "CSLEGEND=<filename>             Define path of an iMOD Drill File Legend (.DLF) file to visualizee file in cross sections\n" +
                                      "SELECTED=<0|1>                  Use 1 to select the IDF-file, 0 if otherwise. Default is 0\n" +
                                      "LINECOLOR=r,g,b                 Define RGB color (integer values) for a line in the crosssection tool\n" +
                                      "FILLCOLOR=r,g,b                 Define RGB color (integer values) for a plane in the crosssection tool\n" +
+                                     "PRFTYPE=<integer>               Define PRF-type as a combination of indidual values: 1=Active, 3=Line, 4=Points, 8=Fill, 64=Legend\n" +
                                      "\n" +
                                      "For GEN-files, the following optional keys are available to define settings:\n" +
                                      "THICKNESS=<integer>             Define thickness of line as integer\n" +
@@ -101,6 +105,11 @@ namespace Sweco.SIF.IMFcreate
                                      "For IPF-files, the following optional keys are available to define settings:\n" +
                                      "LEGEND=<filename>               Define path of legend\n" +
                                      "COLUMN=<integer>                Define columnnumber to apply legend to, legend should be also specified\n" +
+                                     "                                Use negative number to count backwards, -1 indicating the last column.\n" +
+                                     "TEXTSIZE=<integer>              Define size of labelled text as an integer (use 0 to hide text)\n" +
+                                     "COLOR=r,g,b                     Define RGB (3 integer values) for color of GEN-line\n" +
+                                     "THICKNESS=<integer>             Define thickness of line as integer\n" +
+                                     "PRFTYPE=<integer>               Define PRF-type as a combination of indidual values: 1=Active, 2=Ass.File, 64=Legend\n" +
                                      "SELECTED=<0|1>                  Use 1 to select the IPF-file, 0 if otherwise. Default is 0\n" +
                                      "\n" +
                                      "[OVERLAYS]                      Optional section/keys that define overlay GEN-files\n" +
@@ -171,9 +180,9 @@ namespace Sweco.SIF.IMFcreate
             }
 
             // Create output path if not yet existing
-            if (!Directory.Exists(Path.GetDirectoryName(OutputPath)))
+            if (!Directory.Exists(OutputPath))
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(OutputPath));
+                Directory.CreateDirectory(OutputPath);
             }
         }
     }

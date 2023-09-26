@@ -1,0 +1,15 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="Sweco.SIF.IMFcreate.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="TOPFilePrefix" Type="System.String" Scope="User">
+      <Value Profile="(Default)">TOP</Value>
+    </Setting>
+    <Setting Name="BOTFilePrefix" Type="System.String" Scope="User">
+      <Value Profile="(Default)">BOT</Value>
+    </Setting>
+    <Setting Name="SDLFilePrefix" Type="System.String" Scope="User">
+      <Value Profile="(Default)">SDL</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

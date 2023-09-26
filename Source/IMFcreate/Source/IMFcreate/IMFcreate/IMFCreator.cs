@@ -21,6 +21,7 @@
 // along with IMFcreate. If not, see <https://www.gnu.org/licenses/>.
 using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
+using Sweco.SIF.iMOD.DLF;
 using Sweco.SIF.iMOD.GEN;
 using Sweco.SIF.iMOD.IDF;
 using Sweco.SIF.iMOD.IMF;
@@ -54,12 +55,15 @@ namespace Sweco.SIF.IMFcreate
         private const string MapsSectionKeyword = "[MAPS]";
         private const string Maps_FileKeyword = "FILE";
         private const string Maps_LegendKeyword = "LEGEND";
+        private const string Maps_DLFLegendKeyword = "CSLEGEND";
         private const string Maps_IsSelectedKeyword = "SELECTED";
-        private const string Maps_ColumnIndexKeyword = "COLUMN";
+        private const string Maps_ColumnNumberKeyword = "COLUMN";
+        private const string Maps_TextSizeKeyword = "TEXTSIZE";
         private const string Maps_ThicknessKeyword = "THICKNESS";
         private const string Maps_ColorKeyword = "COLOR";
         private const string Maps_LineColorKeyword = "LINECOLOR";
         private const string Maps_FillColorKeyword = "FILLCOLOR";
+        private const string Maps_PRFTypeKeyword = "PRFTYPE";
 
         private const string CrosssectionSectionKeyword = "[CROSSSECTION]";
         private const string Crosssection_REGISKeyword = "REGIS";
@@ -75,9 +79,10 @@ namespace Sweco.SIF.IMFcreate
         private const string OverlaysSectionKeyword = "[OVERLAYS]";
         private const string Overlays_ThicknessKeyword = "THICKNESS";
         private const string Overlays_ColorKeyword = "COLOR";
+        private const string Overlays_SelectedKeyword = "SELECTED";
         private const string REGISTNOColorsKeyword = "TNO"; // TNO REGIS-colors
         private const string REGISAQFColorsKeyword = "AQF"; // Yellow/Green-colors for aquifers/aquitards
-        private const int defaultThickness = 3;
+        private const int DefaultThickness = 3;
         private static Dictionary<string, Color> regisTNOColorDictionary = null;
         private static Dictionary<string, Color> regisGeohydrologicalColorDictionary = null;
         private static List<string> regisEenheden = null;
@@ -158,7 +163,7 @@ namespace Sweco.SIF.IMFcreate
             }
             catch (Exception ex)
             {
-                throw new Exception("Unexpected error when reading INI-file:" + Path.GetFileName(inputFile), ex);
+                    throw new Exception("Unexpected error when reading INI-file: " + Path.GetFileName(inputFile), ex);
             }
             finally
             {
@@ -204,47 +209,82 @@ namespace Sweco.SIF.IMFcreate
             line = !srINIFile.EndOfStream ? srINIFile.ReadLine() : null;
             while ((line != null) && (line.Trim().Length != 0))
             {
-                string imodFilename = GetFullPath(line.Replace("\"", string.Empty).Trim(), parameters.INIPath);
-                if (File.Exists(imodFilename))
+                line = line.Trim();
+                string currentFilename = null;
+
+                // Rettrieve full path of GEN-filename
+                try
                 {
-                    Color color = Color.Black;
-                    int thickness = defaultThickness;
-                    line = !srINIFile.EndOfStream ? srINIFile.ReadLine() : null;
-                    while ((line != null) && line.Contains("="))
+                    currentFilename = GetFullPath(line.Replace("\"", string.Empty).Trim(), parameters.INIPath);
+                }
+                catch (Exception ex)
+                {
+                    throw new ToolException("Invalid filename: " + line, ex);
+                }
+
+                // Check if filename contains wildcards. If so, retrieves all corresponding filenames in current path
+                List<string> iMODFilenames = ExpandFilename(currentFilename);
+                CommonUtils.SortAlphanumericStrings(iMODFilenames);
+
+                // Parse properties
+                Color color = Color.Black;
+                int thickness = DefaultThickness;
+                bool selected = true;
+                line = !srINIFile.EndOfStream ? srINIFile.ReadLine() : null;
+                while ((line != null) && line.Contains("="))
+                {
+                    string[] parameter = line.Split('=');
+                    if (parameter[0].Trim().ToUpper().Equals(Overlays_ThicknessKeyword))
                     {
-                        string[] parameter = line.Split('=');
-                        if (parameter[0].Trim().ToUpper().Equals(Overlays_ThicknessKeyword))
-                        {
-                            thickness = int.Parse(parameter[1]);
-                        }
-                        else if (parameter[0].Trim().ToUpper().Equals(Overlays_ColorKeyword))
-                        {
-                            string[] rgbStrings = parameter[1].Split(',');
-                            if (rgbStrings.Length != 3)
-                            {
-                                throw new ToolException("Expected three RGB-colors, but found " + rgbStrings.Length + ": " + parameter[1]);
-                            }
-                            int red = int.Parse(rgbStrings[0]);
-                            int green = int.Parse(rgbStrings[1]);
-                            int blue = int.Parse(rgbStrings[2]);
-                            color = Color.FromArgb(red, green, blue);
-                        }
-                        line = !srINIFile.EndOfStream ? srINIFile.ReadLine() : null;
+                        thickness = int.Parse(parameter[1]);
                     }
-                    GENLegend genLegend = new GENLegend(thickness, color);
-                    if (!parameters.IsAddOnce || !imfFile.ContainsOverlay(imodFilename))
+                    else if (parameter[0].Trim().ToUpper().Equals(Overlays_SelectedKeyword))
                     {
-                        imfFile.AddOverlay(new Overlay(genLegend, imodFilename));
-                        log.AddInfo("added " + Path.GetFileName(imodFilename), 2);
+                        try
+                        {
+                            selected = (int.Parse(parameter[1]) == 1);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new ToolException("Could not parse " + Maps_IsSelectedKeyword + "-value: " + parameter[1], ex);
+                        }
+                    }
+                    else if (parameter[0].Trim().ToUpper().Equals(Overlays_ColorKeyword))
+                    {
+                        string[] rgbStrings = parameter[1].Split(',');
+                        if (rgbStrings.Length != 3)
+                        {
+                            throw new ToolException("Expected three RGB-colors, but found " + rgbStrings.Length + ": " + parameter[1]);
+                        }
+                        int red = int.Parse(rgbStrings[0]);
+                        int green = int.Parse(rgbStrings[1]);
+                        int blue = int.Parse(rgbStrings[2]);
+                        color = Color.FromArgb(red, green, blue);
+                    }
+                    line = !srINIFile.EndOfStream ? srINIFile.ReadLine() : null;
+                }
+
+                foreach (string genFilename in iMODFilenames)
+                {
+                    if (File.Exists(genFilename))
+                    {
+                        GENLegend genLegend = new GENLegend(thickness, color);
+                        if (!parameters.IsAddOnce || !imfFile.ContainsOverlay(genFilename))
+                        {
+                            genLegend.Selected = selected;
+                            imfFile.AddOverlay(new Overlay(genLegend, genFilename));
+                            log.AddInfo("added " + Path.GetFileName(genFilename), 2);
+                        }
+                        else
+                        {
+                            log.AddInfo("File is already added and is skipped: " + Path.GetFileName(genFilename), 2);
+                        }
                     }
                     else
                     {
-                        log.AddInfo("File is already added and is skipped: " + Path.GetFileName(imodFilename), 2);
+                        log.AddWarning("Overlay file/filter not found and skipped: " + genFilename, 2);
+                        line = !srINIFile.EndOfStream ? srINIFile.ReadLine() : null;
                     }
-                }
-                else
-                {
-                    throw new ToolException("Overlay file not found: " + imodFilename);
                 }
             }
         }
@@ -259,6 +299,7 @@ namespace Sweco.SIF.IMFcreate
             line = srINIFile.ReadLine();
             while ((line != null) && line.Contains("="))
             {
+                line = line.Trim();
                 isNextLinePeeked = false;
                 string[] lineValues = line.Split('=');
                 if (lineValues[0].Trim().Equals(Crosssection_REGISKeyword))
@@ -281,6 +322,7 @@ namespace Sweco.SIF.IMFcreate
                         {
                             throw new ToolException("REGISORDER filename not found: " + regisOrderFilename);
                         }
+                        log.AddInfo("reading REGISORDER-file ...", 2);
                         ReadOrderFile(regisOrderFilename, log);
 
                         line = srINIFile.ReadLine();
@@ -307,6 +349,8 @@ namespace Sweco.SIF.IMFcreate
                             {
                                 throw new ToolException("REGISCOLORS file does not exist: " + regisColorsFilename);
                             }
+
+                            log.AddInfo("reading REGISCOLOR-file ...", 2);
                             REGISColorDef regisColorDef = REGISColorDef.ReadFile(regisColorsFilename, log);
                             if (regisColorDef != null)
                             {
@@ -319,11 +363,14 @@ namespace Sweco.SIF.IMFcreate
                         }
                     }
 
-                    CreateREGIS2DEntry(imfFile, GetFullPath(regisDirectory, parameters.INIPath), parameters, regisColorDictionary, log, settings);
-
-                    log.AddInfo("added REGIS files", 2);
+                    log.AddInfo("adding REGIS-files ... ", 2, false);
+                    int fileCount = CreateREGIS2DEntry(imfFile, GetFullPath(regisDirectory, parameters.INIPath), parameters, regisColorDictionary, log, settings);
+                    log.AddInfo(fileCount.ToString() + " found");
+                    if (fileCount == 0)
+                    {
+                        log.AddWarning("No REGIS-files found, check input path: " + regisDirectory);
+                    }
                 }
-
                 else if (lineValues[0].Trim().Equals(Crosssection_LayersAsLinesKeyword))
                 {
                     string layerDirectoryString = lineValues[1].Trim();
@@ -351,13 +398,25 @@ namespace Sweco.SIF.IMFcreate
                         }
                     }
 
-                    CreateLayer2DEntry(imfFile, layerDirectoryString, IDFMap.PRFTypeFlag.Line, parameters, topLineColor, botLineColor, settings);
-                    log.AddInfo("added model layers", 2);
+                    log.AddInfo("adding Layermodel-files (as lines) ... ", 2, false);
+                    int fileCount = CreateLayer2DEntry(imfFile, layerDirectoryString, IDFMap.PRFTypeFlag.Line, parameters, topLineColor, botLineColor, settings);
+                    log.AddInfo(fileCount.ToString() + " found");
+                    if (fileCount == 0)
+                    {
+                        log.AddWarning("No Layermodel-files found, check config XML-file and input path(s): " + layerDirectoryString);
+                    }
                 }
                 else if (lineValues[0].Trim().Equals(Crosssection_LayersAsPlanesKeyword))
                 {
                     string layerDirectoryString = lineValues[1].Trim();
-                    CreateLayer2DEntry(imfFile, layerDirectoryString, IDFMap.PRFTypeFlag.Fill, parameters, topLineColor, botLineColor, settings);
+
+                    log.AddInfo("adding Layermodel-files (as planes) ... ", 2, false);
+                    int fileCount = CreateLayer2DEntry(imfFile, layerDirectoryString, IDFMap.PRFTypeFlag.Fill, parameters, topLineColor, botLineColor, settings);
+                    log.AddInfo(fileCount.ToString() + " found");
+                    if (fileCount == 0)
+                    {
+                        log.AddWarning("No Layermodel-files found, check config XML-file and input path(s): " + layerDirectoryString);
+                    }
                 }
                 else
                 {
@@ -375,7 +434,7 @@ namespace Sweco.SIF.IMFcreate
             }
         }
 
-        private void CreateLayer2DEntry(IMFFile imfFile, string layerDirectoryString, IDFMap.PRFTypeFlag prfTypeFlag, INIParameters parameters, Color topLineColor, Color botLineColor, SIFToolSettings settings)
+        private int CreateLayer2DEntry(IMFFile imfFile, string layerDirectoryString, IDFMap.PRFTypeFlag prfTypeFlag, INIParameters parameters, Color topLineColor, Color botLineColor, SIFToolSettings settings)
         {
             List<string> layerFileNames = new List<string>();
 
@@ -392,47 +451,57 @@ namespace Sweco.SIF.IMFcreate
                 FileInfo[] Files = directoryLayerModel.GetFiles("*.IDF");
                 foreach (FileInfo file in Files)
                 {
-                    if ((file.Name.ToUpper().Contains("TOP") || file.Name.ToUpper().Contains("BOT")) && !file.Name.ToUpper().Contains("SDL"))
+                    if ((file.Name.ToUpper().Contains(Properties.Settings.Default.TOPFilePrefix) || file.Name.ToUpper().Contains(Properties.Settings.Default.BOTFilePrefix)) && !file.Name.ToUpper().Contains(Properties.Settings.Default.SDLFilePrefix))
                     {
-                        layerFileNames.Add(file.FullName);
+                        if (!layerFileNames.Contains(file.FullName))
+                        {
+                            layerFileNames.Add(file.FullName);
+                        }
                     }
                 }
             }
 
-            layerFileNames = IMODUtils.SortiMODLayerFilenames(layerFileNames);
+            // When TOPFilePrefix and BOTFilePrefix are TOP and BOT as expected in most iMOD-models, use the default layerNrPrefixes, otherwise define layerNrPrefixes explicitly
+            List<string> layerNrPrefixes = null;
+            if (!Properties.Settings.Default.TOPFilePrefix.ToUpper().Equals("TOP") && !Properties.Settings.Default.BOTFilePrefix.ToUpper().Equals("BOT"))
+            {
+                layerNrPrefixes = new List<string>() { Properties.Settings.Default.TOPFilePrefix, Properties.Settings.Default.BOTFilePrefix };
+            }
+            layerFileNames = IMODUtils.SortiMODLayerFilenames(layerFileNames, Properties.Settings.Default.TOPFilePrefix, Properties.Settings.Default.BOTFilePrefix, layerNrPrefixes);
 
             if (prfTypeFlag == IDFMap.PRFTypeFlag.Fill)
             {
                 int yellowNumerator = 0;
                 int greenNumerator = 0;
-                foreach (string filename in layerFileNames)
+                foreach (string fullFilename in layerFileNames)
                 {
-                    string fullPath = filename;
-                    IDFFile idfFile = IDFFile.ReadFile(filename, !settings.IsUpdateIMODFiles);
-                    IDFMap layerIDFMap = IDFMap.CreateSurfaceLevelMap("default", idfFile.MinValue, idfFile.MaxValue, fullPath, true);
+                    IDFFile idfFile = IDFFile.ReadFile(fullFilename, !settings.IsUpdateIMODFiles);
+                    IDFMap layerIDFMap = IDFMap.CreateSurfaceLevelMap("default", idfFile.MinValue, idfFile.MaxValue, fullFilename, true);
                     layerIDFMap.SetPRFType(IDFMap.PRFTypeFlag.Active);
                     layerIDFMap.AddPRFTypeFlag(prfTypeFlag);
                     Color layerColor = Color.Gray;
-                    if (filename.ToUpper().Contains("TOP"))
+
+                    string filename = Path.GetFileName(fullFilename);
+                    if (filename.ToUpper().Contains(Properties.Settings.Default.TOPFilePrefix))
                     {
                         layerColor = typesOfYellow[yellowNumerator];
                         yellowNumerator += 1;
-                        if (yellowNumerator > 2)
+                        if (yellowNumerator >= typesOfYellow.Count)
                         {
                             yellowNumerator = 0;
                         }
                     }
 
-                    if (filename.ToUpper().Contains("BOT"))
+                    if (filename.ToUpper().Contains(Properties.Settings.Default.BOTFilePrefix))
                     {
                         layerColor = typesOfGreen[greenNumerator];
                         greenNumerator += 1;
-                        if (greenNumerator > 4)
+                        if (greenNumerator >= typesOfGreen.Count)
                         {
                             greenNumerator = 0;
                         }
                     }
-                    layerIDFMap.SColor = IMFFile.Color2Long(layerColor);
+                    layerIDFMap.SColor = CommonUtils.Color2Long(layerColor);
                     if (!parameters.IsAddOnce || !imfFile.ContainsMap(layerIDFMap.Filename))
                     {
                         imfFile.AddMap(layerIDFMap);
@@ -442,25 +511,19 @@ namespace Sweco.SIF.IMFcreate
 
             if (prfTypeFlag == IDFMap.PRFTypeFlag.Line)
             {
-                //foreach (int layer in layerNumbers)
-                //{
-                //    string topFile = topString.Replace("XXX", layer.ToString());
-                //    filenamesLayerModel.Add(topFile);
-                //}
-
                 foreach (string layerFilename in layerFileNames)
                 {
                     IDFFile idfFile = IDFFile.ReadFile(layerFilename, !settings.IsUpdateIMODFiles);
                     IDFMap layerIDFMap = IDFMap.CreateSurfaceLevelMap("default", idfFile.MinValue, idfFile.MaxValue, layerFilename, true);
                     layerIDFMap.SetPRFType(IDFMap.PRFTypeFlag.Active);
                     layerIDFMap.AddPRFTypeFlag(prfTypeFlag);
-                    if (layerFilename.ToUpper().Contains("BOT"))
+                    if (layerFilename.ToUpper().Contains(Properties.Settings.Default.BOTFilePrefix))
                     {
-                        layerIDFMap.SColor = IMFFile.Color2Long(botLineColor);
+                        layerIDFMap.SColor = CommonUtils.Color2Long(botLineColor);
                     }
                     else
                     {
-                        layerIDFMap.SColor = IMFFile.Color2Long(topLineColor);
+                        layerIDFMap.SColor = CommonUtils.Color2Long(topLineColor);
                     }
                     if (!parameters.IsAddOnce || !imfFile.ContainsMap(layerIDFMap.Filename))
                     {
@@ -468,6 +531,8 @@ namespace Sweco.SIF.IMFcreate
                     }
                 }
             }
+
+            return layerFileNames.Count;
         }
 
         private void ParseMapsSection(StreamReader srINIFile, IMFFile imfFile, Log log, INIParameters parameters, ref string line, SIFToolSettings settings)
@@ -476,45 +541,37 @@ namespace Sweco.SIF.IMFcreate
             Color color = Color.Black;
             Color fillColor = Color.Red;
             Color lineColor = Color.Red;
-            int thickness = 3;
+            int prfType = -1;
+            int thickness = 2;
             int ipfColumn = 3;
+            int textSize = 0;
             bool IsColumnAdjusted = false;
             bool selected = false;
             string legFilename = null;
+            string dlfFilename = null;
             bool IsLineColorAdjusted = false;
             bool IsFillColorAdjusted = false;
 
+            // Parse lines until a new section if started (and line strarts with '['-symbol
             log.AddInfo("adding maps ...", 1);
-            string prevExtension = null;
+            string prevFileExtension = null;
             line = srINIFile.ReadLine();
-            while ((line != null) && (line.Trim().Length != 0) && !line.Contains("["))
+            while ((line != null) && (line.Trim().Length != 0) && !line.StartsWith("["))
             {
                 line = line.Trim();
-                string iMODFilePath = line;
+
+                // First read (first) line following Maps-keyword, with filename
+                string currentFilename = line;
                 if (line.ToUpper().StartsWith(Maps_FileKeyword + "="))
                 {
-                    // If line starts with FILE parse as key-value pair, otherwise the whole line is read as a filename
-                    iMODFilePath = line.Split('=')[1];
+                    // If line starts with FILE, parse as key-value pair, otherwise the whole line is read as a filename
+                    currentFilename = line.Split('=')[1];
                 }
-                if ((prevExtension == null) || !iMODFilePath.EndsWith(prevExtension))
+                else
                 {
-                    // Reset defaults
-                    color = Color.Black;
-                    fillColor = Color.Red;
-                    lineColor = Color.Red;
-                    thickness = 3;
-                    ipfColumn = 3;
-                    IsColumnAdjusted = false;
-                    selected = false;
-                    legFilename = null;
-                    IsLineColorAdjusted = false;
-                    IsFillColorAdjusted = false;
-                    // prevExtension = 
-                }
+                    log.AddWarning("Missing " + Maps_FileKeyword + "-keyword: skipping '" + currentFilename + "' and rest of MAPS-section!", 2);
 
-                if (iMODFilePath.Contains("="))
-                {
-                    // No Map-files found, rest of reading MAPS-section
+                    // No Map-files found, skip rest of MAPS-section
                     while ((line != null) && (line.Trim().Length != 0) && !line.Contains("["))
                     {
                         line = srINIFile.ReadLine();
@@ -523,206 +580,303 @@ namespace Sweco.SIF.IMFcreate
                     return;
                 }
 
+                // Keep settings from previous file if it was of the same type, otherwise use default settings
+                if ((prevFileExtension == null) || !currentFilename.ToLower().EndsWith(prevFileExtension.ToLower()))
+                {
+                    // Reset defaults for a new iMOD-file extension
+                    color = Color.Black;
+                    fillColor = Color.Red;
+                    lineColor = Color.Red;
+                    thickness = 3;
+                    ipfColumn = 3;
+                    IsColumnAdjusted = false;
+                    selected = false;
+                    legFilename = null;
+                    dlfFilename = null;
+                    IsLineColorAdjusted = false;
+                    IsFillColorAdjusted = false;
+                    // prevExtension = 
+                }
+
+                // Rettrieve full path of filename
                 try
                 {
-                    iMODFilePath = GetFullPath(iMODFilePath, parameters.INIPath);
+                    currentFilename = GetFullPath(currentFilename, parameters.INIPath);
                 }
                 catch (Exception ex)
                 {
-                    throw new ToolException("Invalid iMOD-filename: " + iMODFilePath, ex);
+                    throw new ToolException("Invalid filename: " + currentFilename, ex);
                 }
 
-                List<string> iMODFilenames = new List<string>();
-                if (Path.GetFileName(iMODFilePath).Contains("*") || Path.GetFileName(iMODFilePath).Contains("?"))
-                {
-                    string path = Path.GetDirectoryName(iMODFilePath);
-                    string filter = Path.GetFileName(iMODFilePath);
-                    string[] filenames = Directory.GetFiles(path, filter);
-                    foreach (string filename in filenames)
-                    {
-                        // Skip iMOD metadata files
-                        if (!Path.GetExtension(filename).ToUpper().Equals(".MET"))
-                        {
-                            iMODFilenames.Add(filename);
-                        }
-                    }
-                }
-                else if (File.Exists(iMODFilePath))
-                {
-                    iMODFilenames.Add(iMODFilePath);
-                }
-                else if (Directory.Exists(iMODFilePath))
-                {
-                    string[] filenames = Directory.GetFiles(iMODFilePath);
-                    foreach (string filename in filenames)
-                    {
-                        // Skip iMOD metadata files
-                        if (!Path.GetExtension(filename).ToUpper().Equals(".MET"))
-                        {
-                            iMODFilenames.Add(filename);
-                        }
-                    }
-                }
-                 CommonUtils.SortAlphanumericStrings(iMODFilenames);
+                // Check if filename contains wildcards. If so, retrieves all corresponding filenames in current path
+                List<string> iMODFilenames = ExpandFilename(currentFilename);
+                CommonUtils.SortAlphanumericStrings(iMODFilenames);
 
-                if (iMODFilenames.Count > 0)
+                // Read lines as long as =-symbols are found and no other FILE-keyword is found
+                line = srINIFile.ReadLine();
+                while ((line != null) && line.Contains("=") && !line.StartsWith(Maps_FileKeyword + "="))
                 {
+                    line = line.Trim();
+                    string[] parameter = line.Split('=');
+                    if (parameter[0].Trim().ToUpper().Equals(Maps_LegendKeyword))
+                    {
+                        legFilename = GetFullPath(parameter[1], parameters.INIPath);
+                    }
+                    else if (parameter[0].Trim().ToUpper().Equals(Maps_DLFLegendKeyword))
+                    {
+                        dlfFilename = GetFullPath(parameter[1], parameters.INIPath);
+                    }
+                    else if (parameter[0].Trim().ToUpper().Equals(Maps_IsSelectedKeyword))
+                    {
+                        try
+                        {
+                            selected = (int.Parse(parameter[1]) == 1);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new ToolException("Could not parse " + Maps_IsSelectedKeyword + "-value: " + parameter[1], ex);
+                        }
+                    }
+                    else if (parameter[0].Trim().ToUpper().Equals(Maps_ThicknessKeyword))
+                    {
+                        thickness = int.Parse(parameter[1]);
+                    }
+                    else if (parameter[0].Trim().ToUpper().Equals(Maps_ColumnNumberKeyword))
+                    {
+                        ipfColumn = int.Parse(parameter[1]);
+                        IsColumnAdjusted = true;
+                    }
+                    else if (parameter[0].Trim().ToUpper().Equals(Maps_TextSizeKeyword))
+                    {
+                        textSize = int.Parse(parameter[1]);
+                    }
+                    else if (parameter[0].Trim().ToUpper().Equals(Maps_ColorKeyword))
+                    {
+                        color = ParseRGBString(parameter[1]);
+                    }
+                    else if (parameter[0].Trim().ToUpper().Equals(Maps_FillColorKeyword))
+                    {
+                        fillColor = ParseRGBString(parameter[1]);
+                        IsFillColorAdjusted = true;
+                    }
+                    else if (parameter[0].Trim().ToUpper().Equals(Maps_LineColorKeyword))
+                    {
+                        lineColor = ParseRGBString(parameter[1]);
+                        IsLineColorAdjusted = true;
+                    }
+                    else if (parameter[0].Trim().ToUpper().Equals(Maps_PRFTypeKeyword))
+                    {
+                        prfType = ParsePRFType(parameter[1]);
+                    }
+                    else
+                    {
+                        log.AddWarning("Parameter " + parameter[0] + " is not a valid parameter in section [MAPS].");
+                    }
+
                     line = srINIFile.ReadLine();
-                    while ((line != null) && line.Contains("=") && !line.StartsWith(Maps_FileKeyword + "="))
+                }
+
+                // Now apply settings to all filenames that were defined just above the settings that have just been read
+                for (int idx = 0; idx < iMODFilenames.Count; idx++)
+                {
+                    string iMODFilename = iMODFilenames[idx].Trim();
+
+                    if (!File.Exists(iMODFilename))
                     {
-                        line = line.Trim();
-                        string[] parameter = line.Split('=');
-                        if (parameter[0].Trim().ToUpper().Equals(Maps_LegendKeyword))
+                        log.AddWarning("File/path not found and skipped: " + currentFilename);
+                        continue;
+                    }
+
+                    if (iMODFilename.ToUpper().EndsWith(IDFExtension))
+                    {
+                        prevFileExtension = IDFExtension;
+                        IDFMap idfMap = null;
+                        if ((legFilename != null) && (legFilename.Length > 0))
                         {
-                            legFilename = GetFullPath(parameter[1], parameters.INIPath);
-                            line = srINIFile.ReadLine();
-                        }
-                        else if (parameter[0].Trim().ToUpper().Equals(Maps_IsSelectedKeyword))
-                        {
-                            if (int.Parse(parameter[1]) == 1)
-                            {
-                                selected = true;
-                            }
-                            else
-                            {
-                                selected = false;
-                            }
-                            line = srINIFile.ReadLine();
-                        }
-                        else if (parameter[0].Trim().ToUpper().Equals(Maps_ThicknessKeyword))
-                        {
-                            thickness = int.Parse(parameter[1]);
-                            line = srINIFile.ReadLine();
-                        }
-                        else if (parameter[0].Trim().ToUpper().Equals(Maps_ColumnIndexKeyword))
-                        {
-                            ipfColumn = int.Parse(parameter[1]);
-                            IsColumnAdjusted = true;
-                            line = srINIFile.ReadLine();
-                        }
-                        else if (parameter[0].Trim().ToUpper().Equals(Maps_ColorKeyword))
-                        {
-                            color = ParseRGBString(parameter[1]);
-                            line = srINIFile.ReadLine();
-                        }
-                        else if (parameter[0].Trim().ToUpper().Equals(Maps_FillColorKeyword))
-                        {
-                            fillColor = ParseRGBString(parameter[1]);
-                            IsFillColorAdjusted = true;
-                            line = srINIFile.ReadLine();
-                        }
-                        else if (parameter[0].Trim().ToUpper().Equals(Maps_LineColorKeyword))
-                        {
-                            lineColor = ParseRGBString(parameter[1]);
-                            IsLineColorAdjusted = true;
-                            line = srINIFile.ReadLine();
+                            idfMap = CreateIDFMap(legFilename.Trim(), selected, iMODFilename);
                         }
                         else
                         {
-                            log.AddWarning("Parameter " + parameter[0] + " is not a valid parameter in section [MAPS].");
-                            line = srINIFile.ReadLine();
+                            IDFFile idfFile = IDFFile.ReadFile(iMODFilename, !settings.IsUpdateIMODFiles);
+                            idfMap = IDFMap.CreateSurfaceLevelMap("default", idfFile.MinValue, idfFile.MaxValue, iMODFilename, selected);
+                        }
+                        idfMap.SetPRFType((prfType != -1) ? prfType : Map.PRFTypeToInt(IDFMap.PRFTypeFlag.Active));
+                        if (IsLineColorAdjusted || IsFillColorAdjusted)
+                        {
+                            if (IsLineColorAdjusted)
+                            {
+                                idfMap.AddPRFTypeFlag(IDFMap.PRFTypeFlag.Line);
+                                idfMap.SColor = CommonUtils.Color2Long(lineColor);
+                            }
+                            if (IsFillColorAdjusted)
+                            {
+                                idfMap.AddPRFTypeFlag(IDFMap.PRFTypeFlag.Fill);
+                                idfMap.SColor = CommonUtils.Color2Long(fillColor);
+                            }
+                        }
+                        else
+                        {
+                            idfMap.SetPRFType(IDFMap.PRFTypeFlag.Active);
+                            idfMap.AddPRFTypeFlag(IDFMap.PRFTypeFlag.Line);
+                        }
+                        if (!parameters.IsAddOnce || !imfFile.ContainsMap(idfMap.Filename))
+                        {
+                            imfFile.AddMap(idfMap);
+                            log.AddInfo("added " + Path.GetFileName(iMODFilename), 2);
+                        }
+                        else
+                        {
+                            log.AddInfo("File is already added and is skipped: " + Path.GetFileName(iMODFilename), 2);
                         }
                     }
-
-                    for (int idx = 0; idx < iMODFilenames.Count; idx++)
+                    else if (iMODFilename.ToUpper().EndsWith(GENExtension))
                     {
-                        string iMODFilename = iMODFilenames[idx].Trim();
-                        if (iMODFilename.ToUpper().EndsWith(IDFExtension))
+                        prevFileExtension = GENExtension;
+                        GENLegend genLegend = new GENLegend(thickness, color);
+                        if (!parameters.IsAddOnce || !imfFile.ContainsMap(iMODFilename))
                         {
-                            prevExtension = IDFExtension;
-                            IDFMap idfMap = null;
-                            if ((legFilename != null) && (legFilename.Length > 0))
-                            {
-                                idfMap = CreateIDFMap(legFilename.Trim(), selected, iMODFilename);
-                            }
-                            else
-                            {
-                                IDFFile idfFile = IDFFile.ReadFile(iMODFilename, !settings.IsUpdateIMODFiles);
-                                idfMap = IDFMap.CreateSurfaceLevelMap("default", idfFile.MinValue, idfFile.MaxValue, iMODFilename, selected);
-                            }
-                            idfMap.SetPRFType(IDFMap.PRFTypeFlag.Active);
-                            if (IsLineColorAdjusted || IsFillColorAdjusted)
-                            {
-                                if (IsLineColorAdjusted)
-                                {
-                                    idfMap.AddPRFTypeFlag(IDFMap.PRFTypeFlag.Line);
-                                    idfMap.SColor = IMFFile.Color2Long(lineColor);
-                                }
-                                if (IsFillColorAdjusted)
-                                {
-                                    idfMap.AddPRFTypeFlag(IDFMap.PRFTypeFlag.Fill);
-                                    idfMap.SColor = IMFFile.Color2Long(fillColor);
-                                }
-                            }
-                            else
-                            {
-                                idfMap.SetPRFType(IDFMap.PRFTypeFlag.Active);
-                                idfMap.AddPRFTypeFlag(IDFMap.PRFTypeFlag.Line);
-                            }
-                            if (!parameters.IsAddOnce || !imfFile.ContainsMap(idfMap.Filename))
-                            {
-                                imfFile.AddMap(idfMap);
-                                log.AddInfo("added " + Path.GetFileName(iMODFilename), 2);
-                            }
-                            else
-                            {
-                                log.AddInfo("File is already added and is skipped: " + Path.GetFileName(iMODFilename), 2);
-                            }
+                            imfFile.AddMap(new Map(genLegend, iMODFilename));
                         }
-                        else if (iMODFilename.ToUpper().EndsWith(GENExtension))
+                    }
+                    else if (iMODFilename.ToUpper().EndsWith(IPFExtension))
+                    {
+                        log.AddInfo("added " + Path.GetFileName(iMODFilename), 2);
+                        IPFMap ipfMap = null;
+                        if ((legFilename != null) && (legFilename.Length > 0))
                         {
-                            prevExtension = GENExtension;
-                            GENLegend genLegend = new GENLegend(thickness, color);
                             if (!parameters.IsAddOnce || !imfFile.ContainsMap(iMODFilename))
                             {
-                                imfFile.AddMap(new Map(genLegend, iMODFilename));
-                            }
-                        }
-                        else if (iMODFilename.ToUpper().EndsWith(IPFExtension))
-                        {
-                            log.AddInfo("added " + Path.GetFileName(iMODFilename), 2);
-                            if ((legFilename != null) && (legFilename.Length > 0))
-                            {
-                                if (!parameters.IsAddOnce || !imfFile.ContainsMap(iMODFilename))
+                                ipfMap = CreateIPFMap(legFilename.Trim(), color, selected, ipfColumn, iMODFilename);
+                                if (!IsColumnAdjusted)
                                 {
-                                    imfFile.AddMap(CreateIPFMap(legFilename.Trim(), selected, ipfColumn, iMODFilename));
-                                    if (!IsColumnAdjusted)
-                                    {
-                                        log.AddWarning("A legend is defined for the IPF-File, but it is not assigned to a column.");
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                if (!parameters.IsAddOnce || !imfFile.ContainsMap(iMODFilename))
-                                {
-                                    prevExtension = IPFExtension;
-                                    IPFLegend defaultIPFLegend = IPFLegend.CreateLegend("default IPF legend", "All values", Color.Black);
-                                    imfFile.AddMap(new IPFMap(defaultIPFLegend, iMODFilename));
+                                    log.AddWarning("A legend is defined for the IPF-File, but it is not assigned to a column.");
                                 }
                             }
                         }
                         else
                         {
-                            log.AddWarning("File with unknown extension is not added to IMF-file: " + iMODFilename);
+                            if (!parameters.IsAddOnce || !imfFile.ContainsMap(iMODFilename))
+                            {
+                                prevFileExtension = IPFExtension;
+                                IPFLegend defaultIPFLegend = IPFLegend.CreateLegend("default IPF legend", "All values", color);
+                                ipfMap = new IPFMap(defaultIPFLegend, iMODFilename);
+                                ipfMap.SColor = CommonUtils.Color2Long(color);
+                                ipfMap.Selected = selected;
+                            }
+                        }
+
+                        if (ipfMap != null)
+                        {
+                            ipfMap.SetPRFType((prfType != -1) ? prfType : Map.PRFTypeToInt(IDFMap.PRFTypeFlag.Active));
+
+                            if (ipfMap.Legend != null)
+                            {
+                                ipfMap.IPFLegend.Thickness = thickness;
+                                if ((textSize > 0))
+                                {
+                                    // Use specified column for labelling
+                                    if (ipfMap.IPFLegend.SelectedLabelColumns == null)
+                                    {
+                                        ipfMap.IPFLegend.SelectedLabelColumns = new List<int>();
+                                    }
+                                    ipfMap.IPFLegend.SelectedLabelColumns.Add(ipfMap.IPFLegend.ColumnNumber);
+                                    ipfMap.IPFLegend.IsLabelShown = true;
+                                    ipfMap.IPFLegend.TextSize = textSize;
+                                }
+                            }
+
+                            if (dlfFilename != null)
+                            {
+                                ipfMap.DLFFile = DLFFile.ReadFile(dlfFilename);
+                            }
+                            imfFile.AddMap(ipfMap);
                         }
                     }
-                }
-                else
-                {
-                    log.AddWarning("File/path not found and skipped: " + iMODFilePath);
-                    line = srINIFile.ReadLine();
+                    else
+                    {
+                        log.AddWarning("File with unknown extension is not added to IMF-file: " + iMODFilename);
+                    }
                 }
             }
         }
 
+        /// <summary>
+        /// Retrieve file(s) specified by given file reference, which may be a single filename, contain wildcards or be directory name.
+        /// A directory name will result in all files that are directly under this directory. If string could not be expanded to existing 
+        /// files the same path string is returned.
+        /// 
+        /// </summary>
+        /// <param name="pathString"></param>
+        /// <returns></returns>
+        private List<string> ExpandFilename(string pathString)
+        {
+            // Check if filename contains wildcards. If so, retrieves all corresponding filenames in current path
+            List<string> iMODFilenames = new List<string>();
+            if (Path.GetFileName(pathString).Contains("*") || Path.GetFileName(pathString).Contains("?"))
+            {
+                string path = Path.GetDirectoryName(pathString);
+                string filter = Path.GetFileName(pathString);
+                string[] filenames = Directory.Exists(path) ? Directory.GetFiles(path, filter) : new string[0];
+                foreach (string filename in filenames)
+                {
+                    // Skip iMOD metadata files
+                    if (!Path.GetExtension(filename).ToUpper().Equals(".MET"))
+                    {
+                        iMODFilenames.Add(filename);
+                    }
+                }
+            }
+            else if (File.Exists(pathString))
+            {
+                iMODFilenames.Add(pathString);
+            }
+            else if (Directory.Exists(pathString))
+            {
+                string[] filenames = Directory.GetFiles(pathString);
+                foreach (string filename in filenames)
+                {
+                    // Skip iMOD metadata files
+                    if (!Path.GetExtension(filename).ToUpper().Equals(".MET"))
+                    {
+                        iMODFilenames.Add(filename);
+                    }
+                }
+            }
+
+            if (iMODFilenames.Count == 0)
+            {
+                // Readd path string with filters or an unexisting filename if it could not be evalualed
+                iMODFilenames.Add(pathString);
+            }
+
+            return iMODFilenames;
+        }
+
+        private int ParsePRFType(string prfTypeString)
+        {
+            int prfType;
+            if (!int.TryParse(prfTypeString, out prfType))
+            {
+                throw new ToolException("Could not parse PRFType-value: " + prfTypeString);
+            }
+
+            return prfType;
+        }
+
         private Color ParseRGBString(string rgbString)
         {
-            string[] rgbValues = rgbString.Split(',');
-            int red = int.Parse(rgbValues[0]);
-            int green = int.Parse(rgbValues[1]);
-            int blue = int.Parse(rgbValues[2]);
-            return Color.FromArgb(red, green, blue);
+            try
+            {
+                string[] rgbValues = rgbString.Split(',');
+                int red = int.Parse(rgbValues[0]);
+                int green = int.Parse(rgbValues[1]);
+                int blue = int.Parse(rgbValues[2]);
+                return Color.FromArgb(red, green, blue);
+            }
+            catch (Exception ex)
+            {
+                throw new ToolException("Could not parse RGB-value: " + rgbString, ex);
+            }
         }
 
         private void ParseParametersSection(TextReader srINIFile, IMFFile imfFile, Log log, ref string line, ref INIParameters parameters, SIFToolSettings settings)
@@ -832,7 +986,7 @@ namespace Sweco.SIF.IMFcreate
             }
         }
 
-        private void CreateREGIS2DEntry(IMFFile imfFile, string regisDirectory, INIParameters parameters, Dictionary<string, Color> regisColorDictionary, Log log, SIFToolSettings settings)
+        private int CreateREGIS2DEntry(IMFFile imfFile, string regisDirectory, INIParameters parameters, Dictionary<string, Color> regisColorDictionary, Log log, SIFToolSettings settings)
         {
             List<string> fileNamesOrdered = ReadAndOrderRegisDirectory(regisDirectory, log);
             foreach (string file in fileNamesOrdered)
@@ -868,13 +1022,15 @@ namespace Sweco.SIF.IMFcreate
                         regisIDFMap.AddPRFTypeFlag(IDFMap.PRFTypeFlag.Legend);
                     }
                     regisIDFMap.AddPRFTypeFlag(IDFMap.PRFTypeFlag.Fill);
-                    regisIDFMap.SColor = IMFFile.Color2Long(fillColor);
+                    regisIDFMap.SColor = CommonUtils.Color2Long(fillColor);
                     if (!parameters.IsAddOnce || !imfFile.ContainsMap(regisIDFMap.Filename))
                     {
                         imfFile.AddMap(regisIDFMap);
                     }
                 }
             }
+
+            return fileNamesOrdered.Count;
         }
 
         private static void DoREGISInitialization()
@@ -1262,53 +1418,95 @@ namespace Sweco.SIF.IMFcreate
 
         public List<string> ReadAndOrderRegisDirectory(string regisPath, Log log)
         {
-            DirectoryInfo regisDirectory = new DirectoryInfo(regisPath);
-            FileInfo[] Files = regisDirectory.GetFiles("*.IDF");
-            List<string> fileNames = new List<string>();
-            foreach (FileInfo file in Files)
-            {
-                fileNames.Add(file.Name);
-            }
-
-            List<string> regisUnitsOrdered = regisEenheden;
-            if (layerOrderPrefixIdxDictionary != null)
-            {
-                regisUnitsOrdered = new List<string>();
-                foreach (string prefix in layerOrderPrefixIdxDictionary.Keys)
-                {
-                    regisUnitsOrdered.Add(prefix);
-                }
-            }
-
             List<string> fileNamesOrdered = new List<string>();
-            foreach (string regisEenheid in regisUnitsOrdered)
+            if (Directory.Exists(regisPath))
             {
-                foreach (string fileName in fileNames)
+                DirectoryInfo regisDirectory = new DirectoryInfo(regisPath);
+                FileInfo[] regisFiles = regisDirectory.GetFiles("*.IDF");
+                List<string> regisFilenames = new List<string>();
+                foreach (FileInfo file in regisFiles)
                 {
-                    string[] filenameParts = fileName.Split('-');
-                    if (filenameParts[0].ToUpper().StartsWith(regisEenheid.ToUpper()))
+                    regisFilenames.Add(file.Name);
+                }
+
+                List<string> regisUnitsOrdered = regisEenheden;
+                if (layerOrderPrefixIdxDictionary != null)
+                {
+                    regisUnitsOrdered = new List<string>();
+                    foreach (string prefix in layerOrderPrefixIdxDictionary.Keys)
                     {
-                        if (filenameParts[1].ToLower().Equals("t"))
+                        regisUnitsOrdered.Add(prefix.ToUpper());
+                    }
+                }
+
+                foreach (string regisEenheid in regisUnitsOrdered)
+                {
+                    int fileIdx = 0;
+                    while (fileIdx < regisFilenames.Count)
+                    {
+                        string filename = regisFilenames[fileIdx];
+                        string[] filenameParts = filename.Split('-');
+                        string filenameREGISEenheid = filenameParts[0];
+                        string filenameREGISEenheidPart = filenameParts[0].Split('_')[0];
+                        // If full regis eenheid is present in orderlist, compare full name (including postfix), otherwise just test main part
+                        bool hasMatch = false;
+                        if (regisUnitsOrdered.Contains(filenameREGISEenheid.ToUpper()))
                         {
-                            fileNamesOrdered.Add(fileName);
-                            string bottomFilename = fileName.Replace("-t-", "-b-");
-                            if (filenameParts[1].Equals("T"))
+                            hasMatch = filenameREGISEenheid.ToUpper().Equals(regisEenheid.ToUpper());
+                        }
+                        else
+                        {
+                            hasMatch = filenameREGISEenheidPart.ToUpper().Equals(regisEenheid.ToUpper());
+                        }
+                        if (hasMatch)
+                        {
+                            if (filenameParts[1].ToLower().Equals("b"))
                             {
-                                bottomFilename = fileName.Replace("-T-", "-B-");
+                                // First add top-file when existing
+                                string topFilename = filenameParts[1].Equals("b") ? filename.Replace("-b-", "-t-") : filename.Replace("-B-", "-T-");
+                                if (File.Exists(Path.Combine(regisPath, topFilename)))
+                                {
+                                    fileNamesOrdered.Add(topFilename);
+                                    regisFilenames.Remove(topFilename);
+                                }
+                                else
+                                {
+                                    log.AddWarning("Missing TOP-file: " + topFilename);
+                                }
+                                fileNamesOrdered.Add(filename);
+                                regisFilenames.Remove(filename);
                             }
-                            if (File.Exists(Path.Combine(regisPath, bottomFilename)))
+                            else if (filenameParts[1].ToLower().Equals("t"))
                             {
-                                fileNamesOrdered.Add(bottomFilename);
+                                // First add top-file
+                                fileNamesOrdered.Add(filename);
+                                regisFilenames.Remove(filename);
+
+                                // Now check for bot-file
+                                string botFilename = filenameParts[1].Equals("t") ? filename.Replace("-t-", "-b-") : filename.Replace("-T-", "-B-");
+                                if (File.Exists(Path.Combine(regisPath, botFilename)))
+                                {
+                                    fileNamesOrdered.Add(botFilename);
+                                    regisFilenames.Remove(botFilename);
+                                }
+                                else
+                                {
+                                    log.AddWarning("Missing BOT-file: " + botFilename);
+                                }
                             }
                             else
                             {
-                                // Skip bottomfile
-                                log.AddWarning("Missing bottomfile: " + bottomFilename);
+                                fileIdx++;
                             }
+                        }
+                        else
+                        {
+                            fileIdx++;
                         }
                     }
                 }
             }
+
             return fileNamesOrdered;
         }
 
@@ -1379,11 +1577,28 @@ namespace Sweco.SIF.IMFcreate
             return idfMap;
         }
 
-        public static IPFMap CreateIPFMap(string legFilename, bool isSelected, int columnIndex, string ipfFilename = null, string legendDescription = "IPF legend")
+        /// <summary>
+        /// Create IPFMap object which can be passed for IMF-file creation.
+        /// </summary>
+        /// <param name="legFilename"></param>
+        /// <param name="color"></param>
+        /// <param name="isSelected"></param>
+        /// <param name="columnNumber">one-based column number. Use negative number to start from the last column, with -1 indicating the last column</param>
+        /// <param name="ipfFilename"></param>
+        /// <param name="legendDescription"></param>
+        /// <returns></returns>
+        public static IPFMap CreateIPFMap(string legFilename, Color color, bool isSelected, int columnNumber, string ipfFilename = null, string legendDescription = "IPF legend")
         {
             IPFMap ipfMap = new IPFMap(legendDescription, isSelected);
             ipfMap.IPFLegend.ImportClasses(legFilename);
-            ipfMap.IPFLegend.ColumnIndex = columnIndex;
+            if (columnNumber < 0)
+            {
+                // For negative columnindices start from the last column with -1 indicating the last column
+                IPFFile ipfFile = IPFFile.ReadFile(ipfFilename, true);
+                columnNumber = ipfFile.ColumnCount + columnNumber + 1;
+            }
+            ipfMap.IPFLegend.ColumnNumber= columnNumber;
+            ipfMap.SColor = CommonUtils.Color2Long (color);
             ipfMap.Filename = ipfFilename;
             return ipfMap;
         }
