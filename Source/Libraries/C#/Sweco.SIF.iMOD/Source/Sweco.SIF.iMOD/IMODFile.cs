@@ -39,44 +39,48 @@ namespace Sweco.SIF.iMOD
     public abstract class IMODFile : IEquatable<IMODFile>
     {
         /// <summary>
+        /// Encoding used for writing iMOD-files with text/ASCI-format
+        /// </summary>
+        public static Encoding Encoding = Encoding.Default;
+
+        /// <summary>
         /// Formatting and other cultureInfo of English (UK) language
         /// </summary>
-        protected static CultureInfo EnglishCultureInfo { get; set; } = new CultureInfo("en-GB", false);
+        public static CultureInfo EnglishCultureInfo { get; set; } = new CultureInfo("en-GB", false);
 
         /// <summary>
         /// Full filename of this iMOD-file
         /// </summary>
-        public string Filename { get; set; }
+        public virtual string Filename { get; set; }
 
         /// <summary>
         /// Legend for this iMOD-file
         /// </summary>
-        public Legend Legend { get; set; }
+        public virtual Legend Legend { get; set; }
 
         /// <summary>
         /// Metadata for this iMOD-file
         /// </summary>
-        public Metadata Metadata { get; set; }
+        public virtual Metadata Metadata { get; set; }
 
         /// <summary>
         /// NoData-value for this iMOD-file (or NaN if not defined)
         /// </summary>
-        public float NoDataValue { get; set; }
+        public virtual float NoDataValue { get; set; }
 
         /// <summary>
         /// Minimum value for this iMOD-file (or NaN if not defined)
         /// </summary>
-        public float MinValue { get; set; }
-
+        public virtual float MinValue { get; set; }
 
         /// <summary>
         /// Maximum value for this iMOD-file (or NaN if not defined)
         /// </summary>
-        public float MaxValue { get; set; }
+        public virtual float MaxValue { get; set; }
 
         /// <summary>
         /// Extent of the actual values in file or memory (if it difffers from the modified extent, the modification still has to be performed).
-        /// Note: this extent can differ from the other two defined extents for this object which are used to implement lazy loading.
+        /// Note: this extent can differ from the other two defined extents for this object, which are used to implement lazy loading.
         /// </summary>
         protected Extent extent;
 
@@ -88,7 +92,7 @@ namespace Sweco.SIF.iMOD
 
         /// <summary>
         /// Extent as defined in the corresponding iMOD-file, or null if no file yet exists
-        /// Note: this extent can differ from the other two defined extents for this object which are used to implement lazy loading.
+        /// Note: this extent can differ from the other two defined extents for this object, which are used to implement lazy loading.
         /// </summary>
         protected Extent fileExtent;
 
@@ -202,6 +206,13 @@ namespace Sweco.SIF.iMOD
         /// <param name="newFilename"></param>
         /// <returns></returns>
         public abstract IMODFile Copy(string newFilename = null);
+
+        /// <summary>
+        /// Clip this iMOD-file to the specified extent
+        /// </summary>
+        /// <param name="clipExtent"></param>
+        /// <returns></returns>
+        public abstract IMODFile Clip(Extent clipExtent);
 
         /// <summary>
         /// Write this iMOD-file to the filename that is defined in this object 
