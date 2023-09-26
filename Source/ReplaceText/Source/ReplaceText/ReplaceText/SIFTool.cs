@@ -128,10 +128,13 @@ namespace Sweco.SIF.ReplaceText
 
             int resultCode = -1; // negative for errors, otherwise the total number of matches is returned
 
+            Initialize(settings, Log);
+
             ToolSuccessMessage = null;
             List<string> matchedFilenames = new List<string>();
             List<string> selectedFilenames = new List<string>();
-            resultCode = ReplaceText(settings.BasePath, selectedFilenames, matchedFilenames, settings, Log);
+            Dictionary<string, List<string>> matchedPatterns = new Dictionary<string, List<string>>();
+            resultCode = ReplaceText(settings.BasePath, selectedFilenames, matchedFilenames, matchedPatterns, settings, Log);
             if (settings.Filter.Contains("*") || settings.Filter.Contains("?"))
             {
                 if (matchedFilenames.Count > 0)
@@ -146,8 +149,29 @@ namespace Sweco.SIF.ReplaceText
                     }
                     foreach (string modifiedFilename in matchedFilenames)
                     {
-                        Log.AddInfo(modifiedFilename);
+                        Log.AddInfo(modifiedFilename, 1);
                     }
+                }
+            }
+
+            if (settings.IsMatchesShown)
+            {
+                Log.AddInfo("Summary of matched patterns:", 0, false);
+                if (matchedPatterns.Keys.Count > 0)
+                {
+                    Log.AddInfo();
+                    foreach (string filename in matchedPatterns.Keys)
+                    {
+                        List<string> matches = matchedPatterns[filename];
+                        foreach (string match in matches)
+                        {
+                            Log.AddInfo(Path.GetFileName(filename) + ": " + match, 1);
+                        }
+                    }
+                }
+                else
+                {
+                    Log.AddInfo(" no matches found");
                 }
             }
 
@@ -169,6 +193,37 @@ namespace Sweco.SIF.ReplaceText
         }
 
         /// <summary>
+        /// Handle tool initialization based on specified settings
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <param name="log"></param>
+        protected virtual void Initialize(SIFToolSettings settings, Log log)
+        {
+            if (!settings.IsOnlyEnvVarsExpanded)
+            {
+                // Correct parameters for @-character: see tool usage.
+                if (settings.Text1.StartsWith("@"))
+                {
+                    settings.Text1 = ParseCommandLineString(settings.Text1.Substring(1, settings.Text1.Length - 1));
+                    string message = "Corrected for escape characters in search string";
+                    log.AddInfo(message);
+                }
+                if (settings.Text2.StartsWith("@"))
+                {
+                    settings.Text2 = ParseCommandLineString(settings.Text2.Substring(1, settings.Text2.Length - 1));
+                    string message = "Corrected for escape characters in replacement string";
+                    log.AddInfo(message);
+                }
+
+                if (settings.IsFindOnly)
+                {
+                    // Ensure text2 is different from text1
+                    settings.Text2 = string.Empty;
+                }
+            }
+        }
+
+        /// <summary>
         /// Replace texts for files in specified path according to settings 
         /// </summary>
         /// <param name="path"></param>
@@ -176,35 +231,16 @@ namespace Sweco.SIF.ReplaceText
         /// <param name="settings"></param>
         /// <param name="log"></param>
         /// <returns></returns>
-        protected int ReplaceText(string path, List<string> selectedFilenames, List<string> matchedFilenames, SIFToolSettings settings, Log log)
+        protected virtual int ReplaceText(string path, List<string> selectedFilenames, List<string> matchedFilenames, Dictionary<string, List<string>> matchedPatterns, SIFToolSettings settings, Log log)
         {
             string message;
             int resultCode = 0; // negative for errors, otherwise the number of matches is returned
-
-            // Correct parameters for @-character: see tool usage.
-            if (settings.Text1.StartsWith("@"))
-            {
-                settings.Text1 = ParseCommandLineString(settings.Text1.Substring(1, settings.Text1.Length - 1));
-                message = "Corrected for escape characters in search string";
-                log.AddInfo(message);
-            }
-            if (settings.Text2.StartsWith("@"))
-            {
-                settings.Text2 = ParseCommandLineString(settings.Text2.Substring(1, settings.Text2.Length - 1));
-                message = "Corrected for escape characters in replacement string";
-                log.AddInfo(message);
-            }
 
             // Retrieve files that match filter that is specified in settings
             string[] filenames = SelectFiles(path, settings, log);
             selectedFilenames.AddRange(filenames);
 
-            if (settings.IsFindOnly)
-            {
-                // Ensure text2 is different from text1
-                settings.Text2 = string.Empty;
-            }
-
+            // Ensure basepath ends with a directory seperator character, when NOT empty (to prevent processing the root path)
             if (!settings.BasePath.EndsWith(Path.DirectorySeparatorChar.ToString()) && !settings.BasePath.Equals(string.Empty))
             {
                 settings.BasePath += Path.DirectorySeparatorChar;
@@ -216,13 +252,20 @@ namespace Sweco.SIF.ReplaceText
                 string text = null;
                 string newText = null;
                 string relativeFilenamePath = settings.BasePath.Equals(string.Empty) ? filename : filename.Replace(settings.BasePath, string.Empty);
-                if (settings.IsFindOnly)
+                if (settings.IsOnlyEnvVarsExpanded)
                 {
-                    message = "Searching '" + settings.Text1 + "' in " + relativeFilenamePath + "... ";
+                    message = "Expanding enviroment variables in '" + relativeFilenamePath + "' ... ";
                 }
                 else
                 {
-                    message = "Replacing '" + settings.Text1 + "' in " + relativeFilenamePath + "... ";
+                    if (settings.IsFindOnly)
+                    {
+                        message = "Searching text1 in '" + relativeFilenamePath + "' ... ";
+                    }
+                    else
+                    {
+                        message = "Replacing text1 in '" + relativeFilenamePath + "' ... ";
+                    }
                 }
 
                 log.AddInfo(message, 0, false);
@@ -265,77 +308,88 @@ namespace Sweco.SIF.ReplaceText
                 }
 
                 // Now replace text1 with text2 according to settings
+                List<string> matches = new List<string>();
                 int matchCount = 0;
                 int excludeCount = 0;
                 if (text != null)
                 {
-                    if (settings.IsCaseSensitive)
+                    if (settings.IsOnlyEnvVarsExpanded)
                     {
-                        // Process case sensitively
-                        if (settings.IsRegExp)
-                        {
-                            // Process case sensitively with regular expressions
-                            newText = Regex.Replace(text, settings.Text1, (match) =>
-                            {
-                                bool isExcluded = IsSkipped(match.Value, settings.ExcludePatterns, settings.IsRegExp, settings.IsCaseSensitive);
-                                if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
-                                {
-                                    excludeCount++;
-                                    return match.Value;
-                                }
-                                else
-                                {
-                                    matchCount++;
-                                    return match.Result(settings.Text2);
-                                }
-                            });
-                        }
-                        else
-                        {
-                            // Process case sensitively without regular expressions
-                            bool isExcluded = IsSkipped(settings.Text1, settings.ExcludePatterns, false, true);
-                            if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
-                            {
-                                newText = text;
-                            }
-                            else
-                            {
-                                newText = CustomReplace(text, settings.Text1, settings.Text2, true, out matchCount, settings.IsFirstOnly);
-                            }
-                        }
+                        // Expand environment variables
+                        newText = Environment.ExpandEnvironmentVariables(text);
                     }
                     else
                     {
-                        // Process case insensitively
-                        if (settings.IsRegExp)
+                        if (settings.IsCaseSensitive)
                         {
-                            // Process case insensitively with regular expressions
-                            newText = Regex.Replace(text, settings.Text1, (match) =>
+                            // Process case sensitively
+                            if (settings.IsRegExp)
                             {
-                                bool isExcluded = IsSkipped(match.Value, settings.ExcludePatterns, settings.IsRegExp, settings.IsCaseSensitive);
-                                if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
+                                // Process case sensitively with regular expressions
+                                newText = Regex.Replace(text, settings.Text1, (match) =>
                                 {
-                                    excludeCount++;
-                                    return match.Value;
-                                }
-                                else
-                                {
-                                    matchCount++;
-                                    return match.Result(settings.Text2);
-                                }
-                            }, (!settings.IsCaseSensitive ? RegexOptions.IgnoreCase : RegexOptions.None));
-                        }
-                        else
-                        {
-                            // Process case insensitively without regular expressions
-                            bool isExcluded = IsSkipped(settings.Text1, settings.ExcludePatterns, false, false);
-                            if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
-                            {
-                                newText = text;
+                                    bool isExcluded = IsSkipped(match.Value, settings.ExcludePatterns, settings.IsRegExp, settings.IsCaseSensitive);
+                                    if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
+                                    {
+                                        excludeCount++;
+                                        return match.Value;
+                                    }
+                                    else
+                                    {
+                                        matches.Add(match.Value);
+                                        matchCount++;
+                                        return match.Result(settings.Text2);
+                                    }
+                                });
                             }
                             else
                             {
-                                newText = CustomReplace(text, settings.Text1, settings.Text2, false, out matchCount, settings.IsFirstOnly);
+                                // Process case sensitively without regular expressions
+                                bool isExcluded = IsSkipped(settings.Text1, settings.ExcludePatterns, false, true);
+                                if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
+                                {
+                                    newText = text;
+                                }
+                                else
+                                {
+                                    newText = CustomReplace(text, settings.Text1, settings.Text2, true, out matchCount, ref matches, settings.IsFirstOnly);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Process case insensitively
+                            if (settings.IsRegExp)
+                            {
+                                // Process case insensitively with regular expressions
+                                newText = Regex.Replace(text, settings.Text1, (match) =>
+                                {
+                                    bool isExcluded = IsSkipped(match.Value, settings.ExcludePatterns, settings.IsRegExp, settings.IsCaseSensitive);
+                                    if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
+                                    {
+                                        excludeCount++;
+                                        return match.Value;
+                                    }
+                                    else
+                                    {
+                                        matches.Add(match.Value);
+                                        matchCount++;
+                                        return match.Result(settings.Text2);
+                                    }
+                                }, (!settings.IsCaseSensitive ? RegexOptions.IgnoreCase : RegexOptions.None));
+                            }
+                            else
+                            {
+                                // Process case insensitively without regular expressions
+                                bool isExcluded = IsSkipped(settings.Text1, settings.ExcludePatterns, false, false);
+                                if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
+                                {
+                                    newText = text;
+                                }
+                                else
+                                {
+                                    newText = CustomReplace(text, settings.Text1, settings.Text2, false, out matchCount, ref matches, settings.IsFirstOnly);
+                                }
                             }
                         }
                     }
@@ -358,6 +412,17 @@ namespace Sweco.SIF.ReplaceText
                         if (log.Listeners.Count == 0)
                         {
                             System.Console.WriteLine(message);
+                        }
+                        if (settings.IsMatchesShown)
+                        {
+                            if (!matchedPatterns.ContainsKey(filename))
+                            {
+                                matchedPatterns.Add(filename, matches);
+                            }
+                            else
+                            {
+                                matchedPatterns[filename].AddRange(matches);
+                            }
                         }
 
                         if (!settings.IsFindOnly)
@@ -442,7 +507,7 @@ namespace Sweco.SIF.ReplaceText
             {
                 foreach (string recursivePath in Directory.GetDirectories(path.Equals(string.Empty) ? "." : path))
                 {
-                    int tmpResultcode = ReplaceText(recursivePath, selectedFilenames, matchedFilenames, settings, log);
+                    int tmpResultcode = ReplaceText(recursivePath, selectedFilenames, matchedFilenames, matchedPatterns, settings, log);
                     // report last error, otherwise the resultcode is used to report the number of matches
                     resultCode = (tmpResultcode < 0) ? tmpResultcode : (resultCode + tmpResultcode);
                 }
@@ -517,7 +582,7 @@ namespace Sweco.SIF.ReplaceText
         /// <param name="count"></param>
         /// <param name="replaceOnce"></param>
         /// <returns></returns>
-        public static string CustomReplace(string srcText, string toFind, string toReplace, bool matchCase, out int count, bool replaceOnce = false)
+        public static string CustomReplace(string srcText, string toFind, string toReplace, bool matchCase, out int count, ref List<string> matches, bool replaceOnce = false)
         {
             StringBuilder sb = new StringBuilder();
             count = 0;
@@ -525,6 +590,11 @@ namespace Sweco.SIF.ReplaceText
             if (matchCase)
             {
                 sc = StringComparison.Ordinal;
+            }
+
+            if (toReplace == null)
+            {
+                toReplace = string.Empty;
             }
 
             int pos = 0 - toReplace.Length;
@@ -545,6 +615,11 @@ namespace Sweco.SIF.ReplaceText
                 }
             }
             sb.Append(srcText.Substring(prevPos, srcText.Length - prevPos));
+
+            if (count > 0)
+            {
+                matches.Add(toFind);
+            }
 
             return sb.ToString();
         }
