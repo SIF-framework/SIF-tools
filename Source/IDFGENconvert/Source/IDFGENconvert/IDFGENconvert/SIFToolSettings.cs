@@ -37,21 +37,31 @@ namespace Sweco.SIF.IDFGENconvert
     public class SIFToolSettings : SIFToolSettingsBase
     {
         public const string DefaultMergedGENFilename = "IDFconversion.GEN";
+        public const int GridPar2DefaultValue = 1;
 
         public string InputPath { get; set; }
         public string InputFilter { get; set; }
         public string OutputPath { get; set; }
         public string OutputFilename { get; set; } = null;
 
-        public int HullType { get; set; }
-        public double HullPar1 { get; set; }
+        public bool ShowWarnings { get; set; }
         public bool IsMerged { get; set; }
         public string MergedGENFilename { get; set; }
+        public int HullType { get; set; }
+        public double HullPar1 { get; set; }
         public List<ValueRange> SkippedValues { get; set; }
+
         public bool IsOptionGUsed { get; set; }
         public float GridCellsize { get; set; }
-        public int GENColIdx { get; set; }
+        public string GridPar1String { get; set; }
+        public string GridPar2String { get; set; }
+        public float GridPar3 { get; set; }
         public bool AddAngleIDFFile { get; set; }
+        public bool AddLengthAreaIDFFile { get; set; }
+        public bool IsIslandConverted { get; set; }
+        public bool IsPointOrderIgnored { get; set; }
+        public bool IsGENOrdered { get; set; }
+        public int CellOverlapMethod { get; set; }
 
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
@@ -63,6 +73,7 @@ namespace Sweco.SIF.IDFGENconvert
             InputFilter = null;
             OutputPath = null;
 
+            ShowWarnings = false;
             IsMerged = false;
             MergedGENFilename = null;
             HullType = 1;
@@ -71,9 +82,16 @@ namespace Sweco.SIF.IDFGENconvert
 
             IsOptionGUsed = false;
             GridCellsize = 25;
-            GENColIdx = -1;  // column index for point, polygon or first line vertex
+            GridPar1String = null;  // column name or index for point, polygon or first line vertex
+            GridPar2String = null;  // for polygons: method for overlap; for lines: column index for value at last/end vertex on line
+            GridPar3 = float.NaN;   // method for cell overlap (for polygons), or max extrapolation distance (for lines)
 
             AddAngleIDFFile = false;
+            AddLengthAreaIDFFile = false;
+            IsIslandConverted = false;
+            IsGENOrdered = false;
+            IsPointOrderIgnored = false;
+            CellOverlapMethod = -1;
         }
 
         /// <summary>
@@ -88,6 +106,9 @@ namespace Sweco.SIF.IDFGENconvert
             AddToolParameterDescription("genFilter", "Filter to select input GEN-files (e.g. *.IDF)", "*.GEN", false, 2);
             AddToolParameterDescription("outPath", "Path to write results", "C:\\Test\\Output", false, new int[] { 1, 2 });
 
+            // Define general option syntax
+            AddToolOptionDescription("s", "Skip specified commaseperated values si, or ranges (s1-s2) in inputfiles", "/s:-9999,-999", "Skipped values: {...}", new string[] { "s1" }, new string[] { "..." }, null, new int[] { 1, 2 });
+
             // Define IDF-GEN option syntax
             AddToolUsageOptionPreRemark("\nFor IDF-GEN conversion:", 1);
             AddToolOptionDescription("h", "Create a hull of type h1:\n" +
@@ -95,16 +116,106 @@ namespace Sweco.SIF.IDFGENconvert
                                           "1) convex hull based on cell centers (default)", "/h:1", "Hull of type {0} created for IDF-files", new string[] { "h1" }, null, null, 1);
             AddToolOptionDescription("m", "Merge all resulting GEN-features into one GEN-file with filename 'fname':\n" +
                                           "If no filename is given, the default is 'IDFconversion.GEN'", "/m", "Resulting GEN-files are merged to: {0}", null, new string[] { "f" }, new string[] { DefaultMergedGENFilename }, 1);
-            AddToolOptionDescription("s", "Skip specified commaseperated values si, or ranges (s1-s2) in inputfiles", "/s:-9999,-999", "Skipped IDF-values: {...}", new string[] { "s1" }, new string[] { "..." }, null, 1);
 
             // Define GEN-IDF option syntax
+            AddToolUsageOptionPreRemark("Statistics (N, average, SD, median, IQR, min, max) about IDF-values per GEN-polygon are written in the GEN-files", 2);
             AddToolUsageOptionPreRemark("\nFor GEN-IDF conversion: ", 2);
-            AddToolOptionDescription("g", "Create a grid with:" + 
+            AddToolOptionDescription("g", "Create a grid with:" +
                                           "cellsize 'sz' (default 25)\n" +
-                                          "for polygons: value in column c1 (one based) or (integer) value c1 if no DAT-file is present\n" +
-                                          "for lines: value in column c1 (one based) or (integer) value c1 if no DAT-file is present\n" +
-                                          "when DAT-file misses and c1 is not defined, sequence numbers are used, starting with 1", "/g:100,5", "Grid is created with cellsize: {0}; and value c1: {1}", new string[] { "sz" }, new string[] { "c1" }, new string[] { "seq.nr" }, 2);
+                                          "for polygons: cells that overlap with a polygon are assigned a value\n" +
+                                          "- c1: columnname or number (one based) or (integer) value c1 if no DAT-file is present\n" +
+                                          "- c2: method for checking polygon-cell overlap: 1) cell center inside polygon; 2) actual overlap\n" +
+                                          "- c3: method for cellvalue/area when multiple polygons intersect cell:\n" +
+                                          "      1)  first: value/area of first processed polygon of GEN-file;\n" +
+                                          "      2)  min: value/area of polygon with minimum cell-value;\n" +
+                                          "      3)  max: value/area of polygon with maximum cell-value;\n" +
+                                          "      4)  sum: sum of value/area of polygon(s);\n" +
+                                          "      5)  largest cellarea: value/area of polygon with largest area in cell;\n" +
+                                          "      6)  weighted average (with weight defined by polygon area in cell);\n" +
+                                          "      7)  smallest cellarea: value/area of polygon with smallest area in cell;\n" +
+                                          "      8)  largest area: value/area of polygon with largest (total) area;\n" +
+                                          "      9)  smallest area: value/area of polygon with smallest (total) area;\n" +
+                                          "      10) last: value/area of last processed polygon of GEN-file.\n" +
+                                          "      For methods 5-9, the value/area of the first polygon is used for equal areas.\n" +
+                                          "for lines: linear interpolation from value in column c1 for first vertex to value in column c2\n" +
+                                          "           (if defined) for last vertex, or (integer) values c1/c2 if no DAT-file is present\n" +
+                                          "           optionally, specify max. distance c3 for extrapolation along vector with only one column value\n" +
+                                          "           columns c1 and/or c2 can be specified as a column name or (one-based) number.\n" + 
+                                          "when DAT-file misses and c1/c2 is not defined, sequence numbers are used, starting with 1", "/g:100,5,6", "Grid is created with cellsize: {0} and values c1/c2/c3: {...}", new string[] { "sz" }, new string[] { "c1", "c2", "c3" }, new string[] { "seq.nr", "N/A", "N/A", "Default" }, 2);
             AddToolOptionDescription("a", "Add IDF-file with angle (line) of first GEN-line(s) in cell", "/a", "IDF-file with angle is added", null, null, null, 2);
+            AddToolOptionDescription("l", "Add IDF-file with length (line) or area (polygon) of features in cell", "/l", "IDF-file with length/area is added", null, null, null, 2);
+            AddToolOptionDescription("n", "Ignore point order, process counterclockwise like clockwise (otherwise counterclockwise is ignored)", null, "Issues with point order are ignored", null, null, null, 2);
+            AddToolOptionDescription("i", "Convert also island polygons (donut holes, i.e. inner polygons with points in counterclockwise order)\n" +
+                                          "for islands the value of the island (the smaller polygon) is always used (par c3 of option g is ignored).\n" +
+                                          "without option i or n only polygons with points in clockwise order are converted.\n" + 
+                                          "note: for islands, option o (ordered GEN-features) is enforced.", "/i", "Islands (donut holes) are also converted", null, null, null, 2);
+            AddToolOptionDescription("o", "Order GEN-polygons/-lines from large to small area/length before processing;\n" + 
+                                          "islands (with negative area) are kept directly after previous polygon in source GEN-file", "/o", "GEN-polygons are ordered from large to small area", null, null, null, 2);
+            AddToolOptionDescription("w", "Show all warnings (and not only first occurance)", "/w",  "All warnings are shown", null, null, null, new int[] { 1, 2 });
+        }
+
+        /// <summary>
+        /// Format specified option parameter value in logstring with a new (readable) string
+        /// </summary>
+        /// <param name="optionName">name of option for which a formatted parameter value is required</param>
+        /// <param name="parameter">name of option parameter for which a formatted parameter value is required</param>
+        /// <param name="parameterValue">the parameter value that has to be formatted</param>
+        /// <param name="parameterValues">for reference, all specified parameter values for this options</param>
+        /// <returns>a readable form of specified parameter value</returns>
+        protected override string FormatLogStringParameter(string optionName, string parameter, string parameterValue, List<string> parameterValues)
+        {
+            // Format options h and g
+            switch (optionName)
+            {
+                case "h":
+                    switch (parameter)
+                    {
+                        case "0":
+                            return "no hull, just IPF-points";
+                        case "1":
+                            return "convex hull";
+
+                        default: return parameterValue;
+                    }
+                case "g":
+                    switch (parameter)
+                    {
+                        case "c1":
+                            return "col " + parameterValue;
+                        case "c2":
+                            // Distinguish between lines and polygons if less than 2 optional parameters are specified
+                            string logSubString = (parameterValues.Count <= 3) ? "col " + parameterValue + " (lines)/" : string.Empty;
+                            switch (parameterValue)
+                            {
+                                case "1": logSubString += "cell centre";
+                                    break;
+                                case "2":
+                                    logSubString += "cell overlap";
+                                    break;
+
+                                default: return parameterValue;
+                            }
+                            return logSubString + ((parameterValues.Count <= 3) ? " (polygons)" : string.Empty);
+                        case "c3":
+                            switch (parameterValue)
+                            {
+                                case "1": return "first";
+                                case "2": return "min";
+                                case "3": return "max";
+                                case "4": return "sum";
+                                case "5": return "largest cellarea";
+                                case "6": return "weighted cellarea";
+                                case "7": return "smallest cellarea";
+                                case "8": return "largest area";
+                                case "9": return "smallest area";
+
+                                default: return parameterValue;
+                            }
+                        default: return parameterValue;
+                    }
+                // As a default, do not use special formatting and simply return parameter value
+                default: return parameterValue;
+            }
         }
 
         /// <summary>
@@ -131,7 +242,7 @@ namespace Sweco.SIF.IDFGENconvert
                 }
                 else
                 {
-                    throw new ToolException("Invalid filter extension, parameter group cannot be determied: " + Path.GetExtension(InputFilter));
+                    throw new ToolException("Invalid filter extension, parameter group cannot be determined: " + Path.GetExtension(InputFilter));
                 }
             }
             else
@@ -159,6 +270,68 @@ namespace Sweco.SIF.IDFGENconvert
                 else
                 {
                     MergedGENFilename = DefaultMergedGENFilename;
+                }
+            }
+            else if (optionName.ToLower().Equals("l"))
+            {
+                AddLengthAreaIDFFile = true;
+            }
+            else if (optionName.ToLower().Equals("w"))
+            {
+                ShowWarnings = true;
+            }
+            else if (optionName.ToLower().Equals("n"))
+            {
+                if (!IsIslandConverted)
+                {
+                    IsPointOrderIgnored = true;
+                }
+            }
+            else if (optionName.ToLower().Equals("i"))
+            {
+                IsIslandConverted = true;
+                IsGENOrdered = true;
+                IsPointOrderIgnored = false;
+            }
+            else if (optionName.ToLower().Equals("o"))
+            {
+                IsGENOrdered = true;
+            }
+            else if (optionName.ToLower().Equals("g"))
+            {
+                IsOptionGUsed = true;
+                if (hasOptionParameters)
+                {
+                    // split part after colon to strings seperated by a comma
+                    string[] optionParameters = GetOptionParameters(optionParametersString);
+                    if (optionParameters.Length == 0)
+                    {
+                        throw new ToolException("Please specify parameters after 'g:':" + optionParametersString);
+                    }
+                    else
+                    {
+                        try
+                        {
+                            // Parse substrings for this option: cellsize and column indices c1 and c2
+                            GridCellsize = float.Parse(optionParameters[0], NumberStyles.Float, EnglishCultureInfo);
+                            if (optionParameters.Length >= 2)
+                            {
+                                GridPar1String = optionParameters[1];
+                            }
+                            if (optionParameters.Length >= 3)
+                            {
+                                GridPar2String = optionParameters[2];
+                            }
+                            if (optionParameters.Length >= 4)
+                            {
+                                GridPar3 = float.Parse(optionParameters[3], NumberStyles.Float, EnglishCultureInfo);
+                            }
+                        }
+                        catch (Exception)
+                        {
+                            throw new ToolException("Could not parse values for option '" + optionName + "':" + optionParametersString);
+                        }
+                    }
                 }
             }
             else if (optionName.ToLower().Equals("s"))
@@ -245,35 +418,6 @@ namespace Sweco.SIF.IDFGENconvert
                     }
                 }
             }
-            else if (optionName.ToLower().Equals("g"))
-            {
-                IsOptionGUsed = true;
-                if (hasOptionParameters)
-                {
-                    // split part after colon to strings seperated by a comma
-                    string[] optionParameters = GetOptionParameters(optionParametersString);
-                    if (optionParameters.Length == 0)
-                    {
-                        throw new ToolException("Please specify parameters after 'g:':" + optionParametersString);
-                    }
-                    else
-                    {
-                        try
-                        {
-                            // Parse substrings for this option: cellsize and column indices c1 and c2
-                            GridCellsize = float.Parse(optionParameters[0], NumberStyles.Float, EnglishCultureInfo);
-                            if (optionParameters.Length >= 2)
-                            {
-                                GENColIdx = int.Parse(optionParameters[1]);
-                            }
-                        }
-                        catch (Exception)
-                        {
-                            throw new ToolException("Could not parse values for option '" + optionName + "':" + optionParametersString);
-                        }
-                    }
-                }
-            }
             else if (optionName.ToLower().Equals("a"))
             {
                 AddAngleIDFFile = true;
@@ -330,20 +474,28 @@ namespace Sweco.SIF.IDFGENconvert
             OutputFilename = null;
             if (Path.GetExtension(OutputPath).Length > 0)
             {
-                if (!Path.GetExtension(OutputPath).ToLower().Equals(".gen") && !Path.GetExtension(OutputPath).ToLower().Equals(".idf"))
+                if (HullType.Equals(0))
                 {
-                    throw new ToolException("Output filename should have .GEN or .IDF-extension: " + OutputPath);
+                    if (!Path.GetExtension(OutputPath).ToLower().Equals(".ipf"))
+                    {
+                        throw new ToolException("Output filename should have .IPF-extension for hull-method 0: " + OutputPath);
+                    }
                 }
                 else
                 {
-                    OutputFilename = Path.GetFileName(OutputPath);
-                    OutputPath = Path.GetDirectoryName(OutputPath);
-
-                    // Create output path if not yet existing
-                    if (!Directory.Exists(Path.GetDirectoryName(OutputPath)))
+                    if (!Path.GetExtension(OutputPath).ToLower().Equals(".gen") && !Path.GetExtension(OutputPath).ToLower().Equals(".idf"))
                     {
-                        Directory.CreateDirectory(Path.GetDirectoryName(OutputPath));
+                        throw new ToolException("Output filename should have .GEN or .IDF-extension: " + OutputPath);
                     }
+                }
+
+                OutputFilename = Path.GetFileName(OutputPath);
+                OutputPath = Path.GetDirectoryName(OutputPath);
+
+                // Create output path if not yet existing
+                if (!Directory.Exists(Path.GetDirectoryName(OutputPath)))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(OutputPath));
                 }
             }
             else

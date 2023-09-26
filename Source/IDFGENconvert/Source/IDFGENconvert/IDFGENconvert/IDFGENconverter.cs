@@ -27,6 +27,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
+using Sweco.SIF.iMOD;
 using Sweco.SIF.iMOD.GEN;
 using Sweco.SIF.iMOD.IDF;
 using Sweco.SIF.iMOD.IPF;
@@ -39,6 +40,8 @@ namespace Sweco.SIF.IDFGENconvert
     /// </summary>
     public class IDFGENConverter
     {
+        public const int StatisticsDecimalCount = 3;
+
         protected SIFToolSettings settings;
         protected Log log;
 
@@ -49,21 +52,61 @@ namespace Sweco.SIF.IDFGENconvert
         }
 
         /// <summary>
+        /// Initalize result GEN-file and metadata file based on specified settings
+        /// </summary>
+        /// <param name="genFile"></param>
+        /// <param name="metadata"></param>
+        /// <param name="settings"></param>
+        /// <param name="inputFilename"></param>
+        public virtual void InitializeGENFile(ref GENFile genFile, ref Metadata metadata, SIFToolSettings settings, string inputFilename)
+        {
+            if ((settings.IsMerged) && (genFile == null))
+            {
+                // Results are merged in a single GEN-file
+                genFile = new GENFile();
+                genFile.Filename = Path.Combine(settings.OutputPath, settings.MergedGENFilename);
+                AddDATFile(genFile);
+
+                metadata = new Metadata("Automatic conversion from IDF to GEN-file with convex hull around non-NoData and non-zero cells");
+                metadata.Source = settings.InputPath + "; " + settings.InputFilter;
+            }
+            else
+            {
+                // A resulting GEN-file is created for each input IDF-file
+                genFile = new GENFile();
+                if ((settings.OutputFilename != null) && Path.GetExtension(settings.OutputFilename).ToLower().Equals(".gen"))
+                {
+                    genFile.Filename = Path.Combine(settings.OutputPath, Path.GetFileNameWithoutExtension(settings.OutputFilename + ".GEN"));
+                }
+                else
+                {
+                    genFile.Filename = Path.Combine(settings.OutputPath, Path.GetFileNameWithoutExtension(inputFilename) + ".GEN");
+                }
+                
+                AddDATFile(genFile);
+
+                metadata = new Metadata("Automatic conversion from IDF to GEN-file with convex hull around non-NoData and non-zero cells");
+                metadata.Source = inputFilename;
+            }
+        }
+
+        /// <summary>
         /// Convert IDF-file to specified GEN-file
         /// </summary>
         /// <param name="inputIDFFilename">input IDF-filename</param>
         /// <param name="genFile">GEN-file to which converted GEN-features will be added. It should have a DAT-file with columns: SourceFile, Source, Idx, SourceValue</param>
         /// <param name="outputPath"></param>
+        /// <param name="logIndentLevel"></param>
         /// <returns></returns>
-        public virtual bool Convert(string inputIDFFilename, ref GENFile genFile, string outputPath)
+        public virtual bool Convert(string inputIDFFilename, ref GENFile genFile, string outputPath, int logIndentLevel)
         {
-            log.AddInfo("converting " + Path.GetFileName(inputIDFFilename) + " to '" + settings.GetHullTypeString() +  "' ...", 1);
+            log.AddInfo("converting " + Path.GetFileName(inputIDFFilename) + " to '" + settings.GetHullTypeString() +  "' ...", logIndentLevel);
 
             // Read input IDF-file and remove optionally skipped values
             IDFFile inputIDFFile = IDFFile.ReadFile(inputIDFFilename);
             if (settings.SkippedValues != null)
             {
-                log.AddInfo("skipping values ...", 1);
+                log.AddInfo("skipping values ...", logIndentLevel);
                 foreach (ValueRange range in settings.SkippedValues)
                 {
                     if (range.V1.Equals(range.V2))
@@ -78,20 +121,37 @@ namespace Sweco.SIF.IDFGENconvert
             }
 
             // Convert IDF-file to GEN-file
-            GENFile idfGENFile = Convert(inputIDFFile, genFile.Features.Count + 1, outputPath);
+            GENFile idfGENFile = Convert(inputIDFFile, genFile.Features.Count + 1, outputPath, logIndentLevel);
 
-            // Write resulting GEN-file
+            // Add feartures from resulting GEN-file to output GEN-file
             if ((idfGENFile != null) && (idfGENFile.Features.Count > 0))
             {
                 int genFeatureIdx = genFile.Features.Count + 1;
                 foreach (GENFeature genFeature in idfGENFile.Features)
                 {
-                    // Add GEN-feature, but use renumbered id, to get sequential id's in resulting GEN-file 
-                    genFeature.ID = genFeatureIdx.ToString();
-                    genFile.AddFeature(genFeature);
+                    // string sourceID = genFeature.ID;
 
-                    DATRow datRow = new DATRow(new List<string>() { genFile.Count.ToString(), inputIDFFile.Filename, Path.GetFileNameWithoutExtension(inputIDFFile.Filename), genFeatureIdx.ToString(), inputIDFFile.Filename.Replace("value ", string.Empty) });
-                    genFile.DATFile.AddRow(datRow);
+                    //if ((genFeature.ID == "12933") || (genFeature.ID == "12934"))
+                    //{
+                    //    int a = 0;
+                    //}
+
+                    DATRow datRow = idfGENFile.DATFile.GetRow(genFeature.ID);
+//                    genFeature.GENFile.DATFile.RemoveRow(sourceID);
+//                    genFeature.ID = genFeatureIdx.ToString();
+                    if (datRow == null)
+                    {
+                    //    datRow[0] = genFeature.ID;
+                    //    genFeature.GENFile.DATFile.AddRow(datRow);
+                    //}
+                    //else
+                    //{
+                        log.AddWarning("No DAT-row found for GEN-feature " + genFeature.ID);
+                    }
+
+                    // Add GEN-feature, but use renumbered id, to get sequential id's in resulting GEN-file 
+                    genFile.AddFeature(genFeature, true, genFeatureIdx);
+
                     genFeatureIdx++;
                 }
             }
@@ -104,11 +164,13 @@ namespace Sweco.SIF.IDFGENconvert
         /// </summary>
         /// <param name="inputIDFFile">input IDF-file</param>
         /// <param name="featureIdx">integer value with ID for generated GEN-feature</param>
-        /// <param name="outputPath"></param>
+        /// <param name="outputPath">path to write IPF-file when Hull-type is 0</param>
+        /// <param name="logIndentLevel"></param>
         /// <returns>GEN-file with (one or more) feature(s), null if no features to convert or </returns>
-        protected virtual GENFile Convert(IDFFile inputIDFFile, int featureIdx, string outputPath)
+        protected virtual GENFile Convert(IDFFile inputIDFFile, int featureIdx, string outputPath, int logIndentLevel)
         {
             GENFile idfGENFile = new GENFile();
+            AddDATFile(idfGENFile);
 
             if (settings.HullType == 0)
             {
@@ -117,13 +179,22 @@ namespace Sweco.SIF.IDFGENconvert
                 RetrieveIDFPoints(inputIDFFile, out points, out values);
 
                 // Just write IPF-file, no GEN-features are added for this option
-                string ipfFilename = Path.Combine(outputPath, Path.GetFileNameWithoutExtension((settings.IsMerged && (settings.MergedGENFilename != null)) ? settings.MergedGENFilename : inputIDFFile.Filename) + ".IPF");
-                WriteIPFFile(ipfFilename, points, values, settings.IsMerged ? Path.GetFileName(ipfFilename) : null);
+                string ipfFilename = null;
+                if (settings.IsMerged)
+                {
+                    ipfFilename = Path.Combine(outputPath, Path.GetFileNameWithoutExtension(settings.MergedGENFilename + ".IPF"));
+                }
+                else
+                {
+                    ipfFilename = Path.Combine(outputPath, Path.GetFileNameWithoutExtension((settings.OutputFilename != null) ? settings.OutputFilename : inputIDFFile.Filename) + ".IPF");
+                }
+                WriteIPFFile(ipfFilename, points, values, settings.IsMerged ? Path.GetFileName(inputIDFFile.Filename) : null);
             }
             else if (settings.HullType == 1)
             {
                 List<Point> idfPoints = null;
-                RetrieveIDFPoints(inputIDFFile, out idfPoints);
+                List<float> values = null;
+                RetrieveIDFPoints(inputIDFFile, out idfPoints, out values);
                 List<Point> convexHullPoints = GIS.ConvexHull.RetrieveConvexHull(idfPoints);
                 if (convexHullPoints != null)
                 {
@@ -132,6 +203,7 @@ namespace Sweco.SIF.IDFGENconvert
                     genPolygon.Points.Add(new DoublePoint(convexHullPoints[0].X, convexHullPoints[0].Y));
 
                     idfGENFile.AddFeature(genPolygon);
+                    AddDATRow(idfGENFile, genPolygon.ID, inputIDFFile.Filename, 1, values);
                 }
                 else if (idfPoints.Count >= 1)
                 {
@@ -140,6 +212,7 @@ namespace Sweco.SIF.IDFGENconvert
                     extentPoints.Add(extentPoints[0]);
 
                     idfGENFile.AddFeature(new GENPolygon(idfGENFile, featureIdx, extentPoints));
+                    AddDATRow(idfGENFile, featureIdx.ToString(), inputIDFFile.Filename, 1, values);
                 }
                 else
                 {
@@ -152,6 +225,46 @@ namespace Sweco.SIF.IDFGENconvert
             }
 
             return idfGENFile;
+        }
+
+        /// <summary>
+        /// Add DATFile object to specified GEN-file and add column names
+        /// </summary>
+        /// <param name="genFile"></param>
+        protected virtual void AddDATFile(GENFile genFile)
+        {
+            genFile.AddDATFile();
+            genFile.DATFile.AddColumns(new List<string>() { "SourceFile", "Idx", "Count", "Average", "SD", "Median", "IQR", "Min", "Max" });
+        }
+
+        /// <summary>
+        /// Add DAT-row with specified id and value statistics to GEN-file
+        /// </summary>
+        /// <param name="genFile"></param>
+        /// <param name="id"></param>
+        /// <param name="sourceFilename"></param>
+        /// <param name="index"></param>
+        /// <param name="values"></param>
+        protected virtual void AddDATRow(GENFile genFile, string id, string sourceFilename, int index, List<float> values)
+        {
+            Statistics.Statistics stats = new Statistics.Statistics(values);
+            stats.ComputeBasicStatistics(false, false, false);
+            stats.ComputePercentiles();
+
+            // Remove old row with default empty column values when it exists
+            genFile.DATFile.RemoveRow(id);
+
+            genFile.DATFile.AddRow(new DATRow(new string[] {
+                id,
+                Path.GetFileName(sourceFilename),
+                index.ToString(),
+                values.Count.ToString(),
+                Math.Round(stats.Mean, StatisticsDecimalCount).ToString(SIFTool.EnglishCultureInfo),
+                Math.Round(stats.SD, StatisticsDecimalCount).ToString(SIFTool.EnglishCultureInfo),
+                Math.Round(stats.Median, StatisticsDecimalCount).ToString(SIFTool.EnglishCultureInfo),
+                Math.Round(stats.IQR, StatisticsDecimalCount).ToString(SIFTool.EnglishCultureInfo),
+                Math.Round(stats.Min, StatisticsDecimalCount).ToString(SIFTool.EnglishCultureInfo),
+                Math.Round(stats.Max, StatisticsDecimalCount).ToString(SIFTool.EnglishCultureInfo) }));
         }
 
         /// <summary>

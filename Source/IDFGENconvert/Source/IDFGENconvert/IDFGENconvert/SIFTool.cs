@@ -133,18 +133,18 @@ namespace Sweco.SIF.IDFGENconvert
             IDFGENConverter idfGENConverter = CreateIDFGENConverter(settings, Log);
             foreach (string inputFilename in inputFilenames)
             {
-                Log.AddInfo("Processing file " + Path.GetFileName(inputFilename) + " ...");
+                Log.AddInfo("Processing file '" + Path.GetFileName(inputFilename) + "' ...");
 
                 bool isConverted = false;
                 try
                 {
                     if (Path.GetExtension(inputFilename).ToLower().Equals(".idf"))
                     {
-                        // Initialize GEN-file to store result, depending on merge setting
-                        InitializeGENFile(ref genFile, ref metadata, settings, inputFilename);
+                        // Initialize GEN-file to store result. Depending on the merge setting features are added to the existing GENFile or to a new GENFile object
+                        idfGENConverter.InitializeGENFile(ref genFile, ref metadata, settings, inputFilename);
 
                         // Convert IDF-file to GEN-file
-                        isConverted = idfGENConverter.Convert(inputFilename, ref genFile, settings.OutputPath);
+                        isConverted = idfGENConverter.Convert(inputFilename, ref genFile, settings.OutputPath, 1);
 
                         // When not merged, write GEN-file for this input IDF-file now
                         if (!settings.IsMerged && (genFile.Count > 0))
@@ -155,7 +155,11 @@ namespace Sweco.SIF.IDFGENconvert
                     else if (Path.GetExtension(inputFilename).ToLower().Equals(".gen"))
                     {
                         // Convert GEN-file to IDF-file
-                        isConverted = genIDFConverter.Convert(inputFilename, settings.OutputPath, (settings.OutputFilename != null) ? settings.OutputFilename : inputFilename);
+                        isConverted = genIDFConverter.Convert(inputFilename, settings.OutputPath, (settings.OutputFilename != null) ? settings.OutputFilename : inputFilename, 1);
+                    }
+                    else
+                    {
+                        Log.AddWarning("Skipping unknown file '" + Path.GetFileName(inputFilename) + "' ...", 1);
                     }
 
                     if (isConverted)
@@ -175,6 +179,14 @@ namespace Sweco.SIF.IDFGENconvert
 
             if (settings.IsMerged && (genFile.Count > 0))
             {
+#if DEBUG
+                string genIDs = string.Empty;
+                for (int featureIdx = 0; featureIdx < genFile.Features.Count; featureIdx++)
+                {
+                    genIDs += genFile.Features[featureIdx].ID + ": " + genFile.Features[featureIdx].Points.Count + "\n";
+                }
+                FileUtils.WriteFile(Path.ChangeExtension(genFile.Filename, ".txt"), genIDs);
+#endif
                 genFile.WriteFile(metadata);
             }
 
@@ -203,46 +215,6 @@ namespace Sweco.SIF.IDFGENconvert
         protected virtual GENIDFConverter CreateGENIDFConverter(SIFToolSettings settings, Log log)
         {
             return new GENIDFConverter(settings, Log);
-        }
-
-        /// <summary>
-        /// Initalize result GEN-file and metadata file based on specified settings
-        /// </summary>
-        /// <param name="genFile"></param>
-        /// <param name="metadata"></param>
-        /// <param name="settings"></param>
-        /// <param name="inputFilename"></param>
-        protected virtual void InitializeGENFile(ref GENFile genFile, ref Metadata metadata, SIFToolSettings settings, string inputFilename)
-        {
-            if ((settings.IsMerged) && (genFile == null))
-            {
-                // Results are merged in a single GEN-file
-                genFile = new GENFile();
-                genFile.Filename = Path.Combine(settings.OutputPath, settings.MergedGENFilename);
-                genFile.AddDATFile();
-                genFile.DATFile.AddColumns(new List<string>() { "SourceFile", "Source", "Idx", "SourceValue" });
-
-                metadata = new Metadata("Automatic conversion from IDF to GEN-file with convex hull around non-NoData and non-zero cells");
-                metadata.Source = settings.InputPath + "; " + settings.InputFilter;
-            }
-            else
-            {
-                // A resulting GEN-file is created for each input IDF-file
-                genFile = new GENFile();
-                if ((settings.OutputFilename != null) && Path.GetExtension(settings.OutputFilename).ToLower().Equals(".gen"))
-                {
-                    genFile.Filename = Path.Combine(settings.OutputPath, Path.GetFileNameWithoutExtension(settings.OutputFilename));
-                }
-                else
-                {
-                    genFile.Filename = Path.Combine(settings.OutputPath, Path.GetFileNameWithoutExtension(inputFilename) + ".GEN");
-                }
-                genFile.AddDATFile();
-                genFile.DATFile.AddColumns(new List<string>() { "SourceFile", "Source", "Idx", "SourceValue" });
-
-                metadata = new Metadata("Automatic conversion from IDF to GEN-file with convex hull around non-NoData and non-zero cells");
-                metadata.Source = inputFilename;
-            }
         }
     }
 }
