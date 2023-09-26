@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1622
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPFmerge", "IPFmerge\IPFmerge\IPFmerge.csproj", "{B4F4C19D-5E02-436B-A7FE-B22BF457DA54}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPFmerge.Tests", "IPFmerge\IPFmerge.Tests\IPFmerge.Tests.csproj", "{2357DF44-F655-4EAF-8C1B-351A30BB96E3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B4F4C19D-5E02-436B-A7FE-B22BF457DA54}.Debug|x64.ActiveCfg = Debug|x64
+		{B4F4C19D-5E02-436B-A7FE-B22BF457DA54}.Debug|x64.Build.0 = Debug|x64
+		{B4F4C19D-5E02-436B-A7FE-B22BF457DA54}.Release|x64.ActiveCfg = Release|x64
+		{B4F4C19D-5E02-436B-A7FE-B22BF457DA54}.Release|x64.Build.0 = Release|x64
+		{2357DF44-F655-4EAF-8C1B-351A30BB96E3}.Debug|x64.ActiveCfg = Debug|x64
+		{2357DF44-F655-4EAF-8C1B-351A30BB96E3}.Debug|x64.Build.0 = Debug|x64
+		{2357DF44-F655-4EAF-8C1B-351A30BB96E3}.Release|x64.ActiveCfg = Release|x64
+		{2357DF44-F655-4EAF-8C1B-351A30BB96E3}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {214F88D0-876A-47BD-91FC-DD69D7FA099E}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1622
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ISGinfo", "ISGinfo\ISGinfo\ISGinfo.csproj", "{8F91E8CB-72FE-4B0D-A766-A0BA6DACBB3C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ISGinfo.Tests", "ISGinfo\ISGinfo.Tests\ISGinfo.Tests.csproj", "{7C8B1112-CE70-4F68-BDED-FAF68054C5B2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8F91E8CB-72FE-4B0D-A766-A0BA6DACBB3C}.Debug|x64.ActiveCfg = Debug|x64
+		{8F91E8CB-72FE-4B0D-A766-A0BA6DACBB3C}.Debug|x64.Build.0 = Debug|x64
+		{8F91E8CB-72FE-4B0D-A766-A0BA6DACBB3C}.Release|x64.ActiveCfg = Release|x64
+		{8F91E8CB-72FE-4B0D-A766-A0BA6DACBB3C}.Release|x64.Build.0 = Release|x64
+		{7C8B1112-CE70-4F68-BDED-FAF68054C5B2}.Debug|x64.ActiveCfg = Debug|x64
+		{7C8B1112-CE70-4F68-BDED-FAF68054C5B2}.Debug|x64.Build.0 = Debug|x64
+		{7C8B1112-CE70-4F68-BDED-FAF68054C5B2}.Release|x64.ActiveCfg = Release|x64
+		{7C8B1112-CE70-4F68-BDED-FAF68054C5B2}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F5B03505-F3A0-4789-8AAE-04F060AA328B}
+	EndGlobalSection
+EndGlobal

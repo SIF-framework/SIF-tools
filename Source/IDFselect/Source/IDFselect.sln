@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1622
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IDFselect", "IDFselect\IDFselect\IDFselect.csproj", "{FDDA8969-C479-4F18-9BCD-2BBC1D5C16BF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IDFselect.Tests", "IDFselect\IDFselect.Tests\IDFselect.Tests.csproj", "{8610D6AD-B121-47FA-9F02-741EF2EC4DF2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FDDA8969-C479-4F18-9BCD-2BBC1D5C16BF}.Debug|x64.ActiveCfg = Debug|x64
+		{FDDA8969-C479-4F18-9BCD-2BBC1D5C16BF}.Debug|x64.Build.0 = Debug|x64
+		{FDDA8969-C479-4F18-9BCD-2BBC1D5C16BF}.Release|x64.ActiveCfg = Release|x64
+		{FDDA8969-C479-4F18-9BCD-2BBC1D5C16BF}.Release|x64.Build.0 = Release|x64
+		{8610D6AD-B121-47FA-9F02-741EF2EC4DF2}.Debug|x64.ActiveCfg = Debug|x64
+		{8610D6AD-B121-47FA-9F02-741EF2EC4DF2}.Debug|x64.Build.0 = Debug|x64
+		{8610D6AD-B121-47FA-9F02-741EF2EC4DF2}.Release|x64.ActiveCfg = Release|x64
+		{8610D6AD-B121-47FA-9F02-741EF2EC4DF2}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5DBDDB76-FB6A-4461-BE4B-E00F784E7FB6}
+	EndGlobalSection
+EndGlobal

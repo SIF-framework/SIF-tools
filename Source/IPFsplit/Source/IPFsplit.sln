@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1525
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPFsplit", "IPFsplit\IPFsplit\IPFsplit.csproj", "{CCA0CA73-E96A-4173-A830-C377941F3FAC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPFsplit.Tests", "IPFsplit\IPFsplit.Tests\IPFsplit.Tests.csproj", "{016C9D7C-A2F5-4C4B-9D76-4DD58B0EA244}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CCA0CA73-E96A-4173-A830-C377941F3FAC}.Debug|x64.ActiveCfg = Debug|x64
+		{CCA0CA73-E96A-4173-A830-C377941F3FAC}.Debug|x64.Build.0 = Debug|x64
+		{CCA0CA73-E96A-4173-A830-C377941F3FAC}.Release|x64.ActiveCfg = Release|x64
+		{CCA0CA73-E96A-4173-A830-C377941F3FAC}.Release|x64.Build.0 = Release|x64
+		{016C9D7C-A2F5-4C4B-9D76-4DD58B0EA244}.Debug|x64.ActiveCfg = Debug|x64
+		{016C9D7C-A2F5-4C4B-9D76-4DD58B0EA244}.Debug|x64.Build.0 = Debug|x64
+		{016C9D7C-A2F5-4C4B-9D76-4DD58B0EA244}.Release|x64.ActiveCfg = Release|x64
+		{016C9D7C-A2F5-4C4B-9D76-4DD58B0EA244}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {659A49AB-B4BE-43B6-A4CA-F66A3074B7A9}
+	EndGlobalSection
+EndGlobal

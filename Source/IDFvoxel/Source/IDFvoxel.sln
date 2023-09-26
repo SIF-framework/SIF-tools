@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1622
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IDFvoxel", "IDFvoxel\IDFvoxel\IDFvoxel.csproj", "{679868A7-78D9-47CB-9C13-8708F2CC51CC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IDFvoxel.Tests", "IDFvoxel\IDFvoxel.Tests\IDFvoxel.Tests.csproj", "{C3358BC2-2F59-49D9-96AD-2BA6F4A729D1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{679868A7-78D9-47CB-9C13-8708F2CC51CC}.Debug|x64.ActiveCfg = Debug|x64
+		{679868A7-78D9-47CB-9C13-8708F2CC51CC}.Debug|x64.Build.0 = Debug|x64
+		{679868A7-78D9-47CB-9C13-8708F2CC51CC}.Release|x64.ActiveCfg = Release|x64
+		{679868A7-78D9-47CB-9C13-8708F2CC51CC}.Release|x64.Build.0 = Release|x64
+		{C3358BC2-2F59-49D9-96AD-2BA6F4A729D1}.Debug|x64.ActiveCfg = Debug|x64
+		{C3358BC2-2F59-49D9-96AD-2BA6F4A729D1}.Debug|x64.Build.0 = Debug|x64
+		{C3358BC2-2F59-49D9-96AD-2BA6F4A729D1}.Release|x64.ActiveCfg = Release|x64
+		{C3358BC2-2F59-49D9-96AD-2BA6F4A729D1}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F88783C3-44D4-41CB-A47F-9FEA060759AD}
+	EndGlobalSection
+EndGlobal

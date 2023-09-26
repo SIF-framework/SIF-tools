@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.2092
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPFcolidx", "IPFcolidx\IPFcolidx\IPFcolidx.csproj", "{4405BED9-8804-4798-8519-BB22E63FEDF1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPFcolidx.Tests", "IPFcolidx\IPFcolidx.Tests\IPFcolidx.Tests.csproj", "{EF943C3B-7ABB-445E-BF00-ACF4472EB678}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4405BED9-8804-4798-8519-BB22E63FEDF1}.Debug|x64.ActiveCfg = Debug|x64
+		{4405BED9-8804-4798-8519-BB22E63FEDF1}.Debug|x64.Build.0 = Debug|x64
+		{4405BED9-8804-4798-8519-BB22E63FEDF1}.Release|x64.ActiveCfg = Release|x64
+		{4405BED9-8804-4798-8519-BB22E63FEDF1}.Release|x64.Build.0 = Release|x64
+		{EF943C3B-7ABB-445E-BF00-ACF4472EB678}.Debug|x64.ActiveCfg = Debug|x64
+		{EF943C3B-7ABB-445E-BF00-ACF4472EB678}.Debug|x64.Build.0 = Debug|x64
+		{EF943C3B-7ABB-445E-BF00-ACF4472EB678}.Release|x64.ActiveCfg = Release|x64
+		{EF943C3B-7ABB-445E-BF00-ACF4472EB678}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4643F2E5-36F8-4A6B-985F-A515B9F8ECF5}
+	EndGlobalSection
+EndGlobal

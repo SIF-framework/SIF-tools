@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1525
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPFsample", "IPFsample\IPFsample\IPFsample.csproj", "{D4594F10-0830-4C3F-BAC7-0C2BDBCDFB94}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPFsample.Tests", "IPFsample\IPFsample.Tests\IPFsample.Tests.csproj", "{C345B44A-41E7-4519-BB54-FBC02D6AFF61}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D4594F10-0830-4C3F-BAC7-0C2BDBCDFB94}.Debug|x64.ActiveCfg = Debug|x64
+		{D4594F10-0830-4C3F-BAC7-0C2BDBCDFB94}.Debug|x64.Build.0 = Debug|x64
+		{D4594F10-0830-4C3F-BAC7-0C2BDBCDFB94}.Release|x64.ActiveCfg = Release|x64
+		{D4594F10-0830-4C3F-BAC7-0C2BDBCDFB94}.Release|x64.Build.0 = Release|x64
+		{C345B44A-41E7-4519-BB54-FBC02D6AFF61}.Debug|x64.ActiveCfg = Debug|x64
+		{C345B44A-41E7-4519-BB54-FBC02D6AFF61}.Debug|x64.Build.0 = Debug|x64
+		{C345B44A-41E7-4519-BB54-FBC02D6AFF61}.Release|x64.ActiveCfg = Release|x64
+		{C345B44A-41E7-4519-BB54-FBC02D6AFF61}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6D6FE6D2-C12A-4000-B069-E3F9AAE728A4}
+	EndGlobalSection
+EndGlobal

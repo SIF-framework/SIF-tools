@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1525
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GENsplit", "GENsplit\GENsplit\GENsplit.csproj", "{323DBAD4-7DE5-4EB6-AAFD-B070CD28FA8E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GENsplit.Tests", "GENsplit\GENsplit.Tests\GENsplit.Tests.csproj", "{10640F8C-4590-4BC0-B73F-7E389A50D9E7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{323DBAD4-7DE5-4EB6-AAFD-B070CD28FA8E}.Debug|x64.ActiveCfg = Debug|x64
+		{323DBAD4-7DE5-4EB6-AAFD-B070CD28FA8E}.Debug|x64.Build.0 = Debug|x64
+		{323DBAD4-7DE5-4EB6-AAFD-B070CD28FA8E}.Release|x64.ActiveCfg = Release|x64
+		{323DBAD4-7DE5-4EB6-AAFD-B070CD28FA8E}.Release|x64.Build.0 = Release|x64
+		{10640F8C-4590-4BC0-B73F-7E389A50D9E7}.Debug|x64.ActiveCfg = Debug|x64
+		{10640F8C-4590-4BC0-B73F-7E389A50D9E7}.Debug|x64.Build.0 = Debug|x64
+		{10640F8C-4590-4BC0-B73F-7E389A50D9E7}.Release|x64.ActiveCfg = Release|x64
+		{10640F8C-4590-4BC0-B73F-7E389A50D9E7}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C926A40D-279E-4039-ACB6-7C4ED2EF3674}
+	EndGlobalSection
+EndGlobal
