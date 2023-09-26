@@ -37,6 +37,9 @@ namespace Sweco.SIF.IPFreorder
     {
         public const string ColumnSeparator = ";";
         public const string NewColumnPrefix = "+";
+        public const string DeleteColumnPrefix = "-";
+        public const string RenameColumnSeperator = "=";
+        public const string RemainderColumnPostfix = "+";
 
         public string InputPath { get; set; }
         public string InputFilter { get; set; }
@@ -44,10 +47,21 @@ namespace Sweco.SIF.IPFreorder
 
         public bool IsOverwrite { get; set; }
         public bool IsRecursive { get; set; }
-        public string[] SourceColumnStrings { get; set; }       // columnindices or names of source IPF-file
-        public string[] TargetColumnNames { get; set; }         // new column names in target IPF-file for constant values
-        public string[] TargetColumnExpressions { get; set; }   // constant values
-        public int AssociatedFileColumnIndex { get; set; }      
+        public string[] SourceColumnReferences { get; set; }       // columnindices or names of source IPF-file
+        public string[] TargetColumnNames { get; set; }            // new column names in target IPF-file for constant values
+        public string[] TargetColumnExpressions { get; set; }      // constant values
+        public string[] RemovedColumnNames { get; set; }           // column names of renamed or deleted columns 
+        public int AssociatedFileColumnIndex { get; set; }
+
+        /// <summary>
+        /// If true, no timeseries are read and/or written
+        /// </summary>
+        public bool IsTimeseriesSkipped { get; set; }
+
+        /// <summary>
+        /// (Relative) path of associated timeseries files or null to ignore copy from source file
+        /// </summary>
+        public string TimeseriesPath { get; set; }
 
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
@@ -59,10 +73,13 @@ namespace Sweco.SIF.IPFreorder
             InputFilter = null;
             OutputPath = null;
             IsRecursive = false;
-            SourceColumnStrings = null;
+            SourceColumnReferences = null;
             TargetColumnNames = null;
             TargetColumnExpressions = null;
+            RemovedColumnNames = null;
             AssociatedFileColumnIndex = -1;
+            IsTimeseriesSkipped = false;
+            TimeseriesPath = null;
         }
 
         /// <summary>
@@ -79,13 +96,20 @@ namespace Sweco.SIF.IPFreorder
                                                 + "col" + ColumnSeparator + "colname     : column number/name in the source IPF-file and a new columnname for the target IPF-file\n"
                                                 + NewColumnPrefix + "colname" + ColumnSeparator + "colval : column name for a new column in the target IPF-file, and a\n" 
                                                 + "                  single string for the column value of all existing rows.\n"
+                                                + "                  use [n:A=B] for filename and replace substring A with B (case ignored)\n"
+                                                + "                  use [n:-A] for part of filename after last ocurrance of substring A (case ignored)\n"
+                                                + "col" + RemainderColumnPostfix + "            : copy specified column and all following columns from source source IPF-file\n"
+                                                + "colA" + RenameColumnSeperator + "colB       : Rename column with name or number colA in current reordered columns with columnname colB\n"
+                                                + DeleteColumnPrefix + "col            : Delete column with name or number col in current reordered columns\n"
                                                 + "Notes: when no column definitions are specified, all columns are copied without reordering.\n"
                                                 + "       environment variables are replaced before evaluating column definitions.",
                                                 "1 2 3;ID +ColumnA;\"some value\"", true, new int[] { 0 });
             AddToolOptionDescription("a", "define column number (in new IPF-file) of associated files, use 0 for IPF-files without associated files\n"
                                         + "if not specified, for columns with existing associated files, the index is corrected for the new order", "/a:3", "Column index of associated files: {0}", new string[] { "i" }, null, null, new int[] { 0, 1 } );
-            AddToolOptionDescription("o", "Overwrite existing target IPF-files; if not specified, existing files will be skipped", "/o", "Existing output files are overwritten", null, null, null, new int[] { 0, 1 });
-            AddToolOptionDescription("r", "Process input path recursively", "/r", "Input path is processed recursively", null, null, null, new int[] { 0, 1 });
+            AddToolOptionDescription("o", "overwrite existing target IPF-files; if not specified, existing files will be skipped", "/o", "Existing output files are overwritten", null, null, null, new int[] { 0, 1 });
+            AddToolOptionDescription("r", "process input path recursively", "/r", "Input path is processed recursively", null, null, null, new int[] { 0, 1 });
+            AddToolOptionDescription("tss", "skip reading and/or writing of IPF-timeseries", null, "IPF-timeseries are not read/written");
+            AddToolOptionDescription("tsp", "reset timeseries path: new relative/absolute path for associated files", null, "IPF-timeseries path is reset to: {0}", new string[] { "p1" });
             AddToolUsageOptionPostRemark("Note: all parameters can be (partly) surrounded by \"-characters to include spaces", 1);
         }
 
@@ -96,21 +120,36 @@ namespace Sweco.SIF.IPFreorder
         /// <param name="groupIndex">returns the index for the argument group for these parameters, 0 if only a single group is defined</param>
         protected override void ParseParameters(string[] parameters, out int groupIndex)
         {
-            if (parameters.Length >= 3)
+            if (parameters.Length >= 2)
             {
-                // Parse syntax 1:
+                // Parse syntax 1 (allow for combinaed path and filename):
+                int idx = 0;
                 groupIndex = 0;
-                InputPath = parameters[0];
-                InputFilter = parameters[1];
-                OutputPath = parameters[2];
+                InputPath = parameters[idx++];
+                if (Path.HasExtension(InputPath))
+                {
+                    InputFilter = Path.GetFileName(InputPath);
+                    InputPath = Path.GetDirectoryName(InputPath);
+                }
+                else 
+                {
+                    if (parameters.Length < 3)
+                    {
+                        throw new ToolException("Missing obligatory parameter: " + CommonUtils.ToString(parameters.ToList()));
+                    }
+
+                    InputFilter = parameters[idx++];
+                }
+                OutputPath = parameters[idx++];
 
                 if (parameters.Length > 3)
                 {
                     // Parse column definitions
-                    ParseColumnArguments(parameters, 3, out string[] sourceColumnStrings, out string[] targetColumnNames, out string[] targetColumnExpressions);
-                    this.SourceColumnStrings = sourceColumnStrings;
+                    ParseColumnArguments(parameters, idx, out string[] sourceColumnReferences, out string[] targetColumnNames, out string[] targetColumnExpressions, out string[] removedColumnNames);
+                    this.SourceColumnReferences = sourceColumnReferences;
                     this.TargetColumnNames = targetColumnNames;
                     this.TargetColumnExpressions = targetColumnExpressions;
+                    this.RemovedColumnNames = removedColumnNames;
                 }
             }
             else
@@ -135,6 +174,32 @@ namespace Sweco.SIF.IPFreorder
             else if (optionName.ToLower().Equals("r"))
             {
                 IsRecursive = true;
+            }
+            else if (optionName.ToLower().Equals("tss"))
+            {
+                IsTimeseriesSkipped = true;
+            }
+            else if (optionName.ToLower().Equals("tp"))
+            {
+                if (hasOptionParameters)
+                {
+                    TimeseriesPath = optionParametersString;
+                }
+                else
+                {
+                    throw new ToolException("Missing timeseries path for option '" + optionName + "'");
+                }
+            }
+            else if (optionName.ToLower().Equals("tsp"))
+            {
+                if (hasOptionParameters)
+                {
+                    TimeseriesPath = optionParametersString;
+                }
+                else
+                {
+                    throw new ToolException("Missing timeseries path for option '" + optionName + "'");
+                }
             }
             else if (optionName.ToLower().Equals("a"))
             {
@@ -161,29 +226,44 @@ namespace Sweco.SIF.IPFreorder
             return true;
         }
 
-        protected virtual void ParseColumnArguments(string[] parameters, int startIdx, out string[] sourceColumnStrings, out string[] targetColumnNames, out string[] targetColumnExpressions)
+        protected virtual void ParseColumnArguments(string[] parameters, int startIdx, out string[] sourceColumnReferences, out string[] targetColumnNames, out string[] targetColumnExpressions, out string[] removedColumnNames)
         {
             // Parse columnn arguments
-            sourceColumnStrings = new string[parameters.Length - startIdx];
-            targetColumnNames = new string[parameters.Length - startIdx];
-            targetColumnExpressions = new string[parameters.Length - startIdx];
+            List<string> sourceColumnReferenceList = new List<string>(); // [parameters.Length - startIdx];
+            List<string> targetColumnNameList = new List<string>(); //  parameters.Length - startIdx];
+            List<string> targetColumnExpressionList = new List<string>(); // [parameters.Length - startIdx];
+            List<string> removedColumnNameList = new List<string>(); // [parameters.Length - startIdx];
 
             for (int idx = startIdx; idx < parameters.Length; idx++)
             {
+                sourceColumnReferenceList.Add(null);
+                targetColumnNameList.Add(null);
+                targetColumnExpressionList.Add(null);
+                removedColumnNameList.Add(null);
                 string columnString = parameters[idx].Replace("\"", string.Empty);
-                sourceColumnStrings[idx - startIdx] = null;
-                targetColumnNames[idx - startIdx] = null;
-                targetColumnExpressions[idx - startIdx] = null;
-                if (columnString.StartsWith(NewColumnPrefix))
+                if (columnString.StartsWith(DeleteColumnPrefix))
+                {
+                    // Add specified column reference for removal from current list
+                    string columnRef = columnString.Substring(1);
+                    removedColumnNameList[removedColumnNameList.Count - 1] = columnRef;
+                }
+                else if (columnString.Contains(RenameColumnSeperator))
+                {
+                    // Add specified column reference to rename in current list
+                    string[] columnRefs = columnString.Split(RenameColumnSeperator.ToCharArray());
+                    removedColumnNameList[removedColumnNameList.Count - 1] = columnRefs[0].Trim();
+                    targetColumnNameList[targetColumnNameList.Count - 1] = columnRefs[1].Trim();
+                }
+                else if (columnString.StartsWith(NewColumnPrefix))
                 {
                     if ((columnString.Length >= 4) && columnString.Contains(ColumnSeparator))
                     {
                         string namevalueString = columnString.Substring(1);
-                        string[] partsString = namevalueString.Split(new string[] { ColumnSeparator }, StringSplitOptions.RemoveEmptyEntries);
-                        if (partsString.Length == 2)
+                        string[] partsString = namevalueString.Split(new string[] { ColumnSeparator }, 2, StringSplitOptions.RemoveEmptyEntries);
+                        if ((partsString.Length == 1) || (partsString.Length == 2))
                         {
-                            targetColumnNames[idx - startIdx] = partsString[0];
-                            targetColumnExpressions[idx - startIdx] = partsString[1];
+                            targetColumnNameList[targetColumnNameList.Count - 1] = partsString[0];
+                            targetColumnExpressionList[targetColumnExpressionList.Count - 1] = (partsString.Length == 2) ? partsString[1] : string.Empty;
                         }
                         else
                         {
@@ -195,35 +275,37 @@ namespace Sweco.SIF.IPFreorder
                         throw new ToolException("Invalid name-value pair (" + NewColumnPrefix + "<colname>;<colval>): " + parameters[idx]);
                     }
                 }
-                else
+                else if (columnString.Contains(ColumnSeparator))
                 {
-                    if (columnString.Contains(ColumnSeparator))
+                    string[] partsString = columnString.Split(new string[] { ColumnSeparator }, StringSplitOptions.RemoveEmptyEntries);
+                    if (partsString.Length == 2)
                     {
-                        string[] partsString = columnString.Split(new string[] { ColumnSeparator }, StringSplitOptions.RemoveEmptyEntries);
-                        if (partsString.Length == 2)
-                        {
-                            if ((partsString[0] == null) || partsString[0].Equals(string.Empty))
-                            {
-                                throw new ToolException("Invalid col-colname pair (<col>;<colname>): " + parameters[idx]);
-                            }
-                            sourceColumnStrings[idx - startIdx] = partsString[0];
-                            targetColumnNames[idx - startIdx] = partsString[1];
-                        }
-                        else
+                        if ((partsString[0] == null) || partsString[0].Equals(string.Empty))
                         {
                             throw new ToolException("Invalid col-colname pair (<col>;<colname>): " + parameters[idx]);
                         }
+                        sourceColumnReferenceList[sourceColumnReferenceList.Count - 1] = partsString[0];
+                        targetColumnNameList[targetColumnNameList.Count - 1] = partsString[1];
                     }
                     else
                     {
-                        sourceColumnStrings[idx - startIdx] = parameters[idx];
-                        if ((parameters[idx] == null) || parameters[idx].Equals(string.Empty))
-                        {
-                            throw new ToolException("argument " + idx + " (" + parameters[idx] + ") is not valid column indicator");
-                        }
+                        throw new ToolException("Invalid col-colname pair (<col>;<colname>): " + parameters[idx]);
+                    }
+                }
+                else
+                {
+                    sourceColumnReferenceList[sourceColumnReferenceList.Count - 1] = parameters[idx];
+                    if ((parameters[idx] == null) || parameters[idx].Equals(string.Empty))
+                    {
+                        throw new ToolException("argument " + idx + " (" + parameters[idx] + ") is not valid column indicator");
                     }
                 }
             }
+
+            sourceColumnReferences = sourceColumnReferenceList.ToArray();
+            targetColumnNames = targetColumnNameList.ToArray();
+            targetColumnExpressions = targetColumnExpressionList.ToArray();
+            removedColumnNames = removedColumnNameList.ToArray();
         }
 
         /// <summary>

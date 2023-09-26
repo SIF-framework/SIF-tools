@@ -109,7 +109,7 @@ namespace Sweco.SIF.IPFreorder
                 outputPath = Path.GetDirectoryName(outputPath);
             }
 
-            if ((settings.SourceColumnStrings == null) || (settings.SourceColumnStrings.Length == 0))
+            if ((settings.SourceColumnReferences == null) || (settings.SourceColumnReferences.Length == 0))
             {
                 Log.AddInfo("No column definitions specified, copying all source columns ...");
             }
@@ -117,7 +117,7 @@ namespace Sweco.SIF.IPFreorder
             // Retrieve specified files in input path
             string searchPattern = Path.GetFileName(Path.Combine(settings.InputPath, settings.InputFilter));
             string[] filenames = Directory.GetFiles(inputPath, searchPattern, settings.IsRecursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
-            Log.AddInfo(filenames.Length + " files found under input path '" + inputPath);
+            Log.AddInfo(filenames.Length + " file(s) found under input path '" + inputPath);
             if (filenames.Length > 1)
             {
                 if ((Path.GetExtension(settings.OutputPath) != null) && !Path.GetExtension(settings.OutputPath).Equals(string.Empty))
@@ -163,12 +163,12 @@ namespace Sweco.SIF.IPFreorder
         /// <param name="sourceIPFFilename"></param>
         /// <param name="targetIPFFilename"></param>
         /// <param name="settings"></param>
-        protected void ReorderIPFFile(string sourceIPFFilename, string targetIPFFilename, SIFToolSettings settings)
+        protected virtual void ReorderIPFFile(string sourceIPFFilename, string targetIPFFilename, SIFToolSettings settings)
         {
             IPFFile sourceIPFFile = null;
             IPFFile targetIPFFile = null;
 
-            string[] sourceColumnStrings = settings.SourceColumnStrings;
+            string[] sourceColumnStrings = settings.SourceColumnReferences;
             string[] targetColumnNames = settings.TargetColumnNames;
             string[] columnExpressions = settings.TargetColumnExpressions;
 
@@ -191,107 +191,19 @@ namespace Sweco.SIF.IPFreorder
                     return;
                 }
 
+
                 Log.AddInfo("Reordering IPF-file " + sourceIPFFilename);
-                sourceIPFFile = IPFFile.ReadFile(sourceIPFFilename, false, true);
-                int[] columnNumbers = RetrieveColumnNumbers(sourceIPFFile, sourceColumnStrings);
-                targetIPFFile = new IPFFile();
+                sourceIPFFile = ReadIPFFile(sourceIPFFilename, settings);
+                targetIPFFile = ReorderIPFFile(sourceIPFFile, targetIPFFilename, settings);
 
-                // For now leave filename at source filename, to be able to determine later if the IPF-timeseries has to be written.
-                targetIPFFile.Filename = sourceIPFFilename;
-
-                // Create target path if not yet existing
-                if (!Directory.Exists(Path.GetDirectoryName(targetIPFFilename)))
+                if (settings.TimeseriesPath != null)
                 {
-                    Log.AddInfo("Creating target directory: " + Path.GetDirectoryName(targetIPFFilename) + " ...", 1);
-                    Directory.CreateDirectory(Path.GetDirectoryName(targetIPFFilename));
-                }
-
-                if ((columnNumbers == null) || (columnNumbers.Length == 0))
-                {
-                    targetColumnNames = new string[sourceIPFFile.ColumnCount];
-                    columnNumbers = new int[sourceIPFFile.ColumnCount];
-                    columnExpressions = new string[sourceIPFFile.ColumnCount];
-                    for (int colIdx = 0; colIdx < sourceIPFFile.ColumnCount; colIdx++)
-                    {
-                        columnNumbers[colIdx] = colIdx + 1;
-                        targetColumnNames[colIdx] = null;
-                        columnExpressions[colIdx] = null;
-                    }
-                }
-
-                targetIPFFile.ColumnNames = new List<string>(targetColumnNames.Count());
-                for (int idx = 0; idx < targetColumnNames.Length; idx++)
-                {
-                    targetIPFFile.ColumnNames.Add(string.Empty);
-                    if (targetColumnNames[idx] != null)
-                    {
-                        targetIPFFile.ColumnNames[idx] = targetColumnNames[idx];
-                    }
-                    else
-                    {
-                        if (((columnNumbers[idx] - 1) >= 0) && ((columnNumbers[idx] - 1) < sourceIPFFile.ColumnNames.Count()))
-                        {
-                            targetIPFFile.ColumnNames[idx] = sourceIPFFile.ColumnNames[columnNumbers[idx] - 1];
-                        }
-                        else
-                        {
-                            throw new ToolException("Specified columnnumber (" + columnNumbers[idx] + ") is not defined for input IPF-file " + Path.GetFileName(sourceIPFFilename));
-                        }
-                    }
-                }
-
-                // Update text column idx 
-                targetIPFFile.AssociatedFileColIdx = -1;
-                if (settings.AssociatedFileColumnIndex >= 0)
-                {
-                    // Set user specified column index
-                    targetIPFFile.AssociatedFileColIdx = settings.AssociatedFileColumnIndex - 1;
-                }
-                else
-                {
-                    if (sourceIPFFile.AssociatedFileColIdx > 0)
-                    {
-                        for (int idx = 0; idx < columnNumbers.Length; idx++)
-                        {
-                            if (columnNumbers[idx] == sourceIPFFile.AssociatedFileColIdx + 1)
-                            {
-                                targetIPFFile.AssociatedFileColIdx = idx;
-                            }
-                        }
-                    }
-                }
-
-                // Process points/rows of IPF-file
-                for (int pointIdx = 0; pointIdx < sourceIPFFile.PointCount; pointIdx++)
-                {
-                    IPFPoint ipfPoint = sourceIPFFile.Points[pointIdx];
-                    List<string> sourceColumnValues = ipfPoint.ColumnValues;
-                    List<string> targetColumnValues = new List<string>();
-
-                    // Retrieve defined values for target columns
-                    for (int idx = 0; idx < targetColumnNames.Length; idx++)
-                    {
-                        if (columnExpressions[idx] != null)
-                        {
-                            string columnValue = EvaluateExpression(columnExpressions[idx], sourceIPFFile, pointIdx, sourceColumnValues);
-                            targetColumnValues.Add(columnValue);
-                        }
-                        else
-                        {
-                            // Add value of specified source columnindex
-                            targetColumnValues.Add(sourceColumnValues[columnNumbers[idx] - 1]);
-                        }
-                    }
-                    IPFPoint targetIPFPoint = new IPFPoint(targetIPFFile, ipfPoint, targetColumnValues);
-                    if (targetIPFFile.AssociatedFileColIdx >= 0)
-                    {
-                        targetIPFPoint.Timeseries = ipfPoint.Timeseries;
-                    }
-                    targetIPFFile.AddPoint(targetIPFPoint);
+                    Log.AddInfo("Replacing path to associated textfile(s) in IPF-file ...", 1);
+                    ResetTimeseriesPath(targetIPFFile, settings.TimeseriesPath);
                 }
 
                 Log.AddInfo("Writing target IPF-file: " + Path.GetFileName(targetIPFFilename) + " ...", 1);
-                targetIPFFile.WriteFile(targetIPFFilename);
+                targetIPFFile.WriteFile(targetIPFFilename, null, !settings.IsTimeseriesSkipped);
             }
             catch (ToolException ex)
             {
@@ -304,22 +216,329 @@ namespace Sweco.SIF.IPFreorder
         }
 
         /// <summary>
-        /// Retrieve integer array with column numbers for string array with column names or numbers
+        /// Read IPF-file with specified settings
+        /// </summary>
+        /// <param name="sourceIPFFilename"></param>
+        /// <param name="basicSettings"></param>
+        /// <returns></returns>
+        protected virtual IPFFile ReadIPFFile(string sourceIPFFilename, SIFToolSettings settings)
+        {
+            return IPFFile.ReadFile(sourceIPFFilename);
+        }
+
+        protected virtual void ResetTimeseriesPath(IPFFile targetIPFFile, string timeseriesPath)
+        {
+            foreach (IPFPoint ipfPoint in targetIPFFile.Points)
+            {
+                if (ipfPoint.HasTimeseries())
+                {
+                    if (!ipfPoint.IsTimeseriesLoaded())
+                    {
+                        ipfPoint.LoadTimeseries();
+                    }
+                    ipfPoint.ColumnValues[ipfPoint.IPFFile.AssociatedFileColIdx] = Path.Combine(timeseriesPath, Path.GetFileNameWithoutExtension(ipfPoint.Timeseries.Filename));
+                }
+            }
+        }
+
+        protected virtual IPFFile ReorderIPFFile(IPFFile sourceIPFFile, string targetIPFFilename, SIFToolSettings settings)
+        {
+            IPFFile targetIPFFile = new IPFFile();
+            List<string> sourceColumnReferenceList = (settings.SourceColumnReferences != null) ? settings.SourceColumnReferences.ToList() : new List<string>();
+            List<string> targetColumnNameList = (settings.TargetColumnNames != null) ? settings.TargetColumnNames.ToList() : new List<string>();
+            List<string> columnExpressionList = (settings.TargetColumnExpressions != null) ? settings.TargetColumnExpressions.ToList() : new List<string>();
+            List<string> removedColumnNameList = (settings.RemovedColumnNames != null) ? settings.RemovedColumnNames.ToList() : new List<string>();
+            ExpandRemainderExpression(sourceIPFFile, ref sourceColumnReferenceList, ref targetColumnNameList, ref columnExpressionList, ref removedColumnNameList);
+
+            List<int> columnNumbers = RetrieveColumnNumbers(sourceIPFFile, sourceColumnReferenceList);
+
+            // For now leave filename at source filename, to be able to determine later if the IPF-timeseries has to be written.
+            targetIPFFile.Filename = sourceIPFFile.Filename;
+            targetIPFFile.AssociatedFileExtension = sourceIPFFile.AssociatedFileExtension;
+
+            // Create target path if not yet existing
+            if (!Directory.Exists(Path.GetDirectoryName(targetIPFFilename)))
+            {
+                Log.AddInfo("Creating target directory: " + Path.GetDirectoryName(targetIPFFilename) + " ...", 1);
+                Directory.CreateDirectory(Path.GetDirectoryName(targetIPFFilename));
+            }
+
+            if ((columnNumbers == null) || (columnNumbers.Count == 0))
+            {
+                // No reorder arguments where specified, copy all columns from source IPF-file
+                targetColumnNameList = new List<string>();
+                columnNumbers = new List<int>();
+                columnExpressionList = new List<string>();
+                for (int colIdx = 0; colIdx < sourceIPFFile.ColumnCount; colIdx++)
+                {
+                    columnNumbers.Add(colIdx + 1);
+                    targetColumnNameList.Add(null);
+                    columnExpressionList.Add(null);
+                    removedColumnNameList.Add(null);
+                }
+            }
+
+            // Retrieve column names for new IPF-file
+            targetIPFFile.ColumnNames = new List<string>(targetColumnNameList.Count());
+            int colDefIdx = 0;
+            while (colDefIdx < targetColumnNameList.Count)
+            {
+                if (targetColumnNameList[colDefIdx] != null)
+                {
+                    if (removedColumnNameList[colDefIdx] != null)
+                    {
+                        // When a removed column name is also specified, a rename is specified: rename column(s) in current column definition with specified name
+                        string renamedColName = removedColumnNameList[colDefIdx];
+                        if (int.TryParse(renamedColName, out int colNr))
+                        {
+                            if (colNr > 0)
+                            {
+                                // Start from left and use value as column number
+                                renamedColName = targetIPFFile.ColumnNames[colNr - 1];
+                            }
+                            else if (colNr <= 0)
+                            {
+                                // Start from right and use value as column index
+                                renamedColName = targetIPFFile.ColumnNames[targetIPFFile.ColumnCount - colNr - 1]; 
+                            }
+                        }
+
+                        for (int renColIdx = 0; renColIdx < colDefIdx; renColIdx++)
+                        {
+                            if (targetIPFFile.ColumnNames[renColIdx].Equals(renamedColName))
+                            {
+                                targetIPFFile.ColumnNames[renColIdx] = targetColumnNameList[colDefIdx];
+                            }
+                        }
+
+                        // remove column definition from list and prevent that it is used for column value modification
+                        sourceColumnReferenceList.RemoveAt(colDefIdx);
+                        targetColumnNameList.RemoveAt(colDefIdx);
+                        columnExpressionList.RemoveAt(colDefIdx);
+                        removedColumnNameList.RemoveAt(colDefIdx);
+                        columnNumbers.RemoveAt(colDefIdx);
+                    }
+                    else
+                    {
+                        // Use specified, new columnname
+                        targetIPFFile.ColumnNames.Add(targetColumnNameList[colDefIdx]);
+                        colDefIdx++;
+                    }
+                }
+                else if (removedColumnNameList[colDefIdx] != null)
+                {
+                    // When no target column name is specified, a deletion is specified: delete column(s) in current column definition with specified name
+                    string removedColName = removedColumnNameList[colDefIdx];
+                    if (int.TryParse(removedColName, out int colNr))
+                    {
+                        if (colNr > 0)
+                        {
+                            // Start from left and use value as column number
+                            removedColName = targetIPFFile.ColumnNames[colNr - 1];
+                        }
+                        else if (colNr <= 0)
+                        {
+                            // Start from right and use value as column index
+                            removedColName = targetIPFFile.ColumnNames[targetIPFFile.ColumnCount - colNr - 1];
+                        }
+                    }
+
+                    int delColIdx = 0;
+                    while ((delColIdx < colDefIdx) && (delColIdx < targetIPFFile.ColumnCount))
+                    {
+                        if (targetIPFFile.ColumnNames[delColIdx].Equals(removedColName))
+                        {
+                            targetIPFFile.ColumnNames.RemoveAt(delColIdx);
+
+                            sourceColumnReferenceList.RemoveAt(delColIdx);
+                            targetColumnNameList.RemoveAt(delColIdx);
+                            columnExpressionList.RemoveAt(delColIdx);
+                            removedColumnNameList.RemoveAt(delColIdx);
+                            columnNumbers.RemoveAt(delColIdx);
+                            colDefIdx--;
+                        }
+                        else
+                        {
+                            delColIdx++;
+                        }
+                    }
+
+                    // remove column definition from list and prevent that it is used for column value modification
+                    sourceColumnReferenceList.RemoveAt(colDefIdx);
+                    targetColumnNameList.RemoveAt(colDefIdx);
+                    columnExpressionList.RemoveAt(colDefIdx);
+                    removedColumnNameList.RemoveAt(colDefIdx);
+                    columnNumbers.RemoveAt(colDefIdx);
+                }
+                else
+                {
+                    // Keep name of specified source column
+                    if (((columnNumbers[colDefIdx] - 1) >= 0) && ((columnNumbers[colDefIdx] - 1) < sourceIPFFile.ColumnNames.Count()))
+                    {
+                        targetIPFFile.ColumnNames.Add(sourceIPFFile.ColumnNames[columnNumbers[colDefIdx] - 1]);
+                    }
+                    else
+                    {
+                        throw new ToolException("Specified columnnumber (" + columnNumbers[colDefIdx] + ") is not defined for input IPF-file " + Path.GetFileName(sourceIPFFile.Filename));
+                    }
+
+                    colDefIdx++;
+                }
+            }
+
+            // Update text column idx 
+            targetIPFFile.AssociatedFileColIdx = -1;
+            if (settings.AssociatedFileColumnIndex >= 0)
+            {
+                // Set user specified column index
+                targetIPFFile.AssociatedFileColIdx = settings.AssociatedFileColumnIndex - 1;
+            }
+            else
+            {
+                if (sourceIPFFile.AssociatedFileColIdx > 0)
+                {
+                    bool isAssociatedColumnFound = false;
+                    for (int idx = 0; idx < columnNumbers.Count; idx++)
+                    {
+                        if (columnNumbers[idx] == sourceIPFFile.AssociatedFileColIdx + 1)
+                        {
+                            targetIPFFile.AssociatedFileColIdx = idx;
+                            isAssociatedColumnFound = true;
+                        }
+                    }
+                    if (!isAssociatedColumnFound)
+                    {
+                        // Leave target AssociatedFileColIdx -1
+                        Log.AddWarning("Associated column number is reset to 0 since the referenced column is not selected as a result column: " + sourceIPFFile.ColumnNames[sourceIPFFile.AssociatedFileColIdx], 1);
+                    }
+                }
+            }
+
+            // Process points/rows of IPF-file
+            for (int pointIdx = 0; pointIdx < sourceIPFFile.PointCount; pointIdx++)
+            {
+                IPFPoint ipfPoint = sourceIPFFile.Points[pointIdx];
+                List<string> sourceColumnValues = ipfPoint.ColumnValues;
+                List<string> targetColumnValues = new List<string>();
+
+                // Retrieve defined values for target columns
+                for (int idx = 0; idx < targetColumnNameList.Count; idx++)
+                {
+                    if (columnExpressionList[idx] != null)
+                    {
+                        string columnValue = EvaluateExpression(columnExpressionList[idx], sourceIPFFile, pointIdx, sourceColumnValues);
+                        targetColumnValues.Add(columnValue);
+                    }
+                    else
+                    {
+                        // Add value of specified source columnindex
+                        targetColumnValues.Add(sourceColumnValues[columnNumbers[idx] - 1]);
+                    }
+                }
+                IPFPoint targetIPFPoint = new IPFPoint(targetIPFFile, ipfPoint, targetColumnValues);
+
+                if (!settings.IsTimeseriesSkipped)
+                {
+                    if (targetIPFFile.AssociatedFileColIdx >= 0)
+                    {
+                        if (ipfPoint.HasTimeseries())
+                        {
+                            targetIPFPoint.Timeseries = ipfPoint.Timeseries;
+                        }
+                        else
+                        {
+                            Log.AddWarning("Removing TS-reference; TS-file not found for IPF-point " + ipfPoint.ToString() + ": " + targetIPFPoint.ColumnValues[targetIPFFile.AssociatedFileColIdx]);
+                            targetIPFPoint.ColumnValues[targetIPFFile.AssociatedFileColIdx] = null;
+                        }
+                    }
+                }
+                targetIPFFile.AddPoint(targetIPFPoint);
+            }
+
+            return targetIPFFile;
+        }
+
+        /// <summary>
+        /// Updates column definitions for remainder expression 'c+', with c a columnname or number
         /// </summary>
         /// <param name="sourceIPFFile"></param>
-        /// <param name="sourceColumnStrings"></param>
-        /// <returns></returns>
-        protected int[] RetrieveColumnNumbers(IPFFile sourceIPFFile, string[] sourceColumnStrings)
+        /// <param name="sourceColumnReferences"></param>
+        /// <param name="targetColumnNames"></param>
+        /// <param name="columnExpressions"></param>
+        /// <param name="removedColumnNames"></param>
+        protected virtual void ExpandRemainderExpression(IPFFile sourceIPFFile, ref List<string> sourceColumnReferences, ref List<string> targetColumnNames, ref List<string> columnExpressions, ref List<string> removedColumnNames)
         {
-            int[] columnNumbers = null;
-            if (sourceColumnStrings != null)
+            if (sourceColumnReferences != null)
             {
-                columnNumbers = new int[sourceColumnStrings.Length];
-                for (int idx = 0; idx < sourceColumnStrings.Length; idx++)
+                List<string> tmpSourceColumnReferenceList = new List<string>();
+                List<string> tmpTargetColumnNamesList = new List<string>();
+                List<string> tmpColumnExpressionsList = new List<string>();
+                List<string> tmpRemovedColumnReferenceList = new List<string>();
+
+                for (int colStringIdx = 0; colStringIdx < sourceColumnReferences.Count; colStringIdx++)
                 {
-                    string colString = sourceColumnStrings[idx];
-                    int colNr = ParseColumnString(sourceIPFFile, colString);
-                    columnNumbers[idx] = colNr;
+                    string colString = sourceColumnReferences[colStringIdx];
+                    if ((colString != null) && colString.EndsWith(SIFToolSettings.RemainderColumnPostfix))
+                    {
+                        // Add remainder of columns to column definitions
+                        string baseColString = colString.Substring(0, colString.Length - 1);
+                        int colIdx = ParseColRefStringIndex(sourceIPFFile, baseColString);
+
+                        tmpSourceColumnReferenceList.Add((colIdx + 1).ToString());
+                        tmpTargetColumnNamesList.Add(null);
+                        tmpColumnExpressionsList.Add(null);
+                        tmpRemovedColumnReferenceList.Add(null);
+
+                        // Add remaining columns to source column strings
+                        for (int colIdx2 = colIdx + 1; colIdx2 < sourceIPFFile.ColumnCount; colIdx2++)
+                        {
+                            tmpSourceColumnReferenceList.Add((colIdx2 + 1).ToString());
+                            tmpTargetColumnNamesList.Add(null);
+                            tmpColumnExpressionsList.Add(null);
+                            tmpRemovedColumnReferenceList.Add(null);
+                        }
+                    }
+                    else
+                    {
+                        // Copy column definition
+                        tmpSourceColumnReferenceList.Add(sourceColumnReferences[colStringIdx]);
+                        tmpTargetColumnNamesList.Add(targetColumnNames[colStringIdx]);
+                        tmpColumnExpressionsList.Add(columnExpressions[colStringIdx]);
+                        tmpRemovedColumnReferenceList.Add(removedColumnNames[colStringIdx]);
+                    }
+                }
+
+                sourceColumnReferences = tmpSourceColumnReferenceList;
+                targetColumnNames = tmpTargetColumnNamesList;
+                columnExpressions = tmpColumnExpressionsList;
+                removedColumnNames = tmpRemovedColumnReferenceList;
+            }
+        }
+
+        /// <summary>
+        /// Retrieve integer list with column numbers for specified string list with column names or numbers that define columns in sourceIPFFile
+        /// </summary>
+        /// <param name="sourceIPFFile"></param>
+        /// <param name="sourceColumnReferenceList"></param>
+        /// <returns></returns>
+        protected List<int> RetrieveColumnNumbers(IPFFile sourceIPFFile, List<string> sourceColumnReferenceList)
+        {
+            List<int> columnNumbers = null;
+            if (sourceColumnReferenceList != null)
+            {
+                columnNumbers = new List<int>();
+                for (int idx = 0; idx < sourceColumnReferenceList.Count; idx++)
+                {
+                    string colString = sourceColumnReferenceList[idx];
+                    int colIdx = ParseColRefStringIndex(sourceIPFFile, colString);
+                    if (colIdx >= 0)
+                    {
+                        columnNumbers.Add(colIdx + 1);
+                    }
+                    else
+                    {
+                        columnNumbers.Add(0);
+                    }
                 }
             }
             return columnNumbers;
@@ -335,47 +554,115 @@ namespace Sweco.SIF.IPFreorder
         /// <returns></returns>
         protected virtual string EvaluateExpression(string columnExpression, IPFFile sourceIPFFile, int rowIdx, List<string> columnValues)
         {
-            // Currently only a single constant value is allowed, return complete 'expression' string
-            return columnExpression;
+            // Check for filename expression [n:A=B] or [n:-A]
+            int idx = columnExpression.IndexOf("[n:");
+            if (idx >= 0)
+            {
+                int idx2 = columnExpression.IndexOf("]", idx + 1);
+                if (idx2 > 0)
+                {
+                    string expression = columnExpression.Substring(idx + 1, idx2 - idx - 1);
+                    string subExp = expression.Substring(2);
+                    string[] substrings = subExp.Split(new char[] { '=' });
+                    if (substrings.Length == 2)
+                    {
+                        // Perse [n:A=B]
+
+                        // Create result, first retrieve part before left bracket
+                        string result = columnExpression.Substring(0, idx);
+                        string filename = Path.GetFileNameWithoutExtension(sourceIPFFile.Filename);
+                        int idx3 = filename.IndexOf(substrings[0], StringComparison.OrdinalIgnoreCase);
+                        if (idx3 >= 0)
+                        {
+                            result += filename.Substring(0, idx3);
+                            result += substrings[1] + filename.Substring(idx3 + substrings[0].Length);
+                        }
+                        else
+                        {
+                            result += filename;
+                        }
+                        // Add last part, after right bracket
+                        result += columnExpression.Substring(idx2 + 1);
+                        return result;
+                    }
+                    else if (subExp.StartsWith("-"))
+                    {
+                        // Parse [n:-A]: Retrieve part after A
+
+                        // Create result, first retrieve part before left bracket
+                        string result = columnExpression.Substring(0, idx);
+                        string filename = Path.GetFileNameWithoutExtension(sourceIPFFile.Filename);
+                        subExp = subExp.Substring(1);
+                        int idx3 = filename.LastIndexOf(subExp, StringComparison.OrdinalIgnoreCase);
+                        if (idx3 >= 0)
+                        {
+                            result += filename.Substring(idx3 + subExp.Length);
+                        }
+                        else
+                        {
+                            result += filename;
+                        }
+                        // Add last part, after right bracket
+                        result += columnExpression.Substring(idx2 + 1);
+                        return result;
+                    }
+                    else
+                    {
+                        throw new ToolException("Unknown filename expression: " + expression);
+                    }
+                }
+                else
+                {
+                    throw new ToolException("Invalid filename expression, missing right ]-bracket: " + columnExpression);
+                }
+            }
+            else
+            {
+                // return complete 'expression' string
+                return columnExpression;
+            }
         }
 
         /// <summary>
-        /// Parse string that refers to a column by a column name or number. The (one-based) column number of that column in the specified IPF-file is returned.
+        /// Parse string that refers to a column by a column name or number. The (zero-based) column index of that column in the specified IPF-file is returned.
         /// </summary>
         /// <param name="sourceIPFFile"></param>
         /// <param name="colString">if null, -1 is returned</param>
         /// <param name="isExceptionThrown">if true an exeception is thrown when an error occurs, otherwise -1 is returned for the column number</param>
-        /// <returns></returns>
-        protected int ParseColumnString(IPFFile sourceIPFFile, string colString, bool isExceptionThrown = true)
+        /// <returns>zero-based column index</returns>
+        protected int ParseColRefStringIndex(IPFFile sourceIPFFile, string colString, bool isExceptionThrown = true)
         {
-            int colNr;
+            int colIdx;
             if (colString != null)
             {
-                if (!int.TryParse(colString, out colNr))
+                if (int.TryParse(colString, out colIdx))
                 {
-                    // try columnname
-                    colNr = sourceIPFFile.FindColumnName(colString, true, false) + 1;
+                    colIdx--;
+                }
+                else
+                {
+                    // try finding columnname or parse numeric value as column number
+                    colIdx = sourceIPFFile.FindColumnName(colString, true, false);
                 }
 
-                if ((colNr <= 0) || (colNr > sourceIPFFile.ColumnCount))
+                if ((colIdx < 0) || (colIdx >= sourceIPFFile.ColumnCount))
                 {
                     if (isExceptionThrown)
                     {
-                        throw new ToolException("Invalid column string '" + colString + "' does not match existing column in IPF-file: " + Path.GetFileName(sourceIPFFile.Filename));
+                        throw new ToolException("Column reference string '" + colString + "' does not match existing columns in IPF-file: " + Path.GetFileName(sourceIPFFile.Filename));
                     }
                     else
                     {
-                        colNr = -1;
+                        colIdx = -1;
                     }
                 }
             }
             else
             {
-                colNr = -1;
+                colIdx = -1;
             }
 
-            return colNr;
+            return colIdx;
         }
-
     }
 }
