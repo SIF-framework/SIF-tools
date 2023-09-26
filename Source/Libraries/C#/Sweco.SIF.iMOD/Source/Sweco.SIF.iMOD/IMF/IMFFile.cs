@@ -21,6 +21,7 @@
 // along with Sweco.SIF.iMOD. If not, see <https://www.gnu.org/licenses/>.
 using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
+using Sweco.SIF.iMOD.DLF;
 using Sweco.SIF.iMOD.GEN;
 using Sweco.SIF.iMOD.IDF;
 using Sweco.SIF.iMOD.IPF;
@@ -42,6 +43,11 @@ namespace Sweco.SIF.iMOD.IMF
     /// </summary>
     public class IMFFile
     {
+        /// <summary>
+        /// Encoding used for writing IMF-files
+        /// </summary>
+        public static Encoding Encoding = Encoding.Default;
+
         /// <summary>
         /// Default XY aspect ratio that is used for fixing aspect ratio
         /// </summary>
@@ -71,6 +77,11 @@ namespace Sweco.SIF.iMOD.IMF
         public List<Overlay> Overlays { get; }
 
         /// <summary>
+        /// List of current DLF-files in IMF. Note: order defines corresponding IPF-files.
+        /// </summary>
+        public List<DLFFile> DLFFiles { get; }
+
+        /// <summary>
         /// Current extent of IMF-file
         /// </summary>
         public Extent Extent { get; set; }
@@ -92,17 +103,17 @@ namespace Sweco.SIF.iMOD.IMF
         {
             Maps = new List<Map>();
             Overlays = new List<Overlay>();
+            DLFFiles = new List<DLFFile>();
+            Extent = null;
         }
 
         /// <summary>
         /// Create empty IMF-file with specified extent
         /// </summary>
         /// <param name="extent"></param>
-        public IMFFile(Extent extent)
+        public IMFFile(Extent extent) : this()
         {
-            Maps = new List<Map>();
-            Overlays = new List<Overlay>();
-            this.Extent = extent;
+            Extent = extent;
         }
 
         /// <summary>
@@ -115,7 +126,58 @@ namespace Sweco.SIF.iMOD.IMF
             {
                 throw new Exception("Filename cannot be null for a map");
             }
+
             Maps.Add(map);
+        }
+
+        /// <summary>
+        /// Create Map-object with specified legend and of type as defined by extension of given filename
+        /// </summary>
+        /// <param name="legend"></param>
+        /// <param name="filename"></param>
+        /// <returns></returns>
+        public static Map CreateMap(Legend legend, string filename)
+        {
+            Map map = null;
+            switch (Path.GetExtension(filename).ToLower())
+            {
+                case ".idf":
+                    if (!(legend is IDFLegend))
+                    {
+                        throw new Exception("Legend type (" + legend.GetType().Name + ") should correspond with file extension (.IDF)");
+                    }
+
+                    map = new IDFMap((IDFLegend)legend, filename);
+                    break;
+                case ".ipf":
+                    if (!(legend is IPFLegend))
+                    {
+                        throw new Exception("Legend type (" + legend.GetType().Name + ") should correspond with file extension (.IPF)");
+                    }
+
+                    map = new IPFMap((IPFLegend)legend, filename);
+                    break;
+                default:
+                    map = new Map(legend, filename);
+                    break;
+            }
+
+            return map;
+        }
+
+        /// <summary>
+        /// Create Map object and add to Map-section of IMF-file
+        /// </summary>
+        /// <param name="legend"></param>
+        /// <param name="filename"></param>
+        public void AddMap(Legend legend, string filename)
+        {
+            if (filename == null)
+            {
+                throw new Exception("Filename cannot be null for a map");
+            }
+
+            Maps.Add(CreateMap(legend,  filename));
         }
 
         /// <summary>
@@ -129,6 +191,16 @@ namespace Sweco.SIF.iMOD.IMF
                 throw new Exception("Filename cannot be null for an overlay");
             }
             Overlays.Add(overlay);
+        }
+
+        /// <summary>
+        /// Add DLFFile object to list of DLFFiles of this IMF-file. Note: order of adding is maintained when writing IMF-file.
+        /// Users of IMFFile class have to add DLFFile as a property of its corresponding IPFFile.
+        /// </summary>
+        /// <param name="dlfFile"></param>
+        protected void AddDLFFile(DLFFile dlfFile)
+        {
+            DLFFiles.Add(dlfFile);
         }
 
         /// <summary>
@@ -355,6 +427,7 @@ namespace Sweco.SIF.iMOD.IMF
 
             // Create IMF File
             int mapLegendCount = 0;
+            int ipfMapLegendCount = 0;
 
             // Add extent
             string imfString = string.Empty;
@@ -426,12 +499,42 @@ namespace Sweco.SIF.iMOD.IMF
                 imfString += "ITYPE=           1" + "\r\n";
                 imfString += "SYMBOL=          " + overlay.Legend.Symbol + "\r\n";
                 imfString += "THICKNS=         " + overlay.Legend.Thickness + "\r\n";
-                imfString += "RGB=" + Color2Long(overlay.Legend.Color).ToString().PadLeft(14) + "\r\n";
+                imfString += "RGB=" + CommonUtils.Color2Long(overlay.Legend.Color).ToString().PadLeft(14) + "\r\n";
                 //                imfString += "RGB=       8421504" + "\r\n";
                 imfString += "++++++++++++++++++++++++++++++++++++++++++++++++++" + "\r\n";
             }
             imfString += "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[" + "\r\n";
 
+            // Add cross section legends (DLF) for IPF-files
+            imfString += "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" + "\r\n";
+            for (int dlfIdx = 0; dlfIdx < DLFFiles.Count; dlfIdx++)
+            {
+                DLFFile dlfFile = DLFFiles[dlfIdx];
+                if (dlfFile != null)
+                {
+                    imfString += "++++++++++++++++++++++++++++++++++++++++++++++++++" + "\r\n";
+                    for (int itemIdx = 0; itemIdx < dlfFile.DLFClasses.Count; itemIdx++)
+                    {
+                        DLFClass item = dlfFile.DLFClasses[itemIdx];
+                        imfString += item.Color + "," + item.Width.ToString(EnglishCultureInfo) + "," + item.Label + "," + item.Description + "\r\n";
+                    }
+                    imfString += "++++++++++++++++++++++++++++++++++++++++++++++++++" + "\r\n";
+                }
+            }
+            // Add remaining empty DLF-items to get 10 items in total
+            for (int dlfIdx = DLFFiles.Count; dlfIdx < 10; dlfIdx++)
+            {
+                imfString += "++++++++++++++++++++++++++++++++++++++++++++++++++" + "\r\n";
+                imfString += "++++++++++++++++++++++++++++++++++++++++++++++++++" + "\r\n";
+            }
+
+            imfString += "**************************************************" + "\r\n";
+            imfString += "**************************************************" + "\r\n";
+            imfString += "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD" + "\r\n";
+            imfString += "ISAVE=  0" + "\r\n";
+            imfString += "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD" + "\r\n";
+
+            // Insert IMF-file header
             imfString = "IMOD META-FILE [Generated by Sweco iMOD-tools]\r\n\r\n" +
                         "NACT=            " + mapLegendCount + "\r\n" +
                         imfString;
@@ -450,7 +553,7 @@ namespace Sweco.SIF.iMOD.IMF
             StreamWriter sw = null;
             try
             {
-                sw = new StreamWriter(imfFilename);
+                sw = new StreamWriter(imfFilename, false, Encoding);
                 sw.Write(imfString);
             }
             catch (IOException ex)
@@ -499,7 +602,7 @@ namespace Sweco.SIF.iMOD.IMF
             {
                 imfString += "ISEL=            F" + "\r\n";
             }
-            imfString += "SCOLOR=    " + Color2Long(genLegend.Color).ToString().PadLeft(5) + "\r\n";
+            imfString += "SCOLOR=    " + CommonUtils.Color2Long(genLegend.Color).ToString().PadLeft(5) + "\r\n";
             imfString += "THICKNS=         " + genLegend.Thickness + "\r\n";
             imfString += "IATTRIB=         1" + "\r\n";
             imfString += "IDFI=            0" + "\r\n";
@@ -576,7 +679,7 @@ namespace Sweco.SIF.iMOD.IMF
             {
                 imfString += "ISEL=            F" + "\r\n";
             }
-            imfString += "SCOLOR=" + Color2Long(((ISGLegend)isgMap.Legend).Color).ToString().PadLeft(11) + "\r\n";
+            imfString += "SCOLOR=" + CommonUtils.Color2Long(((ISGLegend)isgMap.Legend).Color).ToString().PadLeft(11) + "\r\n";
             imfString += "THICKNS=" + ((ISGLegend)isgMap.Legend).Thickness.ToString().PadLeft(10) + "\r\n";
             imfString += "++++++++++++++++++++++++++++++++++++++++++++++++++" + "\r\n";
 
@@ -585,7 +688,34 @@ namespace Sweco.SIF.iMOD.IMF
 
         private string CreateIPFMapIMFString(Map ipfMap, bool useRelativeIMFPaths, string relativePath, bool isSelected)
         {
+            // Check for DLFFile and add to IMF-file if it is not added yet
+            int dlfFileIdx = 0;
+            DLFFile dlfFile = null;
+            if (ipfMap is IPFMap)
+            {
+                dlfFile = ((IPFMap)ipfMap).DLFFile;
+                dlfFileIdx = IndexOf(dlfFile);
+
+                if (dlfFile != null)
+                {
+                    if (dlfFileIdx == -1)
+                    {
+                        AddDLFFile(dlfFile);
+                        dlfFileIdx = DLFFiles.Count - 1;
+                    }
+                }
+                else
+                {
+                    // Keep default index value 
+                }
+            }
+
             IPFLegend ipfLegend = (IPFLegend)ipfMap.Legend;
+            if (ipfLegend == null)
+            {
+                throw new Exception("Please define legend for IPF-file: " + Path.GetFileName(ipfMap.Filename));
+            }
+
             string imfString = "++++++++++++++++++++++++++++++++++++++++++++++++++" + "\r\n";
             if (useRelativeIMFPaths)
             {
@@ -604,35 +734,27 @@ namespace Sweco.SIF.iMOD.IMF
             {
                 imfString += "ISEL=            F" + "\r\n";
             }
-            if (ipfLegend.ClassList.Count() == 1)
-            {
-                // Use defined color if a single legend class is defined
-                imfString += "SCOLOR=" + Color2Long(ipfLegend.ClassList[0].Color).ToString().PadLeft(11) + "\r\n";
-            }
-            else
-            {
-                imfString += "SCOLOR=    4410933" + "\r\n";
-            }
+            imfString += "SCOLOR=" + ipfMap.SColor.ToString().PadLeft(11) + "\r\n";
             imfString += "THICKNS=" + ipfLegend.Thickness.ToString().PadLeft(10) + "\r\n";
-            if (ipfLegend.ClassList.Count() == 1)
-            {
-                // Use defined color if a single legend class is defined
-                imfString += "ILEG=            0" + "\r\n";
-            }
-            else
-            {
-                imfString += "ILEG=            1" + "\r\n";
-            }
+            imfString += "ILEG=            " + ((ipfLegend.ColumnNumber <= 0) ? 0 : 1) + "\r\n";
             imfString += "XCOL=            1" + "\r\n";
             imfString += "YCOL=            2" + "\r\n";
             imfString += "ZCOL=            1" + "\r\n";
             imfString += "Z2COL=           1" + "\r\n";
             imfString += "HCOL=            0" + "\r\n";
+            imfString += "HCOL_M=          1" + "\r\n";
             imfString += "IAXES=  1111111111" + "\r\n";
-            imfString += "TSIZE=           7" + "\r\n";
+            imfString += "TSIZE=           " + ipfLegend.TextSize + "\r\n";
+            imfString += "TFORMAT=          " + "\r\n";
             imfString += "ASSCOL1=         2" + "\r\n";
             imfString += "ASSCOL2=         0" + "\r\n";
-            imfString += "IATTRIB=" + ipfLegend.ColumnIndex.ToString().PadLeft(10) + "\r\n";
+            imfString += "ILEGDLF=         " + (dlfFileIdx + 1) + "\r\n";
+            imfString += "GLSCALE=         0" + "\r\n";
+            imfString += "SCALED=  1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0" + "\r\n";
+            imfString += "BORECK1=         0" + "\r\n";
+            imfString += "BORECK2=         0" + "\r\n";
+            imfString += "BORECLS=  0  0" + "\r\n";
+            imfString += "IATTRIB=" + ipfLegend.ColumnNumber.ToString().PadLeft(10) + "\r\n";
             imfString += "IDFI=          250" + "\r\n";
             long ieq = CalculateIEQValue(ipfLegend.SelectedLabelColumns, ipfLegend.IsLabelShown);
             imfString += "IEQ=" + ieq.ToString().PadLeft(14) + "\r\n";
@@ -640,8 +762,9 @@ namespace Sweco.SIF.iMOD.IMF
             imfString += "SYMBOL=         14" + "\r\n";
             imfString += "FADEOUT=         0" + "\r\n";
             imfString += "UNITS=           1" + "\r\n";
-            imfString += "PRFTYPE=         0" + "\r\n";
+            imfString += "PRFTYPE=       " + ((IPFMap)ipfMap).PRFType.ToString().PadLeft(3) + "\r\n";
             imfString += "ISCREEN=         1" + "\r\n";
+            imfString += "ILEG=            " + ((ipfLegend.ColumnNumber <= 0) ? 0 : 1) + "\r\n";
             imfString += "NCLR=          " + ipfLegend.ClassList.Count.ToString().PadLeft(3) + "\r\n";
             imfString += "--------------------------------------------------" + "\r\n";
             imfString += "LEGEND DEFINITION" + "\r\n";
@@ -651,7 +774,7 @@ namespace Sweco.SIF.iMOD.IMF
             for (int i = 0; i < ipfLegend.ClassList.Count; i++)
             {
                 RangeLegendClass legendClass = ipfLegend.ClassList[i];
-                imfString += "RGB=" + Color2Long(legendClass.Color).ToString().PadLeft(14) + "CLASS=" + legendClass.MinValue.ToString().Replace(",", ".").PadLeft(13) + "    LEGTXT= " + legendClass.Label.Replace("\"", string.Empty) + "\r\n";
+                imfString += "RGB=" + CommonUtils.Color2Long(legendClass.Color).ToString().PadLeft(14) + "CLASS=" + legendClass.MinValue.ToString().Replace(",", ".").PadLeft(13) + "    LEGTXT= " + legendClass.Label.Replace("\"", string.Empty) + "\r\n";
             }
             for (int i = 0; i < 7; i++)
             {
@@ -660,6 +783,27 @@ namespace Sweco.SIF.iMOD.IMF
             imfString += "++++++++++++++++++++++++++++++++++++++++++++++++++" + "\r\n";
 
             return imfString;
+        }
+
+        /// <summary>
+        /// Tries to find (zero-based) index in this IMFFile of specified DLFFile
+        /// </summary>
+        /// <param name="dlfFile"></param>
+        /// <returns>-1 if not found</returns>
+        protected int IndexOf(DLFFile dlfFile)
+        {
+            if (dlfFile != null)
+            {
+                for (int idx = 0; idx < DLFFiles.Count; idx++)
+                {
+                    DLFFile dlfFile2 = DLFFiles[idx];
+                    if ((dlfFile2.Filename != null) && dlfFile2.Filename.Equals(dlfFile.Filename))
+                    {
+                        return idx;
+                    }
+                }
+            }
+            return -1;
         }
 
         private string CreateIDFMapIMFString(Map idfMap, bool useRelativeIMFPaths, string relativePath, bool isSelected)
@@ -703,7 +847,7 @@ namespace Sweco.SIF.iMOD.IMF
             for (int i = 0; i < idfLegend.ClassList.Count; i++)
             {
                 RangeLegendClass legendClass = idfLegend.ClassList[i];
-                imfString += "RGB=" + Color2Long(legendClass.Color).ToString().PadLeft(14) + "CLASS=" + legendClass.MinValue.ToString().Replace(",", ".").PadLeft(13) + "    LEGTXT= " + legendClass.Label.Replace("\"", string.Empty) + "\r\n";
+                imfString += "RGB=" + CommonUtils.Color2Long(legendClass.Color).ToString().PadLeft(14) + "CLASS=" + legendClass.MinValue.ToString().Replace(",", ".").PadLeft(13) + "    LEGTXT= " + legendClass.Label.Replace("\"", string.Empty) + "\r\n";
             }
             for (int i = 0; i < 7; i++)
             {
@@ -783,26 +927,6 @@ namespace Sweco.SIF.iMOD.IMF
                 };
             }
             return longValue;
-        }
-
-        /// <summary>
-        /// Convert the color from a Color object to an RGB long value (as used for colors in the iMOD IMF-file)
-        /// </summary>
-        /// <param name="color"></param>
-        /// <returns></returns>
-        public static long Color2Long(Color color)
-        {
-            return color.R + color.G * 256 + color.B * 65536;
-        }
-
-        /// <summary>
-        /// Convert an RGB long value (as used for colors in the iMOD IMF-file) to a Color object
-        /// </summary>
-        /// <param name="color"></param>
-        /// <returns></returns>
-        public static Color Long2Color(long color)
-        {
-            return Color.FromArgb((int)color % 256, (int)(color % 65536) / 256, (int)color / 65536);
         }
     }
 }

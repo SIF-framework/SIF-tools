@@ -19,6 +19,7 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with Sweco.SIF.iMOD. If not, see <https://www.gnu.org/licenses/>.
+using Sweco.SIF.iMOD.DLF;
 using Sweco.SIF.iMOD.IPF;
 using Sweco.SIF.iMOD.Legends;
 using System;
@@ -36,12 +37,7 @@ namespace Sweco.SIF.iMOD.IMF
     public class IPFMap : Map
     {
         /// <summary>
-        /// Specifies if IPF-file is selected in IMF-file
-        /// </summary>
-        public bool Selected { get; set; }
-
-        /// <summary>
-        /// IPFLegend of this IPFMap
+        /// Legend of this IPFMap, casted to IPFLegend Type
         /// </summary>
         public IPFLegend IPFLegend
         {
@@ -49,16 +45,23 @@ namespace Sweco.SIF.iMOD.IMF
         }
 
         /// <summary>
+        /// DLF-file that is used for visualisation of IPF-files in cross sections via its associated file
+        /// </summary>
+        public DLFFile DLFFile { get; set; }
+
+        /// <summary>
         /// Creates IPFMap object with underlying IPFLegend object (without description)
         /// </summary>
         protected IPFMap()
         {
             IPFLegend ipfLegend = new IPFLegend(null);
+            SetPRFType(PRFTypeFlag.Active);
+            AddPRFTypeFlag(PRFTypeFlag.Legend);
             ipfLegend.Thickness = 1;
-            ipfLegend.ColumnIndex = 3;
-            Selected = false;
+            ipfLegend.ColumnNumber = 3;
 
-            this.Legend = ipfLegend;
+            Legend = ipfLegend;
+            DLFFile = null;
         }
 
         /// <summary>
@@ -67,7 +70,7 @@ namespace Sweco.SIF.iMOD.IMF
         /// <param name="description"></param>
         public IPFMap(string description) : this()
         {
-            this.Legend.Description = description;
+            Legend.Description = description;
             IPFLegend.ClassList = new List<RangeLegendClass>();
             IPFLegend.SelectedLabelColumns = null;
         }
@@ -82,7 +85,7 @@ namespace Sweco.SIF.iMOD.IMF
             IPFLegend.Description = description;
             IPFLegend.ClassList = new List<RangeLegendClass>();
             IPFLegend.SelectedLabelColumns = null;
-            this.Selected = selected;
+            Selected = selected;
         }
 
         /// <summary>
@@ -92,8 +95,8 @@ namespace Sweco.SIF.iMOD.IMF
         /// <param name="filename"></param>
         public IPFMap(IPFLegend legend, string filename) : this()
         {
-            this.Legend = legend;
-            this.Filename = filename;
+            Legend = legend;
+            Filename = filename;
         }
 
         /// <summary>
@@ -105,8 +108,9 @@ namespace Sweco.SIF.iMOD.IMF
         /// <param name="color"></param>
         public IPFMap(string description, string label, Color color, string filename) : this(description)
         {
-            this.Filename = filename;
-            this.IPFLegend.AddClass(new RangeLegendClass(float.MinValue, float.MaxValue, label, color));
+            Filename = filename;
+            IPFLegend.AddClass(new RangeLegendClass(float.MinValue, float.MaxValue, label, color));
+            DLFFile = null;
         }
 
         /// <summary>
@@ -118,8 +122,9 @@ namespace Sweco.SIF.iMOD.IMF
         /// <param name="imodFilename"></param>
         public IPFMap(string description, float minValue, float maxValue, string imodFilename) : this(description)
         {
-            this.Filename = imodFilename;
-            this.IPFLegend.AddLegendClasses(minValue, maxValue);
+            Filename = imodFilename;
+            IPFLegend.AddLegendClasses(minValue, maxValue);
+            DLFFile = null;
         }
 
         /// <summary>
@@ -128,13 +133,17 @@ namespace Sweco.SIF.iMOD.IMF
         /// <returns></returns>
         public IPFMap Copy()
         {
-            IPFMap ipfMap = new IPFMap(Legend.Description);
-            ipfMap.Filename = this.Filename;
+            IPFMap newIPFMap = new IPFMap(Legend.Description);
+            newIPFMap.Filename = this.Filename;
+            newIPFMap.Selected = this.Selected;
+            newIPFMap.PRFType = this.PRFType;
+            newIPFMap.SColor = this.SColor;
+            newIPFMap.DLFFile = this.DLFFile.Copy();
+            newIPFMap.IPFLegend.ClassList.AddRange(this.IPFLegend.ClassList);
+            newIPFMap.IPFLegend.IsLabelShown = this.IPFLegend.IsLabelShown;
+            newIPFMap.IPFLegend.SelectedLabelColumns = (this.IPFLegend.SelectedLabelColumns != null) ? new List<int>(this.IPFLegend.SelectedLabelColumns) : null;
 
-            ipfMap.IPFLegend.ClassList.AddRange(this.IPFLegend.ClassList);
-            ipfMap.IPFLegend.IsLabelShown = this.IPFLegend.IsLabelShown;
-            ipfMap.IPFLegend.SelectedLabelColumns = (this.IPFLegend.SelectedLabelColumns != null) ? new List<int>(this.IPFLegend.SelectedLabelColumns) : null;
-            return ipfMap;
+            return newIPFMap;
         }
     }
 }
