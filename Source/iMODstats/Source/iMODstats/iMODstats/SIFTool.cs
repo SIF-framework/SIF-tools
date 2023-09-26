@@ -21,6 +21,7 @@
 // along with iMODstats. If not, see <https://www.gnu.org/licenses/>.
 using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
+using Sweco.SIF.iMOD.ASC;
 using Sweco.SIF.iMOD.IDF;
 using Sweco.SIF.iMOD.Values;
 using Sweco.SIF.Spreadsheets;
@@ -190,7 +191,7 @@ namespace Sweco.SIF.iMODstats
                 currentFilePath = inputFiles[i];
                 currentFilename = Path.GetFileName(currentFilePath);
                 log.AddInfo("Processing file " + currentFilename + " ...", 1);
-                if (!Path.GetExtension(currentFilename).ToLower().Equals(".idf"))
+                if (!Path.GetExtension(currentFilename).ToLower().Equals(".idf") && !Path.GetExtension(currentFilename).ToLower().Equals(".asc"))
                 {
                     continue;
                 }
@@ -198,7 +199,17 @@ namespace Sweco.SIF.iMODstats
                 try
                 {
                     // Create statistics per zone for current file
-                    IDFFile idfFile = IDFFile.ReadFile(currentFilePath, false, log, 0, settings.Extent);
+                    IDFFile idfFile = null;
+                    if (IDFFile.HasIDFExtension(currentFilePath))
+                    {
+                        idfFile = IDFFile.ReadFile(currentFilePath, false, log, 0, settings.Extent);
+                    }
+                    else if (ASCFile.HasASCExtension(currentFilePath))
+                    {
+                        ASCFile ascFile = ASCFile.ReadFile(currentFilePath, EnglishCultureInfo);
+                        idfFile = new IDFFile(ascFile);
+                    }
+
                     if (idfFile.Extent == null)
                     {
                         // Empty extent, skip file
@@ -317,11 +328,11 @@ namespace Sweco.SIF.iMODstats
                     log.AddInfo("Scaling " + Path.GetFileName(sourceIDFFile.Filename) + " from " + sourceIDFFile.XCellsize + " to " + refIDFFile.XCellsize + " ...", logIndentLevel);
                     if (sourceIDFFile.XCellsize < refIDFFile.XCellsize)
                     {
-                        scaledIDFFile = sourceIDFFile.Upscale(refIDFFile.XCellsize, UpscaleMethodEnum.MostOccurring);
+                        scaledIDFFile = sourceIDFFile.ScaleUp(refIDFFile.XCellsize, UpscaleMethodEnum.MostOccurring);
                     }
                     else
                     {
-                        scaledIDFFile = sourceIDFFile.Downscale(refIDFFile.XCellsize, DownscaleMethodEnum.Block);
+                        scaledIDFFile = sourceIDFFile.ScaleDown(refIDFFile.XCellsize, DownscaleMethodEnum.Block);
                     }
                 }
             }

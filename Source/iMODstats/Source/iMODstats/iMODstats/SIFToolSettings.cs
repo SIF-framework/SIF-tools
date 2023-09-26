@@ -75,8 +75,8 @@ namespace Sweco.SIF.iMODstats
         /// </summary>
         protected override void DefineToolSyntax()
         {
-            AddToolParameterDescription("inPath", "Path to search for input IDF-files", "C:\\Test\\Input");
-            AddToolParameterDescription("filter", "Filter to select input IDF-files (e.g. *.IDF)", "*.IDF");
+            AddToolParameterDescription("inPath", "Path to search for input IDF- or ASC-files", "C:\\Test\\Input");
+            AddToolParameterDescription("filter", "Filter to select input IDF- or ASC-files (e.g. *.IDF)", "*.IDF");
             AddToolParameterDescription("outFile", "Path and filename of Excel-file to write results to", "C:\\Test\\Output\\Statistics.xlsx");
             AddToolOptionDescription("d", "Define decimal count (default:3) for results or just use /d to show all decimals", "/d:1", "Number of decimals: {0}", null, new string[] { "d1" }, new string[] { "2" });
             AddToolOptionDescription("e", "extent (xll,yll,xur,yur) for processing", "/e:181500,407500,200500,426500", "Extent used for statistics: {0},{1},{2},{3}", new string[] { "xll", "yll", "xur", "yur" } );
