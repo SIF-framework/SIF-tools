@@ -70,5 +70,23 @@ namespace Sweco.SIF.iMOD.IDF
             return mostOccurringValue;
         }
 
+        /// <summary>
+        /// Determines the number of ConstantIDFFile subclassed objects in given list of IDFFile objects
+        /// </summary>
+        /// <param name="idfFileList"></param>
+        /// <returns></returns>
+        public static int GetConstantIDFFileCount(List<IDFFile> idfFileList)
+        {
+            int count = 0;
+            foreach (IDFFile idfFile in idfFileList)
+            {
+                if (idfFile is ConstantIDFFile)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
     }
 }

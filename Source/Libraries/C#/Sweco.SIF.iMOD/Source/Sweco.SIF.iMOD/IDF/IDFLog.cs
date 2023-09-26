@@ -105,7 +105,7 @@ namespace Sweco.SIF.iMOD.IDF
             this.Warnings = log.Warnings;
             this.Listeners = log.Listeners;
             this.ListenerLogLevels = log.ListenerLogLevels;
-            this.LogFileString = new StringBuilder(log.LogFileString.ToString());
+            this.LogString = new StringBuilder(log.LogString.ToString());
         }
 
         /// <summary>
@@ -605,7 +605,7 @@ namespace Sweco.SIF.iMOD.IDF
         /// Write message-logfile to filename as defined by BaseFilename
         /// </summary>
         /// <param name="isWritingLogged">if true, the writing of the logfile itself is also logged</param>
-        public new void WriteLogFile(bool isWritingLogged)
+        public void WriteLogFile(bool isWritingLogged)
         {
             base.WriteLogFile(BaseFilename, isWritingLogged);
         }

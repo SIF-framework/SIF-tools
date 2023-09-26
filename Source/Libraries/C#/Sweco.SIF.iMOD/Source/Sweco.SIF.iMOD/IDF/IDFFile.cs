@@ -23,8 +23,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD.ARR;
@@ -44,7 +42,14 @@ namespace Sweco.SIF.iMOD.IDF
         Median,
         Maximum,
         MostOccurring,
-        Boundary
+        /// <summary>
+        /// Used for scaling boundary values (i.e. -1, 0, 1); equal to MostOccuring.
+        /// </summary>
+        Boundary,
+        /// <summary>
+        /// Sum values of fine cells inside coarse cell
+        /// </summary>
+        Sum
     }
 
     /// <summary>
@@ -55,7 +60,11 @@ namespace Sweco.SIF.iMOD.IDF
         /// <summary>
         /// Use value of course cell for all scaled cells
         /// </summary>
-        Block
+        Block,
+        /// <summary>
+        /// Divide value of coarse cell by number of fine cells within coarse cell
+        /// </summary>
+        Divide
     }
 
     /// <summary>
@@ -162,6 +171,18 @@ namespace Sweco.SIF.iMOD.IDF
         public float NoDataCalculationValue { get; set; }
 
         /// <summary>
+        /// Full filename of this IDF-file
+        /// </summary>
+        public override string Filename
+        {
+            get { return base.Filename; }
+            set
+            {
+                base.Filename = value;
+            }
+        }
+
+        /// <summary>
         /// BinaryReader object that is used for direct access of IDF-file. This is set by OpenFile()/CloseFile() methods
         /// </summary>
         private BinaryReader idfReader;
@@ -250,7 +271,7 @@ namespace Sweco.SIF.iMOD.IDF
         public IDFFile(ASCFile ascFile)
         {
             string filename = Path.Combine(Path.GetDirectoryName(ascFile.Filename), Path.GetFileNameWithoutExtension(ascFile.Filename) + ".IDF");
-            Extent extent = new Extent(ascFile.XLL, ascFile.YLL, GetX(NCols - 1), GetY(NRows - 1));
+            Extent extent = new Extent(ascFile.XLL, ascFile.YLL, ascFile.XLL + ascFile.NCols * ascFile.Cellsize, ascFile.YLL + ascFile.NRows * ascFile.Cellsize);
             Initialize(filename, extent, ascFile.NRows, ascFile.NCols, ascFile.Cellsize, ascFile.Cellsize, ascFile.NoDataValue);
 
             UpdateMinMaxValue();
@@ -274,7 +295,7 @@ namespace Sweco.SIF.iMOD.IDF
         /// <summary>   
         /// Retrieves the rowindex into the values-array for the given y-value. Cell y-coordinates range from top boundary up to, but not including lower boundary of the cell.
         /// Note: higher y-coordinates will give a lower row index. 
-        /// The x-coordinate of the top boundary of an IDF-file extent, will give row index 0.
+        /// The y-coordinate of the top boundary of an IDF-file extent, will give row index 0.
         /// The y-coordinate of the lower boundary of an IDF-file extent, will give a cell just outside (below) the IDF-raster.
         /// </summary>
         /// <param name="y"></param>
@@ -325,6 +346,150 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
+        /// Retrieves interpolated cell value using bilineair interpolation
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <returns>interpolated value, float.NaN if XY is outside the grid, or NoData if the XY-cell has NoData-value</returns>
+        public float GetInterpolatedValue(float x, float y)
+        {
+            int rowIdx = GetRowIdx(y);
+            int colIdx = GetColIdx(x);
+            if ((rowIdx < 0) || (rowIdx >= NRows) || (colIdx < 0) || (colIdx >= NCols))
+            {
+                // If the cell that the XY-coordinates are in is outside the IDF-extent, then the result should always be float.NaN
+                return float.NaN;
+            }
+            else
+            {
+                float celValue = Values[rowIdx][colIdx];
+                if (celValue.Equals(NoDataValue))
+                {
+                    if (NoDataCalculationValue.Equals(float.NaN))
+                    {
+                        // If the cell that the XY-coordinates are in is NoData and no NoDataCalculationValue is defined, then the result should always be NoData
+                        return NoDataValue;
+                    }
+                }
+            }
+
+            // use bilineair interpolation: https://en.wikipedia.org/wiki/Bilinear_interpolation
+            // using notation from: http://supercomputingblog.com/graphics/coding-bilinear-interpolation/
+            // R1 = ((x2 – x)/(x2 – x1))*Q11 + ((x – x1)/(x2 – x1))*Q21
+            // R2 = ((x2 – x)/(x2 – x1))*Q12 + ((x – x1)/(x2 – x1))*Q22
+            // P = ((y2 – y)/(y2 – y1))*R1 + ((y – y1)/(y2 – y1))*R2
+            // Find four gridvalues around specified xy
+
+            // First find xy-coordinates of cellcenter leftbelow of specified xy-coordinates, this is the cell that the XY-coordinates are in
+            float x1 = XCellsize * ((int)((x + (XCellsize / 2f)) / XCellsize)) + (XCellsize / 2f);
+            float y1 = YCellsize * ((int)((y + (YCellsize / 2f)) / YCellsize)) + (YCellsize / 2f);
+            if (x1 > x)
+            {
+                x1 -= XCellsize;
+            }
+            if (y1 > y)
+            {
+                y1 -= YCellsize;
+            }
+
+            int row1 = GetRowIdx(y1);
+            int col1 = GetColIdx(x1);
+
+            // Now find other three cellcenters that surround specified xy-coordinates
+            float y2 = y1 + YCellsize;
+            float x2 = x1 + XCellsize;
+
+            // Get row and column indices
+            int row2 = row1 - 1;
+            int col2 = col1 + 1;
+
+            // Now retrieve values
+            float q11;
+            if ((row1 >= 0) && (col1 >= 0) && (row1 < NRows) && (col1 < NCols))
+            {
+                q11 = Values[row1][col1];
+                if (q11.Equals(NoDataValue))
+                {
+                    q11 = NoDataCalculationValue;
+                }
+            }
+            else
+            {
+                q11 = float.NaN;
+            }
+            float q12;
+            if ((row2 >= 0) && (col1 >= 0) && (row2 < NRows) && (col1 < NCols))
+            {
+                q12 = Values[row2][col1];
+                if (q12.Equals(NoDataValue))
+                {
+                    q12 = NoDataCalculationValue;
+                }
+            }
+            else
+            {
+                q12 = float.NaN;
+            }
+            float q21;
+            if ((row1 >= 0) && (col2 >= 0) && (row1 < NRows) && (col2 < NCols))
+            {
+                q21 = Values[row1][col2];
+                if (q21.Equals(NoDataValue))
+                {
+                    q21 = NoDataCalculationValue;
+                }
+            }
+            else
+            {
+                q21 = float.NaN;
+            }
+            float q22;
+            if ((row2 >= 0) && (col2 >= 0) && (row2 < NRows) && (col2 < NCols))
+            {
+                q22 = Values[row2][col2];
+                if (q22.Equals(NoDataValue))
+                {
+                    q22 = NoDataCalculationValue;
+                }
+            }
+            else
+            {
+                q22 = float.NaN;
+            }
+
+            // Now perform bilinear interpolation (if any of these values equal float.NaN, the results would be float.NaN, so process these seperately)
+            float r1;
+            if (!q11.Equals(float.NaN) && !q21.Equals(float.NaN))
+            {
+                r1 = ((x2 - x) / (x2 - x1)) * q11 + ((x - x1) / (x2 - x1)) * q21;
+            }
+            else
+            {
+                r1 = (q11.Equals(float.NaN)) ? q21 : q11;
+            }
+
+            float r2 = float.NaN;
+            if (!q12.Equals(float.NaN) && !q22.Equals(float.NaN))
+            {
+                r2 = ((x2 - x) / (x2 - x1)) * q12 + ((x - x1) / (x2 - x1)) * q22;
+            }
+            else
+            {
+                r2 = q12.Equals(float.NaN) ? q22 : q12;
+            }
+            float p;
+            if (!r1.Equals(float.NaN) && !r2.Equals(float.NaN))
+            {
+                p = ((y2 - y) / (y2 - y1)) * r1 + ((y - y1) / (y2 - y1)) * r2;
+            }
+            else
+            {
+                p = r1.Equals(float.NaN) ? r2 : r1;
+            }
+            return p;
+        }
+
+        /// <summary>
         /// Retrieve a local grid with dimensions (2 * cellDistance + 1) * (2 * cellDistance + 1)
         /// </summary>
         /// <param name="x"></param>
@@ -334,8 +499,8 @@ namespace Sweco.SIF.iMOD.IDF
         /// <returns></returns>
         public float[][] GetCellValues(float x, float y, int cellDistance, int precision = -1)
         {
-            int rowIdx = GetRowIdx(y) - cellDistance; // Math.Max(GetRowIdx(y) - cellDistance, 0);
-            int colIdx = GetColIdx(x) - cellDistance; // Math.Max(GetColIdx(x) - cellDistance, 0);
+            int rowIdx = GetRowIdx(y);
+            int colIdx = GetColIdx(x);
 
             return GetCellValues(rowIdx, colIdx, cellDistance, precision);
         }
@@ -359,15 +524,15 @@ namespace Sweco.SIF.iMOD.IDF
                 cellValues[rowSubidx] = new float[gridSize];
                 for (int colSubidx = 0; colSubidx < gridSize; colSubidx++)
                 {
-                    if ((rowIdx + rowSubidx >= 0) && (rowIdx + rowSubidx < NRows) && (colIdx + colSubidx >= 0) && (colIdx + colSubidx < NCols))
+                    if (((rowIdx + rowSubidx - cellDistance) >= 0) && ((rowIdx + rowSubidx - cellDistance) < NRows) && ((colIdx + colSubidx - cellDistance )>= 0) && ((colIdx + colSubidx - cellDistance) < NCols))
                     {
                         if (precision >= 0)
                         {
-                            cellValues[rowSubidx][colSubidx] = (float)Math.Round(values[rowIdx + rowSubidx][colIdx + colSubidx], precision);
+                            cellValues[rowSubidx][colSubidx] = (float)Math.Round(values[rowIdx + rowSubidx - cellDistance][colIdx + colSubidx - cellDistance], precision);
                         }
                         else
                         {
-                            cellValues[rowSubidx][colSubidx] = values[rowIdx + rowSubidx][colIdx + colSubidx];
+                            cellValues[rowSubidx][colSubidx] = values[rowIdx + rowSubidx - cellDistance][colIdx + colSubidx - cellDistance];
                         }
                     }
                     else
@@ -401,7 +566,7 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Set cell value for specified x- and y-coordinate
+        /// Set cell value for specified x- and y-coordinate. Note: Min/Max-value is not updated!
         /// </summary>
         /// <param name="x"></param>
         /// <param name="y"></param>
@@ -409,11 +574,10 @@ namespace Sweco.SIF.iMOD.IDF
         public virtual void SetValue(float x, float y, float value)
         {
             Values[GetRowIdx(y)][GetColIdx(x)] = value;
-            UpdateMinMaxValue(value);
         }
 
         /// <summary>
-        /// Adds specified value to the current cellvalue. When the current value is NoData it is replaced with zero before adding.
+        /// Adds specified value to the current cellvalue. When the current value is NoData it is replaced with zero before adding. Note: Min/Max-value is not updated!
         /// </summary>
         /// <param name="x"></param>
         /// <param name="y"></param>
@@ -429,7 +593,6 @@ namespace Sweco.SIF.iMOD.IDF
             }
 
             values[rowIdx][colIdx] += value;
-            UpdateMinMaxValue(values[rowIdx][colIdx]);
         }
 
         /// <summary>
@@ -439,18 +602,13 @@ namespace Sweco.SIF.iMOD.IDF
         public virtual void SetValues(float value)
         {
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
 
-            int colIdx = 0;
-            int rowIdx = 0;
-            while ((colIdx < NCols) && (rowIdx < NRows))
+            for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
             {
-                values[rowIdx][colIdx] = value;
-                colIdx++;
-                if (colIdx == NCols)
+                for (int colIdx = 0; colIdx < NCols; colIdx++)
                 {
-                    colIdx = 0;
-                    rowIdx++;
+                    values[rowIdx][colIdx] = value;
                 }
             }
             MinValue = value;
@@ -500,13 +658,92 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
+        /// Replaces cellvalues above the specified maximum value by this maximum value. NoData values are skipped.
+        /// </summary>
+        /// <param name="value"></param>
+        public void SetMaxValue(float value)
+        {
+            if (value.Equals(NoDataValue))
+            {
+                return;
+            }
+
+            // Force (lazy) load of values
+            EnsureLoadedValues();
+
+            for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
+            {
+                for (int colIdx = 0; colIdx < NCols; colIdx++)
+                {
+                    if (!values[rowIdx][colIdx].Equals(NoDataValue))
+                    {
+                        // Select value if smaller than cell value
+                        if (value < values[rowIdx][colIdx])
+                        {
+                            values[rowIdx][colIdx] = value;
+                        }
+                    }
+                }
+            }
+
+            if (value < MinValue)
+            {
+                MinValue = value;
+            }
+            if (value < MaxValue)
+            {
+                MaxValue = value;
+            }
+        }
+
+        /// <summary>
+        /// Replaces cellvalues below the specified maximum value by this maximum value. NoData values are skipped.
+        /// </summary>
+        /// <param name="value"></param>
+        public void SetMinValue(float value)
+        {
+            if (value.Equals(NoDataValue))
+            {
+                return;
+            }
+
+            // Force (lazy) load of values
+            EnsureLoadedValues();
+
+            for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
+            {
+                for (int colIdx = 0; colIdx < NCols; colIdx++)
+                {
+                    if (!values[rowIdx][colIdx].Equals(NoDataValue))
+                    {
+                        // Select value if larger than cell value
+                        if (value > values[rowIdx][colIdx])
+                        {
+                            values[rowIdx][colIdx] = value;
+                        }
+                    }
+                }
+            }
+
+            if (value > MinValue)
+            {
+                MinValue = value;
+            }
+            if (value > MaxValue)
+            {
+                MaxValue = value;
+            }
+        }
+
+        /// <summary>
         /// Checks if the given cell has a minimum or maximum value in the specified local grid around it with dimensions (2 * cellDistance + 1) * (2 * cellDistance + 1)
         /// </summary>
         /// <param name="x"></param>
         /// <param name="y"></param>
         /// <param name="cellDistance"></param>
+        /// <param name="tolerance">minimum difference between min and max value within local grid to report value in given cell as a minmax value</param>
         /// <returns>true if it is the highest or the lowest value</returns>
-        public bool IsMinMaxValue(float x, float y, int cellDistance)
+        public bool IsMinMaxValue(float x, float y, int cellDistance, float tolerance = 0)
         {
             int xColIdx = GetColIdx(x);
             int yRowIdx = GetRowIdx(y);
@@ -534,7 +771,8 @@ namespace Sweco.SIF.iMOD.IDF
                     }
                 }
             }
-            return (xyValue.Equals(min) || xyValue.Equals(max));
+
+            return (xyValue.Equals(min) || xyValue.Equals(max)) && ((max - min) > tolerance);
         }
 
         /// <summary>
@@ -549,8 +787,15 @@ namespace Sweco.SIF.iMOD.IDF
             // Process special cases for subclas here, since this cannot be done properly from the subclass itself
             if ((idfFile1 is ConstantIDFFile) && (idfFile2 is ConstantIDFFile))
             {
-                float resultValue = ((ConstantIDFFile)idfFile1).ConstantValue + ((ConstantIDFFile)idfFile2).ConstantValue;
-                return new ConstantIDFFile(resultValue);
+                if (!((ConstantIDFFile)idfFile2).ConstantValue.Equals(idfFile1.NoDataValue) && !((ConstantIDFFile)idfFile2).ConstantValue.Equals(idfFile2.NoDataValue))
+                {
+                    float resultValue = ((ConstantIDFFile)idfFile1).ConstantValue + ((ConstantIDFFile)idfFile2).ConstantValue;
+                    return new ConstantIDFFile(resultValue);
+                }
+                else
+                {
+                    return new ConstantIDFFile(idfFile1.NoDataValue);
+                }
             }
             if (idfFile1 is ConstantIDFFile)
             {
@@ -572,6 +817,7 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 resultIDFFile = new IDFFile(CreateFilename(idfFile1, "Plus", idfFile2), idfFile1.Extent, idfFile1.XCellsize, idfFile1.YCellsize, idfFile1.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile1.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile1.TOPLevel, idfFile1.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float[][] values1 = idfFile1.Values;
                 float[][] values2 = idfFile2.Values;
@@ -624,12 +870,13 @@ namespace Sweco.SIF.iMOD.IDF
                 // extent and/or cellsize is not equal, use a robust iterator
 
                 IDFCellIterator cellIterator = new IDFCellIterator();
-                cellIterator.RedefineExtentType(IDFCellIterator.ExtentMethod.MaxExtent);
+                cellIterator.RedefineExtentMethod(IDFCellIterator.ExtentMethod.MaxExtent);
                 cellIterator.AddIDFFile(idfFile1);
                 cellIterator.AddIDFFile(idfFile2);
 
                 resultIDFFile = new IDFFile(CreateFilename(idfFile1, "+", idfFile2), cellIterator.MaxExtent, cellIterator.XStepsize, cellIterator.YStepsize, idfFile1.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile1.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile1.TOPLevel, idfFile1.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float value1 = float.NaN;
                 float value2 = float.NaN;
@@ -706,8 +953,15 @@ namespace Sweco.SIF.iMOD.IDF
             // Process special cases for subclas here, since this cannot be done properly from the subclass itself
             if ((idfFile1 is ConstantIDFFile) && (idfFile2 is ConstantIDFFile))
             {
-                float resultValue = ((ConstantIDFFile)idfFile1).ConstantValue - ((ConstantIDFFile)idfFile2).ConstantValue;
-                return new ConstantIDFFile(resultValue);
+                if (!((ConstantIDFFile)idfFile2).ConstantValue.Equals(idfFile1.NoDataValue) && !((ConstantIDFFile)idfFile2).ConstantValue.Equals(idfFile2.NoDataValue))
+                {
+                    float resultValue = ((ConstantIDFFile)idfFile1).ConstantValue - ((ConstantIDFFile)idfFile2).ConstantValue;
+                    return new ConstantIDFFile(resultValue);
+                }
+                else
+                {
+                    return new ConstantIDFFile(idfFile1.NoDataValue);
+                }
             }
             if (idfFile1 is ConstantIDFFile)
             {
@@ -729,6 +983,7 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 resultIDFFile = new IDFFile(CreateFilename(idfFile1, "Min", idfFile2), idfFile1.Extent, idfFile1.XCellsize, idfFile1.YCellsize, idfFile1.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile1.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile1.TOPLevel, idfFile1.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float[][] values1 = idfFile1.Values;
                 float[][] values2 = idfFile2.Values;
@@ -781,12 +1036,13 @@ namespace Sweco.SIF.iMOD.IDF
                 // extent and/or cellsize is not equal, use a robust iterator
 
                 IDFCellIterator cellIterator = new IDFCellIterator();
-                cellIterator.RedefineExtentType(IDFCellIterator.ExtentMethod.MaxExtent);
+                cellIterator.RedefineExtentMethod(IDFCellIterator.ExtentMethod.MaxExtent);
                 cellIterator.AddIDFFile(idfFile1);
                 cellIterator.AddIDFFile(idfFile2);
 
                 resultIDFFile = new IDFFile(CreateFilename(idfFile1, "-", idfFile2), cellIterator.MaxExtent, cellIterator.XStepsize, cellIterator.YStepsize, idfFile1.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile1.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile1.TOPLevel, idfFile1.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float value1 = float.NaN;
                 float value2 = float.NaN;
@@ -852,7 +1108,7 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Checks equality of cells for this IDF-file and another IDF-file, each cell will result in a 1 (true, equal) or 0 (false, unequal)
+        /// Checks equality of cells for this IDF-file and another IDF-file, each cell will result in a 1 (true, equal) or 0 (false, unequal). 
         /// </summary>
         /// <param name="idfFile"></param>
         /// <returns></returns>
@@ -902,6 +1158,7 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 resultIDFFile = new IDFFile(CreateFilename(this, "EQ", idfFile), this.Extent, this.XCellsize, this.YCellsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float[][] values1 = this.Values;
                 float[][] values2 = idfFile.Values;
@@ -947,13 +1204,14 @@ namespace Sweco.SIF.iMOD.IDF
                 // extent and/or cellsize is not equal, use a robust iterator
 
                 IDFCellIterator cellIterator = new IDFCellIterator();
-                cellIterator.RedefineExtentType(IDFCellIterator.ExtentMethod.MaxExtent);
+                cellIterator.RedefineExtentMethod(IDFCellIterator.ExtentMethod.MaxExtent);
 
                 cellIterator.AddIDFFile(this);
                 cellIterator.AddIDFFile(idfFile);
 
                 resultIDFFile = new IDFFile(CreateFilename(this, "EQ", idfFile), cellIterator.MaxExtent, cellIterator.XStepsize, cellIterator.YStepsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float value1 = float.NaN;
                 float value2 = float.NaN;
@@ -1012,7 +1270,7 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Checks inequality of cells for this IDF-file and another IDF-file, each cell will result in a 1 (true, unequal) or 0 (false, equal)
+        /// Checks inequality of cells for this IDF-file and another IDF-file, each cell will result in a 1 (true, unequal) or 0 (false, equal). 
         /// </summary>
         /// <param name="idfFile"></param>
         /// <returns></returns>
@@ -1062,6 +1320,7 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 resultIDFFile = new IDFFile(CreateFilename(this, "UNEQ", idfFile), this.Extent, this.XCellsize, this.YCellsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float[][] values1 = this.Values;
                 float[][] values2 = idfFile.Values;
@@ -1107,13 +1366,14 @@ namespace Sweco.SIF.iMOD.IDF
                 // extent and/or cellsize is not equal, use a robust iterator
 
                 IDFCellIterator cellIterator = new IDFCellIterator();
-                cellIterator.RedefineExtentType(IDFCellIterator.ExtentMethod.MaxExtent);
+                cellIterator.RedefineExtentMethod(IDFCellIterator.ExtentMethod.MaxExtent);
 
                 cellIterator.AddIDFFile(this);
                 cellIterator.AddIDFFile(idfFile);
 
                 resultIDFFile = new IDFFile(CreateFilename(this, "UNEQ", idfFile), cellIterator.MaxExtent, cellIterator.XStepsize, cellIterator.YStepsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float value1 = float.NaN;
                 float value2 = float.NaN;
@@ -1172,7 +1432,7 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Checks if cells of this IDF-file are greather than cells of another IDF-file, each cell will result in a 1 (true) or 0 (false)
+        /// Checks if cells of this IDF-file are greater than cells of another IDF-file, each cell will result in a 1 (true) or 0 (false). 
         /// </summary>
         /// <param name="idfFile"></param>
         /// <returns></returns>
@@ -1204,6 +1464,7 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 resultIDFFile = new IDFFile(CreateFilename(this, "GT", idfFile), this.Extent, this.XCellsize, this.YCellsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float[][] values1 = this.Values;
                 float[][] values2 = idfFile.Values;
@@ -1249,13 +1510,14 @@ namespace Sweco.SIF.iMOD.IDF
                 // extent and/or cellsize is not equal, use a robust iterator
 
                 IDFCellIterator cellIterator = new IDFCellIterator();
-                cellIterator.RedefineExtentType(IDFCellIterator.ExtentMethod.MaxExtent);
+                cellIterator.RedefineExtentMethod(IDFCellIterator.ExtentMethod.MaxExtent);
 
                 cellIterator.AddIDFFile(this);
                 cellIterator.AddIDFFile(idfFile);
 
                 resultIDFFile = new IDFFile(CreateFilename(this, "GT", idfFile), cellIterator.MaxExtent, cellIterator.XStepsize, cellIterator.YStepsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float value1 = float.NaN;
                 float value2 = float.NaN;
@@ -1314,7 +1576,7 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Checks if cells of this IDF-file are greather than or equal cells of another IDF-file, each cell will result in a 1 (true) or 0 (false)
+        /// Checks if cells of this IDF-file are greater than or equal cells of another IDF-file, each cell will result in a 1 (true) or 0 (false). 
         /// </summary>
         /// <param name="idfFile"></param>
         /// <returns></returns>
@@ -1346,6 +1608,7 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 resultIDFFile = new IDFFile(CreateFilename(this, "GTE", idfFile), this.Extent, this.XCellsize, this.YCellsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float[][] values1 = this.Values;
                 float[][] values2 = idfFile.Values;
@@ -1391,13 +1654,14 @@ namespace Sweco.SIF.iMOD.IDF
                 // extent and/or cellsize is not equal, use a robust iterator
 
                 IDFCellIterator cellIterator = new IDFCellIterator();
-                cellIterator.RedefineExtentType(IDFCellIterator.ExtentMethod.MaxExtent);
+                cellIterator.RedefineExtentMethod(IDFCellIterator.ExtentMethod.MaxExtent);
 
                 cellIterator.AddIDFFile(this);
                 cellIterator.AddIDFFile(idfFile);
 
                 resultIDFFile = new IDFFile(CreateFilename(this, "GTE", idfFile), cellIterator.MaxExtent, cellIterator.XStepsize, cellIterator.YStepsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float value1 = float.NaN;
                 float value2 = float.NaN;
@@ -1456,7 +1720,7 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Checks if cells of this IDF-file are lesser than cells of another IDF-file, each cell will result in a 1 (true) or 0 (false)
+        /// Checks if cells of this IDF-file are lesser than cells of another IDF-file, each cell will result in a 1 (true) or 0 (false). 
         /// </summary>
         /// <param name="idfFile"></param>
         /// <returns></returns>
@@ -1488,6 +1752,7 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 resultIDFFile = new IDFFile(CreateFilename(this, "LT", idfFile), this.Extent, this.XCellsize, this.YCellsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float[][] values1 = this.Values;
                 float[][] values2 = idfFile.Values;
@@ -1533,13 +1798,14 @@ namespace Sweco.SIF.iMOD.IDF
                 // extent and/or cellsize is not equal, use a robust iterator
 
                 IDFCellIterator cellIterator = new IDFCellIterator();
-                cellIterator.RedefineExtentType(IDFCellIterator.ExtentMethod.MaxExtent);
+                cellIterator.RedefineExtentMethod(IDFCellIterator.ExtentMethod.MaxExtent);
 
                 cellIterator.AddIDFFile(this);
                 cellIterator.AddIDFFile(idfFile);
 
                 resultIDFFile = new IDFFile(CreateFilename(this, "LT", idfFile), cellIterator.MaxExtent, cellIterator.XStepsize, cellIterator.YStepsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float value1 = float.NaN;
                 float value2 = float.NaN;
@@ -1598,7 +1864,7 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Checks if cells of this IDF-file are lesser than or equal cells of another IDF-file, each cell will result in a 1 (true) or 0 (false)
+        /// Checks if cells of this IDF-file are lesser than or equal cells of another IDF-file, each cell will result in a 1 (true) or 0 (false). 
         /// </summary>
         /// <param name="idfFile"></param>
         /// <returns></returns>
@@ -1630,6 +1896,7 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 resultIDFFile = new IDFFile(CreateFilename(this, "LTE", idfFile), this.Extent, this.XCellsize, this.YCellsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float[][] values1 = this.Values;
                 float[][] values2 = idfFile.Values;
@@ -1675,13 +1942,14 @@ namespace Sweco.SIF.iMOD.IDF
                 // extent and/or cellsize is not equal, use a robust iterator
 
                 IDFCellIterator cellIterator = new IDFCellIterator();
-                cellIterator.RedefineExtentType(IDFCellIterator.ExtentMethod.MaxExtent);
+                cellIterator.RedefineExtentMethod(IDFCellIterator.ExtentMethod.MaxExtent);
 
                 cellIterator.AddIDFFile(this);
                 cellIterator.AddIDFFile(idfFile);
 
                 resultIDFFile = new IDFFile(CreateFilename(this, "LTE", idfFile), cellIterator.MaxExtent, cellIterator.XStepsize, cellIterator.YStepsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float value1 = float.NaN;
                 float value2 = float.NaN;
@@ -1928,6 +2196,7 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 resultIDFFile = new IDFFile(Path.GetFileNameWithoutExtension(this.Filename) + "AND" + Path.GetFileNameWithoutExtension(idfFile.Filename) + ".IDF", this.Extent, this.XCellsize, this.YCellsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float[][] values1 = this.Values;
                 float[][] values2 = idfFile.Values;
@@ -1973,13 +2242,14 @@ namespace Sweco.SIF.iMOD.IDF
                 // extent and/or cellsize is not equal, use a robust iterator
 
                 IDFCellIterator cellIterator = new IDFCellIterator();
-                cellIterator.RedefineExtentType(IDFCellIterator.ExtentMethod.MaxExtent);
+                cellIterator.RedefineExtentMethod(IDFCellIterator.ExtentMethod.MaxExtent);
 
                 cellIterator.AddIDFFile(this);
                 cellIterator.AddIDFFile(idfFile);
 
                 resultIDFFile = new IDFFile(CreateFilename(this, "AND", idfFile), cellIterator.MaxExtent, cellIterator.XStepsize, cellIterator.YStepsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float value1 = float.NaN;
                 float value2 = float.NaN;
@@ -2072,6 +2342,7 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 resultIDFFile = new IDFFile(CreateFilename(this, "OR", idfFile), this.Extent, this.XCellsize, this.YCellsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float[][] values1 = this.Values;
                 float[][] values2 = idfFile.Values;
@@ -2117,13 +2388,14 @@ namespace Sweco.SIF.iMOD.IDF
                 // extent and/or cellsize is not equal, use a robust iterator
 
                 IDFCellIterator cellIterator = new IDFCellIterator();
-                cellIterator.RedefineExtentType(IDFCellIterator.ExtentMethod.MaxExtent);
+                cellIterator.RedefineExtentMethod(IDFCellIterator.ExtentMethod.MaxExtent);
 
                 cellIterator.AddIDFFile(this);
                 cellIterator.AddIDFFile(idfFile);
 
                 resultIDFFile = new IDFFile(CreateFilename(this, "OR", idfFile), cellIterator.MaxExtent, cellIterator.XStepsize, cellIterator.YStepsize, this.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float value1 = float.NaN;
                 float value2 = float.NaN;
@@ -2189,10 +2461,15 @@ namespace Sweco.SIF.iMOD.IDF
         public IDFFile IsEqual(float testValue)
         {
             IDFFile resultIDFFile = this.CopyIDF(CreateFilename(this, "EQ", testValue));
-            resultIDFFile.SetValues(0);
 
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
+
+            float[][] resultValues = resultIDFFile.values;
+            float noDataValue = this.NoDataValue;
+
+            // For this test ensure NoDataCalculationValue is different from float.NaN when testValue equal NoData to avoid unexpected results
+            float noDataCalculationValue = (testValue.Equals(noDataValue) && this.NoDataCalculationValue.Equals(float.NaN)) ? noDataValue : this.NoDataCalculationValue;
 
             float value = float.NaN;
             for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
@@ -2200,10 +2477,12 @@ namespace Sweco.SIF.iMOD.IDF
                 for (int colIdx = 0; colIdx < NCols; colIdx++)
                 {
                     value = values[rowIdx][colIdx];
-                    if (value.Equals(testValue))
+                    if (value.Equals(noDataValue))
                     {
-                        resultIDFFile.values[rowIdx][colIdx] = 1;
+                        value = noDataCalculationValue;
                     }
+
+                    resultValues[rowIdx][colIdx] = value.Equals(testValue) ? 1 : 0;
                 }
             }
 
@@ -2219,10 +2498,15 @@ namespace Sweco.SIF.iMOD.IDF
         public IDFFile IsNotEqual(float testValue)
         {
             IDFFile resultIDFFile = this.CopyIDF(CreateFilename(this, "UNEQ", testValue));
-            resultIDFFile.SetValues(0);
 
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
+
+            float[][] resultValues = resultIDFFile.values;
+            float noDataValue = this.NoDataValue;
+
+            // For this test ensure NoDataCalculationValue is different from float.NaN when testValue equal NoData to avoid unexpected results
+            float noDataCalculationValue = (testValue.Equals(noDataValue) && this.NoDataCalculationValue.Equals(float.NaN)) ? noDataValue : this.NoDataCalculationValue;
 
             float value = float.NaN;
             for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
@@ -2230,10 +2514,12 @@ namespace Sweco.SIF.iMOD.IDF
                 for (int colIdx = 0; colIdx < NCols; colIdx++)
                 {
                     value = values[rowIdx][colIdx];
-                    if (!value.Equals(testValue))
+                    if (value.Equals(noDataValue))
                     {
-                        resultIDFFile.values[rowIdx][colIdx] = 1;
+                        value = noDataCalculationValue;
                     }
+
+                    resultValues[rowIdx][colIdx] = !value.Equals(testValue) ? 1 : 0;
                 }
             }
 
@@ -2242,17 +2528,20 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Checks for all non-NoData-values in this IDF if they are greather than the given value
+        /// Checks for all non-NoData-values in this IDF if they are greater than the given value
         /// </summary>
         /// <param name="testValue"></param>
         /// <returns>1 if true, 0 if false</returns>
         public IDFFile IsGreater(float testValue)
         {
-            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "GT" + testValue.ToString("F3") + ".IDF");
-            resultIDFFile.SetValues(0);
+            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "GT" + testValue.ToString("F3", EnglishCultureInfo) + ".IDF");
 
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
+
+            float[][] resultValues = resultIDFFile.values;
+            float noDataValue = this.NoDataValue;
+            float noDataCalculationValue = this.NoDataCalculationValue;
 
             float value = float.NaN;
             for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
@@ -2260,10 +2549,12 @@ namespace Sweco.SIF.iMOD.IDF
                 for (int colIdx = 0; colIdx < NCols; colIdx++)
                 {
                     value = values[rowIdx][colIdx];
-                    if (!value.Equals(this.NoDataValue) && (value > testValue))
+                    if (value.Equals(noDataValue))
                     {
-                        resultIDFFile.values[rowIdx][colIdx] = 1;
+                        value = noDataCalculationValue;
                     }
+
+                    resultValues[rowIdx][colIdx] = (value > testValue) ? 1 : 0;
                 }
             }
 
@@ -2272,17 +2563,20 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Checks for all non-NoData-values in this IDF if they are greather than or equal to the given value
+        /// Checks for all non-NoData-values in this IDF if they are greater than or equal to the given value
         /// </summary>
         /// <param name="testValue"></param>
         /// <returns>1 if true, 0 if false</returns>
         public IDFFile IsGreaterEqual(float testValue)
         {
-            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "GTE" + testValue.ToString("F3") + ".IDF");
-            resultIDFFile.SetValues(0);
+            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "GTE" + testValue.ToString("F3", EnglishCultureInfo) + ".IDF");
 
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
+
+            float[][] resultValues = resultIDFFile.values;
+            float noDataValue = this.NoDataValue;
+            float noDataCalculationValue = this.NoDataCalculationValue;
 
             float value = float.NaN;
             for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
@@ -2290,10 +2584,12 @@ namespace Sweco.SIF.iMOD.IDF
                 for (int colIdx = 0; colIdx < NCols; colIdx++)
                 {
                     value = values[rowIdx][colIdx];
-                    if (!value.Equals(this.NoDataValue) && (value >= testValue))
+                    if (value.Equals(noDataValue))
                     {
-                        resultIDFFile.values[rowIdx][colIdx] = 1;
+                        value = noDataCalculationValue;
                     }
+
+                    resultValues[rowIdx][colIdx] = (value >= testValue) ? 1 : 0;
                 }
             }
 
@@ -2308,11 +2604,14 @@ namespace Sweco.SIF.iMOD.IDF
         /// <returns>1 if true, 0 if false</returns>
         public IDFFile IsLesser(float testValue)
         {
-            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "LT" + testValue.ToString("F3") + ".IDF");
-            resultIDFFile.SetValues(0);
+            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "LT" + testValue.ToString("F3", EnglishCultureInfo) + ".IDF");
 
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
+
+            float[][] resultValues = resultIDFFile.values;
+            float noDataValue = this.NoDataValue;
+            float noDataCalculationValue = this.NoDataCalculationValue;
 
             float value = float.NaN;
             for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
@@ -2320,10 +2619,12 @@ namespace Sweco.SIF.iMOD.IDF
                 for (int colIdx = 0; colIdx < NCols; colIdx++)
                 {
                     value = values[rowIdx][colIdx];
-                    if (!value.Equals(this.NoDataValue) && (value < testValue))
+                    if (value.Equals(noDataValue))
                     {
-                        resultIDFFile.values[rowIdx][colIdx] = 1;
+                        value = noDataCalculationValue;
                     }
+
+                    resultValues[rowIdx][colIdx] = (value < testValue) ? 1 : 0;
                 }
             }
 
@@ -2338,11 +2639,14 @@ namespace Sweco.SIF.iMOD.IDF
         /// <returns>1 if true, 0 if false</returns>
         public IDFFile IsLesserEqual(float testValue)
         {
-            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "LTE" + testValue.ToString("F3") + ".IDF");
-            resultIDFFile.SetValues(0);
+            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "LTE" + testValue.ToString("F3", EnglishCultureInfo) + ".IDF");
 
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
+
+            float[][] resultValues = resultIDFFile.values;
+            float noDataValue = this.NoDataValue;
+            float noDataCalculationValue = this.NoDataCalculationValue;
 
             float value = float.NaN;
             for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
@@ -2350,10 +2654,12 @@ namespace Sweco.SIF.iMOD.IDF
                 for (int colIdx = 0; colIdx < NCols; colIdx++)
                 {
                     value = values[rowIdx][colIdx];
-                    if (!value.Equals(this.NoDataValue) && (value <= testValue))
+                    if (value.Equals(noDataValue))
                     {
-                        resultIDFFile.values[rowIdx][colIdx] = 1;
+                        value = noDataCalculationValue;
                     }
+
+                    resultValues[rowIdx][colIdx] = (value <= testValue) ? 1 : 0;
                 }
             }
 
@@ -2371,14 +2677,16 @@ namespace Sweco.SIF.iMOD.IDF
         /// <returns>1 if true, 0 if false</returns>
         public IDFFile IsBetween(float testValue1, float testValue2, bool isIncludedVal1 = true, bool isIncludedVal2 = true)
         {
-            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + testValue1.ToString("F3") + "-" + testValue2.ToString("F3") + ".IDF");
-            resultIDFFile.SetValues(0);
+            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + testValue1.ToString("F3", EnglishCultureInfo) + "-" + testValue2.ToString("F3", EnglishCultureInfo) + ".IDF");
 
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
+
+            float[][] resultValues = resultIDFFile.values;
+            float noDataValue = this.NoDataValue;
+            float noDataCalculationValue = this.NoDataCalculationValue;
 
             float value = float.NaN;
-
             if (isIncludedVal1 && isIncludedVal2)
             {
                 for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
@@ -2386,10 +2694,12 @@ namespace Sweco.SIF.iMOD.IDF
                     for (int colIdx = 0; colIdx < NCols; colIdx++)
                     {
                         value = values[rowIdx][colIdx];
-                        if (!value.Equals(this.NoDataValue) && (value >= testValue1) && (value <= testValue2))
+                        if (value.Equals(noDataValue))
                         {
-                            resultIDFFile.values[rowIdx][colIdx] = 1;
+                            value = noDataCalculationValue;
                         }
+
+                        resultValues[rowIdx][colIdx] = ((value >= testValue1) && (value <= testValue2)) ? 1 : 0;
                     }
                 }
             }
@@ -2400,10 +2710,12 @@ namespace Sweco.SIF.iMOD.IDF
                     for (int colIdx = 0; colIdx < NCols; colIdx++)
                     {
                         value = values[rowIdx][colIdx];
-                        if (!value.Equals(this.NoDataValue) && (value > testValue1) && (value <= testValue2))
+                        if (value.Equals(noDataValue))
                         {
-                            resultIDFFile.values[rowIdx][colIdx] = 1;
+                            value = noDataCalculationValue;
                         }
+
+                        resultValues[rowIdx][colIdx] = ((value > testValue1) && (value <= testValue2)) ? 1 : 0;
                     }
                 }
             }
@@ -2414,10 +2726,12 @@ namespace Sweco.SIF.iMOD.IDF
                     for (int colIdx = 0; colIdx < NCols; colIdx++)
                     {
                         value = values[rowIdx][colIdx];
-                        if (!value.Equals(this.NoDataValue) && (value >= testValue1) && (value < testValue2))
+                        if (value.Equals(noDataValue))
                         {
-                            resultIDFFile.values[rowIdx][colIdx] = 1;
+                            value = noDataCalculationValue;
                         }
+
+                        resultValues[rowIdx][colIdx] = ((value >= testValue1) && (value < testValue2)) ? 1 : 0;
                     }
                 }
             }
@@ -2428,10 +2742,12 @@ namespace Sweco.SIF.iMOD.IDF
                     for (int colIdx = 0; colIdx < NCols; colIdx++)
                     {
                         value = values[rowIdx][colIdx];
-                        if (!value.Equals(this.NoDataValue) && (value > testValue1) && (value < testValue2))
+                        if (value.Equals(noDataValue))
                         {
-                            resultIDFFile.values[rowIdx][colIdx] = 1;
+                            value = noDataCalculationValue;
                         }
+
+                        resultValues[rowIdx][colIdx] = ((value > testValue1) && (value < testValue2)) ? 1 : 0;
                     }
                 }
             }
@@ -2450,14 +2766,17 @@ namespace Sweco.SIF.iMOD.IDF
         /// <returns>1 if true, 0 if false</returns>
         public IDFFile IsNotBetween(float testValue1, float testValue2, bool isIncludedVal1 = true, bool isIncludedVal2 = true)
         {
-            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + testValue1.ToString("F3") + "-" + testValue2.ToString("F3") + ".IDF");
+            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + testValue1.ToString("F3", EnglishCultureInfo) + "-" + testValue2.ToString("F3", EnglishCultureInfo) + ".IDF");
             resultIDFFile.SetValues(0);
 
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
+
+            float[][] resultValues = resultIDFFile.values;
+            float noDataValue = this.NoDataValue;
+            float noDataCalculationValue = this.NoDataCalculationValue;
 
             float value = float.NaN;
-
             if (!isIncludedVal1 && !isIncludedVal2)
             {
                 for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
@@ -2465,10 +2784,12 @@ namespace Sweco.SIF.iMOD.IDF
                     for (int colIdx = 0; colIdx < NCols; colIdx++)
                     {
                         value = values[rowIdx][colIdx];
-                        if (!value.Equals(this.NoDataValue) && ((value <= testValue1) || (value >= testValue2)))
+                        if (value.Equals(noDataValue))
                         {
-                            resultIDFFile.values[rowIdx][colIdx] = 1;
+                            value = noDataCalculationValue;
                         }
+
+                        resultValues[rowIdx][colIdx] = ((value <= testValue1) || (value >= testValue2)) ? 1 : 0;
                     }
                 }
             }
@@ -2479,10 +2800,12 @@ namespace Sweco.SIF.iMOD.IDF
                     for (int colIdx = 0; colIdx < NCols; colIdx++)
                     {
                         value = values[rowIdx][colIdx];
-                        if (!value.Equals(this.NoDataValue) && ((value < testValue1) || (value >= testValue2)))
+                        if (value.Equals(noDataValue))
                         {
-                            resultIDFFile.values[rowIdx][colIdx] = 1;
+                            value = noDataCalculationValue;
                         }
+
+                        resultValues[rowIdx][colIdx] = ((value < testValue1) || (value >= testValue2)) ? 1 : 0;
                     }
                 }
             }
@@ -2493,10 +2816,12 @@ namespace Sweco.SIF.iMOD.IDF
                     for (int colIdx = 0; colIdx < NCols; colIdx++)
                     {
                         value = values[rowIdx][colIdx];
-                        if (!value.Equals(this.NoDataValue) && ((value <= testValue1) || (value > testValue2)))
+                        if (value.Equals(noDataValue))
                         {
-                            resultIDFFile.values[rowIdx][colIdx] = 1;
+                            value = noDataCalculationValue;
                         }
+
+                        resultValues[rowIdx][colIdx] = ((value <= testValue1) || (value > testValue2)) ? 1 : 0;
                     }
                 }
             }
@@ -2507,10 +2832,12 @@ namespace Sweco.SIF.iMOD.IDF
                     for (int colIdx = 0; colIdx < NCols; colIdx++)
                     {
                         value = values[rowIdx][colIdx];
-                        if (!value.Equals(this.NoDataValue) && ((value < testValue1) || (value > testValue2)))
+                        if (value.Equals(noDataValue))
                         {
-                            resultIDFFile.values[rowIdx][colIdx] = 1;
+                            value = noDataCalculationValue;
                         }
+
+                        resultValues[rowIdx][colIdx] = ((value < testValue1) || (value > testValue2)) ? 1 : 0;
                     }
                 }
             }
@@ -2531,8 +2858,15 @@ namespace Sweco.SIF.iMOD.IDF
             // Process special cases for subclas here, since this cannot be done properly from the subclass itself
             if ((idfFile1 is ConstantIDFFile) && (idfFile2 is ConstantIDFFile))
             {
-                float resultValue = (float)Math.Pow(((ConstantIDFFile)idfFile1).ConstantValue, ((ConstantIDFFile)idfFile2).ConstantValue);
-                return new ConstantIDFFile(resultValue);
+                if (!((ConstantIDFFile)idfFile2).ConstantValue.Equals(idfFile1.NoDataValue) && !((ConstantIDFFile)idfFile2).ConstantValue.Equals(idfFile2.NoDataValue))
+                {
+                    float resultValue = (float)Math.Pow(((ConstantIDFFile)idfFile1).ConstantValue, ((ConstantIDFFile)idfFile2).ConstantValue);
+                    return new ConstantIDFFile(resultValue);
+                }
+                else
+                {
+                    return new ConstantIDFFile(idfFile1.NoDataValue);
+                }
             }
             if (idfFile2 is ConstantIDFFile)
             {
@@ -2550,6 +2884,7 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 resultIDFFile = new IDFFile(CreateFilename(idfFile1, "POW", idfFile2), idfFile1.Extent, idfFile1.XCellsize, idfFile1.YCellsize, idfFile1.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile1.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile1.TOPLevel, idfFile1.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float[][] values1 = idfFile1.Values;
                 float[][] values2 = idfFile2.Values;
@@ -2602,13 +2937,14 @@ namespace Sweco.SIF.iMOD.IDF
                 // extent and/or cellsize is not equal, use a robust iterator
 
                 IDFCellIterator cellIterator = new IDFCellIterator();
-                cellIterator.RedefineExtentType(IDFCellIterator.ExtentMethod.MaxExtent);
+                cellIterator.RedefineExtentMethod(IDFCellIterator.ExtentMethod.MaxExtent);
 
                 cellIterator.AddIDFFile(idfFile1);
                 cellIterator.AddIDFFile(idfFile2);
 
                 resultIDFFile = new IDFFile(CreateFilename(idfFile1, "POW", idfFile2), cellIterator.MaxExtent, cellIterator.XStepsize, cellIterator.YStepsize, idfFile1.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile1.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile1.TOPLevel, idfFile1.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float value1 = float.NaN;
                 float value2 = float.NaN;
@@ -2685,8 +3021,15 @@ namespace Sweco.SIF.iMOD.IDF
             // Process special cases for subclas here, since this cannot be done properly from the subclass itself
             if ((idfFile1 is ConstantIDFFile) && (idfFile2 is ConstantIDFFile))
             {
-                float resultValue = ((ConstantIDFFile)idfFile1).ConstantValue * ((ConstantIDFFile)idfFile2).ConstantValue;
-                return new ConstantIDFFile(resultValue);
+                if (!((ConstantIDFFile)idfFile2).ConstantValue.Equals(idfFile1.NoDataValue) && !((ConstantIDFFile)idfFile2).ConstantValue.Equals(idfFile2.NoDataValue))
+                {
+                    float resultValue = ((ConstantIDFFile)idfFile1).ConstantValue * ((ConstantIDFFile)idfFile2).ConstantValue;
+                    return new ConstantIDFFile(resultValue);
+                }
+                else
+                {
+                    return new ConstantIDFFile(idfFile1.NoDataValue);
+                }
             }
             if (idfFile1 is ConstantIDFFile)
             {
@@ -2708,6 +3051,7 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 resultIDFFile = new IDFFile(CreateFilename(idfFile1, "MULT", idfFile2), idfFile1.Extent, idfFile1.XCellsize, idfFile1.YCellsize, idfFile1.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile1.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile1.TOPLevel, idfFile1.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float[][] values1 = idfFile1.Values;
                 float[][] values2 = idfFile2.Values;
@@ -2760,13 +3104,14 @@ namespace Sweco.SIF.iMOD.IDF
                 // extent and/or cellsize is not equal, use a robust iterator
 
                 IDFCellIterator cellIterator = new IDFCellIterator();
-                cellIterator.RedefineExtentType(IDFCellIterator.ExtentMethod.MaxExtent);
+                cellIterator.RedefineExtentMethod(IDFCellIterator.ExtentMethod.MaxExtent);
 
                 cellIterator.AddIDFFile(idfFile1);
                 cellIterator.AddIDFFile(idfFile2);
 
                 resultIDFFile = new IDFFile(CreateFilename(idfFile1, "MULT", idfFile2), cellIterator.MaxExtent, cellIterator.XStepsize, cellIterator.YStepsize, idfFile1.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile1.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile1.TOPLevel, idfFile1.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float value1 = float.NaN;
                 float value2 = float.NaN;
@@ -2850,7 +3195,9 @@ namespace Sweco.SIF.iMOD.IDF
             // Process special cases for subclas here, since this cannot be done properly from the subclass itself
             if ((idfFile1 is ConstantIDFFile) && (idfFile2 is ConstantIDFFile))
             {
-                if (!((ConstantIDFFile)idfFile2).ConstantValue.Equals(0f))
+                if (!((ConstantIDFFile)idfFile2).ConstantValue.Equals(0f) 
+                    && !((ConstantIDFFile)idfFile2).ConstantValue.Equals(noDataValue1) 
+                    && !((ConstantIDFFile)idfFile2).ConstantValue.Equals(noDataValue2))
                 {
                     float resultValue = ((ConstantIDFFile)idfFile1).ConstantValue / ((ConstantIDFFile)idfFile2).ConstantValue;
                     return new ConstantIDFFile(resultValue);
@@ -2874,6 +3221,7 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 resultIDFFile = new IDFFile(CreateFilename(idfFile1, "DIV", idfFile2), idfFile1.Extent, idfFile1.XCellsize, idfFile1.YCellsize, idfFile1.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile1.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile1.TOPLevel, idfFile1.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float[][] values1 = idfFile1.Values;
                 float[][] values2 = idfFile2.Values;
@@ -2926,12 +3274,13 @@ namespace Sweco.SIF.iMOD.IDF
                 // extent and/or cellsize is not equal, use a robust iterator
 
                 IDFCellIterator cellIterator = new IDFCellIterator();
-                cellIterator.RedefineExtentType(IDFCellIterator.ExtentMethod.MaxExtent);
+                cellIterator.RedefineExtentMethod(IDFCellIterator.ExtentMethod.MaxExtent);
                 cellIterator.AddIDFFile(idfFile1);
                 cellIterator.AddIDFFile(idfFile2);
 
                 resultIDFFile = new IDFFile(CreateFilename(idfFile1, "DIV", idfFile2), cellIterator.MaxExtent, cellIterator.XStepsize, cellIterator.YStepsize, idfFile1.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile1.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile1.TOPLevel, idfFile1.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float value1 = float.NaN;
                 float value2 = float.NaN;
@@ -3003,7 +3352,7 @@ namespace Sweco.SIF.iMOD.IDF
         public void Multiply(float factor)
         {
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
 
             if (factor != float.NaN)
             {
@@ -3036,7 +3385,7 @@ namespace Sweco.SIF.iMOD.IDF
         public void Add(float value)
         {
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
 
             if (value != float.NaN)
             {
@@ -3102,11 +3451,11 @@ namespace Sweco.SIF.iMOD.IDF
             float noDataValue1 = idfFile.NoDataValue;
             float noDataCalculationValue1 = idfFile.NoDataCalculationValue;
 
-            IDFFile resultIDFFile = idfFile.CopyIDF(Path.GetFileNameWithoutExtension(idfFile.Filename) + "POW" + power.ToString("F3") + ".IDF");
+            IDFFile resultIDFFile = idfFile.CopyIDF(Path.GetFileNameWithoutExtension(idfFile.Filename) + "POW" + power.ToString("F3", EnglishCultureInfo) + ".IDF");
             resultIDFFile.SetValues(0);
 
             // Force (lazy) load of values
-            idfFile.EnsureValuesAreLoaded();
+            idfFile.EnsureLoadedValues();
 
             float value = float.NaN;
             float resultValue = float.NaN;
@@ -3169,7 +3518,6 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 // Return zero result file
                 return Transform(idfFile, 0, 0);
-
             }
             else
             {
@@ -3178,8 +3526,9 @@ namespace Sweco.SIF.iMOD.IDF
                 float noDataCalculationValue1 = idfFile.NoDataCalculationValue;
 
                 // Use a fast iteration loop
-                resultIDFFile = new IDFFile(CreateFilename(idfFile, "div", value), idfFile.Extent, idfFile.XCellsize, idfFile.YCellsize, idfFile.NoDataValue);
+                resultIDFFile = new IDFFile(CreateFilename(idfFile, "DIV", value), idfFile.Extent, idfFile.XCellsize, idfFile.YCellsize, idfFile.NoDataValue);
                 resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
+                resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
                 float resultNoDataValue = resultIDFFile.NoDataValue;
                 float[][] values1 = idfFile.Values;
                 float[][] resultValues = resultIDFFile.values;
@@ -3191,11 +3540,11 @@ namespace Sweco.SIF.iMOD.IDF
                     for (int colIdx = 0; colIdx < idfFile.NCols; colIdx++)
                     {
                         idfValue = values1[rowIdx][colIdx];
-                        if (value.Equals(float.NaN) || value.Equals(noDataValue1))
+                        if (idfValue.Equals(float.NaN) || idfValue.Equals(noDataValue1))
                         {
-                            value = noDataCalculationValue1;
+                            idfValue = noDataCalculationValue1;
                         }
-                        if (!value.Equals(float.NaN))
+                        if (!idfValue.Equals(float.NaN))
                         {
                             resultValue = value / idfValue;
                         }
@@ -3237,6 +3586,7 @@ namespace Sweco.SIF.iMOD.IDF
             resultIDFFile = new IDFFile(CreateFilename(idfFile, a, b), idfFile.Extent, idfFile.XCellsize, idfFile.YCellsize, idfFile.NoDataValue);
             resultIDFFile.NoDataCalculationValue = idfFile.NoDataCalculationValue;
             float resultNoDataValue = resultIDFFile.NoDataValue;
+            resultIDFFile.SetITBLevels(idfFile.TOPLevel, idfFile.BOTLevel);
             float[][] values1 = idfFile.Values;
             float[][] resultValues = resultIDFFile.values;
             float value = float.NaN;
@@ -3248,11 +3598,11 @@ namespace Sweco.SIF.iMOD.IDF
                 {
                     for (int colIdx = 0; colIdx < idfFile.NCols; colIdx++)
                     {
-                        resultValue = resultIDFFile.NoDataValue;
+                        resultValues[rowIdx][colIdx] = resultNoDataValue;
                     }
                 }
-                resultIDFFile.MinValue = resultIDFFile.NoDataValue;
-                resultIDFFile.MaxValue = resultIDFFile.NoDataValue;
+                resultIDFFile.MinValue = resultNoDataValue;
+                resultIDFFile.MaxValue = resultNoDataValue;
             }
             else
             {
@@ -3297,9 +3647,9 @@ namespace Sweco.SIF.iMOD.IDF
         /// <param name="botLevel"></param>
         public void SetITBLevels(float topLevel, float botLevel)
         {
-            if (topLevel.Equals(float.NaN) || botLevel.Equals(float.NaN))
+            if ((topLevel.Equals(float.NaN) && !botLevel.Equals(float.NaN)) || (!topLevel.Equals(float.NaN) && botLevel.Equals(float.NaN)))
             {
-                throw new Exception("SetITBLevels: ITB-level cannot be float.NaN");
+                throw new Exception("SetITBLevels: it is not allowed to set only top- or botlevel to a NaN-value, use NaN for both levels");
             }
             if (topLevel < botLevel)
             {
@@ -3326,7 +3676,7 @@ namespace Sweco.SIF.iMOD.IDF
         public virtual long CountValues(float value)
         {
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
 
             long valueCount = 0;
             int colIdx = 0;
@@ -3354,7 +3704,7 @@ namespace Sweco.SIF.iMOD.IDF
         public virtual void RoundValues(int decimalCount)
         {
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
 
             int colIdx = 0;
             int rowIdx = 0;
@@ -3380,7 +3730,7 @@ namespace Sweco.SIF.iMOD.IDF
         public virtual void FractionValues()
         {
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
 
             int colIdx = 0;
             int rowIdx = 0;
@@ -3407,7 +3757,7 @@ namespace Sweco.SIF.iMOD.IDF
         public virtual void ReplaceValues(float oldValue, float newValue)
         {
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
 
             int colIdx = 0;
             int rowIdx = 0;
@@ -3424,7 +3774,7 @@ namespace Sweco.SIF.iMOD.IDF
                     rowIdx++;
                 }
             }
-            UpdateMinMaxValue();
+            UpdateMinMaxValue(oldValue, newValue);
         }
 
         /// <summary>
@@ -3460,7 +3810,7 @@ namespace Sweco.SIF.iMOD.IDF
             }
 
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
             float newValueNoDataValue = newValueIDF.NoDataValue;
             float newValueNoDataCalculationValue = newValueIDF.NoDataCalculationValue;
             float thisNoDataValue = this.NoDataValue;
@@ -3562,7 +3912,7 @@ namespace Sweco.SIF.iMOD.IDF
             }
 
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
             float newValueNoDataValue = newValueIDF.NoDataValue;
             float newValueNoDataCalculationValue = newValueIDF.NoDataCalculationValue;
             float thisNoDataValue = this.NoDataValue;
@@ -3659,8 +4009,8 @@ namespace Sweco.SIF.iMOD.IDF
             }
 
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
-            selectionIDF.EnsureValuesAreLoaded();
+            EnsureLoadedValues();
+            selectionIDF.EnsureLoadedValues();
 
             int colIdx = 0;
             int rowIdx = 0;
@@ -3706,8 +4056,8 @@ namespace Sweco.SIF.iMOD.IDF
             }
 
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
-            selectionIDF.EnsureValuesAreLoaded();
+            EnsureLoadedValues();
+            selectionIDF.EnsureLoadedValues();
 
             int colIdx = 0;
             int rowIdx = 0;
@@ -3775,9 +4125,9 @@ namespace Sweco.SIF.iMOD.IDF
             }
 
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
-            selectionIDF.EnsureValuesAreLoaded();
-            newValueIDF.EnsureValuesAreLoaded();
+            EnsureLoadedValues();
+            selectionIDF.EnsureLoadedValues();
+            newValueIDF.EnsureLoadedValues();
 
             float newValueNoDataValue = newValueIDF.NoDataValue;
             float newValueNoDataCalculationValue = newValueIDF.NoDataCalculationValue;
@@ -3846,8 +4196,8 @@ namespace Sweco.SIF.iMOD.IDF
                     }
                     idfCellIterator.MoveNext();
                 }
+                UpdateMinMaxValue();
             }
-            UpdateMinMaxValue();
         }
 
         /// <summary>
@@ -3865,17 +4215,9 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 throw new Exception("Replaced IDF has null extent");
             }
-            if (!Extent.Equals(selectionIDF.Extent))
-            {
-                throw new Exception("Selection IDF (" + selectionIDF.Extent.ToString() + ") should have equal extent as replaced IDF (" + Extent.ToString() + ")");
-            }
             if (!XCellsize.Equals(selectionIDF.XCellsize))
             {
                 throw new Exception("Selection IDF (" + selectionIDF.XCellsize.ToString() + ") should have equal cellsize as replaced IDF (" + XCellsize.ToString() + ")");
-            }
-            if (!Extent.Equals(newValueIDF.Extent))
-            {
-                throw new Exception("Replacing IDF newValueIDF (" + newValueIDF.Extent.ToString() + ") should have equal extent as replaced IDF (" + Extent.ToString() + ")");
             }
             if (!XCellsize.Equals(newValueIDF.XCellsize))
             {
@@ -3883,42 +4225,83 @@ namespace Sweco.SIF.iMOD.IDF
             }
 
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
-            selectionIDF.EnsureValuesAreLoaded();
-            newValueIDF.EnsureValuesAreLoaded();
+            EnsureLoadedValues();
+            selectionIDF.EnsureLoadedValues();
+            newValueIDF.EnsureLoadedValues();
             float newValueNoDataValue = newValueIDF.NoDataValue;
             float newValueNoDataCalculationValue = newValueIDF.NoDataCalculationValue;
             float thisNoDataValue = this.NoDataValue;
 
-            int colIdx = 0;
-            int rowIdx = 0;
-            while ((colIdx < NCols) && (rowIdx < NRows))
+            if (Extent.Equals(selectionIDF.Extent) && Extent.Equals(newValueIDF.Extent))
             {
-                if (!selectionIDF.values[rowIdx][colIdx].Equals(NoDataValue))
+                int colIdx = 0;
+                int rowIdx = 0;
+                while ((colIdx < NCols) && (rowIdx < NRows))
                 {
-                    float value = newValueIDF.values[rowIdx][colIdx];
-
-                    if (value.Equals(float.NaN) || value.Equals(newValueNoDataValue))
+                    if (!selectionIDF.values[rowIdx][colIdx].Equals(NoDataValue))
                     {
-                        if (!newValueNoDataCalculationValue.Equals(float.NaN))
+                        float value = newValueIDF.values[rowIdx][colIdx];
+
+                        if (value.Equals(float.NaN) || value.Equals(newValueNoDataValue))
                         {
-                            value = newValueNoDataCalculationValue;
+                            if (!newValueNoDataCalculationValue.Equals(float.NaN))
+                            {
+                                value = newValueNoDataCalculationValue;
+                            }
+                            else
+                            {
+                                value = thisNoDataValue;
+                            }
                         }
-                        else
-                        {
-                            value = thisNoDataValue;
-                        }
+                        Values[rowIdx][colIdx] = value;
                     }
-                    Values[rowIdx][colIdx] = value;
+                    colIdx++;
+                    if (colIdx == NCols)
+                    {
+                        colIdx = 0;
+                        rowIdx++;
+                    }
                 }
-                colIdx++;
-                if (colIdx == NCols)
-                {
-                    colIdx = 0;
-                    rowIdx++;
-                }
+
+                UpdateMinMaxValue();
             }
-            UpdateMinMaxValue();
+            else
+            {
+                IDFCellIterator idfCellIterator = new IDFCellIterator();
+                idfCellIterator.AddIDFFile(this);
+                idfCellIterator.AddIDFFile(selectionIDF);
+                idfCellIterator.AddIDFFile(newValueIDF);
+                idfCellIterator.SetStepsize(this.XCellsize);
+                idfCellIterator.Reset();
+                bool isGlobalMinMaxUpdateNeeded = false;
+                while (idfCellIterator.IsInsideExtent())
+                {
+                    float x = idfCellIterator.X;
+                    float y = idfCellIterator.Y;
+
+                    if (!idfCellIterator.GetCellValue(selectionIDF).Equals(selectionIDF.NoDataValue))
+                    {
+                        float oldValue = idfCellIterator.GetCellValue(this);
+                        float value = idfCellIterator.GetCellValue(newValueIDF);
+
+                        if (value.Equals(float.NaN) || value.Equals(newValueNoDataValue))
+                        {
+                            if (!newValueNoDataCalculationValue.Equals(float.NaN))
+                            {
+                                value = newValueNoDataCalculationValue;
+                            }
+                            else
+                            {
+                                value = thisNoDataValue;
+                            }
+                        }
+                        this.SetValue(x, y, value);
+                    }
+                    idfCellIterator.MoveNext();
+                }
+
+                UpdateMinMaxValue();
+            }
         }
 
         /// <summary>
@@ -3929,7 +4312,7 @@ namespace Sweco.SIF.iMOD.IDF
         public virtual void ReplaceValues(ValueRange range, float newValue)
         {
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
 
             int colIdx = 0;
             int rowIdx = 0;
@@ -4171,7 +4554,7 @@ namespace Sweco.SIF.iMOD.IDF
         public override void WriteFile(string filename, Metadata metadata = null)
         {
             // Force (lazy) load of values
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
 
             this.Filename = filename;
             WriteFile(metadata);
@@ -4189,7 +4572,7 @@ namespace Sweco.SIF.iMOD.IDF
             try
             {
                 // Force (lazy) load of values
-                EnsureValuesAreLoaded();
+                EnsureLoadedValues();
                 UpdateMinMaxValue();
 
                 if (!Path.GetDirectoryName(Filename).Equals(string.Empty) && !Directory.Exists(Path.GetDirectoryName(Filename)))
@@ -4298,11 +4681,12 @@ namespace Sweco.SIF.iMOD.IDF
         /// <summary>
         /// Enlarges this IDF to the union its current extent and the specified extent, cells outside current extent will be set to NoData
         /// </summary>
-        /// <param name="extent">extext to enlarge to</param>
+        /// <param name="enlargeExtent">extext to enlarge to</param>
+        /// <param name="defaultValue">a value to initalize new cells with, or leave empty to use NoData</param>
         /// <returns></returns>
-        public virtual IDFFile EnlargeIDF(Extent extent)
+        public virtual IDFFile EnlargeIDF(Extent enlargeExtent, float defaultValue = float.NaN)
         {
-            if (extent == null)
+            if (enlargeExtent == null)
             {
                 throw new Exception("A non-null extent should be defined for enlarging IDF-file: " + Path.GetFileName(this.Filename));
             }
@@ -4312,25 +4696,42 @@ namespace Sweco.SIF.iMOD.IDF
                 throw new Exception("No extent is defined for the base file. Enlarge is not possible for: " + this.Filename);
             }
 
-            if (!this.extent.IsAligned(extent, this.XCellsize, this.YCellsize))
+            if (!this.extent.IsAligned(enlargeExtent, this.XCellsize, this.YCellsize))
             {
-                throw new Exception("Extents " + this.extent.ToString() + " and " + extent.ToString() + " are not aligned for resolution " + XCellsize + "x" + YCellsize + ". Enlarge is not possible for: " + this.Filename);
+                throw new Exception("Extents " + this.extent.ToString() + " and " + enlargeExtent.ToString() + " are not aligned for resolution " + XCellsize + "x" + YCellsize + ". Enlarge is not possible for: " + this.Filename);
             }
 
-            Extent newExtent = this.extent.Union(extent);
+            if (this.extent.Contains(enlargeExtent))
+            {
+                // No need to enlarge; return this IDF-file
+                return this;
+            }
+
+            Extent newExtent = this.extent.Union(enlargeExtent);
             IDFFile enlargedIDFFile = new IDFFile();
-            enlargedIDFFile.Initialize(Filename, newExtent, XCellsize, YCellsize, NoDataValue, UseLazyLoading, Log, LogIndentLevel);
+            enlargedIDFFile.Initialize(Filename, newExtent, XCellsize, YCellsize, NoDataValue, false, Log, LogIndentLevel);
             enlargedIDFFile.NoDataCalculationValue = NoDataCalculationValue;
+            enlargedIDFFile.SetITBLevels(TOPLevel, BOTLevel);
+            enlargedIDFFile.UseLazyLoading = UseLazyLoading;
             enlargedIDFFile.MinValue = float.MaxValue;
             enlargedIDFFile.MaxValue = float.MinValue;
 
+            // Define initial values
             if (this.Values != null)
             {
                 enlargedIDFFile.DeclareValuesMemory();
-                enlargedIDFFile.ResetValues();
+                if (defaultValue.Equals(float.NaN))
+                {
+                    enlargedIDFFile.ResetValues();
+                }
+                else
+                {
+                    enlargedIDFFile.SetValues(defaultValue);
+                }
+
+                // Now start copying
                 enlargedIDFFile.MinValue = this.MinValue;
                 enlargedIDFFile.MaxValue = this.MaxValue;
-
                 for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
                 {
                     for (int colIdx = 0; colIdx < NCols; colIdx++)
@@ -4340,6 +4741,11 @@ namespace Sweco.SIF.iMOD.IDF
                         float value = values[rowIdx][colIdx];
                         enlargedIDFFile.SetValue(x, y, value);
                     }
+                }
+
+                if (!defaultValue.Equals(float.NaN))
+                {
+                    UpdateMinMaxValue(defaultValue);
                 }
             }
 
@@ -4363,6 +4769,21 @@ namespace Sweco.SIF.iMOD.IDF
             }
 
             return enlargedIDFFile;
+        }
+
+        /// <summary>
+        /// Clips IMODFile instance to given extent
+        /// </summary>
+        /// <param name="clipExtent"></param>
+        /// <returns>exception if no overlap in extents</returns>
+        public override IMODFile Clip(Extent clipExtent)
+        {
+            IDFFile idfFile = ClipIDF(clipExtent);
+            if (idfFile == null)
+            {
+                throw new ToolException("No overlap in extent of '" + Path.GetFileName(this.Filename) + "' " + this.extent.ToString() + " and clipExtent: '" + clipExtent.ToString());
+            }
+            return idfFile;
         }
 
         /// <summary>
@@ -4392,6 +4813,12 @@ namespace Sweco.SIF.iMOD.IDF
                 // throw new Exception("No overlap in extent of '" + Path.GetFileName(this.Filename) + "' " +  this.extent.ToString() + " and clipExtent: '" + clipExtent.ToString());
             }
 
+            if (clipExtent.Contains(this.extent) && !isInvertedClip)
+            {
+                // No need to clip; return this IDF-file
+                return this;
+            }
+
             // Snap clip extent to extent and cellsize of source IDF-file, ensure corrected clipExtent is not smaller than original clipExtent
             float llxMismatch = (clipExtent.llx - extent.llx) % XCellsize;
             float llyMismatch = (clipExtent.lly - extent.lly) % YCellsize;
@@ -4412,7 +4839,7 @@ namespace Sweco.SIF.iMOD.IDF
             clipExtent = new Extent(llxCorr, llyCorr, urxCorr, uryCorr);
 
             // Clip the extent
-            Extent clippedExtent = this.extent.Clip(clipExtent);
+             Extent clippedExtent = this.extent.Clip(clipExtent);
 
             // Initialize clipped result IDFFile
             IDFFile clippedIDFFile = new IDFFile();
@@ -4427,6 +4854,7 @@ namespace Sweco.SIF.iMOD.IDF
             clippedIDFFile.fileExtent = (this.fileExtent != null) ? this.fileExtent.Copy() : null;
             clippedIDFFile.modifiedExtent = isInvertedClip ? null : ((clipExtent != null) ? clipExtent.Copy() : null);
             clippedIDFFile.extent = (this.extent != null) ? this.extent.Copy() : null;
+            clippedIDFFile.SetITBLevels(TOPLevel, BOTLevel);
 
             if (this.extent == null)
             {
@@ -4565,46 +4993,64 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Copy this IDFFile object to an new IDF-file with specified filename
+        /// Copy IDF-file metadata and values (if specified) to a new IDF-object with specified filename. New memory is allocated for values.
+        /// Note: at this point an actual clip is made, when clipExtent has been set for the base IDF-file.
         /// </summary>
         /// <param name="filename"></param>
-        /// <param name="isValueCopy"></param>
+        /// <param name="isValueCopy">if true, cellvalues are copied as well</param>
         /// <returns>IDFFile object</returns>
         public virtual IDFFile CopyIDF(string filename, bool isValueCopy = true)
         {
             IDFFile idfFile = new IDFFile();
-            idfFile.MaxValue = MaxValue;
-            idfFile.MinValue = MinValue;
-            idfFile.NCols = NCols;
-            idfFile.NoDataValue = NoDataValue;
-            idfFile.NoDataCalculationValue = NoDataCalculationValue;
-            idfFile.NRows = NRows;
-            idfFile.XCellsize = XCellsize;
-            idfFile.YCellsize = YCellsize;
-            idfFile.UseLazyLoading = UseLazyLoading;
-            idfFile.fileExtent = (fileExtent != null) ? fileExtent.Copy() : null;
-            idfFile.extent = (extent != null) ? extent.Copy() : null;
-            idfFile.modifiedExtent = (modifiedExtent != null) ? modifiedExtent.Copy() : null;
+            idfFile.CopyContents(this, isValueCopy);
+            idfFile.Filename = filename;
+
+            return idfFile;
+        }
+
+        /// <summary>
+        /// Copy properties and (optionally) values from specified other IDF-file to this IDF-file
+        /// </summary>
+        /// <param name="otherIDFFile"></param>
+        /// <param name="isValueCopy">if true, values of IDF-file are copied as well</param>
+        public void CopyContents(IDFFile otherIDFFile, bool isValueCopy = true)
+        {
+            if (isValueCopy)
+            {
+                // Force (lazy) load of values in specified IDF-file (which might clip IDF-file in memory (to support lazy-loading) based on current clipextent)
+                otherIDFFile.EnsureLoadedValues();
+            }
+
+            MaxValue = otherIDFFile.MaxValue;
+            MinValue = otherIDFFile.MinValue;
+            NCols = otherIDFFile.NCols;
+            NoDataValue = otherIDFFile.NoDataValue;
+            NoDataCalculationValue = otherIDFFile.NoDataCalculationValue;
+            NRows = otherIDFFile.NRows;
+            XCellsize = otherIDFFile.XCellsize;
+            YCellsize = otherIDFFile.YCellsize;
+            UseLazyLoading = otherIDFFile.UseLazyLoading;
+            fileExtent = (otherIDFFile.fileExtent != null) ? otherIDFFile.fileExtent.Copy() : null;
+            extent = (otherIDFFile.extent != null) ? otherIDFFile.extent.Copy() : null;
+            modifiedExtent = (otherIDFFile.modifiedExtent != null) ? otherIDFFile.modifiedExtent.Copy() : null;
+            SetITBLevels(otherIDFFile.TOPLevel, otherIDFFile.BOTLevel);
 
             if (isValueCopy)
             {
                 // declare memory for values
-                idfFile.values = new float[idfFile.NRows][];
-                for (int i = 0; i < idfFile.NRows; i++)
+                values = new float[NRows][];
+                for (int i = 0; i < NRows; i++)
                 {
-                    idfFile.values[i] = new float[idfFile.NCols];
+                    values[i] = new float[NCols];
                 }
-
-                // Force (lazy) load of values
-                EnsureValuesAreLoaded();
 
                 int colIdx = 0;
                 int rowIdx = 0;
-                while ((colIdx < idfFile.NCols) && (rowIdx < idfFile.NRows))
+                while ((colIdx < NCols) && (rowIdx < NRows))
                 {
-                    idfFile.values[rowIdx][colIdx] = values[rowIdx][colIdx];
+                    values[rowIdx][colIdx] = otherIDFFile.values[rowIdx][colIdx];
                     colIdx++;
-                    if (colIdx == idfFile.NCols)
+                    if (colIdx == NCols)
                     {
                         colIdx = 0;
                         rowIdx++;
@@ -4613,21 +5059,19 @@ namespace Sweco.SIF.iMOD.IDF
             }
             else
             {
-                idfFile.values = null;
+                values = null;
             }
 
             if (Legend != null)
             {
-                idfFile.Legend = Legend.Copy();
+                Legend = otherIDFFile.Legend.Copy();
             }
-            idfFile.Filename = filename;
+            Filename = otherIDFFile.Filename;
 
             if (Metadata != null)
             {
-                idfFile.Metadata = Metadata.Copy();
+                Metadata = otherIDFFile.Metadata.Copy();
             }
-
-            return idfFile;
         }
 
         /// <summary>
@@ -4757,7 +5201,7 @@ namespace Sweco.SIF.iMOD.IDF
             if (values == null)
             {
                 // Force (lazy) load of values
-                EnsureValuesAreLoaded();
+                EnsureLoadedValues();
                 isLazyLoaded = true;
             }
 
@@ -4806,6 +5250,37 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
+        /// Retrieves list of all values in IDF-file. NoData is ignored. Values are loaded when not yet in memory
+        /// </summary>
+        /// <returns></returns>
+        public List<float> RetrieveValues()
+        {
+            List<float> selValues = new List<float>();
+
+            EnsureLoadedValues();
+
+            if (values != null)
+            {
+                float cellValue;
+
+                for (int rowidx = 0; rowidx < NRows; rowidx++)
+                {
+                    for (int colidx = 0; colidx < NCols; colidx++)
+                    {
+                        cellValue = values[rowidx][colidx];
+                        if (!cellValue.Equals(NoDataValue))
+                        {
+                            selValues.Add(cellValue);
+                        }
+                    }
+                }
+            }
+
+            return selValues;
+
+        }
+
+        /// <summary>
         /// Retrieves list of unique values in IDF-file. NoData is ignored.
         /// </summary>
         /// <returns></returns>
@@ -4817,7 +5292,7 @@ namespace Sweco.SIF.iMOD.IDF
             if (values == null)
             {
                 // Force (lazy) load of values
-                EnsureValuesAreLoaded();
+                EnsureLoadedValues();
                 isLazyLoaded = true;
             }
 
@@ -4858,7 +5333,7 @@ namespace Sweco.SIF.iMOD.IDF
             if (values == null)
             {
                 // Force (lazy) load of values
-                EnsureValuesAreLoaded();
+                EnsureLoadedValues();
                 isLazyLoaded = true;
             }
 
@@ -4979,9 +5454,9 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Declare memory for values of this IDF-file object based on defined number of rows and columns
+        /// Declare memory for values of this IDF-file object based on defined number of rows and columns. Cells will get default float value (0).
         /// </summary>
-        protected void DeclareValuesMemory()
+        public void DeclareValuesMemory()
         {
             // declare memory for values
             if (NRows > 0)
@@ -4994,7 +5469,7 @@ namespace Sweco.SIF.iMOD.IDF
             }
             else if ((NRows == 0) && (NCols == 0))
             {
-                values = new float[0][];
+                values = null; // new float[0][];
             }
             else
             {
@@ -5072,14 +5547,19 @@ namespace Sweco.SIF.iMOD.IDF
         /// <param name="idfFile"></param>
         /// <param name="op"></param>
         /// <param name="value"></param>
-        /// <returns></returns>
+        /// <returns>null when Filename of input IDF-file is null</returns>
         private static string CreateFilename(IDFFile idfFile, string op, float value)
         {
-            string filename = Path.Combine(Path.GetDirectoryName(idfFile.Filename), Path.GetFileNameWithoutExtension(idfFile.Filename) + op + value.ToString("F3"));
-            if (filename.Length > 259)
+            string filename = null;
+            if (idfFile.Filename != null)
             {
-                filename = filename.Substring(0, 259);
+                filename = Path.Combine(Path.GetDirectoryName(idfFile.Filename), Path.GetFileNameWithoutExtension(idfFile.Filename) + op + value.ToString("F3", EnglishCultureInfo));
+                if (filename.Length > 259)
+                {
+                    filename = filename.Substring(0, 259);
+                }
             }
+
             return filename;
         }
 
@@ -5092,7 +5572,7 @@ namespace Sweco.SIF.iMOD.IDF
         /// <returns></returns>
         protected static string CreateFilename(float value, string op, IDFFile idfFile)
         {
-            string filename = Path.Combine(Path.GetDirectoryName(idfFile.Filename), value.ToString("F3") + "op" + Path.GetFileNameWithoutExtension(idfFile.Filename));
+            string filename = Path.Combine(Path.GetDirectoryName(idfFile.Filename), value.ToString("F3", EnglishCultureInfo) + "op" + Path.GetFileNameWithoutExtension(idfFile.Filename));
             if (filename.Length > 259)
             {
                 filename = filename.Substring(0, 259);
@@ -5163,7 +5643,7 @@ namespace Sweco.SIF.iMOD.IDF
         /// <summary>
         /// Force values of IDF-file to be actually loaded. This may be necessary if lazy loading is used and reference of Values property is not desired.
         /// </summary>
-        public virtual void EnsureValuesAreLoaded()
+        public virtual void EnsureLoadedValues()
         {
             if (values == null)
             {
@@ -5210,6 +5690,11 @@ namespace Sweco.SIF.iMOD.IDF
                     this.modifiedExtent = clipExtent;
                 }
 
+                if (NoDataValue.Equals(float.NaN) && (Log != null))
+                {
+                    Log.AddWarning("NoData-value of IDF-file '" + Path.GetFileName(filename) + "'is NaN, this may produce unexpected results!");
+                }
+
                 if (!UseLazyLoading)
                 {
                     // When lazy loading is not used, load values immediately
@@ -5239,7 +5724,7 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Load values for this IDFFile instance from the defined file
+        /// Load values for this IDFFile instance from the defined file. Note: file will be clipped if modifiedExtent is defined and different from fileExtent
         /// </summary>
         protected virtual void LoadValues()
         {
@@ -5263,8 +5748,10 @@ namespace Sweco.SIF.iMOD.IDF
                     stream = File.OpenRead(Filename);
                     br = new BinaryReader(stream);
 
-                    // Definitions have been read already, skip storing them, since the extent may have been reset for clipping
-                    SkipDefinitions(br);
+                    // Definitions have been read already, read again to get NCols/NRows that correspond with value array in file. 
+                    // Note: modifiedExtent is not reset and after reading, the values may get clipped again if modifiedExtent differs from Extent or fileExtent,
+                    ReadDefinitions(br);
+
                     ReadValues(br);
                 }
                 catch (EndOfStreamException ex)
@@ -5450,7 +5937,8 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Read IDF-file values into memory from an initialized BinaryReader object from which IDF-file definitions have been read already and which currently points to the values part
+        /// Read IDF-file values into memory from an initialized BinaryReader object from which IDF-file definitions have been read already and which currently points to the values part.
+        /// After reading values from file, the IDF-file will be clipped in memory when current modifiedExtent differs from fileExtent.
         /// </summary>
         /// <param name="br"></param>
         protected void ReadValues(BinaryReader br)
@@ -5458,7 +5946,6 @@ namespace Sweco.SIF.iMOD.IDF
             int colIdx = 0;
             int rowIdx = 0;
 
-            // eerste record met data rec=14, waarde idfval(nc,nr) op irec=14 + (nr-1)*ncol + (nc-1)
             try
             {
                 // declare memory for values
@@ -5478,7 +5965,7 @@ namespace Sweco.SIF.iMOD.IDF
                     while ((colIdx < NCols) && (rowIdx < NRows))
                     {
                         value = (float)br.ReadDouble();
-                        Values[rowIdx][colIdx] = value;
+                        values[rowIdx][colIdx] = value;
 
                         // update min/max
                         if (!value.Equals(NoDataValue))
@@ -5576,25 +6063,6 @@ namespace Sweco.SIF.iMOD.IDF
                 if ((colIdx > 0) || (rowIdx > 0))
                 {
                     throw new Exception("Unexpected end of file while reading row " + rowIdx + " and column " + colIdx, ex);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Update min and max values of this IDF-file
-        /// </summary>
-        /// <param name="value"></param>
-        protected virtual void UpdateMinMaxValue(float value)
-        {
-            if (!value.Equals(NoDataValue))
-            {
-                if (value > MaxValue)
-                {
-                    MaxValue = value;
-                }
-                if (value < MinValue)
-                {
-                    MinValue = value;
                 }
             }
         }
@@ -5733,7 +6201,53 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Update min- and max-value of this IDF-file for current cell values
+        /// Update min and max values of this IDF-file based on an old and new value for some IDF-cell.
+        /// </summary>
+        /// <param name="oldValue"></param>
+        /// <param name="newValue"></param>
+        /// <param name="isGlobalUpdateAllowed">if true, a global update is performed when the old value was the min/max-value</param>
+        /// <returns>true if succesful; if a global update is needed but not allowed false is returned</returns>
+        public virtual bool UpdateMinMaxValue(float oldValue, float newValue, bool isGlobalUpdateAllowed = true)
+        {
+            if (oldValue.Equals(NoDataValue) || ((oldValue > MinValue) && (oldValue < MaxValue)))
+            {
+                // The old value is not equal to the min or maximum value, just update with new value
+                UpdateMinMaxValue(newValue);
+                return true;
+            }
+            else if (isGlobalUpdateAllowed)
+            {
+                // The old value is equal to the current min or maximum, do a full update
+                UpdateMinMaxValue();
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Update min and max values of this IDF-file. Note: it is assumed that old cellvalue(s) are NoData or smaller than the current min/max-value
+        /// </summary>
+        /// <param name="value"></param>
+        private void UpdateMinMaxValue(float value)
+        {
+            if (!value.Equals(NoDataValue))
+            {
+                if (value > MaxValue)
+                {
+                    MaxValue = value;
+                }
+                if (value < MinValue)
+                {
+                    MinValue = value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Update min- and max-value of this IDF-file for current cell values. 
         /// </summary>
         public virtual void UpdateMinMaxValue()
         {
@@ -5741,7 +6255,7 @@ namespace Sweco.SIF.iMOD.IDF
             MaxValue = float.MinValue;
 
             // force values to be loaded
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
 
             for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
             {
@@ -5761,6 +6275,13 @@ namespace Sweco.SIF.iMOD.IDF
                     }
                 }
             }
+
+            if (MinValue.Equals(float.MaxValue) && MaxValue.Equals(float.MinValue))
+            {
+                // No non-NoData values found
+                MinValue = NoDataValue;
+                MaxValue = NoDataValue;
+            }
         }
 
         /// <summary>
@@ -5777,7 +6298,7 @@ namespace Sweco.SIF.iMOD.IDF
 
             int firstRowIdx = GetRowIdx(Extent.ury);
             int firstColIdx = GetColIdx(Extent.llx);
-            int lastRowIdx = GetRowIdx(Extent.lly);
+            int lastRowIdx = GetRowIdx(Extent.lly) - 1;
             int lastColIdx = GetColIdx(Extent.urx) - 1;
 
             float bufferCellDistance = buffersize / XCellsize;
@@ -5992,7 +6513,7 @@ namespace Sweco.SIF.iMOD.IDF
         /// <returns></returns>
         public bool HasValuesBetween(float minValue, float maxValue)
         {
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
             for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
             {
                 for (int colIdx = 0; colIdx < NCols; colIdx++)
@@ -6050,8 +6571,8 @@ namespace Sweco.SIF.iMOD.IDF
                 return true;
             }
 
-            EnsureValuesAreLoaded();
-            otherIDFFile.EnsureValuesAreLoaded();
+            EnsureLoadedValues();
+            otherIDFFile.EnsureLoadedValues();
 
             // Determine comparison extent
             if (!((this.extent != null) && (otherIDFFile.Extent != null)))
@@ -6251,10 +6772,10 @@ namespace Sweco.SIF.iMOD.IDF
         /// </summary>
         /// <param name="cellSize"></param>
         /// <param name="upscaleMethod"></param>
-        /// <param name="clipExtent"></param>
+        /// <param name="clipExtent">note: null is returned, if clipextent does not intersect with this IDF-extent</param>
         /// <param name="alignExtent"></param>
         /// <returns></returns>
-        public IDFFile Upscale(float cellSize, UpscaleMethodEnum upscaleMethod, Extent clipExtent = null, Extent alignExtent = null)
+        public IDFFile ScaleUp(float cellSize, UpscaleMethodEnum upscaleMethod, Extent clipExtent = null, Extent alignExtent = null)
         {
             if (cellSize < this.XCellsize)
             {
@@ -6266,8 +6787,15 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 throw new ToolException("Cannot upscale IDF from cellsize " + this.XCellsize + " to cellsize " + cellSize + ". Factor should be an integer.");
             }
+
+            if ((clipExtent != null) && !this.Extent.Intersects(clipExtent))
+            {
+                return null;
+            }
+
             int scaleFactor = (int)fltScaleFactor;
 
+            EnsureLoadedValues();
             IDFFile fineIDF = this;
             Extent scaleExtent = this.extent;
             if (clipExtent != null)
@@ -6288,7 +6816,6 @@ namespace Sweco.SIF.iMOD.IDF
             scaleExtent.urx = scaleExtent.urx - (((scaleExtent.urx % cellSize) + (cellSize - (alignExtent.urx % cellSize))) % cellSize);
             scaleExtent.ury = scaleExtent.ury - (((scaleExtent.ury % cellSize) + (cellSize - (alignExtent.ury % cellSize))) % cellSize);
 
-            // 1025,250,0: -25, 1025,250,75: 825
             int firstFineRowIdx = fineIDF.GetRowIdx(scaleExtent.ury);
             int firstFineColIdx = fineIDF.GetColIdx(scaleExtent.llx);
             int lastFineRowIdx = fineIDF.GetRowIdx(scaleExtent.lly) - 1;
@@ -6341,12 +6868,13 @@ namespace Sweco.SIF.iMOD.IDF
                                 coarseIDF.values[coarseRowIdx][coarseColIdx] = valueList[0];
                                 break;
                             case UpscaleMethodEnum.Mean:
+                            case UpscaleMethodEnum.Sum:
                                 float sum = 0;
                                 for (int i = 0; i < valueList.Count; i++)
                                 {
                                     sum += valueList[i];
                                 }
-                                coarseIDF.values[coarseRowIdx][coarseColIdx] = sum / valueList.Count;
+                                coarseIDF.values[coarseRowIdx][coarseColIdx] = (upscaleMethod == UpscaleMethodEnum.Sum) ? sum : sum / valueList.Count;
                                 break;
                             case UpscaleMethodEnum.Median:
                                 valueList.Sort();
@@ -6379,7 +6907,7 @@ namespace Sweco.SIF.iMOD.IDF
         /// <param name="clipExtent"></param>
         /// <param name="alignExtent"></param>
         /// <returns></returns>
-        public IDFFile Downscale(float cellSize, DownscaleMethodEnum downscaleMethod, Extent clipExtent = null, Extent alignExtent = null)
+        public IDFFile ScaleDown(float cellSize, DownscaleMethodEnum downscaleMethod, Extent clipExtent = null, Extent alignExtent = null)
         {
             if (cellSize > this.XCellsize)
             {
@@ -6393,6 +6921,7 @@ namespace Sweco.SIF.iMOD.IDF
             }
             int scaleFactor = (int)fltScaleFactor;
 
+            EnsureLoadedValues();
             IDFFile courseIDF = this;
             Extent scaleExtent = this.extent;
             if (clipExtent != null)
@@ -6427,7 +6956,9 @@ namespace Sweco.SIF.iMOD.IDF
             string scaledFilename = Path.Combine(Path.GetDirectoryName(this.Filename), Path.GetFileNameWithoutExtension(this.Filename) + "_scaled" + ((int)cellSize) + Path.GetExtension(this.Filename));
             Extent fineIDFExtent = new Extent(scaleExtent.llx, scaleExtent.lly, scaleExtent.llx + (lastFineColIdx + 1) * cellSize, scaleExtent.lly + (lastFineRowIdx + 1) * cellSize);
             IDFFile fineIDF = new IDFFile(scaledFilename, fineIDFExtent, cellSize, this.NoDataValue);
+            fineIDF.SetITBLevels(TOPLevel, BOTLevel);
 
+            int fineCellCount = scaleFactor * scaleFactor;
             for (int fineRowIdx = 0; fineRowIdx <= lastFineRowIdx; fineRowIdx++)
             {
                 for (int fineColIdx = 0; fineColIdx <= lastFineColIdx; fineColIdx++)
@@ -6438,6 +6969,9 @@ namespace Sweco.SIF.iMOD.IDF
                     {
                         case DownscaleMethodEnum.Block:
                             fineIDF.values[fineRowIdx][fineColIdx] = courseIDF.values[courseBaseRowIdx][courseBaseColIdx];
+                            break;
+                        case DownscaleMethodEnum.Divide:
+                            fineIDF.values[fineRowIdx][fineColIdx] = courseIDF.values[courseBaseRowIdx][courseBaseColIdx] / fineCellCount;
                             break;
                         default:
                             throw new Exception("Unknown downscale method " + downscaleMethod.ToString());
@@ -6501,25 +7035,35 @@ namespace Sweco.SIF.iMOD.IDF
         /// <param name="activeValue"></param>
         /// <param name="bndValue"></param>
         /// <param name="inactiveValue"></param>
-        /// <param name="useActiveBoundaryCells"></param>
+        /// <param name="useOnlyActiveCells">if true, only active cells will be converted to boundary cells; if false, also boundary or inactive cells can be converted</param>
+        /// <param name="keepInactiveCells">if true, inactive cells will not be changed to boundary cells</param>
         /// <param name="isDiagonallyChecked"></param>
         /// <param name="useGridEdge"></param>
         /// <param name="extent"></param>
-        public IDFFile CorrectBoundary(float activeValue, float bndValue, float inactiveValue, Extent extent, bool useActiveBoundaryCells = false, bool isDiagonallyChecked = false, bool useGridEdge = false)
+        public IDFFile CorrectBoundary(float activeValue, float bndValue, float inactiveValue, Extent extent, bool useOnlyActiveCells = false, bool keepInactiveCells = false, bool isDiagonallyChecked = false, bool useGridEdge = false)
         {
+            // Algorithm is as follows: all cells are visited from the outside edge to find specified type of boundary. 
+            // 0. Use a Queue for all cells that currently still should be visited and need to be checked for a boundary condition
+            //    Use a seperate grid for all cells that have already been visited. Visited cells will not be placed in the queue to visit again.
+            // 1. Set all non NoData-cells in the input IDF-file as not visited.
+            // 2. Add all non NoData-cells on the outside edges to the queue
+            // 3. For each cell from the queue check if it's a boundary cell and if neighbours should be visited as well
+
             string outputBndFilename = Path.Combine(Path.GetDirectoryName(this.Filename), Path.GetFileNameWithoutExtension(this.Filename) + "_bndcorr.idf");
             IDFFile outputIDFFile = this.CopyIDF(outputBndFilename);
 
             IDFFile visitedCellsIDFFile = this.CopyIDF(string.Empty);
+
             // Set visited cells initially to value 0, meaning not visited yet
             visitedCellsIDFFile.SetValues(0);
             // Don't visit cells with active values or NoData-values
-            if (!useActiveBoundaryCells)
+            visitedCellsIDFFile.ReplaceValues(this, this.NoDataValue, visitedCellsIDFFile.NoDataValue);
+            if (!useOnlyActiveCells)
             {
                 visitedCellsIDFFile.ReplaceValues(this, activeValue, visitedCellsIDFFile.NoDataValue);
             }
-            visitedCellsIDFFile.ReplaceValues(this, this.NoDataValue, visitedCellsIDFFile.NoDataValue);
 
+            // Retrieve indices of top and bottom row and left and right column in input IDF-file for specified extent 
             int bndTopRow = 0;
             int bndBotRow = this.NRows - 1;
             int bndLeftCol = 0;
@@ -6528,63 +7072,81 @@ namespace Sweco.SIF.iMOD.IDF
             float outputIDFNoDataValue = outputIDFFile.NoDataValue;
             if (extent != null)
             {
+                if (!this.Extent.Contains(extent))
+                {
+                    throw new ToolException("Specified extent (" + extent.ToString() + ") is not inside extent of input boundary files (" + this.Extent.ToString() + "): " + Path.GetFileName(this.Filename));
+                }
+
                 // Retrieve row/column indices. GetRowIdx takes row below upper/lower edge and right of left/right edge of extent, so correct bottom row and right column with cellsize
                 bndTopRow = this.GetRowIdx(extent.ury);
                 bndBotRow = this.GetRowIdx(extent.lly + this.YCellsize);
                 bndLeftCol = this.GetColIdx(extent.llx);
                 bndRightCol = this.GetColIdx(extent.urx - this.XCellsize);
-
-                if (!this.Extent.Contains(extent))
-                {
-                    throw new ToolException("Specified extent (" + extent.ToString() + ") is not inside extent of input boundary files (" + this.Extent.ToString() + "): " + Path.GetFileName(this.Filename));
-                }
             }
 
             // Start from cells at edge of IDF grid, add these to a queue of cells to visit
             Queue<IDFCell> cellQueue = new Queue<IDFCell>();
+            // Loop through rows and add cells at left and right columns to queue to visit
             for (int rowIdx = bndTopRow; rowIdx <= bndBotRow; rowIdx++)
             {
                 if (useGridEdge)
                 {
                     // When the grid edge or extent is used, don't visit any cells, simply set all cell at the grid edge to a boundary value, unless cell in this IDF-file is NoData
-                    if (!this.values[rowIdx][bndLeftCol].Equals(this.NoDataValue) && (!useActiveBoundaryCells || !this.values[rowIdx][bndLeftCol].Equals(inactiveValue)))
+                    if (!this.values[rowIdx][bndLeftCol].Equals(this.NoDataValue) && (!useOnlyActiveCells || !this.values[rowIdx][bndLeftCol].Equals(inactiveValue)))
                     {
-                        outputIDFValues[rowIdx][bndLeftCol] = bndValue;
+                        if (!keepInactiveCells || !outputIDFValues[rowIdx][bndLeftCol].Equals(inactiveValue))
+                        {
+                            outputIDFValues[rowIdx][bndLeftCol] = bndValue;
+                        }
                     }
-                    if (!this.values[rowIdx][bndRightCol].Equals(this.NoDataValue) && (!useActiveBoundaryCells || !this.values[rowIdx][bndRightCol].Equals(inactiveValue)))
+                    if (!this.values[rowIdx][bndRightCol].Equals(this.NoDataValue) && (!useOnlyActiveCells || !this.values[rowIdx][bndRightCol].Equals(inactiveValue)))
                     {
-                        outputIDFValues[rowIdx][bndRightCol] = bndValue;
+                        if (!keepInactiveCells || !outputIDFValues[rowIdx][bndRightCol].Equals(inactiveValue))
+                        {
+                            outputIDFValues[rowIdx][bndRightCol] = bndValue;
+                        }
                     }
                 }
                 else
                 {
+                    // Add cells in left and right column to cellqueue
                     cellQueue.Enqueue(new IDFCell(rowIdx, bndLeftCol));
                     cellQueue.Enqueue(new IDFCell(rowIdx, bndRightCol));
+
+                    // Mark cells as visited
                     visitedCellsIDFFile.values[rowIdx][bndLeftCol] = 1;
                     visitedCellsIDFFile.values[rowIdx][bndRightCol] = 1;
-                    // remove active values at the outside edge of the grid, to allow boundary cells there
-                    if (!useActiveBoundaryCells && outputIDFValues[rowIdx][bndLeftCol].Equals(activeValue))
+
+                    // remove active values at the outside edge of the grid, to allow boundary cells there, unless it is specified that only active cells can be set as a boundary 
+                    if (!useOnlyActiveCells && outputIDFValues[rowIdx][bndLeftCol].Equals(activeValue))
                     {
                         outputIDFValues[rowIdx][bndLeftCol] = outputIDFNoDataValue;
                     }
-                    if (outputIDFValues[rowIdx][bndRightCol].Equals(activeValue))
+                    if (!useOnlyActiveCells && outputIDFValues[rowIdx][bndRightCol].Equals(activeValue))
                     {
                         outputIDFValues[rowIdx][bndRightCol] = outputIDFNoDataValue;
                     }
                 }
             }
+            // Loop through columms and add cells at top and bottom rows to queue to visit
             for (int colIdx = bndLeftCol + 1; colIdx < bndRightCol; colIdx++)
             {
                 if (useGridEdge)
                 {
                     // When the grid edge or extent is used, don't visit any cells, simply set all cell at the grid edge to a boundary value, unless cell in this IDF-file is NoData
-                    if (!this.values[bndTopRow][colIdx].Equals(this.NoDataValue) && (!useActiveBoundaryCells || !this.values[bndTopRow][colIdx].Equals(inactiveValue)))
+                    if (!this.values[bndTopRow][colIdx].Equals(this.NoDataValue) && (!useOnlyActiveCells || !this.values[bndTopRow][colIdx].Equals(inactiveValue)))
                     {
-                        outputIDFValues[bndTopRow][colIdx] = bndValue;
+                        if (!keepInactiveCells || !outputIDFValues[bndTopRow][colIdx].Equals(inactiveValue))
+                        {
+                            outputIDFValues[bndTopRow][colIdx] = bndValue;
+                        }
                     }
-                    if (!this.values[bndBotRow][colIdx].Equals(this.NoDataValue) && (!useActiveBoundaryCells || !this.values[bndBotRow][colIdx].Equals(inactiveValue)))
+                    if (!this.values[bndBotRow][colIdx].Equals(this.NoDataValue) && (!useOnlyActiveCells || !this.values[bndBotRow][colIdx].Equals(inactiveValue)))
                     {
-                        outputIDFValues[bndBotRow][colIdx] = bndValue;
+                        if (!keepInactiveCells || !outputIDFValues[bndBotRow][colIdx].Equals(inactiveValue))
+                        {
+                            outputIDFValues[bndBotRow][colIdx] = bndValue;
+                        }
                     }
                 }
                 else
@@ -6593,12 +7155,13 @@ namespace Sweco.SIF.iMOD.IDF
                     cellQueue.Enqueue(new IDFCell(bndBotRow, colIdx));
                     visitedCellsIDFFile.values[bndTopRow][colIdx] = 1;
                     visitedCellsIDFFile.values[bndBotRow][colIdx] = 1;
-                    // remove active values at the outside edge of the grid, to allow boundary cells there
-                    if (!useActiveBoundaryCells && outputIDFValues[bndTopRow][colIdx].Equals(activeValue))
+
+                    // remove active values at the outside edge of the grid, to allow boundary cells there, unless it is specified that only active cells can be set as a boundary 
+                    if (!useOnlyActiveCells && outputIDFValues[bndTopRow][colIdx].Equals(activeValue))
                     {
                         outputIDFValues[bndTopRow][colIdx] = outputIDFNoDataValue;
                     }
-                    if (outputIDFValues[bndBotRow][colIdx].Equals(activeValue))
+                    if (!useOnlyActiveCells && outputIDFValues[bndBotRow][colIdx].Equals(activeValue))
                     {
                         outputIDFValues[bndBotRow][colIdx] = outputIDFNoDataValue;
                     }
@@ -6616,7 +7179,7 @@ namespace Sweco.SIF.iMOD.IDF
                 bool isActiveCurrentCell = currentCellValue.Equals(activeValue);
 
                 bool isBoundaryCell = false;
-                if (useActiveBoundaryCells && isActiveCurrentCell)
+                if (useOnlyActiveCells && isActiveCurrentCell)
                 {
                     isBoundaryCell = true;
                 }
@@ -6640,7 +7203,7 @@ namespace Sweco.SIF.iMOD.IDF
                                         cellQueue.Enqueue(new IDFCell(neighbourRowIdx, neighbourColIdx));
                                         visitedCellsIDFFile.values[neighbourRowIdx][neighbourColIdx] = 1;
                                     }
-                                    if (!useActiveBoundaryCells)
+                                    if (!useOnlyActiveCells)
                                     {
                                         float neighbourCellValue = this.values[neighbourRowIdx][neighbourColIdx];
                                         if (neighbourCellValue.Equals(activeValue))
@@ -6653,7 +7216,7 @@ namespace Sweco.SIF.iMOD.IDF
                         }
                     }
                 }
-                if (isBoundaryCell)
+                if (isBoundaryCell && (!keepInactiveCells || !outputIDFValues[currentRowIdx][currentColIdx].Equals(inactiveValue)))
                 {
                     outputIDFValues[currentRowIdx][currentColIdx] = bndValue;
                 }

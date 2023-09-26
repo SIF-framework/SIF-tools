@@ -242,7 +242,6 @@ namespace Sweco.SIF.iMODPlus.IDF
             {
                 xyDictionary.Add(point, value);
             }
-            UpdateMinMaxValue(value);
         }
 
         /// <summary>
@@ -262,7 +261,6 @@ namespace Sweco.SIF.iMODPlus.IDF
             {
                 xyDictionary.Add(point, value);
             }
-            UpdateMinMaxValue(value);
         }
 
         /// <summary>
@@ -453,7 +451,7 @@ namespace Sweco.SIF.iMODPlus.IDF
         /// <returns></returns>
         public override long RetrieveElementCount()
         {
-            EnsureValuesAreLoaded();
+            EnsureLoadedValues();
             return xyDictionary.Count;
         }
 
@@ -477,7 +475,7 @@ namespace Sweco.SIF.iMODPlus.IDF
         /// <summary>
         /// Force values of SparseIDF-file to be actually loaded. This may be necessary if lazy loading is used and reference of Values property is not desired.
         /// </summary>
-        public override void EnsureValuesAreLoaded()
+        public override void EnsureLoadedValues()
         {
             if (xyDictionary == null)
             {

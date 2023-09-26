@@ -60,7 +60,7 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Create IDFLegend with default surface level legend classes, ranging from red (high) to blue (low): 23 classes equal to or greather than zero and one class for negative values
+        /// Create IDFLegend with default surface level legend classes, ranging from red (high) to blue (low): 23 classes equal to or greater than zero and one class for negative values
         /// </summary>
         public static ClassLegend CreateSurfaceLevelLegend(string description, float minValue, float maxValue)
         {
@@ -70,7 +70,7 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Create IDFLegend with default deptht legend classes to this legend: 21 classes equal to or greather than zero and one class for negative values
+        /// Create IDFLegend with default deptht legend classes to this legend: 21 classes equal to or greater than zero and one class for negative values
         /// </summary>
         /// <param name="description"></param>
         /// <returns></returns>
