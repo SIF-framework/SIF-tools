@@ -180,7 +180,7 @@ namespace Sweco.SIF.iMOD.Utils
         /// or '' (the empty prefix) when the specified layername (excluding optional file extension) just contains numeric values.
         /// </summary>
         /// <param name="layername">string with name for layer, e.g.g an iMOD-filename like 'TOP_L1.IDF' or 'BOT_L10'</param>
-        /// <param name="layerNrPrefixes"></param>
+        /// <param name="layerNrPrefixes">alternative ordered list with prefix strings before layernumber that should be tried, or leave null for default list</param>
         /// <param name="isExceptionThrown">if true an exception is thrown when no numeric value is found, if false -1 is returned in case of an error</param>
         /// <returns>if isExceptionThrow=true, an exception is thrown (default) when no numeric value is found after specified prefixes, otherwise -1 is returned.</returns>
         public static int GetLayerNumber(string layername, List<string> layerNrPrefixes = null, bool isExceptionThrown = true)
@@ -318,18 +318,24 @@ namespace Sweco.SIF.iMOD.Utils
         /// Sort specified iMOD-filenames in alphanumerical order with TOP- above BOT-files
         /// </summary>
         /// <param name="filenames"></param>
+        /// <param name="topSubString">alternative substring for selection of TOP-files, default is "TOP"</param>
+        /// <param name="botSubstring">alternative substring for selection of BOT-files, default is "BOT"</param>
+        /// <param name="layerNrPrefixes">alternative ordered list with prefix strings before layernumber that should be tried, or leave null for default</param>
         /// <returns>list with sorted filenames</returns>
-        public static List<string> SortiMODLayerFilenames(List<string> filenames)
+        public static List<string> SortiMODLayerFilenames(List<string> filenames, string topSubString = "TOP", string botSubstring = "BOT", List<string> layerNrPrefixes = null)
         {
-            return new List<string>(SortiMODLayerFilenames(filenames.ToArray()));
+            return new List<string>(SortiMODLayerFilenames(filenames.ToArray(), topSubString, botSubstring, layerNrPrefixes));
         }
 
         /// <summary>
         /// Sort specified iMOD-filenames in alphanumerical order with TOP- above BOT-files
         /// </summary>
         /// <param name="filenames"></param>
+        /// <param name="topSubString">alternative substring for selection of TOP-files, default is "TOP"</param>
+        /// <param name="botSubstring">alternative substring for selection of BOT-files, default is "BOT"</param>
+        /// <param name="layerNrPrefixes">alternative ordered list with prefix strings before layernumber that should be tried, or leave null for default</param>
         /// <returns>array with sorted filenames</returns>
-        public static string[] SortiMODLayerFilenames(string[] filenames)
+        public static string[] SortiMODLayerFilenames(string[] filenames, string topSubString = "TOP", string botSubstring = "BOT", List<string> layerNrPrefixes = null)
         {
             if (filenames != null)
             {
@@ -338,12 +344,12 @@ namespace Sweco.SIF.iMOD.Utils
                 for (int i = 0; i < filenames.Length; i++)
                 {
                     string name = Path.GetFileName(filenames[i]);
-                    string prefix = GetLayerNumber(name).ToString();
-                    if (name.ToUpper().Contains("TOP"))
+                    string prefix = GetLayerNumber(name, layerNrPrefixes).ToString();
+                    if (name.ToUpper().Contains(topSubString))
                     {
                         prefix += "a";
                     }
-                    if (name.ToUpper().Contains("BOT"))
+                    if (name.ToUpper().Contains(botSubstring))
                     {
                         prefix += "b";
                     }
@@ -374,6 +380,18 @@ namespace Sweco.SIF.iMOD.Utils
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Sort specified type of iMOD-files in alphanumerical order of filenames
+        /// </summary>
+        /// <param name="imodFiles"></param>
+        /// <returns>a new, sorted array is returned</returns>
+        public static List<T> SortAlphanumericIMODFiles<T>(List<T> imodFiles) where T : IMODFile
+        {
+            T[] imodFilesArray = imodFiles.ToArray();
+            imodFilesArray = iMOD.Utils.IMODUtils.SortAlphanumericIMODFiles<T>(imodFilesArray);
+            return imodFilesArray.ToList();
         }
 
         /// <summary>
@@ -433,14 +451,69 @@ namespace Sweco.SIF.iMOD.Utils
                     GENFile genFile = GENFile.ReadFile(iMODFilename);
                     return genFile.Extent;
                 case ".idf":
-                    IDFFile idfFile = IDFFile.ReadFile(iMODFilename);
+                    IDFFile idfFile = IDFFile.ReadFile(iMODFilename, true);
                     return idfFile.Extent;
                 case ".ipf":
-                    IPFFile ipfFile = IPFFile.ReadFile(iMODFilename);
+                    IPFFile ipfFile = IPFFile.ReadFile(iMODFilename, true);
                     return ipfFile.Extent;
                 default:
                     return null;
             }
+        }
+
+        /// <summary>
+        /// Convert specified IMODFile instance to an IDF-file with specified extent, cellsize and NoData-value
+        /// </summary>
+        /// <param name="imodFile"></param>
+        /// <param name="extent"></param>
+        /// <param name="cellSize"></param>
+        /// <param name="noDataValue"></param>
+        /// <returns></returns>
+        public static IDFFile ConvertToIDF(IMODFile imodFile, Extent extent, float cellSize, float noDataValue)
+        {
+            if (imodFile is IDFFile)
+            {
+                return (IDFFile)imodFile.Clip(extent);
+            }
+            else if (imodFile is IPFFile)
+            {
+                return ConvertIPFToIDF((IPFFile)imodFile, extent, cellSize, noDataValue);
+            }
+            else
+            {
+                throw new Exception("ConvertToIDF: Currently no conversion to IDF is available for IMODFile instance of type " + imodFile.GetType().Name);
+            }
+        }
+
+        private static IDFFile ConvertIPFToIDF(IPFFile ipfFile, Extent extent, float cellSize, float noDataValue)
+        {
+            string idfFilename = Path.Combine(Path.GetDirectoryName(ipfFile.Filename), Path.GetFileNameWithoutExtension(ipfFile.Filename) + ".IDF");
+            IDFFile idfFile = new IDFFile(idfFilename, extent, cellSize, noDataValue);
+            idfFile.ResetValues();
+            for (int i = 0; i < ipfFile.PointCount; i++)
+            {
+                IPFPoint ipfPoint = ipfFile.GetPoint(i);
+                if (ipfPoint.IsContainedBy(extent))
+                {
+                    float x = (float) ipfPoint.X;
+                    float y = (float) ipfPoint.Y;
+                    float value = 1;
+                    if ((ipfFile.AssociatedFileColIdx > 0) && (ipfFile.AssociatedFileColIdx < ipfFile.ColumnNames.Count))
+                    {
+                        if (ipfPoint.ColumnValues.Count < ipfFile.AssociatedFileColIdx)
+                        {
+                            throw new Exception("Missing columnvalues: TextFileColumnIdx (" + ipfFile.AssociatedFileColIdx + ") > number of columnvalues (" + ipfPoint.ColumnValues.Count + ") for point " + i + " in: " + ipfFile.Filename);
+                        }
+                        string valueString = ipfPoint.ColumnValues[ipfFile.AssociatedFileColIdx];
+                        if (!float.TryParse(valueString, out value))
+                        {
+                            value = 1;
+                        }
+                    }
+                    idfFile.SetValue(x, y, 1);
+                }
+            }
+            return idfFile;
         }
     }
 }
