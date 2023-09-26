@@ -37,6 +37,11 @@ namespace Sweco.SIF.IDFexp
     /// </summary>
     public class SIFToolSettings : SIFToolSettingsBase
     {
+        /// <summary>
+        /// Specifies if IDF-files should use lazy loading mechanism: release values memory after usage until values are referenced again:
+        /// </summary>
+        public static bool UseLazyLoading = true;
+
         public string InputFilename { get; set; }
         public string OutputPath { get; set; }
 
@@ -46,7 +51,6 @@ namespace Sweco.SIF.IDFexp
         public bool IsMetadataAdded { get; set; }
         public bool IsDebugMode { get; set; }
         public bool IsQuietMode { get; set; }
-        public bool IsResultRounded { get; set; }
         public int DecimalCount { get; set; }
         public bool IsIntermediateResultWritten { get; set; }
 
@@ -64,7 +68,6 @@ namespace Sweco.SIF.IDFexp
             Extent = null;
             IsMetadataAdded = false;
             IsQuietMode = false;
-            IsResultRounded = false;
             DecimalCount = -1;
             IsDebugMode = false;
             IsIntermediateResultWritten = false;
@@ -103,7 +106,20 @@ namespace Sweco.SIF.IDFexp
                                    + "Each line should be one of the following:\n"
                                    + "- A remark: REM <comment>, to define a commentline which will be ignored\n"
                                    + "- An empty line, which will be ignored\n"
-                                   + "- An expression: \"<var>=<exp>\", to store the result of IDF-expression <exp> in a variable with name <var>\n"
+                                   + "- An assignment: \"<var>=<exp>\", to store the result of IDF-expression <exp> in a variable with name <var>\n"
+                                   + "- A precondition followed by an assignment: #IF [NOT] <cond>: <var>=<exp> \n"
+                                   + "  The assignment <var>=<exp> is executed if the precondition '[NOT] <cond>' evaluates to true\n"
+                                   + "  The following preconditions are allowed:\n"
+                                   + "    #IF [NOT] EXIST <path>: <var>=<exp>\n"
+                                   + "      checks if path/file <path> exists; surround with double quotes when the path contains spaces\n"
+                                   + "  notes: optionally use NOT to invert the condition; environment variables may be used\n"
+                                   + "- FOR-loop: FOR <i>=<i1> TO <i2>, to start a FOR-loop with index <i>, that loops from value i1 to i2 and repeats\n"
+                                   + "    lines between FOR and the next ENDFOR-statement. The value of index <i> can be accessed by prefixing %%, which is\n"
+                                   + "    evaluated first. FOR-loops can be nested. Simple expressions with indices are allowed with syntax %% (i<op><val>),\n"
+                                   + "    where <op> is one of '+','-','*' or '/' and <val> is an integer value, e.g. C_L%%i=(BOT_L%%i-TOP_L%%(i+1))*KVV_L%%i\n"
+                                   + "    Loop values can be padded with zeroes by inserting zeroes after the %% substring\n"
+                                   + "    e.g. %%000p will result in values 009,010 and 011 for FOR-loop \"FOR p=9 TO 11\"\n"
+                                   +"- ENDFOR, to end a FOR-loop, increase index and continue at line after FOR-statement\n"
                                    + "\n"
                                    + "Variable names follow the rules of filenames and should not contain operators, decimal seperators or other\n"
                                    + "language structures (see below). Variable names are case sensitive.\n"
@@ -124,18 +140,29 @@ namespace Sweco.SIF.IDFexp
                                    + "    order of evaluation : * or /, + or -, == to <=, && or ||\n"
                                    + "  where <then> and <else> are IDF-expressions\n"
                                    + "  extents are enlarged with NoData to union of input IDF-extents\n"
-                                   + "- min/max-functions: e.g. max(<exp1>,<exp2>)\n"
+                                   + "- min/max-functions: min/max(<exp1>,<exp2>)\n"
                                    + "  to take the minimum/maximum of IDF-expressions <exp1> and <exp2>; extents are clipped/enlarged\n"
                                    + "  with NoData to extent of IDF-expression <exp1>; cellsize of <exp1> is used for result.\n"
-                                   + "- round-function: e.g. round(<exp1>,<decimalcount>)\n"
+                                   + "- round-function: round(<exp1>,<decimalcount>)\n"
                                    + "  where <decimalcount> is an integer for the number of decimals\n"
-                                   + "- enlarge-function: e.g. enlarge(<exp1>,<exp2>)\n"
+                                   + "- enlarge-function: enlarge(<exp1>,<exp2>)\n"
                                    + "  to enlarge IDF-expression <exp1> with NoData to at least the extent of IDF-expression <exp2>\n"
-                                   + "- clip-function: e.g. clip(<exp1>,<exp2>)\n"
+                                   + "- clip-function: clip(<exp1>,<exp2>)\n"
                                    + "  to clip IDF-expression <exp1> to the extent of IDF-expression <exp2>\n"
+                                   + "- scale-function: scale(<exp1>,<exp2>[,<method>])\n"
+                                   + "                  scale(<exp1>,<exp2>,<methodDown>,<methodUp>)\n"
+                                   + "  to scale IDF-expression <exp1> to the cellsize of (IDF-expression) <exp2>. Optional method:\n"
+                                   + "    for downscale: 0=Block (default), 1=Divide\n"
+                                   + "    for upscale: 0=Mean (default), 1=Median, 2=Minimum, 3=Maximum, 4=Most occurring, 5=Boundary, 6=Sum\n"
+                                   + "- bbox-function: bbox(<exp1>) \n "
+                                   + "  to find bounding box with all non-NoData-values; results in NoData-centercell(s) if only NoData-values are present\n"
+                                   + "- cellsize-function: cellsize(<exp1>) \n "
+                                   + "  to retrieve cellsize for some IDF-expression as a (constant) IDF-file\n"
                                    + "Notes:\n"
                                    + "- Parenthesis ('(' and ')') can be used to group subexpressions\n"
-                                   + "- In general the cellsize of lefmost expression/IDF-file will be used for result\n"
+                                   + "- In general the cellsize of leftmost expression/IDF-file will be used for result\n"
+                                   + "- In general the ITB-levels of leftmost expression/IDF-file will be used for result\n"
+                                   + "  for if, min and max the first expresion/IDF-file with ITB-levels is used\n"
                                    + "- Environment variables enclosed by %-symbols will be evaluated");
 
             AddToolUsageOptionPostRemark("\n"
@@ -156,6 +183,15 @@ namespace Sweco.SIF.IDFexp
                                    + "dL1_ZUG=if(Horst==1,dL1_ZUG_Horst,dL1_ZUG_Slenk)\n"
                                    + "dL1_ZZG=if(Horst==1,dL1_ZZG_Horst,dL1_ZZG_Slenk)\n"
                                    + "kD_L1=dL1_ZUG*kZUG+dL1_ZZG*kZZG");
+
+            AddToolUsageOptionPostRemark("\n" +
+                                     "FOR i = 1 TO 2\n" +
+                                     "  FOR j = 3 TO 4\n" +
+                                     "    I%%i = I3 + %%j\n" +
+                                     "    J%%(i + 1) = I3 + %%j\n" +
+                                     "  ENDFOR\n" +
+                                     "ENDFOR");
+
         }
 
         /// <summary>
@@ -214,8 +250,7 @@ namespace Sweco.SIF.IDFexp
                         for (int i = 0; i < 4; i++)
                         {
                             string coordinateString = extentStrings[i];
-                            float coordinate;
-                            if (!float.TryParse(coordinateString, out coordinate))
+                            if (!float.TryParse(coordinateString, out float coordinate))
                             {
                                 throw new ToolException("Invalid extent coordinate: " + coordinateString);
                             }
@@ -240,25 +275,20 @@ namespace Sweco.SIF.IDFexp
             }
             else if (optionName.ToLower().Equals("r"))
             {
-                IsResultRounded = true;
                 if (hasOptionParameters)
                 {
-                    // retrieve part after colon
-                    if (!optionParametersString.Equals(string.Empty))
+                    try
                     {
-                        try
-                        {
-                            DecimalCount = int.Parse(optionParametersString, EnglishCultureInfo);
-                        }
-                        catch (Exception)
-                        {
-                            throw new ToolException("Could not parse value for option 'r':" + optionParametersString);
-                        }
+                        DecimalCount = int.Parse(optionParametersString, EnglishCultureInfo);
                     }
-                    else
+                    catch (Exception)
                     {
-                        throw new ToolException("A number of decimals should be specified for option 'r'");
+                        throw new ToolException("Could not parse value for option 'r':" + optionParametersString);
                     }
+                }
+                else
+                {
+                    throw new ToolException("A number of decimals should be specified for option 'r'");
                 }
             }
             else if (optionName.ToLower().Equals("v"))

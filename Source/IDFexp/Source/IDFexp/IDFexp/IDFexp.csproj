@@ -55,7 +55,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ForLoopDef.cs" />
     <Compile Include="IDFExpParser.cs" />
+    <Compile Include="IDFExpVariable.cs" />
     <Compile Include="Interpreter.cs" />
     <Compile Include="INIChecker.cs" />
     <Compile Include="QuietException.cs" />

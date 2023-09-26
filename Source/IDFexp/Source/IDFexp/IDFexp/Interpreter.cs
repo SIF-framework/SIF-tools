@@ -40,12 +40,12 @@ namespace Sweco.SIF.IDFexp
     {
         public string InputFilename { get; set; }
 
-        protected IDFExpParser IDFExpressionParser { get; set; }
+        protected IDFExpParser IDFExpParser { get; set; }
 
         /// <summary>
         /// Dictionary with all variable names (and corresponding IDF-files) that are defined up to the current line
         /// </summary>
-        protected Dictionary<string, IDFFile> VariableDictionary { get; set; }
+        protected Dictionary<string, IDFExpVariable> VariableDictionary { get; set; }
 
         /// <summary>
         /// Dictionary with all 
@@ -135,19 +135,18 @@ namespace Sweco.SIF.IDFexp
         public static bool IsMetadataAdded { get; set; }
 
         /// <summary>
-        /// Defines if cell values in result IDF-file should be rounded to defined number of decimals
-        /// </summary>
-        public static bool IsResultRounded { get; set; }
-
-        /// <summary>
-        /// Defines number of decimals to round to when <para>IsResultRounded</para> is true
+        /// Defines number of decimals to round cell values in result IDF-file
         /// </summary>
         public static int DecimalCount { get; set; }
+
+        /// <summary>
+        /// Stack datastructure to keep track of (nested) for loops
+        /// </summary>
+        private Stack<ForLoopDef> forLoopStack = new Stack<ForLoopDef>();
 
         public Interpreter()
         {
             VariableDictionary = null;
-            ResultPathDictionary = null;
         }
 
         /// <summary>
@@ -216,13 +215,15 @@ namespace Sweco.SIF.IDFexp
         /// <param name="basePath"></param>
         /// <param name="iniScript"></param>
         /// <returns></returns>
-        protected int ProcessINIScript(string iniScript)
+        protected virtual int ProcessINIScript(string iniScript)
         {
             int exitcode = 0;
             int lineIdx = 0;
             string wholeLine = string.Empty;
-            VariableDictionary = new Dictionary<string, IDFFile>();
-            ResultPathDictionary = new Dictionary<string, string>();
+            if (VariableDictionary == null)
+            {
+                VariableDictionary = new Dictionary<string, IDFExpVariable>();
+            }
 
             // Split string in single lines
             string[] iniLines = iniScript.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None);
@@ -238,7 +239,9 @@ namespace Sweco.SIF.IDFexp
             {
                 noDataIDFFile.NoDataCalculationValue = (IDFExpParser.NoDataValue.Equals(float.NaN)) ? noDataIDFFile.NoDataValue : IDFExpParser.NoDataValue;
             }
-            VariableDictionary.Add("NoData", noDataIDFFile);
+
+            RegisterVariable(VariableDictionary, "NoData", noDataIDFFile, IDFExpressionType.Constant);
+            RegisterVariable(VariableDictionary, "NaN", new ConstantIDFFile(float.NaN), IDFExpressionType.Constant);
 
             if (IsDebugMode)
             {
@@ -261,7 +264,7 @@ namespace Sweco.SIF.IDFexp
                         wholeLine = wholeLine.Substring(0, wholeLine.Length - 1) + iniLines[lineIdx++].Trim();
                     }
 
-                    ParseINILine(wholeLine, iniLines, lineIdx);
+                    ParseINILine(wholeLine, iniLines, ref lineIdx);
                 }
 
                 Log.AddInfo("Finished processing INI-file");
@@ -272,7 +275,7 @@ namespace Sweco.SIF.IDFexp
             }
             catch (ToolException ex)
             {
-                throw new ToolException("Error in line " + lineIdx + ": " + ex.GetBaseException().Message + ": " + wholeLine);
+                throw new ToolException("Error in line " + lineIdx + ": " + ex.GetBaseException().Message); //  + "\nLine " + lineIdx + ": " + wholeLine);
             }
             catch (Exception ex)
             {
@@ -283,13 +286,55 @@ namespace Sweco.SIF.IDFexp
         }
 
         /// <summary>
+        /// Add an IDFExpVariable with specified property sto the variable dictionary. If already existing it is replaced with specified properties.
+        /// </summary>
+        /// <param name="variableDictionary"></param>
+        /// <param name="name"></param>
+        /// <param name="idfFile"></param>
+        /// <param name="expressionType"></param>
+        /// <param name="prefix"></param>
+        /// <param name="metadata"></param>
+        protected virtual void RegisterVariable(Dictionary<string, IDFExpVariable> variableDictionary, string name, IDFFile idfFile, IDFExpressionType expressionType, string prefix = null, Metadata metadata = null)
+        {
+            idfFile.UseLazyLoading = SIFToolSettings.UseLazyLoading;
+            IDFExpVariable idfExpVariable = CreateIDFExpVariable(name, idfFile, expressionType, prefix, metadata);
+            if (variableDictionary.ContainsKey(name))
+            {
+                // Replace current value
+                variableDictionary[name] = idfExpVariable;
+            }
+            else
+            {
+                variableDictionary.Add(name, idfExpVariable);
+            }
+        }
+
+        /// <summary>
+        /// Create IDFExpVariable object with specified properties
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="idfFile"></param>
+        /// <param name="expressionType"></param>
+        /// <param name="prefix"></param>
+        /// <param name="metadata"></param>
+        /// <returns></returns>
+        protected virtual IDFExpVariable CreateIDFExpVariable(string name, IDFFile idfFile, IDFExpressionType expressionType, string prefix, Metadata metadata)
+        {
+            return new IDFExpVariable(name, idfFile, expressionType, prefix, metadata);
+        }
+
+        /// <summary>
         /// Parse a single INI-line with IDF-expressions
         /// </summary>
         /// <param name="wholeLine"></param>
         /// <param name="iniLines"></param>
         /// <param name="lineIdx"></param>
-        protected virtual void ParseINILine(string wholeLine, string[] iniLines, int lineIdx)
+        protected virtual void ParseINILine(string wholeLine, string[] iniLines, ref int lineIdx)
         {
+            // Parse expressions with preconditions '#IF <cond>:' and effectively remove precondition part
+            wholeLine = HandleForLoops(wholeLine, forLoopStack);
+            wholeLine = ParsePreconditions(wholeLine, lineIdx, Log, 1);
+
             if (!wholeLine.Equals(string.Empty))
             {
                 if (wholeLine.ToLower().StartsWith("rem ") || wholeLine.StartsWith("//") || wholeLine.StartsWith("'"))
@@ -312,6 +357,52 @@ namespace Sweco.SIF.IDFexp
                         }
 
                         Log.AddInfo("Remark: " + wholeLine);
+                    }
+                }
+                else if (wholeLine.ToLower().StartsWith("for "))
+                {
+                    // parse start of new FOR-loop
+                    string wholeLineExpanded = System.Environment.ExpandEnvironmentVariables(wholeLine);
+
+                    ForLoopDef forLoopDef = ForLoopDef.Parse(wholeLineExpanded, lineIdx);
+                    if (forLoopDef.Idx < forLoopDef.LoopValues.Count)
+                    {
+                        forLoopStack.Push(forLoopDef);
+                        Log.AddInfo("FOR-loop '" + forLoopDef.VarName + "' started: " + wholeLine);
+                    }
+                    else
+                    {
+                        Log.AddInfo("FOR-loop skipped: " + wholeLine);
+                        int forcount = 1;
+                        do
+                        {
+                            wholeLine = iniLines[lineIdx++].Trim();
+                            if (wholeLine.ToLower().StartsWith("for "))
+                            {
+                                forcount++;
+                            }
+                            else if (wholeLine.ToLower().StartsWith("endfor"))
+                            {
+                                forcount--;
+                            }
+                        } while ((forcount > 0) && (lineIdx < iniLines.Length));
+                    }
+                }
+                else if (wholeLine.ToLower().Equals("endfor"))
+                {
+                    // Parse ENDFOR-statement to continue or finish the current FOR-loop
+                    ForLoopDef forLoopDef = forLoopStack.Pop();
+                    forLoopDef.Idx++;
+                    if (forLoopDef.Idx < forLoopDef.LoopValues.Count)
+                    {
+                        // Continue this FOR-loop
+                        forLoopStack.Push(forLoopDef);
+                        lineIdx = forLoopDef.LineIdx;
+
+                        if (IsDebugMode)
+                        {
+                            Log.AddInfo("FOR-loop '" + forLoopDef.VarName + "' continued: " + wholeLine + " (value: " + forLoopDef.LoopValues[forLoopDef.Idx] + ")");
+                        }
                     }
                 }
                 else if (wholeLine.Contains("="))
@@ -338,8 +429,21 @@ namespace Sweco.SIF.IDFexp
                     string resultPath = null;
                     if (variableName.Contains(Path.DirectorySeparatorChar))
                     {
+                        // Allow preprocessing constructs at beginning of parsed lines that are ended by a colon
+                        if (variableName.Contains(":"))
+                        {
+                            // Skip part before colon
+                            int colonIdx = variableName.IndexOf(":");
+                            variableName = variableName.Substring(colonIdx + 1).Trim();
+                        }
                         resultPath = Path.GetDirectoryName(variableName);
                         variableName = Path.GetFileName(variableName);
+                    }
+
+                    // Remove optional IDF extension from variable name, all other substrings with a dot or extensions are left
+                    if (Path.GetExtension(variableName.ToLower()).Equals(".idf"))
+                    {
+                        variableName = Path.GetFileNameWithoutExtension(variableName);
                     }
 
                     // Restore equality symbols
@@ -349,10 +453,14 @@ namespace Sweco.SIF.IDFexp
                     expression = expression.Replace("#@3#", ">=");
                     expression = expression.Replace("#@4#", "<=");
 
-                    Log.AddInfo("Evaluating expression at line " + lineIdx + ": '" + wholeLine + "' ...");
                     if (IsDebugMode)
                     {
-                        Log.AddMessage(LogLevel.Debug, "Expanded expression: '" + Environment.ExpandEnvironmentVariables(wholeLine) + "'", 1);
+                        Log.AddInfo("Evaluating expression at line " + lineIdx + ": '" + wholeLine + "' ...");
+                        Log.AddInfo("Expanded expression: '" + Environment.ExpandEnvironmentVariables(wholeLine) + "'", 1);
+                    }
+                    else
+                    {
+                        Log.AddInfo("Evaluating expression at line " + lineIdx + ": '" + Environment.ExpandEnvironmentVariables(wholeLine) + "' ...");
                     }
 
                     IDFExpressionType expressionType;
@@ -363,108 +471,76 @@ namespace Sweco.SIF.IDFexp
                         Log.AddInfo("Expression '" + orgExpression + "' evaluated to: " + expression, 1);
                     }
 
-                    bool isIDFFilenameVariable = false;
                     IDFFile expResultIDFFile = null;
+                    Metadata expResultMetadata = null;
                     if (expression.ToLower().EndsWith(".idf"))
                     {
                         // Parse a single IDF-filename which is assigned to a variable seperately and prevent writing this IDF-file to results path
-                        expResultIDFFile = ParseIDFFilename(expression, out expressionType);
+                        expResultIDFFile = IDFExpParser.ParseIDFFilename(expression, out expressionType);
                         if (expResultIDFFile == null)
                         {
                             if (IsQuietMode)
                             {
-                                throw new QuietException("IDF-file not found: " + expression);
+                                throw new QuietException("IDF-file not found: " + Environment.ExpandEnvironmentVariables(expression));
                             }
                             else
                             {
-                                throw new ToolException("IDF-file not found: " + expression);
+                                throw new ToolException("IDF-file not found: " + Environment.ExpandEnvironmentVariables(expression));
                             }
                         }
-                        isIDFFilenameVariable = true;
                     }
                     else
                     {
                         // Parse IDF-expression (part after the '='-symbol and assign to IDF-variable
-                        expResultIDFFile = IDFExpParser.Parse(expression, VariableDictionary, out expressionType);
-                    }
-
-                    // When an expression was successfully evaluated to an IDF-file, write IDF-file to disk
-                    if ((expressionType != IDFExpressionType.Undefined) && (expressionType != IDFExpressionType.Constant) && (expressionType != IDFExpressionType.File))
-                    {
-                        string currentOutputPath = OutputPath;
-                        if (resultPath != null)
+                        if (VariableDictionary.ContainsKey(expression))
                         {
-                            if (Path.IsPathRooted(resultPath))
-                            {
-                                currentOutputPath = resultPath;
-                            }
-                            else
-                            {
-                                currentOutputPath = Path.Combine(currentOutputPath, resultPath);
-                            }
+                            // Expression is equal to an existing variable
+                            expResultIDFFile = CopyIDFVariable(VariableDictionary, expression, out expressionType);
                         }
-                        string outputIDFFilename = Path.Combine(currentOutputPath, variableName + ".IDF");
-                        Metadata outputMetadata = new Metadata("Expression evaluation using IDF files: " + expression);
-                        outputMetadata.ProcessDescription = "Automatically generated with Sweco's IDFexp-tool";
-                        outputMetadata.Source = InputFilename;
-
-                        if (!isIDFFilenameVariable)
+                        else
                         {
-                            if (IsResultRounded)
+                            // Parse expression
+                            expResultIDFFile = IDFExpParser.Parse(expression, VariableDictionary, out expressionType);
+                        }
+
+                        if ((expressionType != IDFExpressionType.Undefined) && (expressionType != IDFExpressionType.Constant) && (expressionType != IDFExpressionType.File))
+                        {
+                            string currentOutputPath = OutputPath;
+                            if (resultPath != null)
                             {
-                                IDFFile roundedExpResultIDFFile = expResultIDFFile.CopyIDF(outputIDFFilename);
-                                roundedExpResultIDFFile.RoundValues(DecimalCount);
-                                if (IsMetadataAdded)
-                                {
-                                    roundedExpResultIDFFile.WriteFile(outputIDFFilename, outputMetadata);
-                                }
-                                else
-                                {
-                                    roundedExpResultIDFFile.WriteFile(outputIDFFilename);
-                                }
+                                currentOutputPath = (Path.IsPathRooted(resultPath)) ? resultPath : Path.Combine(currentOutputPath, resultPath);
                             }
-                            else
+                            expResultIDFFile.Filename = Path.Combine(currentOutputPath, variableName + ".IDF");
+
+                            if (DecimalCount >= 0)
                             {
-                                if (IsMetadataAdded)
-                                {
-                                    expResultIDFFile.WriteFile(outputIDFFilename, outputMetadata);
-                                }
-                                else
-                                {
-                                    expResultIDFFile.WriteFile(outputIDFFilename);
-                                }
+                                expResultIDFFile.RoundValues(DecimalCount);
                             }
 
-                            // Ensure saved filename is stored, to be able to reload released values memory later
-                            expResultIDFFile.Filename = outputIDFFilename;
-
-                            Log.AddInfo("Expression file has been written to: " + Path.GetFileName(outputIDFFilename), 1);
+                            if (IsMetadataAdded)
+                            {
+                                expResultMetadata = new Metadata("Expression evaluation using IDF files: " + expression);
+                                expResultMetadata.ProcessDescription = "Automatically generated with Sweco's IDFexp-tool";
+                                if (DecimalCount >= 0)
+                                {
+                                    expResultMetadata.ProcessDescription += "; Values are rounded to " + DecimalCount + " decimals";
+                                }
+                                expResultMetadata.Source = InputFilename;
+                            }
                         }
                     }
 
-                    // Check if a new variable was defined. If so, add it to variable dictionary, otherwise replace existing variable
-                    if (VariableDictionary.ContainsKey(variableName))
-                    {
-                        // Replace current value
-                        VariableDictionary[variableName] = expResultIDFFile;
-                    }
-                    else
-                    {
-                        VariableDictionary.Add(variableName, expResultIDFFile);
-                        ResultPathDictionary.Add(variableName, resultPath);
-                    }
+                    // (Re)save variable in dictionary: save new variable, replace existing variable
+                    // 
+                    RegisterVariable(VariableDictionary, variableName, expResultIDFFile, expressionType, resultPath, expResultMetadata);
 
-                    // Release values from memory for all currently defined/read IDF-files
+                    // Handle memory and persistance management: for all currently defined/read IDF-variables check if values should be released from memory 
                     if (IsDebugMode)
                     {
                         long usedMemory = GC.GetTotalMemory(true) / 1000000;
                         Log.AddInfo("Allocated memory after evaluating line " + lineIdx + ": " + usedMemory + "Mb", 1);
                     }
-                    foreach (IDFFile idfFile in VariableDictionary.Values)
-                    {
-                        idfFile.ReleaseMemory(false);
-                    }
-                    GC.Collect();
+                     ManageMemory(VariableDictionary, Log);
                     if (IsDebugMode)
                     {
                         long usedMemory = GC.GetTotalMemory(true) / 1000000;
@@ -476,6 +552,135 @@ namespace Sweco.SIF.IDFexp
                     throw new ToolException("Invalid expression");
                 }
             }
+        }
+
+        /// <summary>
+        /// Parse line with preconditions which always start with a '#'-symbol. Check tool usage for valid syntax.
+        /// </summary>
+        /// <param name="line"></param>
+        /// <param name="lineIdx"></param>
+        /// <param name="log"></param>
+        /// <param name="logIndentLevel"></param>
+        /// <returns></returns>
+        protected virtual string ParsePreconditions(string line, int lineIdx, Log log, int logIndentLevel)
+        {
+            string parsedLine = line;
+            if (line.ToLower().StartsWith("#if"))
+            {
+                int colonIdx = FindLastPreconditionColonIndex(line, lineIdx);
+                if (colonIdx >= 0)
+                {
+                    bool isInverseCondition = false;
+                    string preconditionString = line.Substring(0, colonIdx);
+                    parsedLine = line.Remove(0, colonIdx + 1).Trim();
+                    string[] preconditionParts = CommonUtils.SplitQuoted(preconditionString, ' ', '"', true, true); //.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (preconditionParts.Length == 1)
+                    {
+                        throw new ToolException("Invalid precondition in line " + (lineIdx + 1) + ": " + preconditionString);
+                    }
+                    if (preconditionParts[1].ToLower().Equals("not"))
+                    {
+                        isInverseCondition = true;
+                        preconditionParts = preconditionString.Replace(preconditionParts[1], string.Empty).Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    }
+
+                    parsedLine = ParsePrecondition(parsedLine, preconditionString, preconditionParts, isInverseCondition, lineIdx, log, logIndentLevel);
+                }
+                else
+                {
+                    throw new ToolException("Invalid precondition in line " + (lineIdx + 1) + ", missing colon-symbol (':'): " + line);
+                }
+            }
+
+            if (parsedLine.ToLower().StartsWith("#if"))
+            {
+                parsedLine = ParsePreconditions(parsedLine, lineIdx, log, 1);
+            }
+
+            return parsedLine;
+        }
+
+        protected virtual string ParsePrecondition(string parsedLine, string preconditionString, string[] preconditionParts, bool isInverseCondition, int lineIdx, Log log, int logIndentLevel)
+        {
+            if (preconditionParts.Length == 3)
+            {
+                switch (preconditionParts[1].ToLower())
+                {
+                    case "exist":
+                        // Check existance of directory or file
+                        string path = preconditionParts[2].Replace("\"", string.Empty);
+                        if (!Path.IsPathRooted(path) && (BasePath != null))
+                        {
+                            path = Path.Combine(BasePath, path);
+                        }
+                        path = System.Environment.ExpandEnvironmentVariables(path);
+                        if ((!isInverseCondition && (!Directory.Exists(path) && !File.Exists(path)))
+                            || (isInverseCondition && !(!Directory.Exists(path) && !File.Exists(path))))
+                        {
+                            if (IsDebugMode)
+                            {
+                                log.AddInfo("Skipping line: " + parsedLine, logIndentLevel);
+                                log.AddInfo("evaluated precondition '" + preconditionString + "': path " + (!isInverseCondition ? "not " : "") + "found: " + path, logIndentLevel);
+                            }
+                            parsedLine = string.Empty;
+                        }
+                        break;
+                    default:
+                        throw new ToolException("Unknown precondition keyword in line " + (lineIdx + 1) + ": " + preconditionParts[1]);
+                }
+            }
+            else
+            {
+                throw new ToolException("Invalid precondition in line " + (lineIdx + 1) + ": " + preconditionString);
+            }
+
+            return parsedLine;
+        }
+
+        /// <summary>
+        /// Retrieve index of last colon in a line with a precondition
+        /// </summary>
+        /// <param name="line"></param>
+        /// <param name="lineIdx"></param>
+        /// <returns></returns>
+        protected int FindLastPreconditionColonIndex(string line, int lineIdx)
+        {
+            int colonIndx = -1;
+
+            // Find first singl� '='-symbol
+            string tmpLine = line.Replace("==", "XX");
+            int equalSignIdx = tmpLine.IndexOf("=");
+            if (equalSignIdx >= 0)
+            {
+                // Retrieve first part of line, before equal sign
+                tmpLine = line.Substring(0, equalSignIdx);
+                colonIndx = tmpLine.LastIndexOf(":");
+            }
+            else
+            {
+                throw new ToolException("Invalid expression in line " + (lineIdx + 1) + ", missing equal-symbol ('='): " + line);
+            }
+
+            return colonIndx;
+        }
+
+        protected virtual IDFFile CopyIDFVariable(Dictionary<string, IDFExpVariable> variableDictionary, string expression, out IDFExpressionType expressionType)
+        {
+            IDFExpVariable idfExpVariable = variableDictionary[expression];
+            IDFFile idfFile = idfExpVariable.IDFFile;
+            idfFile.EnsureLoadedValues();
+            expressionType = IDFExpressionType.Variable;
+            return idfFile.CopyIDF(null);
+        }
+
+        protected virtual void ManageMemory(Dictionary<string, IDFExpVariable> variableDictionary, Log log)
+        {
+            foreach (IDFExpVariable idfExpVariable in variableDictionary.Values)
+            {
+                idfExpVariable.Persist(true, log);
+                idfExpVariable.ReleaseMemory();
+            }
+            GC.Collect();
         }
 
         /// <summary>
@@ -521,5 +726,108 @@ namespace Sweco.SIF.IDFexp
             }
         }
 
+        /// <summary>
+        /// Check if line contains FOR-loop indices which will be replaced by the current iteration number of the corresponding FOR-loop
+        /// </summary>
+        /// <param name="wholeLine"></param>
+        /// <param name="forLoopStack"></param>
+        /// <returns></returns>
+        private string HandleForLoops(string wholeLine, Stack<ForLoopDef> forLoopStack)
+        {
+            // Check FOR-loop variables to replace with current values
+            for (int forLoopIdx = 0; forLoopIdx < forLoopStack.Count(); forLoopIdx++)
+            {
+                ForLoopDef forLoopDef = forLoopStack.ElementAt(forLoopIdx);
+                string varName = forLoopDef.VarName;
+                string varValueString = forLoopDef.LoopValues[forLoopDef.Idx];
+
+                // Check for expressions with forloop indices such as '%%(i+1)'
+                int indexExpIdx = wholeLine.IndexOf("%%(" + varName);
+                while (indexExpIdx >= 0)
+                {
+                    int parenthesisEndIdx = wholeLine.IndexOf(")", indexExpIdx + 1);
+                    if (parenthesisEndIdx > 0)
+                    {
+                        string indexExp = wholeLine.Substring(indexExpIdx, parenthesisEndIdx - indexExpIdx + 1);
+                        // Check that loopvalue is an integer
+                        if (int.TryParse(varValueString, out int varValue))
+                        {
+                            string indexExpValue = ParseIndexExp(indexExp, varName, varValue);
+                            wholeLine = wholeLine.Replace(indexExp, indexExpValue);
+                        }
+                        else
+                        {
+                            throw new ToolException("Index expression in FOR-loop is not allowed for non-numeric loopvalues: " + varValueString);
+                        }
+                    }
+                    indexExpIdx = wholeLine.IndexOf("%%(" + varName, indexExpIdx + 1);
+                }
+
+                // Check for expressions with forloop indices such as '%%00i', which will pad index value with zeroes
+                indexExpIdx = wholeLine.IndexOf("%%0");
+                while (indexExpIdx >= 0)
+                {
+                    int varNameIdx = indexExpIdx + 3;
+                    // Find first non-zero character
+                    while ((varNameIdx < wholeLine.Length) && (wholeLine[varNameIdx] == '0'))
+                    {
+                        varNameIdx++;
+                    }
+                    // int startIdx = indexExpIdx + 1;
+                    if ((varNameIdx < wholeLine.Length) && (wholeLine[varNameIdx].ToString().Equals(varName)))
+                    {
+                        int digitCount = varNameIdx - indexExpIdx - 2;
+                        string indexExp = wholeLine.Substring(indexExpIdx, varNameIdx - indexExpIdx + 1);
+                        wholeLine = wholeLine.Replace(indexExp, varValueString.PadLeft(digitCount, '0'));
+                        //    startIdx = indexExpIdx + digitCount;
+                    }
+                    indexExpIdx = wholeLine.IndexOf("%%0", indexExpIdx + 1);
+                }
+
+                // Replace (normal) forloop variable references
+                wholeLine = wholeLine.Replace("%%" + forLoopDef.VarName, varValueString);
+            }
+
+            return wholeLine;
+        }
+
+        /// <summary>
+        /// Parse simple expressions within FOR-loop indices, which is used to refer to values relative to current index
+        /// </summary>
+        /// <param name="indexExp"></param>
+        /// <param name="varName"></param>
+        /// <param name="varValue"></param>
+        /// <returns></returns>
+        private string ParseIndexExp(string indexExp, string varName, int varValue)
+        {
+            string simpleIndexExp = indexExp.Substring(3, indexExp.Length - 4);
+            int opIdx = simpleIndexExp.IndexOfAny(new char[] { '+', '-', '*', '/' });
+            string value2String = simpleIndexExp.Substring(opIdx + 1, simpleIndexExp.Length - opIdx - 1);
+            if (!int.TryParse(value2String, out int value2))
+            {
+                throw new ToolException("Could not parse integer value in index expression: " + indexExp);
+            }
+            string operatorString = simpleIndexExp.Substring(opIdx, 1);
+            int resultValue;
+            switch (operatorString)
+            {
+                case "+":
+                    resultValue = varValue + value2;
+                    break;
+                case "-":
+                    resultValue = varValue - value2;
+                    break;
+                case "*":
+                    resultValue = varValue * value2;
+                    break;
+                case "/":
+                    resultValue = varValue + value2;
+                    break;
+                default:
+                    throw new ToolException("Unknown operator (" + operatorString + ") in index expression: " + indexExp);
+            }
+
+            return resultValue.ToString();
+        }
     }
 }
