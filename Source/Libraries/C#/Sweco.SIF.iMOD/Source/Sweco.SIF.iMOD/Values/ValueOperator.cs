@@ -30,12 +30,12 @@ namespace Sweco.SIF.iMOD.Values
     /// <summary>
     /// Available types of ValueOperator
     /// </summary>
-    public enum ValueOperatorType
+    public enum ValueOperator
     {
-        Unknown,
+        Undefined,
         Equal,
-        GreatherThan,
-        GreatherThanOrEqual,
+        GreaterThan,
+        GreaterThanOrEqual,
         LessThan,
         LessThanOrEqual,
         Unequal
@@ -44,132 +44,69 @@ namespace Sweco.SIF.iMOD.Values
     /// <summary>
     /// Class for definition of operator in simple value expression
     /// </summary>
-    public class ValueOperator : IEquatable<ValueOperator>
+    public static class ValueOperatorUtils
     {
-        /// <summary>
-        /// Operator type of this ValueOperator
-        /// </summary>
-        public ValueOperatorType OperatorType;
-
-        /// <summary>
-        /// Construct new ValueOperator object with specified type
-        /// </summary>
-        /// <param name="operatorType"></param>
-        public ValueOperator(ValueOperatorType operatorType)
-        {
-            this.OperatorType = operatorType;
-        }
-
         /// <summary>
         /// Creates readable string for this operator
         /// </summary>
         /// <returns></returns>
-        public override string ToString()
+        public static string ToSymbolString(this ValueOperator valueOperator)
         {
-            switch (OperatorType)
+            switch (valueOperator)
             {
-                case ValueOperatorType.Equal:
+                case ValueOperator.Equal:
                     return "==";
-                case ValueOperatorType.GreatherThan:
+                case ValueOperator.GreaterThan:
                     return ">";
-                case ValueOperatorType.GreatherThanOrEqual:
+                case ValueOperator.GreaterThanOrEqual:
                     return ">=";
-                case ValueOperatorType.LessThan:
+                case ValueOperator.LessThan:
                     return "<";
-                case ValueOperatorType.LessThanOrEqual:
+                case ValueOperator.LessThanOrEqual:
                     return "<=";
-                case ValueOperatorType.Unequal:
+                case ValueOperator.Unequal:
                     return "!=";
-                case ValueOperatorType.Unknown:
+                case ValueOperator.Undefined:
                     return "?";
                 default:
-                    throw new Exception("Undefined operator: " + OperatorType.ToString());
+                    throw new Exception("Undefined operator: " + valueOperator.ToString());
             }
         }
 
         /// <summary>
-        /// Parse specified string with an operator to an ValueOperator object. Currently allowed strings: eq, gt, gteq, lt, lteq, uneq
-        /// </summary>
+        /// Parse specified string with an operator to an valueOperator object. Currently allowed strings: eq, gt, gteq, lt, lteq, uneq
+        /// </summary>-/
         /// <param name="operatorString"></param>
         /// <returns></returns>
-        public static ValueOperator ParseValueOperator(string operatorString)
+        public static ValueOperator ParseString(string operatorString)
         {
             operatorString = operatorString.ToLower();
-            if (operatorString.Equals(ValueOperatorType.Equal.ToString().ToLower()) || operatorString.Equals("eq"))
+            if (operatorString.Equals(ValueOperator.Equal.ToString().ToLower()) || operatorString.Equals("eq"))
             {
-                return new ValueOperator(ValueOperatorType.Equal);
+                return ValueOperator.Equal;
             }
-            if (operatorString.Equals(ValueOperatorType.GreatherThan.ToString().ToLower()) || operatorString.Equals("gt"))
+            if (operatorString.Equals(ValueOperator.GreaterThan.ToString().ToLower()) || operatorString.Equals("gt"))
             {
-                return new ValueOperator(ValueOperatorType.GreatherThan);
+                return ValueOperator.GreaterThan;
             }
-            if (operatorString.Equals(ValueOperatorType.GreatherThanOrEqual.ToString().ToLower()) || operatorString.Equals("gteq"))
+            if (operatorString.Equals(ValueOperator.GreaterThanOrEqual.ToString().ToLower()) || operatorString.Equals("gteq"))
             {
-                return new ValueOperator(ValueOperatorType.GreatherThanOrEqual);
+                return ValueOperator.GreaterThanOrEqual;
             }
-            if (operatorString.Equals(ValueOperatorType.LessThan.ToString().ToLower()) || operatorString.Equals("lt"))
+            if (operatorString.Equals(ValueOperator.LessThan.ToString().ToLower()) || operatorString.Equals("lt"))
             {
-                return new ValueOperator(ValueOperatorType.LessThan);
+                return ValueOperator.LessThan;
             }
-            if (operatorString.Equals(ValueOperatorType.LessThanOrEqual.ToString().ToLower()) || operatorString.Equals("lteq"))
+            if (operatorString.Equals(ValueOperator.LessThanOrEqual.ToString().ToLower()) || operatorString.Equals("lteq"))
             {
-                return new ValueOperator(ValueOperatorType.LessThanOrEqual);
+                return ValueOperator.LessThanOrEqual;
             }
-            if (operatorString.Equals(ValueOperatorType.Unequal.ToString().ToLower()) || operatorString.Equals("uneq"))
+            if (operatorString.Equals(ValueOperator.Unequal.ToString().ToLower()) || operatorString.Equals("uneq"))
             {
-                return new ValueOperator(ValueOperatorType.Unequal);
+                return ValueOperator.Unequal;
             }
-            return new ValueOperator(ValueOperatorType.Unknown);
+            return ValueOperator.Undefined;
         }
 
-        /// <summary>
-        /// Redefines == operator in C# and checks equality of ValueOperator and some ValueOperatorType value
-        /// </summary>
-        /// <param name="valueOperator"></param>
-        /// <param name="operatorType"></param>
-        /// <returns></returns>
-        public static bool operator ==(ValueOperator valueOperator, ValueOperatorType operatorType)
-        {
-            return valueOperator.OperatorType == operatorType;
-        }
-
-        /// <summary>
-        /// Redefines == operator in C# and checks unequality of ValueOperator and some ValueOperatorType value
-        /// </summary>
-        /// <param name="valueOperator"></param>
-        /// <param name="operatorType"></param>
-        /// <returns></returns>
-        public static bool operator !=(ValueOperator valueOperator, ValueOperatorType operatorType)
-        {
-            return valueOperator.OperatorType != operatorType;
-        }
-
-        /// <summary>
-        /// Compares two ValueOperators
-        /// </summary>
-        /// <param name="other"></param>
-        /// <returns></returns>
-        public bool Equals(ValueOperator other)
-        {
-            return (this.OperatorType == other.OperatorType);
-        }
-
-        /// <summary>
-        /// Compares ValueOperator and some other objects
-        /// </summary>
-        /// <returns></returns>
-        public override bool Equals(object obj)
-        {
-            return base.Equals(obj);
-        }
-
-        /// <summary>
-        /// HashCode for ValueOperator object: use base class implementation
-        /// </summary>
-        /// <returns></returns>
-        public override int GetHashCode()
-        {
-            return base.GetHashCode();
-        }
     }
 }
