@@ -45,7 +45,10 @@ namespace Sweco.SIF.iMODclip
         public bool IsKeepFileDateTime { get; set; }
         public bool IsNoDataGridSkipped { get; set; }
         public int EmptyFileMethod { get; set; }
-        public List<string> ExcludedExtensions { get; set; }
+        public List<string> SkippedClipSubstrings { get; set; }
+        public List<string> SkippedCopySubstrings { get; set; }
+        public List<string> SkippedExtensions { get; set; }
+        public bool IsContinueOnErrors { get; set; }
 
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
@@ -62,7 +65,10 @@ namespace Sweco.SIF.iMODclip
             IsKeepFileDateTime = false;
             IsNoDataGridSkipped = false;
             EmptyFileMethod = -1;
-            ExcludedExtensions = new List<string>();
+            SkippedClipSubstrings = new List<string>();
+            SkippedCopySubstrings = new List<string>();
+            SkippedExtensions = new List<string>();
+            IsContinueOnErrors = true;
         }
 
         /// <summary>
@@ -80,13 +86,23 @@ namespace Sweco.SIF.iMODclip
             AddToolOptionDescription("k", "keep original date and time", "/k", "Original date/time is kept", null, null, null, new int[] { 0, 1 });
             AddToolOptionDescription("o", "overwrite existing output files", "/o", "Existing files are overwritten", null, null, null, new int[] { 0, 1 });
             AddToolOptionDescription("r", "process input path recursively", "/r", "Subdirectories are processed recursively", null, null, null, new int[] { 0, 1 });
-            AddToolOptionDescription("x", "exclude files with specified extensions (these are not clipped/copied, case insensitive)", "/x:IDF,ASC", "Exclude files with following extensions: {0}", new string[] { "x1" }, new string[] { "x2", "..." });
+            AddToolOptionDescription("s",  "skip clipping for files with any of specified (comma-seperated) list of substrings in path or filename\n" + 
+                                           "note: files will be copied instead", "/s:SHAPES", "Skip clipping files with any of the following substrings in path (files are copied): {...}", new string[] { "s1" }, new string[] { "..." }, null, new int[] { 0, 1 });
+            AddToolOptionDescription("sc", "skip copying for files with any of specified (comma-seperated) list of substrings in path or filename\n" +
+                                           "if no substrings are specified all copying is skipped"
+#if DEBUG
+                                            + ". Note: skipped files are not logged/shown."
+#endif
+                                           , "/sc", "Skip copying files with any of the following substrings in path: {...}", null, new string[] { "..." }, null, new int[] { 0, 1 });
+            AddToolOptionDescription("sx", "skip files with specified extensions (these are not clipped/copied, case insensitive)", "/x:IDF,ASC", "Exclude files with following extensions: {0}", new string[] { "x1" }, new string[] { "x2", "..." }, null, new int[] { 0, 1 });
             AddToolOptionDescription("e", "define with value i how to handle empty (clippped) folders/iMOD-files (default: 0):\n"
                                         + "0: skip empty folder; write empty (clipped) iMOD-file (ASC/IDF: NoData within clipextent\n"
                                         + "1: as 0, but write empty folder(s)\n"
                                         + "2: skip empty folders/iMOD-files\n"
                                         + "3: copy complete source file when extent is completey outside clipextent", "/e:3", "Method for handling empty files/folders: {0}", new string[] { "i" }, null, null, new int[] { 0, 1 });
             AddToolOptionDescription("n", "skip IDF- or ASC-files with only NoData in specified extent\nthis option overrules method 0 of option e", null, "IDF/ASC-files with only NoData in extent are skipped");
+            AddToolOptionDescription("err", "stop when an error occurs, instead of continuing and copying file(s)", "/err", "Clipping is stopped when an error occurs", null, null, null, new int[] { 0, 1 });
+
             AddToolUsageOptionPostRemark("Note: if xll,yll,xur,yur are not specified, extent of input file is used and specified files are copied (including related files like MET- or TXT-files)");
         }
 
@@ -164,7 +180,7 @@ namespace Sweco.SIF.iMODclip
                 }
                 else
                 {
-                    throw new ToolException("Missing method for option 'e' after ':");
+                    throw new ToolException("Missing method for option '" + optionName + "' after ':");
                 }
             }
             else if (optionName.ToLower().Equals("n"))
@@ -175,16 +191,42 @@ namespace Sweco.SIF.iMODclip
             {
                 IsKeepFileDateTime = true;
             }
-            else if (optionName.ToLower().Equals("x"))
+            else if (optionName.ToLower().Equals("s"))
             {
                 if (hasOptionParameters)
                 {
-                    ExcludedExtensions = new List<string>(GetOptionParameters(optionParametersString));
+                    SkippedClipSubstrings = new List<string>(GetOptionParameters(optionParametersString));
                 }
                 else
                 {
-                    throw new ToolException("Missing comma seperated list of extensions for option 'x' after ':");
+                    throw new ToolException("Missing comma seperated list of extensions for option '" + optionName + "' after ':");
                 }
+            }
+            else if (optionName.ToLower().Equals("sc"))
+            {
+                if (hasOptionParameters)
+                {
+                    SkippedCopySubstrings = new List<string>(GetOptionParameters(optionParametersString));
+                }
+                else
+                {
+                    throw new ToolException("Missing comma seperated list of extensions for option '" + optionName + "' after ':");
+                }
+            }
+            else if (optionName.ToLower().Equals("sx"))
+            {
+                if (hasOptionParameters)
+                {
+                    SkippedExtensions = new List<string>(GetOptionParameters(optionParametersString));
+                }
+                else
+                {
+                    throw new ToolException("Missing comma seperated list of extensions for option '" + optionName + "' after ':");
+                }
+            }
+            else if (optionName.ToLower().Equals("err"))
+            {
+                IsContinueOnErrors = false;
             }
             else
             {

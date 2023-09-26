@@ -26,6 +26,11 @@ using Sweco.SIF.Common;
 using Sweco.SIF.iMOD.IPF;
 using Sweco.SIF.iMOD.ASC;
 using Sweco.SIF.iMOD.IDF;
+using Sweco.SIF.iMOD.GEN;
+using Sweco.SIF.GIS;
+using System.Security.Principal;
+using System.Security.AccessControl;
+using System.Security.Permissions;
 
 namespace Sweco.SIF.iMODclip
 {
@@ -47,13 +52,14 @@ namespace Sweco.SIF.iMODclip
         /// <summary>
         /// List of extensions of files that can currently be clipped by the tool
         /// </summary>
-        protected static List<string> clippedExtensions = new List<string>() { ".idf", ".IPF", ".asc" };
+        protected static List<string> clippedExtensions = new List<string>() { ".idf", ".ipf", ".asc", ".gen" };
 
         // File counts for summary of statistics when tool is finished
+        protected static int inputFileCount;
+        protected static int clippedFileCount;
         protected static int skippedExistingFileCount;
         protected static int skippedEmptyFileCount;
         protected static int skippedNoDataFileCount;
-        protected static int clippedFileCount;
         protected static int errorFileCount;
         protected static int copiedEmptyFileCount;
         protected static int copiedOtherFileCount;
@@ -95,7 +101,7 @@ namespace Sweco.SIF.iMODclip
         protected override void DefineToolProperties()
         {
             Authors = new string[] { "Koen van der Hauw" };
-            ToolPurpose = "SIF-tool for clipping iMOD-files (IDF/ASC/IPF) in given directory to specified extent";
+            ToolPurpose = "SIF-tool for clipping iMOD-files (IDF/ASC/IPF/GEN) in given directory to specified extent";
         }
 
         /// <summary>
@@ -135,10 +141,11 @@ namespace Sweco.SIF.iMODclip
         /// </summary>
         protected virtual void InitializeStatistics()
         {
+            inputFileCount = 0;
+            clippedFileCount = 0;
             skippedExistingFileCount = 0;
             skippedEmptyFileCount = 0;
             skippedNoDataFileCount = 0;
-            clippedFileCount = 0;
             errorFileCount = 0;
             copiedEmptyFileCount = 0;
             copiedOtherFileCount = 0;
@@ -153,10 +160,10 @@ namespace Sweco.SIF.iMODclip
             // Write statistics
             Log.AddInfo(string.Empty);
             ToolSuccessMessage = null;
-            if (clippedFileCount > 0)
-            {
-                Log.AddInfo("Clipped " + clippedFileCount + " files");
-            }
+
+            Log.AddInfo("Found " + inputFileCount + " source files");
+            Log.AddInfo("Clipped " + clippedFileCount + " files");
+
             if (skippedEmptyFileCount > 0)
             {
                 Log.AddInfo("Skipped " + skippedEmptyFileCount + " files outside clip extent");
@@ -179,7 +186,7 @@ namespace Sweco.SIF.iMODclip
             }
             if (copiedOtherFileCount > 0)
             {
-                Log.AddInfo("Copied " + copiedOtherFileCount + " other (non IDF, ASC or IPF) files");
+                Log.AddInfo("Copied " + copiedOtherFileCount + " other files (non IDF, IPF, GEN or ASC)");
             }
             if (errorFileCount > 0)
             {
@@ -205,21 +212,24 @@ namespace Sweco.SIF.iMODclip
             string[] inputFilenames = null;
             if (File.Exists(inputPath))
             {
-                inputFilenames = new string[1];
-                inputFilenames[0] = inputPath;
+                if (!ContainsSubstring(inputPath, settings.SkippedClipSubstrings) && !HasExtension(inputPath, settings.SkippedExtensions))
+                {
+                    inputFilenames = new string[1];
+                    inputFilenames[0] = inputPath;
+                }
             }
             else
             {
                 inputFilenames = Directory.GetFiles(inputPath);
+                Log.AddInfo("Clipping input path '" + (inputPath.Equals(settings.InputPath) ? inputPath : inputPath.Replace(FileUtils.EnsureTrailingSlash(settings.InputPath), string.Empty)) + "' ...");
             }
+            inputFileCount += inputFilenames.Length;
 
             // Keep track of skipped associated TXT-files for IPF-files
             List<string> skippedIPFTXTFilenames = new List<string>();
 
             try
             {
-                Log.AddInfo("Clipping inputPath " + inputPath);
-
                 for (int i = 0; i < inputFilenames.Length; i++)
                 {
                     currentFilename = inputFilenames[i];
@@ -231,53 +241,122 @@ namespace Sweco.SIF.iMODclip
                     {
                         outputFilename = Path.Combine(FileUtils.GetFolderPath(outputPath), Path.GetFileName(currentFilename));
                     }
-                    if (IsExcluded(Path.GetExtension(currentFilename).ToLower(), settings.ExcludedExtensions))
+                    if (HasExtension(currentFilename, settings.SkippedExtensions))
                     {
-                        Log.AddInfo("Skipped file with extension '" + Path.GetExtension(currentFilename) + "': " + currentFilename);
+                        Log.AddInfo("Skipping file with extension '" + Path.GetExtension(currentFilename) + "': " + FileUtils.GetRelativePath(currentFilename, settings.InputPath));
                         continue;
+                    }
+                    if (ContainsSubstring(currentFilename, settings.SkippedClipSubstrings, false, out string foundClipSubstring))
+                    {
+                        if (ContainsSubstring(currentFilename, settings.SkippedCopySubstrings, false, out string foundCopySubstring))
+                        {
+#if DEBUG
+                            if (!foundClipSubstring.Equals(foundCopySubstring))
+                            {
+                                    Log.AddInfo("Skipping file with substrings '" + foundClipSubstring + " and " + foundCopySubstring + "': " + FileUtils.GetRelativePath(currentFilename, settings.InputPath));
+                            }
+                            else
+                            {
+                                Log.AddInfo("Skipping file with substring '" + foundClipSubstring + "': " + FileUtils.GetRelativePath(currentFilename, settings.InputPath));
+                            }
+#endif
+                            continue;
+                        }
+                        else
+                        {
+                            Log.AddInfo("Copying file with substring '" + foundClipSubstring + "': " + FileUtils.GetRelativePath(currentFilename, settings.InputPath));
+                            copiedOtherFilenames.Add(currentFilename, outputFilename);
+                            continue;
+                        }
                     }
 
                     if (settings.IsOverwrite || !(File.Exists(outputFilename)))
                     {
-                        try
+                        if (!File.Exists(outputFilename) || FileUtils.HasWriteAccess(outputFilename))
                         {
-                            if (IDFFile.HasIDFExtension(currentFilename))
+                            try
                             {
-                                Log.AddInfo("Processing IDF file " + Path.GetFileName(currentFilename) + "...");
-                                ClipIDFFile(currentFilename, outputFilename, settings, log);
-                            }
-                            else if (ASCFile.HasASCExtension(currentFilename))
-                            {
-                                ClipASCFile(currentFilename, outputFilename, settings, log);
-                            }
-                            else if (Path.GetExtension(currentFilename).ToLower().Equals(".ipf"))
-                            {
-                                ClipIPFFile(currentFilename, outputFilename, settings, skippedIPFTXTFilenames, log);
-                            }
-                            else
-                            {
-                                // Copy all other files, except MET-files since these are copied together with the clipped files
-                                if (IsCopied(currentFilename, log))
+                                if (IDFFile.HasIDFExtension(currentFilename))
                                 {
+                                    Log.AddInfo("Processing IDF-file '" + FileUtils.GetRelativePath(currentFilename, settings.InputPath) + "' ...");
+                                    ClipIDFFile(currentFilename, outputFilename, settings, log);
+                                }
+                                else if (ASCFile.HasASCExtension(currentFilename))
+                                {
+                                    Log.AddInfo("Processing ASC-file '" + FileUtils.GetRelativePath(currentFilename, settings.InputPath) + "' ...");
+                                    ClipASCFile(currentFilename, outputFilename, settings, log);
+                                }
+                                else if (Path.GetExtension(currentFilename).ToLower().Equals(".ipf"))
+                                {
+                                    Log.AddInfo("Processing IPF-file '" + FileUtils.GetRelativePath(currentFilename, settings.InputPath) + "' ...");
+                                    ClipIPFFile(currentFilename, outputFilename, settings, skippedIPFTXTFilenames, log);
+                                }
+                                else if (Path.GetExtension(currentFilename).ToLower().Equals(".gen"))
+                                {
+                                    Log.AddInfo("Processing GEN-file '" + FileUtils.GetRelativePath(currentFilename, settings.InputPath) + "' ...");
+                                    ClipGENFile(currentFilename, outputFilename, settings, log);
+                                }
+                                //else if (Path.GetExtension(currentFilename).ToLower().Equals(".dat"))
+                                //{
+                                //    // ignore, assume DAT-file is part of some GEN-file
+                                //}
+                                else
+                                {
+                                    if (ContainsSubstring(currentFilename, settings.SkippedCopySubstrings, false, out string foundCopySubstring))
+                                    {
+#if DEBUG
+                                        Log.AddInfo("Skipping file with substring '" + foundCopySubstring + "': " + FileUtils.GetRelativePath(currentFilename, settings.InputPath));
+#endif
+                                    }
+                                    else
+                                    {
+                                        // Copy all other files, except MET-files since these are copied together with the clipped files
+                                        if (IsCopied(currentFilename, log))
+                                        {
+                                            copiedOtherFilenames.Add(currentFilename, outputFilename);
+                                        }
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                if (settings.IsContinueOnErrors)
+                                {
+                                    // Unexpected error: continue, but give warning in logfile and via statistics
+                                    log.AddError("Unexpected error while clipping file: " + Path.GetFileName(currentFilename) + ":");
+                                    Log.AddInfo(ExceptionHandler.GetExceptionChainString(ex), 1);
+                                    if (!(ex is ToolException))
+                                    {
+                                        Log.AddInfo("Stacktrace:");
+                                        Log.AddInfo(ex.StackTrace);
+                                    }
+                                    log.AddWarning("File will be copied: " + Path.GetFileName(currentFilename));
                                     copiedOtherFilenames.Add(currentFilename, outputFilename);
+                                    if (Path.GetExtension(currentFilename).ToLower().Equals(".gen"))
+                                    {
+                                        // For GEN-files, also copy DAT-file
+                                        if (File.Exists(Path.ChangeExtension(currentFilename, ".DAT")))
+                                        {
+                                            copiedOtherFilenames.Add(Path.ChangeExtension(currentFilename, "DAT"), Path.ChangeExtension(outputFilename, ".DAT"));
+                                        }
+                                    }
+                                    errorFileCount++;
+                                }
+                                else
+                                {
+                                    throw new Exception("Unexpected error while clipping file: " + Path.GetFileName(currentFilename) + ":" + ex.GetBaseException().Message, ex);
                                 }
                             }
                         }
-                        catch (Exception ex)
+                        else
                         {
-                            // Unexpected error: continue, but give warning in logfile and via statistics
-                            log.AddError("Unexpected error while clipping file: " + Path.GetFileName(currentFilename) + ":");
-                            Log.AddInfo(ex.GetBaseException().Message, 1);
-                            Log.AddInfo("Stacktrace:");
-                            Log.AddInfo(ex.StackTrace);
-                            log.AddWarning("File will be copied: " + Path.GetFileName(currentFilename));
-                            copiedOtherFilenames.Add(currentFilename, outputFilename);
-                            errorFileCount++;
+                            log.AddError("Skipping existing readonly output file, reset file access to allow overwrite: " + FileUtils.GetRelativePath(currentFilename, settings.InputPath));
+                            skippedExistingFileCount++;
                         }
                     }
                     else
                     {
-                        Log.AddInfo("Skipped existing outputfile " + currentFilename);
+                        Log.AddInfo("Skipped because of existing outputfile: " + Path.GetFileName(currentFilename));
                         skippedExistingFileCount++;
                     }
                 }
@@ -285,27 +364,41 @@ namespace Sweco.SIF.iMODclip
             catch (Exception ex)
             {
                 // Fatal error, throw further up
-                throw new Exception("Error while clipping file " + currentFilename, ex);
+                throw new Exception("Error while clipping file '" + currentFilename + "'", ex);
             }
 
             // Filter IPF TXT-files that were clipped from other files
             if (copiedOtherFilenames.Count > 0)
             {
-                Log.AddInfo("Copying other (non IDF, IPF or ASC) files ...");
+                Log.AddInfo("Copying other files (non IDF, IPF, GEN or ASC) ...");
                 foreach (string copiedFilename in copiedOtherFilenames.Keys)
                 {
-                    if (skippedIPFTXTFilenames.Contains(copiedFilename.ToLower()))
+                    if (ContainsSubstring(currentFilename, settings.SkippedCopySubstrings, false, out string foundCopySubstring))
                     {
-                        Log.AddInfo("Skipping TXT-file outside extent: " + copiedFilename, 1);
+#if DEBUG
+                        Log.AddInfo("Skipping file with substring '" + foundCopySubstring + "': " + FileUtils.GetRelativePath(currentFilename, settings.InputPath) + "...");
+#endif
+                    }
+                    else if (skippedIPFTXTFilenames.Contains(copiedFilename.ToLower()))
+                    {
+                        Log.AddInfo("Skipping TXT-file outside extent: " + FileUtils.GetRelativePath(copiedFilename, settings.InputPath), 1);
                         skippedEmptyFileCount++;
                         skippedIPFTXTFilenames.Remove(copiedFilename);
                     }
                     else
                     {
-                        Log.AddInfo("Copying file: " + copiedFilename, 1);
+                        Log.AddInfo("Copying file: " + FileUtils.GetRelativePath(copiedFilename, settings.InputPath), 1);
                         string targetFilename = copiedOtherFilenames[copiedFilename];
-                        File.Copy(copiedFilename, targetFilename, true);
-                        copiedOtherFileCount++;
+                        if (!File.Exists(targetFilename) || FileUtils.HasWriteAccess(targetFilename))
+                        {
+                            File.Copy(copiedFilename, targetFilename, settings.IsOverwrite);
+                            copiedOtherFileCount++;
+                        }
+                        else
+                        {
+                            log.AddError("Skipping ReadOnly file, reset File access to allow overwrite: " + FileUtils.GetRelativePath(targetFilename, settings.InputPath), 1);
+                            skippedExistingFileCount++;
+                        }
                     }
                 }
             }
@@ -316,7 +409,7 @@ namespace Sweco.SIF.iMODclip
                 if (File.Exists(inputPath))
                 {
                     // If inputPath is a single file recursion is not possible
-                    Log.AddInfo("Recursive clip option is ignored since the specified inputPath is a single file");
+                    Log.AddInfo("\nRecursive clip option is ignored since the specified inputPath is a single file");
                 }
                 else
                 {
@@ -339,7 +432,7 @@ namespace Sweco.SIF.iMODclip
                             {
                                 if ((Directory.GetFiles(outputSubdir).Length == 0) && (Directory.GetDirectories(outputSubdir).Length == 0))
                                 {
-                                    Log.AddInfo("Empty folder removed: " + currentSubdir);
+                                    Log.AddInfo("Empty folder removed: " + (currentSubdir.Equals(settings.InputPath) ? currentSubdir : currentSubdir.Replace(FileUtils.EnsureTrailingSlash(settings.InputPath), string.Empty)));
                                     Log.AddInfo(string.Empty);
                                     Directory.Delete(outputSubdir);
                                 }
@@ -348,6 +441,123 @@ namespace Sweco.SIF.iMODclip
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Check if specified filename has an extension that is equal to any of the specified extensions (with or without an initial dot)
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <param name="extensions"></param>
+        /// <returns></returns>
+        public static bool HasExtension(string filename, List<string> extensions)
+        {
+            string fileExtension = Path.GetExtension(filename).ToLower().Replace(".", string.Empty);
+            foreach (string extension in extensions)
+            {
+                if (fileExtension.Equals(extension.ToLower().Replace(".", string.Empty)))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if specified string contains any of the specified substrings
+        /// </summary>
+        /// <param name="someString"></param>
+        /// <param name="substrings"></param>
+        /// <param name="isCaseSensitive"></param>
+        /// <returns></returns>
+        public static bool ContainsSubstring(string someString, List<string> substrings, bool isCaseSensitive = false)
+        {
+            return ContainsSubstring(someString, substrings, isCaseSensitive, out string foundSubstring);
+        }
+
+        /// <summary>
+        /// Checks if specified string contains any of the specified substrings
+        /// </summary>
+        /// <param name="someString"></param>
+        /// <param name="substrings"></param>
+        /// <param name="isCaseSensitive"></param>
+        /// <param name="foundSubstring"< 
+        /// <returns></returns>
+        public static bool ContainsSubstring(string someString, List<string> substrings, bool isCaseSensitive, out string foundSubstring)
+        {
+            if (isCaseSensitive)
+            {
+                foreach (string subString in substrings)
+                {
+                    if (someString.Contains(subString))
+                    {
+                        foundSubstring = subString;
+                        return true;
+                    }
+                }
+            }
+            else
+            {
+                string lowerCaseString = someString.ToLower();
+                foreach (string subString in substrings)
+                {
+                    if (lowerCaseString.Contains(subString.ToLower()))
+                    {
+                        foundSubstring = subString;
+                        return true;
+                    }
+                }
+            }
+
+            foundSubstring = null;
+            return false;
+        }
+
+        protected virtual void ClipGENFile(string currentFilename, string outputFilename, SIFToolSettings settings, Log log)
+        {
+            GENFile genFile = GENFile.ReadFile(currentFilename);
+
+            GENFile clippedGENFile = ClipGENFile(genFile, settings);
+
+            // Check if clipped file has any points, and extent had overlap with extent of input file
+            if ((clippedGENFile == null) || (clippedGENFile.Features.Count == 0))
+            {
+                // Handle files without points with specified method
+                switch (settings.EmptyFileMethod)
+                {
+                    case 0:
+                        // 0: skip empty folder; write empty (clipped) iMOD-file (no features within clipextent). Note: process like option 1, empty folder is removed later.
+                    case 1:
+                        // 1: as 0, but write empty folder(s)
+                        WriteGENFile(clippedGENFile, outputFilename, settings.IsKeepFileDateTime, genFile.HasDATFile());
+                        CopyMetadataFile(currentFilename, Path.GetDirectoryName(outputFilename), settings.IsOverwrite);
+                        clippedFileCount++;
+                        break;
+                    case 2:
+                        // 2: skip empty folders/iMOD-files
+                        Log.AddInfo("Result file is empty. File is skipped.", 1);
+                        skippedEmptyFileCount++;
+                        break;
+                    case 3:
+                        // 3: copy complete source file when extent is completey outside clipextent
+                        Log.AddInfo("Input file has no overlap with clipboundary. File will be copied.", 1);
+                        File.Copy(currentFilename, outputFilename, true);
+                        CopyMetadataFile(currentFilename, Path.GetDirectoryName(outputFilename), settings.IsOverwrite);
+                        copiedEmptyFileCount++;
+                        break;
+                    default:
+                        throw new Exception("Unexpected emptyFileMethod: " + settings.EmptyFileMethod);
+                }
+            }
+            else
+            {
+                // Handle files with one or more points
+                WriteGENFile(clippedGENFile, outputFilename, settings.IsKeepFileDateTime, (genFile.DATFile != null));
+                CopyMetadataFile(currentFilename, Path.GetDirectoryName(outputFilename), settings.IsOverwrite);
+                clippedFileCount++;
+            }
+
+            clippedGENFile = null;
+            GC.Collect();
         }
 
         /// <summary>
@@ -361,22 +571,32 @@ namespace Sweco.SIF.iMODclip
         protected virtual void ClipIPFFile(string currentFilename, string outputFilename, SIFToolSettings settings, List<string> skippedIPFTXTFilenames, Log log)
         {
             // Log.AddInfo("Processing IPF file " + Path.GetFileName(currentFilename) + "...");
-            IPFFile currentIPFFile = IPFFile.ReadFile(currentFilename, false, true);
+            IPFFile currentIPFFile = IPFFile.ReadFile(currentFilename, false);
 
-            // Actuallly clip IPF-file
-            IPFFile outputIPFFile = ClipIPFFile(currentIPFFile, settings, skippedIPFTXTFilenames);
+            // Actuallly clip IPF-file  
 
-            // Check if clipped file has any cells, and extent had overlap with extent of input file
+            IPFFile outputIPFFile = null;
+            try
+            {
+                outputIPFFile = ClipIPFFile(currentIPFFile, settings, skippedIPFTXTFilenames);
+                // outputIPFFile.Filename = outputFilename;
+            }
+            catch (Exception ex)
+            {
+                throw new ToolException("dd", ex);
+            }
+
+            // Check if clipped file has any points, and extent had overlap with extent of input file
             if ((outputIPFFile == null) || (outputIPFFile.PointCount == 0))
             {
                 // Handle files without points with specified method
                 switch (settings.EmptyFileMethod)
                 {
                     case 0:
-                        // 0: skip empty folder; write empty (clipped) iMOD-file (ASC/IDF: NoData within clipextent)
+                        // 0: skip empty folder; write empty (clipped) iMOD-file (no points within clipextent). Note: process like option 1, empty folder is removed later.
                     case 1:
                         // 1: as 0, but write empty folder(s)
-                        outputIPFFile.WriteFile(settings.IsKeepFileDateTime);
+                        WriteIPFFile(outputIPFFile, outputFilename, settings.IsKeepFileDateTime);
                         CopyMetadataFile(currentFilename, Path.GetDirectoryName(outputFilename), settings.IsOverwrite);
                         clippedFileCount++;
                         break;
@@ -431,12 +651,12 @@ namespace Sweco.SIF.iMODclip
                 switch (settings.EmptyFileMethod)
                 {
                     case 0:
-                        // 0: skip empty folder; write empty (clipped) iMOD-file (ASC/IDF: NoData within clipextent)
+                        // 0: skip empty folder; write empty (clipped) iMOD-file (ASC/IDF: NoData within clipextent). Note: process like option 1, empty folder is removed later.
                     case 1:
                         // 1: as 0, but write empty folder(s)
                         if (settings.IsNoDataGridSkipped)
                         {
-                            Log.AddInfo("Skipped" + Path.GetFileName(currentFilename) + " with only NoData values");
+                            Log.AddInfo("Skipped " + Path.GetFileName(currentFilename) + " with only NoData values");
                             skippedNoDataFileCount++;
                         }
                         else
@@ -477,7 +697,7 @@ namespace Sweco.SIF.iMODclip
                 }
                 else
                 {
-                    Log.AddInfo("Skipped" + Path.GetFileName(outputASCFile.Filename) + " with only NoData values");
+                    Log.AddInfo("Skipped " + Path.GetFileName(outputASCFile.Filename) + " with only NoData values");
                     skippedNoDataFileCount++;
                 }
             }
@@ -522,12 +742,12 @@ namespace Sweco.SIF.iMODclip
                 switch (settings.EmptyFileMethod)
                 {
                     case 0:
-                        // 0: skip empty folder; write empty (clipped) iMOD-file (ASC/IDF: NoData within clipextent)
+                        // 0: skip empty folder; write empty (clipped) iMOD-file (NoData within clipextent). Note: process like option 1, empty folder is removed later.
                     case 1:
                         // 1: as 0, but write empty folder(s)
                         if (settings.IsNoDataGridSkipped)
                         {
-                            Log.AddInfo("Skipped" + Path.GetFileName(currentFilename) + " with only NoData values");
+                            Log.AddInfo("Skipped " + Path.GetFileName(currentFilename) + " with only NoData values");
                             skippedNoDataFileCount++;
                         }
                         else
@@ -535,7 +755,8 @@ namespace Sweco.SIF.iMODclip
                             Log.AddInfo("Input file has no overlap with clipboundary. NoData-file is written.", 1);
                             outputIDFFile = new IDFFile(outputFilename, settings.Extent, currentIDFFile.XCellsize, currentIDFFile.YCellsize, currentIDFFile.NoDataValue);
                             outputIDFFile.ResetValues();
-                            outputIDFFile.WriteFile();
+
+                            WriteIDFFile(outputIDFFile, outputFilename, settings.IsKeepFileDateTime);
                             CopyMetadataFile(currentFilename, Path.GetDirectoryName(outputFilename), settings.IsOverwrite);
                             createdNoDataFileCount++;
                         }
@@ -576,7 +797,7 @@ namespace Sweco.SIF.iMODclip
                 }
                 else
                 {
-                    Log.AddInfo("Skipped" + Path.GetFileName(outputIDFFile.Filename) + " with only NoData values");
+                    Log.AddInfo("Skipped " + Path.GetFileName(outputIDFFile.Filename) + " with only NoData values");
                 }
             }
 
@@ -594,6 +815,17 @@ namespace Sweco.SIF.iMODclip
         protected virtual IPFFile ClipIPFFile(IPFFile currentIPFFile, SIFToolSettings settings, List<string> skippedIPFTXTFilenames)
         {
             return currentIPFFile.ClipIPF(settings.Extent, false, skippedIPFTXTFilenames);
+        }
+
+        /// <summary>
+        /// Clip specified IPF-file with specified settings
+        /// </summary>
+        /// <param name="genFile"></param>
+        /// <param name="settings"></param>
+        /// <returns></returns>
+        protected virtual GENFile ClipGENFile(GENFile genFile, SIFToolSettings settings)
+        {
+            return genFile.ClipGEN(settings.Extent);
         }
 
         /// <summary>
@@ -616,25 +848,6 @@ namespace Sweco.SIF.iMODclip
         protected virtual IDFFile ClipIDFFile(IDFFile currentIDFFile, SIFToolSettings settings)
         {
             return currentIDFFile.ClipIDF(settings.Extent);
-        }
-
-        /// <summary>
-        /// Check if files with specified extension should be skipped
-        /// </summary>
-        /// <param name="extension"></param>
-        /// <param name="excludedExtensions"></param>
-        /// <returns></returns>
-        protected bool IsExcluded(string extension, List<string> excludedExtensions)
-        {
-            extension = extension.ToLower().Replace(".", string.Empty);
-            foreach (string excludedExtension in excludedExtensions)
-            {
-                if (extension.Equals(excludedExtension.ToLower().Replace(".", string.Empty)))
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         /// <summary>
@@ -663,12 +876,29 @@ namespace Sweco.SIF.iMODclip
                 else
                 {
                     isCopied = false;
-
-                    if (log != null)
-                    {
-                        Log.AddInfo("Skipped isolated MET-file: " + currentFilename);
-                    }
-
+                    //if (log != null)
+                    //{
+                    //    Log.AddInfo("Copying isolated MET-file: " + currentFilename);
+                    //}
+                }
+            }
+            if (Path.GetExtension(currentFilename).ToLower().Equals(".dat"))
+            {
+                // For DAT-files, check if a corresponding GEN-file is present. In that case the DAT-file is handled during the clip
+                string[] filenames = Directory.GetFiles(Path.GetDirectoryName(currentFilename), Path.GetFileNameWithoutExtension(currentFilename) + ".GEN");
+                if (filenames.Length >= 1)
+                {
+                    // A corresponding GEN-file is present, no need to copy DAT-file
+                    isCopied = false;
+                }
+                else
+                {
+                    // No corresponding GEN-file is present, assume this DAT-file is something else
+                    isCopied = true;
+                    //if (log != null)
+                    //{
+                    //    Log.AddInfo("Copying isolated DAT-file: " + currentFilename);
+                    //}
                 }
             }
 
@@ -687,33 +917,6 @@ namespace Sweco.SIF.iMODclip
             if (File.Exists(metFilename))
             {
                 File.Copy(metFilename, Path.Combine(outputPath, Path.GetFileName(metFilename)), isOverwrite);
-            }
-        }
-
-        /// <summary>
-        /// Write specified IDF-file and optionally keep existing date and time of source IDF-file
-        /// </summary>
-        /// <param name="idfFile"></param>
-        /// <param name="newFilename"></param>
-        /// <param name="copyLastWriteTime"></param>
-        protected void WriteIDFFile(IDFFile idfFile, string newFilename, bool copyLastWriteTime = false)
-        {
-            if (copyLastWriteTime)
-            {
-                if (File.Exists(idfFile.Filename))
-                {
-                    DateTime lastWriteTime = File.GetLastWriteTime(idfFile.Filename);
-                    idfFile.WriteFile(newFilename);
-                    File.SetLastWriteTime(newFilename, lastWriteTime);
-                }
-                else
-                {
-                    idfFile.WriteFile(newFilename);
-                }
-            }
-            else
-            {
-                idfFile.WriteFile(newFilename);
             }
         }
 
@@ -747,14 +950,48 @@ namespace Sweco.SIF.iMODclip
         }
 
         /// <summary>
+        /// Write specified IDF-file and optionally keep existing date and time of source IDF-file
+        /// </summary>
+        /// <param name="idfFile"></param>
+        /// <param name="newFilename"></param>
+        /// <param name="isKeepFileDateTime"></param>
+        protected void WriteIDFFile(IDFFile idfFile, string newFilename, bool isKeepFileDateTime = false)
+        {
+            if (isKeepFileDateTime)
+            {
+                if (File.Exists(idfFile.Filename))
+                {
+                    DateTime lastWriteTime = File.GetLastWriteTime(idfFile.Filename);
+                    idfFile.WriteFile(newFilename);
+                    File.SetLastWriteTime(newFilename, lastWriteTime);
+                }
+                else
+                {
+                    idfFile.WriteFile(newFilename);
+                }
+            }
+            else
+            {
+                idfFile.WriteFile(newFilename);
+            }
+        }
+
+        /// <summary>
         /// Write specified IPF-file and optionally keep existing date and time of source IDF-file
         /// </summary>
         /// <param name="ipfFile"></param>
         /// <param name="newFilename"></param>
-        /// <param name="copyLastWriteTime"></param>
-        public void WriteIPFFile(IPFFile ipfFile, string newFilename, bool copyLastWriteTime = false)
+        /// <param name="isKeepFileDateTime"></param>
+        public void WriteIPFFile(IPFFile ipfFile, string newFilename, bool isKeepFileDateTime = false)
         {
-            if (copyLastWriteTime)
+            if (ipfFile == null)
+            {
+                // Create empty IPF-file
+                ipfFile = new IPFFile();
+                ipfFile.AddXYColumns();
+            }
+
+            if (isKeepFileDateTime)
             {
                 if (File.Exists(ipfFile.Filename))
                 {
@@ -770,6 +1007,46 @@ namespace Sweco.SIF.iMODclip
             else
             {
                 ipfFile.WriteFile(newFilename, null, true);
+            }
+        }
+
+        /// <summary>
+        /// Write specified IPF-file and optionally keep existing date and time of source IDF-file
+        /// </summary>
+        /// <param name="genFile"></param>
+        /// <param name="newFilename"></param>
+        /// <param name="isKeepFileDateTime"></param>
+        /// <param name="isDATFileWritten"></param>
+        public void WriteGENFile(GENFile genFile, string newFilename, bool isKeepFileDateTime = false, bool isDATFileWritten = true)
+        {
+            if (genFile == null)
+            {
+                // Create empty IPF-file
+                genFile = new GENFile();
+            }
+
+            if (!isDATFileWritten && (genFile.DATFile != null))
+            {
+                // Remove DAT-file
+                genFile.DATFile = null;
+            }
+
+            if (isKeepFileDateTime)
+            {
+                if (File.Exists(genFile.Filename))
+                {
+                    DateTime lastWriteTime = File.GetLastWriteTime(genFile.Filename);
+                    genFile.WriteFile(newFilename, null);
+                    File.SetLastWriteTime(newFilename, lastWriteTime);
+                }
+                else
+                {
+                    genFile.WriteFile(newFilename, null);
+                }
+            }
+            else
+            {
+                genFile.WriteFile(newFilename, null);
             }
         }
     }
