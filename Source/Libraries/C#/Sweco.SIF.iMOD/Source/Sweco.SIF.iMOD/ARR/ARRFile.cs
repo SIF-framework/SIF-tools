@@ -198,6 +198,7 @@ namespace Sweco.SIF.iMOD.ARR
             int idx;
             int count;
             double value;
+            string line = string.Empty;
             List<double> values = new List<double>();
             try
             {
@@ -208,57 +209,65 @@ namespace Sweco.SIF.iMOD.ARR
                 sr = new StreamReader(stream);
 
                 // Read values
-                string line = sr.ReadLine().Trim();
-                while (!sr.EndOfStream && !line.Equals("DIMENSIONS"))
+                line = sr.ReadLine().Trim();
+                while (!sr.EndOfStream && !line.Equals("DIMENSIONS") && !line.Equals("# DIMENSIONS"))
                 {
-                    lineIdx++;
-                    idx = line.IndexOf('*');
-                    count = 1;
-                    if (idx > 0)
+                    if (!line[0].Equals('#'))
                     {
-                        count = int.Parse(line.Substring(0, idx));
-                        value = double.Parse(line.Substring(idx + 1, line.Length - idx - 1), englishCultureInfo);
-                    }
-                    else
-                    {
-                        value = double.Parse(line, englishCultureInfo);
-                    }
-
-                    for (int valueIdx = 0; valueIdx < count; valueIdx++)
-                    {
-                        values.Add(value);
-                        colIdx++;
-                        if (colIdx == arrFile.NCols)
+                        lineIdx++;
+                        idx = line.IndexOf('*');
+                        count = 1;
+                        if (idx > 0)
                         {
-                            colIdx = 0;
-                            rowIdx++;
+                            count = int.Parse(line.Substring(0, idx));
+                            value = double.Parse(line.Substring(idx + 1, line.Length - idx - 1), englishCultureInfo);
+                        }
+                        else
+                        {
+                            value = double.Parse(line, englishCultureInfo);
+                        }
+
+                        for (int valueIdx = 0; valueIdx < count; valueIdx++)
+                        {
+                            values.Add(value);
+                            colIdx++;
+                            if (colIdx == arrFile.NCols)
+                            {
+                                colIdx = 0;
+                                rowIdx++;
+                            }
                         }
                     }
                     line = sr.ReadLine().Trim();
                 }
 
+                if (line[0].Equals('#'))
+                {
+                    line = line.Replace("#", string.Empty).Trim();
+                }
+
                 double dblNoDataValue = double.NaN;
                 if (line.Equals("DIMENSIONS"))
                 {
-                    line = sr.ReadLine().Trim();
+                    line = sr.ReadLine().Replace("#", string.Empty).Trim();
                     arrFile.NCols = int.Parse(line);
-                    line = sr.ReadLine().Trim();
+                    line = sr.ReadLine().Replace("#", string.Empty).Trim();
                     arrFile.NRows = int.Parse(line);
-                    line = sr.ReadLine().Trim();
+                    line = sr.ReadLine().Replace("#", string.Empty).Trim();
                     arrFile.XLL = float.Parse(line, englishCultureInfo);
-                    line = sr.ReadLine().Trim();
+                    line = sr.ReadLine().Replace("#", string.Empty).Trim();
                     arrFile.YLL = float.Parse(line, englishCultureInfo);
-                    line = sr.ReadLine().Trim();
+                    line = sr.ReadLine().Replace("#", string.Empty).Trim();
                     arrFile.XUR = float.Parse(line, englishCultureInfo);
-                    line = sr.ReadLine().Trim();
+                    line = sr.ReadLine().Replace("#", string.Empty).Trim();
                     arrFile.YUR = float.Parse(line, englishCultureInfo);
-                    line = sr.ReadLine().Trim();
+                    line = sr.ReadLine().Replace("#", string.Empty).Trim();
                     dblNoDataValue = double.Parse(line, englishCultureInfo);
-                    line = sr.ReadLine().Trim();
+                    line = sr.ReadLine().Replace("#", string.Empty).Trim();
                     // ignore value
-                    line = sr.ReadLine().Trim();
+                    line = sr.ReadLine().Replace("#", string.Empty).Trim();
                     arrFile.XCellsize = float.Parse(line, englishCultureInfo);
-                    line = sr.ReadLine().Trim();
+                    line = sr.ReadLine().Replace("#", string.Empty).Trim();
                     arrFile.XCellsize = float.Parse(line, englishCultureInfo);
                     arrFile.YCellsize = float.Parse(line, englishCultureInfo);
                 }
@@ -308,7 +317,7 @@ namespace Sweco.SIF.iMOD.ARR
             {
                 if (lineIdx > 0)
                 {
-                    throw new ToolException("Could not read ARR-file line " + lineIdx + ": " + filename, ex);
+                    throw new ToolException("Could not read ARR-file line " + lineIdx + ": " + "'" + line + "' of file: " + filename, ex);
                 }
                 else
                 {
