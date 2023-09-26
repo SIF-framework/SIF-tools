@@ -50,6 +50,10 @@ The following third party libraries are used in some of the SIF-tools:
   See:
   https://www.nuget.org/packages/Newtonsoft.Json/13.0.1
   https://www.newtonsoft.com/json
+- MIConvexHull for retrieving a convex hull aorund points
+  It has the following license: The MIT License (MIT). 
+  The dll is usedd in en merged with IDFGENconvert.exe 
+  See: https://github.com/DesignEngrLab/MIConvexHull
 These third party libraries are downloaded/installed via Visual Studio's 
 NuGet Packager Manager. Check above NuGet webpages for more information.
 
@@ -65,28 +69,42 @@ command-line. Each SIF-tool executable shows basic instructions for syntax
 and use when run without parameters. Currently the following tools are available:
 
 SIF-tool                Description
+--------                -----------
 Del2Bin                 For deleting files or subdirectories to the recycle bin      
 ExcelMapper             For mapping data from Excel rows to textfile, based on a template file
 ExcelSelect             For selection of rows and/or sheets in Excel file(s)
 GENcreate               For creating GEN-files for specified extent coordinates
+GENselect               For selection of features in GEN-files based and modification of column values
+GENsplit                For splitting GEN-features on column values or IPF-points (for lines)
+GeoTOPscale             For adapting kv-values based on (MODFLOW 6) calculated flow through GeoTOP-layers
 HydroMonitorIPFconvert  For converting HydroMonitor Excel-files to IPF-files
 IDFbnd                  For correcting boundary- condition around selected IDF-cells
 IDFexp                  For evaluating multiple (nested) IDF-expressions on IDF-files
 IDFGENconvert           For IDF-GEN (convex hull) or GEN-IDF (polygons/lines) conversion
 IDFinfo                 For retrieving info about IDF-file (e.g. extent, cellsize, nr of values)
 IDFmath                 For simple math operations on IDF-files (use IDFexp if complex)
-IDFresample             For resampling values in IDF-file with nearest neighbor method
+IDFresample             For resampling values in IDF-file with nearest neighbor method or IDW
+IDFvoxel                For manipulation of voxel IDF-files or creation from GeoTOP CSV-files
 IMFcreate               For creating iMOD IMF-files with specified iMOD-files, legends, etc.
 iMODclip                For clipping iMOD-files (IDF/ASC/IPF) to specified extent
 iMODdel                 For selective deletion of iMOD-files (IDF/IPF/GEN) (e.g. empty files)
 iMODmetadata            For adding or merging metadata to iMOD .MET-files
 iMODstats               For creating Excelfile with statistics of IDF-file(s)
 iMODValidator           For checking iMOD-models (RUN-file) for some known modelissues
+IPFcolidx               For retrieving a column number for specified column name in an IPF-file
+IPFmerge                For merging rows from different IPF-files with equal columns
 IPFreorder              For reordering columns from IPF-file(s) with simple column expressions
+IPFsample               For sampling values from IDF-files at points from specified IPF-files
+IPFselect               For selection and modification of points/rows in IPF-files
+IPFsplit                For splitting IPF-files based on column values
+ISGinfo                 For retrieving information (extent or number of segments) from an ISG-file
 LayerManager            For checking REGIS/iMOD-layermodel for inconsistencies or kD/c-calculation
+NumberRounder           For rounding numeric values in textfiles
 ReplaceLine             For replacing line at specified linenumber within a text file
 ReplaceText             For replacing text in one or more files, optionally using regular expressions
-Tee                     for teeing standard output of a command to both standard output and file
+ResidualAnalysis        For comparison of residuals in IPF-files and formatting in Excelsheet
+Tee                     For teeing standard output of a command to both standard output and file
+WorkflowViz             For visualisation of SIF-workflows with GraphViz-graphs
 
 The tools are build and tested for Windows 10, 64bit (x64) with .NET Framework 4.5.
 A release can be downloaded via: https://github.com/SIF-framework/SIF-tools/releases

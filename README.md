@@ -69,25 +69,37 @@ and use when run without parameters. Currently the following tools are available
 | ExcelMapper   | For mapping data from Excel rows to textfile, based on a template file |
 | ExcelSelect   | For selection of rows and/or sheets in Excel file(s)             |
 | GENcreate     | For creating GEN-files for specified extent coordinates          |
-| HydroMonitorIPFconvert   | For converting HydroMonitor Excel-files to IPF-files  |
+| GENselect     | For selection of features in GEN-files and modification of column values |
+| GENsplit      | For splitting GEN-features on column values or IPF-points (for lines) |
+| GeoTOPscale   | For adapting kv-values based on (MF6) calculated flow through GeoTOP-layers |
+| HydroMonitorIPFconvert | For converting HydroMonitor Excel-files to IPF-files  |
 | IDFbnd        | For correcting boundary- condition around selected IDF-cells     |
 | IDFexp        | For evaluating multiple (nested) IDF-expressions on IDF-files    |
 | IDFGENconvert | For IDF-GEN (convex hull) or GEN-IDF (polygons/lines) conversion |
 | IDFinfo       | For retrieving info about IDF-file (e.g. extent, cellsize, nr of values) |
 | IDFmath       | For simple math operations on IDF-files (use IDFexp if complex)  |
 | IDFresample   | For resampling values in IDF-file with nearest neighbor method   |
+| IDFvoxel      | For manipulation of voxel IDF-files or creation from GeoTOP CSV-files |
 | IMFcreate     | For creating iMOD IMF-files with specified iMOD-files, legends, etc. |
 | iMODclip      | For clipping iMOD-files (IDF/ASC/IPF) to specified extent        |
 | iMODdel       | For selective deletion of iMOD-files (IDF/IPF/GEN) (e.g. empty files)|
 | iMODmetadata  | For adding or merging metadata to iMOD .MET-files                |
 | iMODstats     | For creating Excelfile with statistics of IDF-file(s)            |
 | iMODValidator | For checking iMOD-models (RUN-file) for some known modelissues   |
+| IPFcolidx     | For retrieving a column number for specified column name in an IPF-file |
+| IPFmerge      | For merging rows from different IPF-files with equal columns     |
 | IPFreorder    | For reordering columns from IPF-file(s) with simple column expressions |
+| IPFsample     | For sampling values from IDF-files at points from specified IPF-files |
+| IPFselect     | For selection and modification of points/rows in IPF-files       |
+| IPFsplit      | For splitting IPF-files based on column values                   |
+| ISGinfo       | For retrieving information (extent or number of segments) from an ISG-file |
 | LayerManager  | For checking REGIS/iMOD-layermodel for inconsistencies or kD/c-calculation |
+| NumberRounder | For rounding numeric values in textfiles                         |
 | ReplaceLine   | For replacing line at specified linenumber within a text file    |
 | ReplaceText   | For replacing text in one or more files, optionally using regular expressions |
-| Tee           | for teeing standard output of a command to both standard output and file |
-| [WorkflowViz](https://github.com/SIF-framework/SIF-tools/tree/main/Source/WorkflowViz)   | for visualisation of SIF-workflows with GraphViz-graphs          |
+| ResidualAnalysis | For comparison of residuals in IPF-files and formatting in Excelsheet |
+| Tee           | For teeing standard output of a command to both standard output and file |
+| [WorkflowViz](https://github.com/SIF-framework/SIF-tools/tree/main/Source/WorkflowViz)   | For visualisation of SIF-workflows with GraphViz-graphs          |
 
 The tools are build and tested for Windows 10, 64bit (x64) with .NET Framework 4.5.
 A release can be downloaded via: https://github.com/SIF-framework/SIF-tools/releases
@@ -97,6 +109,9 @@ For building the SIF-tools, Visual Studio Express 2017 was used.
 For each tool there is a subdirectory Source with the solution file for the tool.
 
 0. For VSE2017, see: https://visualstudio.microsoft.com/vs/express
+   Note: Microsoft removed VS2017 Express from its server, VS2013 Express is 
+         still available and (except for some new language constructs) should
+         work as well. Otherwise try the a Visual Studio Community version.
 1. The SIF-source can be downloaded from: https://github.com/SIF-framework/SIF-tools
 2. Build the library solutions Sweco.SIF.* under the Libraries\C# directory:
    - Build both the 'Any CPU' and 'x64' configurations.
