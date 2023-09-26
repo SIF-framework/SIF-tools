@@ -19,50 +19,46 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with Sweco.SIF.Spreadsheets. If not, see <https://www.gnu.org/licenses/>.
-using OfficeOpenXml;
-using OfficeOpenXml.Style;
+using Sweco.SIF.Common;
 using Sweco.SIF.Common.ExceptionHandling;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
+namespace Sweco.SIF.Spreadsheets.Excel.CSV
 {
     /// <summary>
-    /// Class for processing Excel worksheets with EPPlus-library
+    /// Class for processing CSV-files as a worksheet
     /// </summary>
-    public class EPPlusWorksheet : IWorksheet
+    public class CSVWorksheet : IWorksheet
     {
         /// <summary>
-        /// The EPPlus workbook that contains this sheet
+        /// The 2D-object array that contains this sheet
         /// </summary>
-        internal EPPlusWorkbook workbook = null;
+        private string[][] csvCells = null; // 2D-matrix with cells [row][col]
+
+        public int RowCount { get; set; }
+        public int ColumnCount { get; set; }
+
+        private Range selectedRange = null;
 
         /// <summary>
-        /// Underlying object with EPPlus-implentation of this worksheet
+        /// The CSV workbook that contains this sheet
         /// </summary>
-        internal ExcelWorksheet epplusWorksheet;
-
-        /// <summary>
-        /// Underlying object with EPPlus-implentation of cells in this worksheet
-        /// </summary>
-        internal ExcelRange epplusCells;
+        internal IWorkbook workbook;
 
         /// <summary>
         /// Create new EPPlus worksheet object
         /// </summary>
         /// <param name="workbook"></param>
-        /// <param name="epplusWorksheet"></param>
-        internal EPPlusWorksheet(EPPlusWorkbook workbook, ExcelWorksheet epplusWorksheet)
+        internal CSVWorksheet(CSVWorkbook workbook)
         {
             this.workbook = workbook;
-            this.epplusWorksheet = epplusWorksheet;
-            this.epplusCells = epplusWorksheet.Cells;
+            this.RowCount = 0;
+            this.ColumnCount = 0;
         }
 
         /// <summary>
@@ -78,7 +74,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// </summary>
         public void Activate()
         {
-            this.workbook.epplusWorkbook.View.ActiveTab = this.epplusWorksheet.Index - 1;
+            // ignore, CSV-file has only a single sheet which is always activated
         }
 
         /// <summary>
@@ -87,7 +83,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="sheetname"></param>
         public void SetSheetname(string sheetname)
         {
-            epplusWorksheet.Name = sheetname;
+            // epplusWorksheet.Name = sheetname;
         }
 
         /// <summary>
@@ -95,7 +91,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// </summary>
         public string GetSheetname()
         {
-            return epplusWorksheet.Name;
+            return Path.GetFileNameWithoutExtension(workbook.Filename);
         }
 
         /// <summary>
@@ -104,8 +100,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="range"></param>
         public void Select(Range range)
         {
-            ExcelRange epplusRange = epplusCells[range.Cell1.RowIdx + 1, range.Cell1.ColIdx + 1, range.Cell2.RowIdx + 1, range.Cell2.ColIdx + 1];
-            epplusWorksheet.Select(epplusRange);
+            selectedRange = range;
         }
 
         /// <summary>
@@ -115,7 +110,8 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="colIdx">zero-based column index</param>
         public void Select(int rowIdx, int colIdx)
         {
-            epplusWorksheet.Select(epplusCells[rowIdx + 1, colIdx + 1]);
+            Cell cell = new Cell(this, rowIdx, colIdx);
+            selectedRange = new Range(this, cell, cell);
         }
 
         /// <summary>
@@ -125,7 +121,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="colIdx">zero-based column index</param>
         public void Activate(int rowIdx, int colIdx)
         {
-            epplusWorksheet.View.ActiveCell = epplusCells[rowIdx + 1, colIdx + 1].Address;
+            Select(rowIdx, colIdx);
         }
 
         /// <summary>
@@ -137,7 +133,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="value"></param>
         public void SetCellValue(int rowIdx, int colIdx, string value)
         {
-            epplusCells[rowIdx + 1, colIdx + 1].Value = SpreadsheetUtils.ConvertStringValue(value, workbook.CultureInfo);
+            csvCells[rowIdx][colIdx] = value;
         }
 
         /// <summary>
@@ -149,7 +145,9 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="parseCultureInfo"></param>
         public void SetCellValue(int rowIdx, int colIdx, string value, CultureInfo parseCultureInfo)
         {
-            epplusCells[rowIdx + 1, colIdx + 1].Value = (parseCultureInfo != null) ? SpreadsheetUtils.ConvertStringValue(value, parseCultureInfo) : value;
+            // Ignore culture info
+
+            csvCells[rowIdx][colIdx] = value;
         }
 
         /// <summary>
@@ -160,7 +158,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="value"></param>
         public void SetCellValue(int rowIdx, int colIdx, long value)
         {
-            epplusCells[rowIdx + 1, colIdx + 1].Value = value;
+            csvCells[rowIdx][colIdx] = value.ToString();
         }
 
         /// <summary>
@@ -171,7 +169,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="value"></param>
         public void SetCellValue(int rowIdx, int colIdx, float value)
         {
-            epplusCells[rowIdx + 1, colIdx + 1].Value = value;
+            csvCells[rowIdx][colIdx] = value.ToString(workbook.CultureInfo);
         }
 
         /// <summary>
@@ -182,7 +180,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="value"></param>
         public void SetCellValue(int rowIdx, int colIdx, double value)
         {
-            epplusCells[rowIdx + 1, colIdx + 1].Value = value;
+            csvCells[rowIdx][colIdx] = value.ToString(workbook.CultureInfo);
         }
 
         /// <summary>
@@ -193,7 +191,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="value"></param>
         public void SetCellValue(int rowIdx, int colIdx, DateTime value)
         {
-            epplusCells[rowIdx + 1, colIdx + 1].Value = value;
+            csvCells[rowIdx][colIdx] = value.ToString(workbook.CultureInfo);
         }
 
         /// <summary>
@@ -204,7 +202,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="value"></param>
         public void SetCellValue(int rowIdx, int colIdx, object value)
         {
-            epplusCells[rowIdx + 1, colIdx + 1].Value = value;
+            csvCells[rowIdx][colIdx] = value.ToString();
         }
 
         /// <summary>
@@ -215,7 +213,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="formula"></param>
         public void SetCellFormula(int rowIdx, int colIdx, string formula)
         {
-            epplusCells[rowIdx + 1, colIdx + 1].Formula = formula;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -226,7 +224,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="formulaR1C1"></param>
         public void SetCellFormulaR1C1(int rowIdx, int colIdx, string formulaR1C1)
         {
-            epplusCells[rowIdx + 1, colIdx + 1].FormulaR1C1 = formulaR1C1;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -237,7 +235,19 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public object GetCellObjectValue(int rowIdx, int colIdx)
         {
-            return epplusCells[rowIdx + 1, colIdx + 1].Value;
+            if (IsCellDefined(rowIdx, colIdx))
+            {
+                return csvCells[rowIdx][colIdx];
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        private bool IsCellDefined(int rowIdx, int colIdx)
+        {
+            return (rowIdx < RowCount) && (colIdx < ColumnCount);
         }
 
         /// <summary>
@@ -248,7 +258,14 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public string GetCellText(int rowIdx, int colIdx)
         {
-            return epplusCells[rowIdx + 1, colIdx + 1].Text;
+            if (IsCellDefined(rowIdx, colIdx))
+            {
+                return csvCells[rowIdx][colIdx];
+            }
+            else
+            {
+                return null;
+            }
         }
 
         /// <summary>
@@ -259,10 +276,9 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public string GetCellValue(int rowIdx, int colIdx)
         {
-            object value = epplusCells[rowIdx + 1, colIdx + 1].Value;
-            if (value != null)
+            if (IsCellDefined(rowIdx, colIdx))
             {
-                return SpreadsheetUtils.ConvertObjectValue(value, workbook.CultureInfo);
+                return csvCells[rowIdx][colIdx];
             }
             else
             {
@@ -279,10 +295,9 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public string GetCellValue(int rowIdx, int colIdx, CultureInfo cultureInfo)
         {
-            object value = epplusCells[rowIdx + 1, colIdx + 1].Value;
-            if (value != null)
+            if (IsCellDefined(rowIdx, colIdx))
             {
-                return (cultureInfo != null) ? SpreadsheetUtils.ConvertObjectValue(value, cultureInfo) : value.ToString();
+                return csvCells[rowIdx][colIdx];
             }
             else
             {
@@ -300,10 +315,9 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public string GetCellValue(int rowIdx, int colIdx, CultureInfo cultureInfo, string format)
         {
-            object value = epplusCells[rowIdx + 1, colIdx + 1].Value;
-            if (value != null)
+            if (IsCellDefined(rowIdx, colIdx))
             {
-                return (cultureInfo != null) ? SpreadsheetUtils.ConvertObjectValue(value, cultureInfo, format) : value.ToString();
+                return csvCells[rowIdx][colIdx].ToString(cultureInfo);
             }
             else
             {
@@ -319,7 +333,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public string GetCellFormula(int rowIdx, int colIdx)
         {
-            return epplusCells[rowIdx + 1, colIdx + 1].Formula;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -342,27 +356,18 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public Cell FindCell(string searchString, bool matchCase = false, bool lookAtPart = false)
         {
-            ExcelAddressBase dimRange = epplusWorksheet.Dimension;
-            if (dimRange == null)
-            {
-                return null;
-            }
-
-            long lastRowIdx = dimRange.Rows;
-            long lastColIdx = dimRange.Columns;
-
             if (matchCase)
             {
-                for (int row = 1; row <= lastRowIdx; row++)
+                for (int rowIdx = 0; rowIdx < RowCount; rowIdx++)
                 {
-                    for (int col = 1; col <= lastColIdx; col++)
+                    for (int colIdx = 0; colIdx < ColumnCount; colIdx++)
                     {
-                        string value = GetCellValue(row - 1, col - 1);
+                        string value = GetCellValue(rowIdx, colIdx);
                         if (value != null)
                         {
                             if (value.Equals(searchString) || (lookAtPart && value.Contains(searchString)))
                             {
-                                return new Cell(this, row - 1, col - 1);
+                                return new Cell(this, rowIdx, colIdx);
                             }
                         }
                     }
@@ -371,16 +376,16 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
             else
             {
                 searchString = searchString.ToLower();
-                for (int row = 1; row <= lastRowIdx; row++)
+                for (int rowIdx = 0; rowIdx < RowCount; rowIdx++)
                 {
-                    for (int col = 1; col <= lastColIdx; col++)
+                    for (int colIdx = 0; colIdx < ColumnCount; colIdx++)
                     {
-                        string value = GetCellValue(row - 1, col - 1);
+                        string value = GetCellValue(rowIdx, colIdx);
                         if (value != null)
                         {
                             if (value.ToLower().Equals(searchString))
                             {
-                                return new Cell(this, row - 1, col - 1);
+                                return new Cell(this, rowIdx, colIdx);
                             }
                         }
                     }
@@ -430,13 +435,13 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
                 // The specified cell contains a value, loop until an empty cell is found
                 int nextRowIdx = rowIdx;
                 int nextColIdx = colIdx;
-                while (((value != null) && !value.Equals(string.Empty)) && (nextRowIdx >= 0) && (nextColIdx >= 0) && (nextRowIdx < epplusWorksheet.Cells.Rows) && (nextColIdx < epplusWorksheet.Cells.Columns))
+                while (((value != null) && !value.Equals(string.Empty)) && (nextRowIdx >= 0) && (nextColIdx >= 0) && (nextRowIdx < RowCount) && (nextColIdx < ColumnCount))
                 {
                     rowIdx = nextRowIdx;
                     colIdx = nextColIdx;
                     nextRowIdx += rowStep;
                     nextColIdx += colStep;
-                    if ((rowIdx >= 0) && (colIdx >= 0) && (rowIdx < epplusWorksheet.Cells.Rows) && (colIdx < epplusWorksheet.Cells.Columns))
+                    if ((rowIdx >= 0) && (colIdx >= 0) && (rowIdx < RowCount) && (colIdx < ColumnCount))
                     {
                         value = GetCellValue(nextRowIdx, nextColIdx);
                         if (value == null)
@@ -449,11 +454,11 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
             else
             {
                 // The specified cell is empty, loop until value is found
-                while (((value == null) || value.Equals(string.Empty)) && (rowIdx >= 0) && (colIdx >= 0) && (rowIdx < epplusWorksheet.Cells.Rows) && (colIdx < epplusWorksheet.Cells.Columns))
+                while (((value == null) || value.Equals(string.Empty)) && (rowIdx >= 0) && (colIdx >= 0) && (rowIdx < RowCount) && (colIdx < ColumnCount))
                 {
                     rowIdx += rowStep;
                     colIdx += colStep;
-                    if ((rowIdx >= 0) && (colIdx >= 0) && (rowIdx < epplusWorksheet.Cells.Rows) && (colIdx < epplusWorksheet.Cells.Columns))
+                    if ((rowIdx >= 0) && (colIdx >= 0) && (rowIdx < RowCount) && (colIdx < ColumnCount))
                     {
                         value = GetCellValue(rowIdx, colIdx);
                         if (value == null)
@@ -462,17 +467,17 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
                         }
                     }
                 }
-                if (colIdx == epplusWorksheet.Cells.Columns)
+                if (colIdx == ColumnCount)
                 {
-                    colIdx = epplusWorksheet.Cells.Columns - 1;
+                    colIdx = ColumnCount - 1;
                 }
                 if (colIdx == -1)
                 {
                     colIdx = 0;
                 }
-                if (rowIdx == epplusWorksheet.Cells.Rows)
+                if (rowIdx == RowCount)
                 {
-                    rowIdx = epplusWorksheet.Cells.Rows - 1;
+                    rowIdx = RowCount - 1;
                 }
                 if (rowIdx == -1)
                 {
@@ -520,11 +525,11 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
             int rangeColIdx = -1;
             try
             {
-                for (rangeRowIdx = range.RowIdx1; rangeRowIdx <= Math.Min(epplusWorksheet.Cells.Rows - 1, range.RowIdx2); rangeRowIdx++)
+                for (rangeRowIdx = range.RowIdx1; rangeRowIdx <= Math.Min(RowCount - 1, range.RowIdx2); rangeRowIdx++)
                 {
-                    for (rangeColIdx = range.ColIdx1; rangeColIdx <= Math.Min(epplusWorksheet.Cells.Columns - 1, range.ColIdx2); rangeColIdx++)
+                    for (rangeColIdx = range.ColIdx1; rangeColIdx <= Math.Min(ColumnCount - 1, range.ColIdx2); rangeColIdx++)
                     {
-                        values[subRowIdx, subColIdx] = epplusCells[rangeRowIdx + 1, rangeColIdx + 1].Value;
+                        values[subRowIdx, subColIdx] = csvCells[rangeRowIdx][rangeColIdx];
                         subColIdx++;
                     }
                     subRowIdx++;
@@ -545,7 +550,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public int GetRowsCount()
         {
-            return epplusWorksheet.Cells.Rows;
+            return RowCount;
         }
 
         /// <summary>
@@ -554,7 +559,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public int GetColumnsCount()
         {
-            return epplusWorksheet.Cells.Columns;
+            return ColumnCount;
         }
 
         /// <summary>
@@ -562,7 +567,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// </summary>
         public int LastRowIdx
         {
-            get { return epplusWorksheet.Cells.Rows - 1; }
+            get { return RowCount - 1; }
         }
 
         /// <summary>
@@ -570,7 +575,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// </summary>
         public int LastColIdx
         {
-            get { return epplusWorksheet.Cells.Columns - 1; }
+            get { return ColumnCount - 1; }
         }
 
         /// <summary>
@@ -579,7 +584,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="colIdx">zero-based column index</param>
         public void InsertColumn(int colIdx)
         {
-            epplusWorksheet.InsertColumn(colIdx + 1, 1);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -588,7 +593,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="rowIdx">zero-based row index</param>
         public void InsertRow(int rowIdx)
         {
-            epplusWorksheet.InsertRow(rowIdx + 1, 1);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -597,7 +602,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="rowIdx">zero-based row index</param>
         public void DeleteRow(int rowIdx)
         {
-            epplusWorksheet.DeleteRow(rowIdx + 1);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -607,7 +612,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="rowCount"></param>
         public void DeleteRows(int startRowIdx, int rowCount)
         {
-            epplusWorksheet.DeleteRow(startRowIdx, rowCount);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -616,7 +621,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="colIdx">zero-based column index</param>
         public void DeleteColumn(int colIdx)
         {
-            epplusWorksheet.DeleteColumn(colIdx + 1);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -626,7 +631,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="colCount"></param>
         public void DeleteColumns(int startColIdx, int colCount)
         {
-            epplusWorksheet.DeleteColumn(startColIdx, colCount);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -636,7 +641,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public bool IsEmpty(Cell cell)
         {
-            object cellValue = epplusCells[cell.RowIdx + 1, cell.ColIdx + 1].Value;
+            string cellValue = csvCells[cell.RowIdx][cell.ColIdx];
             return ((cellValue == null) || cellValue.Equals(string.Empty));
         }
 
@@ -648,8 +653,15 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public bool IsEmpty(int rowIdx, int colIdx)
         {
-            object cellValue = epplusCells[rowIdx + 1, colIdx + 1].Value;
-            return ((cellValue == null) || cellValue.Equals(string.Empty));
+            if (IsCellDefined(rowIdx, colIdx))
+            {
+                string cellValue = csvCells[rowIdx][colIdx];
+                return ((cellValue == null) || cellValue.Equals(string.Empty));
+            }
+            else
+            {
+                return true; 
+            }
         }
 
         /// <summary>
@@ -658,13 +670,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns>a range of used cells or null</returns>
         public Range GetUsedRange()
         {
-            ExcelAddressBase epplusUsedRange = epplusWorksheet.Dimension;
-            Range usedRange = null;
-            if (epplusUsedRange != null)
-            {
-                usedRange = new Range(this, epplusUsedRange.Start.Row - 1, epplusUsedRange.Start.Column - 1, epplusUsedRange.End.Row - 1, epplusUsedRange.End.Column - 1);
-            }
-            return usedRange;
+            return new Range(this, 0, 0, RowCount - 1, ColumnCount - 1);
         }
 
         /// <summary>
@@ -676,8 +682,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="colIdx2">zero-based column index of lower right cell in range</param>
         public void MergeCells(int rowIdx1, int colIdx1, int rowIdx2, int colIdx2)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx1 + 1, colIdx1 + 1, rowIdx2 + 1, colIdx2 + 1];
-            epplusRange.Merge = true;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -690,8 +695,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public bool IsMerged(int rowIdx1, int colIdx1, int rowIdx2, int colIdx2)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx1 + 1, colIdx1 + 1, rowIdx2 + 1, colIdx2 + 1];
-            return epplusRange.Merge;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -699,7 +703,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// </summary>
         public string[] GetMergedCells()
         {
-            return epplusWorksheet.MergedCells.ToArray();
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -709,7 +713,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="colIdx">zero-based column index</param>
         public string GetMergedRange(int rowIdx, int colIdx)
         {
-            return epplusWorksheet.MergedCells[rowIdx + 1, colIdx + 1];
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -723,43 +727,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public bool HasBorders(Range range, bool checkLeft = true, bool checkRight = true, bool checkTop = true, bool checkBottom = true)
         {
-            bool hasBorders = true;
-
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            long lastRowIdx = range.Cell2.RowIdx;
-            long lastColIdx = range.Cell2.ColIdx;
-
-            // Check top left
-            hasBorders &= HasBorders(range.Cell1.RowIdx, range.Cell1.ColIdx, true, false, true, false);
-            // Check lower left
-            hasBorders &= HasBorders(range.Cell2.RowIdx, range.Cell1.ColIdx, true, false, false, true);
-            // Check top right
-            hasBorders &= HasBorders(range.Cell1.RowIdx, range.Cell2.ColIdx, false, true, true, false);
-            // Check lower right
-            hasBorders &= HasBorders(range.Cell2.RowIdx, range.Cell2.ColIdx, false, true, false, true);
-
-            // Check left side
-            for (int rowIdx = range.Cell1.RowIdx + 1; rowIdx <= lastRowIdx; rowIdx++)
-            {
-                hasBorders &= HasBorders(rowIdx, range.Cell1.ColIdx, true, false, false, false);
-            }
-            // Check right side
-            for (int rowIdx = range.Cell1.RowIdx + 1; rowIdx <= lastRowIdx; rowIdx++)
-            {
-                hasBorders &= HasBorders(rowIdx, range.Cell2.ColIdx, false, true, false, false);
-            }
-            // Check top side
-            for (int colIdx = range.Cell1.ColIdx; colIdx <= lastColIdx; colIdx++)
-            {
-                hasBorders &= HasBorders(range.Cell1.RowIdx, colIdx, false, false, true, false);
-            }
-            // Check lower side
-            for (int colIdx = range.Cell1.ColIdx; colIdx <= lastColIdx; colIdx++)
-            {
-                hasBorders &= HasBorders(range.Cell2.RowIdx, colIdx, false, false, false, true);
-            }
-
-            return hasBorders;
+            return false;
         }
 
         /// <summary>
@@ -774,45 +742,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public bool HasBorders(int rowIdx, int colIdx, bool checkLeft = true, bool checkRight = true, bool checkTop = true, bool checkBottom = true)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx + 1, colIdx + 1];
-
-            // EPPlus doesn't see the border of a neighbouring cell ... 
-
-            bool hasBorders = true;
-
-            bool hasEdge = (!checkLeft || (epplusRange.Style.Border.Left.Style != ExcelBorderStyle.None));
-            if (!hasEdge && (colIdx > 0))
-            {
-                ExcelRange epplusLeftRange = epplusCells[rowIdx + 1, colIdx];
-                hasEdge = (epplusLeftRange.Style.Border.Right.Style != ExcelBorderStyle.None);
-            }
-            hasBorders &= hasEdge;
-
-            hasEdge = (!checkRight || (epplusRange.Style.Border.Right.Style != ExcelBorderStyle.None));
-            if (!hasEdge)
-            {
-                ExcelRange epplusRightRange = epplusCells[rowIdx + 1, colIdx + 2];
-                hasEdge = (epplusRightRange.Style.Border.Left.Style != ExcelBorderStyle.None);
-            }
-            hasBorders &= hasEdge;
-
-            hasEdge = (!checkTop || (epplusRange.Style.Border.Top.Style != ExcelBorderStyle.None));
-            if (!hasEdge && (rowIdx > 0))
-            {
-                ExcelRange epplusTopRange = epplusCells[rowIdx, colIdx + 1];
-                hasEdge = (epplusTopRange.Style.Border.Bottom.Style != ExcelBorderStyle.None);
-            }
-            hasBorders &= hasEdge;
-
-            hasEdge = (!checkBottom || (epplusRange.Style.Border.Bottom.Style != ExcelBorderStyle.None));
-            if (!hasEdge)
-            {
-                ExcelRange epplusBottomRange = epplusCells[rowIdx + 2, colIdx + 1];
-                hasEdge = (epplusBottomRange.Style.Border.Top.Style != ExcelBorderStyle.None);
-            }
-            hasBorders &= hasEdge;
-
-            return hasBorders;
+            return false;
         }
 
         /// <summary>
@@ -822,8 +752,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public string GetNumberFormat(Range range)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            return epplusRange.Style.Numberformat.Format;
+            return null;
         }
 
         /// <summary>
@@ -834,8 +763,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public string GetNumberFormat(int rowIdx, int colIdx)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx + 1, colIdx + 1];
-            return epplusRange.Style.Numberformat.Format;
+            return null;
         }
 
         /// <summary>
@@ -846,20 +774,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="comment"></param>
         public void SetComment(int rowIdx, int colIdx, string comment)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx + 1, colIdx + 1];
-            if (epplusRange.Comment != null)
-            {
-                epplusRange.Comment.Text = string.Empty;
-            }
-            if ((comment != null) && !comment.Equals(string.Empty))
-            {
-                string username = workbook.GetUserName();
-                if ((username == null) || username.Equals(string.Empty))
-                {
-                    username = "REF";
-                }
-                epplusRange.AddComment(comment, username);
-            }
+            // ignore
         }
 
         /// <summary>
@@ -869,11 +784,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="colIdx">zero-based column index</param>
         public void DeleteComment(int rowIdx, int colIdx)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx + 1, colIdx + 1];
-            if (epplusRange.Comment != null)
-            {
-                epplusWorksheet.Comments.Remove(epplusRange.Comment);
-            }
+            // ignore
         }
 
         //public System.Drawing.Color GetBorderEdgeTopColor(Range range)
@@ -914,7 +825,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="color"></param>
         public void SetBorderColor(System.Drawing.Color color)
         {
-            SetBorderColor(color, BorderWeight.Thin);
+            // ignore
         }
 
         /// <summary>
@@ -924,36 +835,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="weight"></param>
         public void SetBorderColor(System.Drawing.Color color, BorderWeight weight = BorderWeight.Thin)
         {
-            ExcelBorderStyle borderStyle = ExcelBorderStyle.None;
-            switch (weight)
-            {
-                case BorderWeight.Hairline:
-                    borderStyle = ExcelBorderStyle.Hair;
-                    break;
-                case BorderWeight.Thin:
-                    borderStyle = ExcelBorderStyle.Thin;
-                    break;
-                case BorderWeight.Medium:
-                    borderStyle = ExcelBorderStyle.Medium;
-                    break;
-                case BorderWeight.Thick:
-                    borderStyle = ExcelBorderStyle.Thick;
-                    break;
-                default:
-                    throw new LibraryException("Unknown Borderweight enum: " + weight);
-            }
-
-            epplusCells.Style.Border.BorderAround(borderStyle, color);
-            epplusCells.Style.Border.Left.Style = borderStyle;
-            epplusCells.Style.Border.Left.Color.SetColor(color);
-            epplusCells.Style.Border.Top.Style = borderStyle;
-            epplusCells.Style.Border.Top.Color.SetColor(color);
-            epplusCells.Style.Border.Bottom.Style = borderStyle;
-            epplusCells.Style.Border.Bottom.Color.SetColor(color);
-            epplusCells.Style.Border.Right.Style = borderStyle;
-            epplusCells.Style.Border.Right.Color.SetColor(color);
-
-            SetBorderColor(new Range(this, 0, 0, 0, epplusCells.Columns - 1), color, weight, true);
+            // ignore
         }
 
         /// <summary>
@@ -965,40 +847,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="isInside">if true, specified settings are also used for inner lines</param>
         public void SetBorderColor(Range range, System.Drawing.Color color, BorderWeight weight, bool isInside = false)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-
-            ExcelBorderStyle borderStyle = ExcelBorderStyle.None;
-            switch (weight)
-            {
-                case BorderWeight.Hairline:
-                    borderStyle = ExcelBorderStyle.Hair;
-                    break;
-                case BorderWeight.Thin:
-                    borderStyle = ExcelBorderStyle.Thin;
-                    break;
-                case BorderWeight.Medium:
-                    borderStyle = ExcelBorderStyle.Medium;
-                    break;
-                case BorderWeight.Thick:
-                    borderStyle = ExcelBorderStyle.Thick;
-                    break;
-                default:
-                    throw new LibraryException("Unknown Borderweight enum: " + weight);
-            }
-
-            epplusRange.Style.Border.BorderAround(borderStyle, color);
-
-            if (isInside)
-            {
-                epplusRange.Style.Border.Left.Style = borderStyle;
-                epplusRange.Style.Border.Left.Color.SetColor(color);
-                epplusRange.Style.Border.Top.Style = borderStyle;
-                epplusRange.Style.Border.Top.Color.SetColor(color);
-                epplusRange.Style.Border.Bottom.Style = borderStyle;
-                epplusRange.Style.Border.Bottom.Color.SetColor(color);
-                epplusRange.Style.Border.Right.Style = borderStyle;
-                epplusRange.Style.Border.Right.Color.SetColor(color);
-            }
+            // ignore
         }
 
         /// <summary>
@@ -1009,13 +858,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="tintAndShade">value that defines tint and shade of theme color</param>
         public void SetBorderInsideHorizontalColor(Range range, int themeColor, double tintAndShade)
         {
-            //ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            //if (epplusRange.Style.Border.Bottom.Style == ExcelBorderStyle.None)
-            //{
-            //    epplusRange.Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
-            //}
-            //epplusRange.Style.Border.Bottom.Color.LookupColor(0);
-            //epplusRange.Style.Border.Bottom.Color.Tint = (decimal) tintAndShade;
+            // ignore
         }
 
         /// <summary>
@@ -1026,7 +869,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="tintAndShade">value that defines tint and shade of theme color</param>
         public void SetBorderEdgeBottomColor(Range range, int themeColor, double tintAndShade)
         {
-            // not available
+            // ignore
         }
 
         /// <summary>
@@ -1036,12 +879,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="color"></param>
         public void SetBorderEdgeBottomColor(Range range, System.Drawing.Color color)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            if (epplusRange.Style.Border.Bottom.Style == ExcelBorderStyle.None)
-            {
-                epplusRange.Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
-            }
-            epplusRange.Style.Border.Bottom.Color.SetColor(color);
+            // ignore
         }
 
         /// <summary>
@@ -1051,8 +889,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="numberFormatString">a format string for the used application</param>
         public void SetNumberFormat(Range range, string numberFormatString)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            epplusRange.Style.Numberformat.Format = numberFormatString;
+            // ignore
         }
 
         /// <summary>
@@ -1063,8 +900,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="numberFormatString"></param>
         public void SetNumberFormat(int rowIdx, int colIdx, string numberFormatString)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx + 1, colIdx + 1];
-            epplusRange.Style.Numberformat.Format = numberFormatString;
+            // ignore
         }
 
         /// <summary>
@@ -1074,8 +910,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="isWrapped">if true, bold font will be set</param>
         public void SetWrapText(Range range, bool isWrapped)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            epplusRange.Style.WrapText = isWrapped;
+            // ignore
         }
 
         /// <summary>
@@ -1086,8 +921,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="isItalic">if true, italic font will be set</param>
         public void SetFontItalic(int rowIdx, int colIdx, bool isItalic)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx + 1, colIdx + 1];
-            epplusRange.Style.Font.Italic = isItalic;
+            // ignore
         }
 
         /// <summary>
@@ -1097,8 +931,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="isBold">if true, bold font will be set</param>
         public void SetFontBold(Range range, bool isBold)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            epplusRange.Style.Font.Bold = isBold;
+            // ignore
         }
 
         /// <summary>
@@ -1109,8 +942,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="isBold">if true, bold font will be set</param>
         public void SetFontBold(int rowIdx, int colIdx, bool isBold)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx + 1, colIdx + 1];
-            epplusRange.Style.Font.Bold = isBold;
+            // ignore
         }
 
         /// <summary>
@@ -1121,12 +953,11 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="size">number of pixels</param>
         public void SetFontSize(int rowIdx, int colIdx, int size)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx + 1, colIdx + 1];
-            epplusRange.Style.Font.Size = size;
+            // ignore
         }
 
         /// <summary>
-        /// Checks if Excel cell is formatted as a date and/or time. Note: following checks are done in this order: 
+        /// Checks if CSV-cell is formatted as a date and/or time. Note: following checks are done in this order: 
         /// - Cell value actually is a DateTime object
         /// - Formatted cell text contains a colon (':')
         /// - Numberformat contains specified substring (default: "-d")
@@ -1137,18 +968,14 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public bool IsDateTimeCell(int rowIdx, int colIdx, string checkedNumberFormat = null)
         {
-            ExcelRange cell = epplusCells[rowIdx + 1, colIdx + 1];
-            if ((cell.Value is DateTime) || cell.Text.Contains(":"))
+            string value = GetCellValue(rowIdx, colIdx);
+
+            if (DateTime.TryParse(value, workbook.CultureInfo, DateTimeStyles.None, out DateTime datetime))
             {
                 return true;
             }
 
-            if (checkedNumberFormat == null)
-            {
-                checkedNumberFormat = "-d";
-            }
-
-            return (cell.Style.Numberformat != null) && cell.Style.Numberformat.Format.ToLower().Contains(checkedNumberFormat);
+            return false;
         }
 
         /// <summary>
@@ -1159,26 +986,14 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public DateTime? GetCellDateTimeValue(int rowIdx, int colIdx)
         {
-            object value = epplusCells[rowIdx + 1, colIdx + 1].Value;
-            if (value != null)
+            string value = GetCellValue(rowIdx, colIdx);
+
+            if (DateTime.TryParse(value, workbook.CultureInfo, DateTimeStyles.None, out DateTime datetime))
             {
-                if (value is DateTime)
-                {
-                    return (DateTime?) value;
-                } 
-                else if (value is double)
-                {
-                    return DateTime.FromOADate((double)value);
-                }
-                else
-                {
-                    return null;
-                }
+                return datetime;
             }
-            else
-            {
-                return null;
-            }
+
+            return null;
         }
 
         /// <summary>
@@ -1188,8 +1003,6 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public Color GetFontColor(Range range)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            string rgb = epplusRange.Style.Font.Color.Rgb;
             return Color.Black;
         }
 
@@ -1201,8 +1014,6 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public Color GetFontColor(int rowIdx, int colIdx)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx + 1, colIdx + 1];
-            string rgb = epplusRange.Style.Font.Color.Rgb;
             return Color.Black;
         }
 
@@ -1213,8 +1024,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="color"></param>
         public void SetFontColor(Range range, Color color)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            epplusRange.Style.Font.Color.SetColor(color);
+            // ignore
         }
 
         /// <summary>
@@ -1225,8 +1035,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="color"></param>
         public void SetFontColor(int rowIdx, int colIdx, Color color)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx + 1, colIdx + 1];
-            epplusRange.Style.Font.Color.SetColor(color);
+            // ignore
         }
 
 
@@ -1237,9 +1046,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public Color GetInteriorColor(Range range)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            string rgb = epplusRange.Style.Fill.BackgroundColor.Rgb;
-            return Color.Black;
+            return Color.White;
         }
 
         /// <summary>
@@ -1250,9 +1057,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public Color GetInteriorColor(int rowIdx, int colIdx)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx + 1, colIdx + 1];
-            string rgb = epplusRange.Style.Fill.BackgroundColor.Rgb;
-            return Color.Black;
+            return Color.White;
         }
 
         /// <summary>
@@ -1262,12 +1067,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="color"></param>
         public void SetInteriorColor(Range range, Color color)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            if (epplusRange.Style.Fill.PatternType == ExcelFillStyle.None)
-            {
-                epplusRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
-            }
-            epplusRange.Style.Fill.BackgroundColor.SetColor(color);
+            // ignore
         }
 
         /// <summary>
@@ -1278,12 +1078,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="color"></param>
         public void SetInteriorColor(int rowIdx, int colIdx, Color color)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx + 1, colIdx + 1];
-            if (epplusRange.Style.Fill.PatternType == ExcelFillStyle.None)
-            {
-                epplusRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
-            }
-            epplusRange.Style.Fill.BackgroundColor.SetColor(color);
+            // ignore
         }
 
         /// <summary>
@@ -1292,8 +1087,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="range"></param>
         public void SetVerticalAlignmentTop(Range range)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            epplusRange.Style.VerticalAlignment = ExcelVerticalAlignment.Top;
+            // ignore
         }
 
         /// <summary>
@@ -1302,8 +1096,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="range"></param>
         public void SetVerticalAlignmentCenter(Range range)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            epplusRange.Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+            // ignore
         }
 
         /// <summary>
@@ -1312,8 +1105,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="range"></param>
         public void SetHorizontalAlignmentLeft(Range range)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            epplusRange.Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
+            // ignore
         }
 
         /// <summary>
@@ -1323,8 +1115,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="colIdx">zero-based column index</param>
         public void SetHorizontalAlignmentLeft(int rowIdx, int colIdx)
         {
-            ExcelRange epplusRange = epplusCells[rowIdx + 1, colIdx + 1];
-            epplusRange.Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
+            // ignore
         }
 
         /// <summary>
@@ -1334,8 +1125,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="degrees"></param>
         public void SetOrientation(Range range, int degrees)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            epplusRange.Style.TextRotation = degrees;
+            // ignore
         }
 
         /// <summary>
@@ -1344,8 +1134,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="range"></param>
         public void SetAutoFilter(Range range)
         {
-            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            epplusRange.AutoFilter = true;
+            // ignore
         }
 
         /// <summary>
@@ -1354,7 +1143,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="rowIdx">zero-based row index</param>
         public void FreezeRow(int rowIdx)
         {
-            epplusWorksheet.View.FreezePanes(rowIdx + 2, 1);
+            // ignore
         }
 
         /// <summary>
@@ -1363,14 +1152,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="range">null to fit all column</param>
         public void AutoFitColumns(Range range = null)
         {
-            if (range != null)
-            {
-                epplusWorksheet.Cells[range.Cell1.RowIdx + 1, range.Cell1.ColIdx + 1, range.Cell2.RowIdx + 1, range.Cell2.ColIdx + 1].AutoFitColumns();
-            }
-            else
-            {
-                epplusCells.AutoFitColumns();
-            }
+            // ignore
         }
 
         /// <summary>
@@ -1379,7 +1161,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="colIdx">zero-based column index</param>
         public void AutoFitColumn(int colIdx)
         {
-            epplusWorksheet.Column(colIdx + 1).AutoFit();
+            // ignore
         }
 
         /// <summary>
@@ -1389,7 +1171,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="width"></param>
         public void SetColumnWidth(int colIdx, int width)
         {
-            epplusWorksheet.Column(colIdx + 1).Width = width;
+            // ignore
         }
 
         /// <summary>
@@ -1398,10 +1180,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="range"></param>
         public void HideColumns(Range range)
         {
-            for (int colIdx = range.ColIdx1; colIdx <= range.ColIdx2; colIdx++)
-            {
-                epplusWorksheet.Column(colIdx).Hidden = true;
-            }
+            // ignore
         }
 
         /// <summary>
@@ -1410,10 +1189,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="range"></param>
         public void HideRows(Range range)
         {
-            for (int rowIdx = range.RowIdx1; rowIdx <= range.RowIdx2; rowIdx++)
-            {
-                epplusWorksheet.Row(rowIdx).Hidden = true;
-            }
+            // ignore
         }
 
         /// <summary>
@@ -1427,120 +1203,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="textToDisplay"></param>
         public void SetHyperlink(int rowIdx, int colIdx, string address, string subAddress = null, string screenTip = null, string textToDisplay = null)
         {
-            // Can't get hyperlinks to work in normal way, use workaround with Excel formula
-            if ((address != null) && ((!Path.IsPathRooted(address) && !address.Contains(":")) || (Path.IsPathRooted(address) && File.Exists(address))))
-            {
-                if (subAddress == null)
-                {
-                    epplusCells[rowIdx + 1, colIdx + 1].Formula = "HYPERLINK(\"" + address + "\",\"" + textToDisplay + "\")";
-                }
-                else
-                {
-                    if (subAddress.Contains(" "))
-                    {
-                        if (!subAddress.StartsWith("'"))
-                        {
-                            subAddress = "'" + subAddress;
-                        }
-                        if (!subAddress.Contains("!"))
-                        {
-                            if (!subAddress.EndsWith("'"))
-                            {
-                                subAddress = subAddress + "'";
-                            }
-                        }
-                        else
-                        {
-                            if (!subAddress.Contains("'!"))
-                            {
-                                subAddress = subAddress.Replace("!", "'!");
-                            }
-                        }
-                    }
-                    if (!subAddress.Contains("!"))
-                    {
-                        subAddress += "!A1";
-                    }
-                    epplusCells[rowIdx + 1, colIdx + 1].Formula = "HYPERLINK(\"" + address + "#" + subAddress + "\",\"" + textToDisplay + "\")";
-                }
-            }
-            else if (address == null)
-            {
-                if (subAddress.Contains(" "))
-                {
-                    if (!subAddress.StartsWith("'"))
-                    {
-                        subAddress = "'" + subAddress;
-                    }
-                    if (!subAddress.Contains("!"))
-                    {
-                        if (!subAddress.EndsWith("'"))
-                        {
-                            subAddress = subAddress + "'";
-                        }
-                    }
-                    else
-                    {
-                        if (!subAddress.Contains("'!"))
-                        {
-                            subAddress = subAddress.Replace("!", "'!");
-                        }
-                    }
-                }
-                if (!subAddress.Contains("!"))
-                {
-                    subAddress += "!A1";
-                }
-                epplusCells[rowIdx + 1, colIdx + 1].Formula = "HYPERLINK(\"#" + subAddress + "\",\"" + textToDisplay + "\")";
-            }
-            else
-            {
-                // example links
-                // HYPERLINK to a website:
-                // excelRange.Hyperlink = new Uri("http://www.google.com", UriKind.Absolute);  
-                // HYPERLINK to another sheet within same excel file:
-                // excelRange.Hyperlink = new Uri("#'Sheet2'!B1", UriKind.Relative);  
-                // HYPERLINK to any local file:
-                // excelRange.Hyperlink = new Uri(@ "D:\sample.xlsx");  
-
-                Uri uri = null;
-                if (address != null)
-                {
-                    if (subAddress != null)
-                    {
-                        uri = new Uri(new Uri(address, UriKind.Absolute), subAddress);
-                        textToDisplay = textToDisplay ?? address + subAddress;
-                    }
-                    else
-                    {
-                        uri = new Uri(address, UriKind.Absolute);
-                        textToDisplay = textToDisplay ?? address;
-                    }
-                }
-                else
-                {
-                    if (subAddress != null)
-                    {
-                        uri = new Uri(subAddress, UriKind.Relative);
-                        textToDisplay = textToDisplay ?? subAddress;
-                    }
-                    else
-                    {
-                        throw new Exception("Invalid hyperlink: please specify address and/or subaddress");
-                    }
-                }
-
-                epplusCells[rowIdx + 1, colIdx + 1].Hyperlink = new ExcelHyperLink(uri.ToString(), textToDisplay);
-            }
-
-            try
-            {
-                epplusCells[rowIdx + 1, colIdx + 1].StyleName = "HyperLink";
-            }
-            catch (Exception)
-            {
-                // ignore, Hyperlink style may not have been created correctly
-            }
+            // ignore
         }
 
         /// <summary>
@@ -1551,9 +1214,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public IChart CreateChart(Range range, ChartType chartType)
         {
-            EPPlusChart chart = new EPPlusChart(this, chartType);
-            chart.SetPosition(range);
-            return chart;
+            return null;
         }
 
         /// <summary>
@@ -1565,9 +1226,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="targetColIdx">zero-based column index of target cell</param>
         public void CopyCell(int sourceRowIdx, int sourceColIdx, int targetRowIdx, int targetColIdx)
         {
-            ExcelRange sourceEPPlusCell = epplusWorksheet.Cells[sourceRowIdx + 1, sourceColIdx + 1];
-            ExcelRange targetEPPlusCell = epplusWorksheet.Cells[targetRowIdx + 1, targetColIdx + 1];
-            sourceEPPlusCell.Copy(targetEPPlusCell);
+            // ignore
         }
 
         /// <summary>
@@ -1577,10 +1236,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="targetCell"></param>
         public void CopyCell(Cell sourceCell, Cell targetCell)
         {
-            ExcelRange sourceEPPlusCell = epplusWorksheet.Cells[sourceCell.RowIdx + 1, sourceCell.ColIdx + 1];
-            ExcelWorksheet targetSheet = (ExcelWorksheet)targetCell.Sheet.GetBaseObject();
-            ExcelRange targetEPPlusCell = targetSheet.Cells[targetCell.RowIdx + 1, targetCell.ColIdx + 1];
-            sourceEPPlusCell.Copy(targetEPPlusCell);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -1590,10 +1246,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="targetCell"></param>
         public void CopyRange(Range range, Cell targetCell)
         {
-            ExcelWorksheet targetSheet = (ExcelWorksheet)targetCell.Sheet.GetBaseObject();
-
-            ExcelRange targetEPPlusCell = targetSheet.Cells[targetCell.RowIdx + 1, targetCell.ColIdx + 1];
-            epplusWorksheet.Cells[range.Cell1.RowIdx + 1, range.Cell1.ColIdx + 1, range.Cell2.RowIdx + 1, range.Cell2.ColIdx + 1].Copy(targetEPPlusCell);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -1601,7 +1254,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// </summary>
         public void Calculate()
         {
-            epplusWorksheet.Calculate();
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -1611,7 +1264,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns>result of formula</returns>
         public object Calculate(string formula)
         {
-            return epplusWorksheet.Calculate(formula);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -1620,7 +1273,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="percentage"></param>
         public void Zoom(int percentage)
         {
-            epplusWorksheet.View.ZoomScale = percentage;
+            // ignore
         }
 
         /// <summary>
@@ -1631,10 +1284,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="bitmap"></param>
         public void ApplyPageSetup(string leftHeader, string leftFooter, System.Drawing.Bitmap bitmap = null)
         {
-            ExcelWorksheetView epplusView = epplusWorksheet.View;
-            epplusWorksheet.HeaderFooter.FirstHeader.LeftAlignedText = leftHeader;
-            epplusWorksheet.HeaderFooter.FirstFooter.LeftAlignedText = leftFooter;
-            epplusWorksheet.HeaderFooter.FirstHeader.InsertPicture(bitmap, PictureAlignment.Right);
+            // ignore
         }
 
         /// <summary>
@@ -1642,11 +1292,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// </summary>
         public void SetPageOrientationLandscape()
         {
-            epplusWorksheet.PrinterSettings.Orientation = eOrientation.Landscape;
-            //epplusWorksheet.PrinterSettings.FitToHeight = 0;
-            //epplusWorksheet.PrinterSettings.FitToPage = true;
-            //epplusWorksheet.PrinterSettings.FitToWidth = 1;
-
+            // ignore
         }
 
         /// <summary>
@@ -1655,20 +1301,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="papersize"></param>
         public void SetPapersize(PaperSize papersize)
         {
-            switch (papersize)
-            {
-                case PaperSize.A2:
-                    epplusWorksheet.PrinterSettings.PaperSize = ePaperSize.A2;
-                    break;
-                case PaperSize.A3:
-                    epplusWorksheet.PrinterSettings.PaperSize = ePaperSize.A3;
-                    break;
-                case PaperSize.A4:
-                    epplusWorksheet.PrinterSettings.PaperSize = ePaperSize.A4;
-                    break;
-                default:
-                    throw new LibraryException("Unknown papersize: " + papersize);
-            }
+            // ignore
         }
 
         /// <summary>
@@ -1676,7 +1309,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// </summary>
         public void SetPageLayoutView()
         {
-            epplusWorksheet.View.PageLayoutView = true;
+            // ignore
         }
 
         /// <summary>
@@ -1685,7 +1318,60 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <returns></returns>
         public object GetBaseObject()
         {
-            return epplusWorksheet;
+            return csvCells;
         }
+
+        internal static CSVWorksheet ReadCSVSheet(CSVWorkbook workbook, string filename, string listSeperator)
+        {
+            string[] csvStringLines = File.ReadAllLines(filename);
+
+            CSVWorksheet sheet = new CSVWorksheet(workbook);
+
+            List<string[]> tmpCSVcells = new List<string[]>(csvStringLines.Length);
+            int maxLineValueCount = 0;
+            for (int lineIdx = 0; lineIdx < csvStringLines.Length; lineIdx++)
+            {
+                string[] lineValues = csvStringLines[lineIdx].Split(new string[] { listSeperator }, StringSplitOptions.None);
+                if (lineValues.Length > maxLineValueCount)
+                {
+                    maxLineValueCount = lineValues.Length;
+                }
+                tmpCSVcells.Add(lineValues);
+            }
+
+            // Create new cell matrix with exactly the specified number of columns in each row, filling up with null values if necesssary
+            string[][] csvCells = new string[csvStringLines.Length][];
+            for (int lineIdx = 0; lineIdx < csvStringLines.Length; lineIdx++)
+            {
+                csvCells[lineIdx] = new string[maxLineValueCount];
+                tmpCSVcells[lineIdx].CopyTo(csvCells[lineIdx], 0);
+            }
+            sheet.csvCells = csvCells;
+            sheet.RowCount = csvCells.Length;
+            sheet.ColumnCount = maxLineValueCount;
+
+            return sheet;
+        }
+
+        internal void Save(string filename, string ListSeperator)
+        {
+            StringBuilder csvStringBuilder = new StringBuilder();
+            if ((RowCount > 0) && (ColumnCount > 0))
+            {
+                for (int rowIdx = 0; rowIdx < RowCount; rowIdx++)
+                {
+                    csvStringBuilder.Append(csvCells[rowIdx][0]);
+                    for (int colIdx = 1; colIdx < ColumnCount; colIdx++)
+                    {
+                        csvStringBuilder.Append(ListSeperator);
+                        csvStringBuilder.Append(csvCells[rowIdx][colIdx]);
+                    }
+                    csvStringBuilder.AppendLine();
+                }
+            }
+
+            FileUtils.WriteFile(filename, csvStringBuilder.ToString());
+        }
+
     }
 }

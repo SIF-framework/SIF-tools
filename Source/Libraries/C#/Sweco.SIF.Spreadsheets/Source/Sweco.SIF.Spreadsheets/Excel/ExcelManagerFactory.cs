@@ -19,9 +19,11 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with Sweco.SIF.Spreadsheets. If not, see <https://www.gnu.org/licenses/>.
+using Sweco.SIF.Spreadsheets.Excel.CSV;
 using Sweco.SIF.Spreadsheets.Excel.EPPLUS;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -35,9 +37,9 @@ namespace Sweco.SIF.Spreadsheets.Excel
     {
         public enum ExcelManagerType
         {
-            Office,
+            Default,
             EPPlus,
-            Default
+            CSV
         }
 
         public static ExcelManager CreateExcelManager(ExcelManagerType excelManagerType = ExcelManagerType.Default)
@@ -46,9 +48,29 @@ namespace Sweco.SIF.Spreadsheets.Excel
             {
                 return new EPPlusExcelManager();
             }
+            else if ((excelManagerType == ExcelManagerType.CSV))
+            {
+                return new CSVExcelManager();
+            }
             else
             {
                 throw new Exception("Unknown ExcelManagerType: " + excelManagerType.ToString());
+            }
+        }
+
+        public static ExcelManager CreateExcelManager(string filename)
+        {
+            if (Path.GetExtension(filename).ToLower().Equals(".xlsx"))
+            {
+                return new EPPlusExcelManager();
+            }
+            else if (Path.GetExtension(filename).ToLower().Equals(".csv") || Path.GetExtension(filename).ToLower().Equals(".txt"))
+            {
+                return new CSVExcelManager();
+            }
+            else
+            {
+                throw new Exception("Unknown ExcelManagerType for extension of filename: " + Path.GetFileName(filename));
             }
         }
 

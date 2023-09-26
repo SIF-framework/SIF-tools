@@ -30,6 +30,27 @@ using System.Threading.Tasks;
 namespace Sweco.SIF.Spreadsheets
 {
     /// <summary>
+    /// 
+    /// </summary>
+    public enum PaperSize
+    {
+        /// <summary>
+        /// A2 paper (420 mm by 594 mm)
+        /// </summary>
+        A2,
+
+        /// <summary>
+        /// A3 paper (297 mm by 420 mm)
+        /// </summary>
+        A3,
+
+        /// <summary>
+        /// A4 paper (210 mm by 297 mm)
+        /// </summary>
+        A4
+    }
+
+    /// <summary>
     /// Interface for worksheet
     /// </summary>
     public interface IWorksheet
@@ -158,6 +179,14 @@ namespace Sweco.SIF.Spreadsheets
         object GetCellObjectValue(int rowIdx, int colIdx);
 
         /// <summary>
+        /// Retrieve cell text value as formatted in Excel workbook
+        /// </summary>
+        /// <param name="rowIdx">zero-based row index</param>
+        /// <param name="colIdx">zero-based column index</param>
+        /// <returns></returns>
+        string GetCellText(int rowIdx, int colIdx);
+
+        /// <summary>
         /// Retrieve cell value as a string, formatted with CultureInfo as specified in the corresponding Workbook object
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
@@ -183,6 +212,26 @@ namespace Sweco.SIF.Spreadsheets
         /// <param name="format">see C# documentation possible format strings</param>
         /// <returns></returns>
         string GetCellValue(int rowIdx, int colIdx, CultureInfo parseCultureInfo, string format);
+
+        /// <summary>
+        /// Checks if Excel cell is formatted as a date and/or time. Note: following checks are done in this order: 
+        /// - Cell value actually is a DateTime object
+        /// - Formatted cell text contains a colon (':')
+        /// - Numberformat contains specified substring (default: "-d")
+        /// </summary>
+        /// <param name="rowIdx">zero-based row index</param>
+        /// <param name="colIdx">zero-based column index</param>
+        /// <param name="checkedNumberFormat">a substring in the Numberformat-string to regard cell value as a DateTime</param>
+        /// <returns></returns>
+        bool IsDateTimeCell(int rowIdx, int colIdx, string checkedNumberFormat = null);
+
+        /// <summary>
+        /// Retrieve cell value as a DateTime object, assuming the underlying cell value is a DateTime-cell
+        /// </summary>
+        /// <param name="rowIdx">zero-based row index</param>
+        /// <param name="colIdx">zero-based column index</param>
+        /// <returns>DateTime, or null for invalid cell values</returns>
+        DateTime? GetCellDateTimeValue(int rowIdx, int colIdx);
 
         /// <summary>
         /// Get formula in specified cell
@@ -705,9 +754,9 @@ namespace Sweco.SIF.Spreadsheets
         void SetPageOrientationLandscape();
 
         /// <summary>
-        /// Set page size of this sheet to A4
+        /// Set page size of this sheet to specified size
         /// </summary>
-        void SetPapersizeA4();
+        void SetPapersize(PaperSize papersize);
 
         /// <summary>
         /// Set view mode of worksheet to page layout

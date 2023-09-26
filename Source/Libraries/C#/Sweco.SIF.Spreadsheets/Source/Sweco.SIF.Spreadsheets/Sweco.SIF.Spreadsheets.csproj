@@ -74,6 +74,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Cell.cs" />
+    <Compile Include="Excel\CSV\CSVExcelManager.cs" />
+    <Compile Include="Excel\CSV\CSVWorkbook.cs" />
+    <Compile Include="Excel\CSV\CSVWorksheet.cs" />
     <Compile Include="Excel\EPPLUS\EPPlusChart.cs" />
     <Compile Include="Excel\EPPLUS\EPPlusExcelManager.cs" />
     <Compile Include="Excel\EPPLUS\EPPlusWorkbook.cs" />
