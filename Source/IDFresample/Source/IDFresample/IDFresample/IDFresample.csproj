@@ -45,6 +45,9 @@
     <Reference Include="Sweco.SIF.iMOD">
       <HintPath>..\..\Libraries\Sweco.SIF.iMOD.dll</HintPath>
     </Reference>
+    <Reference Include="Sweco.SIF.Statistics">
+      <HintPath>..\..\Libraries\Sweco.SIF.Statistics.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -74,6 +77,7 @@ REM Copy used dll's that this tool depends on, to Libraries folder
 COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.iMOD\Bin\$(PlatformName)\Sweco.SIF.iMOD.*" "$(ProjectDir)..\..\Libraries"
 COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.GIS\Bin\$(PlatformName)\Sweco.SIF.GIS.*" "$(ProjectDir)..\..\Libraries"
 COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Common\Bin\$(PlatformName)\Sweco.SIF.Common.*" "$(ProjectDir)..\..\Libraries"
+COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Statistics\Bin\$(PlatformName)\Sweco.SIF.Statistics*.*" "$(ProjectDir)..\..\Libraries"
 </PreBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
