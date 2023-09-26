@@ -37,6 +37,11 @@ namespace Sweco.SIF.iMOD.Legends
     public abstract class ClassLegend : Legend
     {
         /// <summary>
+        /// Encoding used for writing legend files
+        /// </summary>
+        public static Encoding Encoding = Encoding.Default;
+
+        /// <summary>
         /// List with of classes for this legend
         /// </summary>
         public List<RangeLegendClass> ClassList { get; set; }
@@ -103,7 +108,7 @@ namespace Sweco.SIF.iMOD.Legends
         }
 
         /// <summary>
-        /// Add default surface level legend classes to this legend, ranging from red (high) to blue (low): 23 classes equal to or greather than zero and one class for negative values
+        /// Add default surface level legend classes to this legend, ranging from red (high) to blue (low): 23 classes equal to or greater than zero and one class for negative values
         /// </summary>
         /// <param name="minValue"></param>
         /// <param name="maxValue"></param>
@@ -143,7 +148,7 @@ namespace Sweco.SIF.iMOD.Legends
             }
         }
         /// <summary>
-        /// Adds default deptht legend classes to this legend: 21 classes equal to or greather than zero and one class for negative values
+        /// Adds default deptht legend classes to this legend: 21 classes equal to or greater than zero and one class for negative values
         /// </summary>
         public void AddDepthLegendClasses()
         {
@@ -171,34 +176,170 @@ namespace Sweco.SIF.iMOD.Legends
             AddClass(new RangeLegendClass(100, float.MaxValue, "> 100", Color.FromArgb(64, 0, 128)));
         }
 
+        public void AddDifferenceLegendClasses(float minValue, float maxValue, Color? noDifferenceColor = null, bool isColorsReversed = false)
+        {
+            if (noDifferenceColor == null)
+            {
+                // use grey as default color for no difference
+                noDifferenceColor = Color.FromArgb(240, 240, 240);
+            }
+
+            if (minValue.Equals(maxValue))
+            {
+                AddClass(new ValueLegendClass(minValue, minValue.ToString(), (Color)noDifferenceColor));
+            }
+            else
+            {
+                // Make expontional legend from minValue to maxValue with 19 classes, including 'zero'
+                Color[] diffColors = new Color[] { Color.FromArgb(79, 0, 0), Color.FromArgb(108, 0, 0), Color.FromArgb(128, 0, 0), Color.FromArgb(162, 0, 0), Color.FromArgb(209, 0, 0), Color.FromArgb(255, 0, 0),
+                                                   Color.FromArgb(255, 63, 0), Color.FromArgb(255, 110, 0), Color.FromArgb(255, 170, 0), (Color) noDifferenceColor,
+                                                   Color.FromArgb(168, 232, 0), Color.FromArgb(50, 233, 0), Color.FromArgb(0, 203, 0), Color.FromArgb(0, 170, 0), Color.FromArgb(0, 140, 0),
+                                                   Color.FromArgb(0, 114, 0), Color.FromArgb(0, 70, 0), Color.FromArgb(0, 43, 0), Color.FromArgb(0, 23, 0)};
+                if (isColorsReversed)
+                {
+                    diffColors.Reverse();
+                }
+
+                double maxClassRangeValue = Math.Max(Math.Abs(Math.Floor(minValue)), Math.Abs(Math.Ceiling(maxValue)));
+                if (double.IsInfinity(maxClassRangeValue))
+                {
+                    maxClassRangeValue = float.MaxValue / 1000;
+                }
+                double maxClassRangeMultiplier = Math.Pow(maxClassRangeValue, 1d / 9d);
+                int d = (int)CommonUtils.Max(0, -1 * (int)Math.Floor(Math.Log(maxClassRangeMultiplier))) + 1;
+
+                // Add lowest negative class
+                double lowerValue = -1 * Math.Ceiling(maxClassRangeValue);
+                double upperValue = lowerValue / maxClassRangeMultiplier;
+                AddClass(new RangeLegendClass(float.MinValue / 1000, (float)Math.Round(upperValue, d), "< " + Math.Round(upperValue, d), diffColors[0]));
+                // Add next 7 negative classes
+                for (int colIdx = 1; colIdx < 8; colIdx++)
+                {
+                    lowerValue = upperValue;
+                    upperValue = lowerValue / maxClassRangeMultiplier;
+                    AddClass(new RangeLegendClass((float)Math.Round(lowerValue, d), (float)Math.Round(upperValue, d), Math.Round(lowerValue, d) + " - " + Math.Round(upperValue, d), diffColors[colIdx]));
+                }
+                // Add highest negative class
+                lowerValue = upperValue;
+                upperValue = lowerValue / maxClassRangeMultiplier;
+                int d2 = d;
+                if (upperValue < -0.001)
+                {
+                    upperValue = -0.001;
+                    d2 = 3;
+                }
+                AddClass(new RangeLegendClass((float)Math.Round(lowerValue, d), (float)Math.Round(upperValue, d2), Math.Round(lowerValue, d) + " - " + Math.Round(upperValue, d2), diffColors[8]));
+
+                // Add 'no difference' class
+                lowerValue = upperValue;
+                upperValue = -1 * lowerValue;
+                AddClass(new RangeLegendClass((float)Math.Round(lowerValue, d2), (float)Math.Round(upperValue, d2), Math.Round(lowerValue, d2) + " - " + Math.Round(upperValue, d2), diffColors[9]));
+
+                // Add lowest positive class
+                lowerValue = upperValue;
+                upperValue = maxClassRangeMultiplier;
+                AddClass(new RangeLegendClass((float)Math.Round(lowerValue, d2), (float)Math.Round(upperValue, d), Math.Round(lowerValue, d2) + " - " + Math.Round(upperValue, d), diffColors[10]));
+                // Add next 7 positive classes
+                for (int colIdx = 11; colIdx < 18; colIdx++)
+                {
+                    lowerValue = upperValue;
+                    upperValue = lowerValue * maxClassRangeMultiplier;
+                    AddClass(new RangeLegendClass((float)Math.Round(lowerValue, d), (float)Math.Round(upperValue, d), Math.Round(lowerValue, d) + " - " + Math.Round(upperValue, d), diffColors[colIdx]));
+                }
+                // Add highest positive class
+                lowerValue = upperValue;
+                AddClass(new RangeLegendClass((float)Math.Round(lowerValue, d), float.MaxValue / 1000, "> " + Math.Round(lowerValue, d), diffColors[18]));
+
+                Description = "Differences";
+            }
+        }
+
         /// <summary>
         /// Add default difference legend classes to this legend, ranging from green (positive) to red (negative): 16 classes between -50 en 50, and two classes above and below
         /// </summary>
-        /// <param name="legend"></param>
-        public void AddDifferenceLegendClasses(ClassLegend legend)
+        /// <param name="noDifferenceColor">use specified color for the value that signifies no difference</param>
+        /// <param name="isColorsReversed">if true, legendcolors (red-green for neg-pos) are reversed to (green-red)</param>
+        public void AddDifferenceLegendClasses(Color? noDifferenceColor = null, bool isColorsReversed = false)
         {
-            legend.AddClass(new RangeLegendClass(-9999999f, -50f, "< -50.0", Color.FromArgb(79, 0, 0)));
-            legend.AddClass(new RangeLegendClass(-50.0f, -1.50f, "-50.0 - -1.50", Color.FromArgb(108, 0, 0)));
-            legend.AddClass(new RangeLegendClass(-1.50f, -1.00f, "-1.50 - -1.00", Color.FromArgb(128, 0, 0)));
-            legend.AddClass(new RangeLegendClass(-1.00f, -0.75f, "-1.00 - -0.75", Color.FromArgb(162, 0, 0)));
-            legend.AddClass(new RangeLegendClass(-0.75f, -0.50f, "-0.75 - -0.50", Color.FromArgb(209, 0, 0)));
-            legend.AddClass(new RangeLegendClass(-0.50f, -0.25f, "-0.50 - -0.25", Color.FromArgb(255, 0, 0)));
-            legend.AddClass(new RangeLegendClass(-0.25f, -0.10f, "-0.25 - -0.10", Color.FromArgb(255, 63, 0)));
-            legend.AddClass(new RangeLegendClass(-0.10f, -0.05f, "-0.10 - -0.05", Color.FromArgb(255, 110, 0)));
-            legend.AddClass(new RangeLegendClass(-0.05f, -0.005f, "-0.05 - -0.005", Color.FromArgb(255, 170, 0)));
-            legend.AddClass(new RangeLegendClass(-0.005f, 0.005f, "-0.005 - 0.005", Color.FromArgb(255, 255, 255)));
-            legend.AddClass(new RangeLegendClass(0.005f, 0.05f, "0.005 - 0.05", Color.FromArgb(168, 232, 0)));
-            legend.AddClass(new RangeLegendClass(0.05f, 0.10f, "0.05 - 0.10", Color.FromArgb(50, 233, 0)));
-            legend.AddClass(new RangeLegendClass(0.10f, 0.25f, "0.10 - 0.25", Color.FromArgb(0, 203, 0)));
-            legend.AddClass(new RangeLegendClass(0.25f, 0.50f, "0.25 - 0.50", Color.FromArgb(0, 170, 0)));
-            legend.AddClass(new RangeLegendClass(0.50f, 0.75f, "0.50 - 0.75", Color.FromArgb(0, 140, 0)));
-            legend.AddClass(new RangeLegendClass(0.75f, 1.00f, "0.75 - 1.00", Color.FromArgb(0, 114, 0)));
-            legend.AddClass(new RangeLegendClass(1.00f, 1.50f, "1.00 - 1.50", Color.FromArgb(0, 70, 0)));
-            legend.AddClass(new RangeLegendClass(1.50f, 50.00f, "1.50 - 50.0", Color.FromArgb(0, 43, 0)));
-            legend.AddClass(new RangeLegendClass(50.00f, 9999999f, "> 50.0", Color.FromArgb(0, 23, 0)));
-            legend.Description = "Differences";
+            if (noDifferenceColor == null)
+            {
+                noDifferenceColor = Color.FromArgb(240, 240, 240);
+            }
+
+            Color[] diffColors = new Color[] { Color.FromArgb(79, 0, 0), Color.FromArgb(108, 0, 0), Color.FromArgb(128, 0, 0), Color.FromArgb(162, 0, 0), Color.FromArgb(209, 0, 0), Color.FromArgb(255, 0, 0),
+                                               Color.FromArgb(255, 63, 0), Color.FromArgb(255, 110, 0), Color.FromArgb(255, 170, 0), (Color) noDifferenceColor,
+                                               Color.FromArgb(168, 232, 0), Color.FromArgb(50, 233, 0), Color.FromArgb(0, 203, 0), Color.FromArgb(0, 170, 0), Color.FromArgb(0, 140, 0),
+                                               Color.FromArgb(0, 114, 0), Color.FromArgb(0, 70, 0), Color.FromArgb(0, 43, 0), Color.FromArgb(0, 23, 0)};
+            if (isColorsReversed)
+            {
+                diffColors.Reverse();
+            }
+
+            AddClass(new RangeLegendClass(-9999999f, -50f, "< -50.0", diffColors[0]));
+            AddClass(new RangeLegendClass(-50.0f, -1.50f, "-50.0 - -1.50", diffColors[1]));
+            AddClass(new RangeLegendClass(-1.50f, -1.00f, "-1.50 - -1.00", diffColors[2]));
+            AddClass(new RangeLegendClass(-1.00f, -0.75f, "-1.00 - -0.75", diffColors[3]));
+            AddClass(new RangeLegendClass(-0.75f, -0.50f, "-0.75 - -0.50", diffColors[4]));
+            AddClass(new RangeLegendClass(-0.50f, -0.25f, "-0.50 - -0.25", diffColors[5]));
+            AddClass(new RangeLegendClass(-0.25f, -0.10f, "-0.25 - -0.10", diffColors[6]));
+            AddClass(new RangeLegendClass(-0.10f, -0.05f, "-0.10 - -0.05", diffColors[7]));
+            AddClass(new RangeLegendClass(-0.05f, -0.005f, "-0.05 - -0.005", diffColors[8]));
+            AddClass(new RangeLegendClass(-0.005f, 0.005f, "-0.005 - 0.005", diffColors[9]));
+            AddClass(new RangeLegendClass(0.005f, 0.05f, "0.005 - 0.05", diffColors[10]));
+            AddClass(new RangeLegendClass(0.05f, 0.10f, "0.05 - 0.10", diffColors[11]));
+            AddClass(new RangeLegendClass(0.10f, 0.25f, "0.10 - 0.25", diffColors[12]));
+            AddClass(new RangeLegendClass(0.25f, 0.50f, "0.25 - 0.50", diffColors[13]));
+            AddClass(new RangeLegendClass(0.50f, 0.75f, "0.50 - 0.75", diffColors[14]));
+            AddClass(new RangeLegendClass(0.75f, 1.00f, "0.75 - 1.00", diffColors[15]));
+            AddClass(new RangeLegendClass(1.00f, 1.50f, "1.00 - 1.50", diffColors[16]));
+            AddClass(new RangeLegendClass(1.50f, 50.00f, "1.50 - 50.0", diffColors[17]));
+            AddClass(new RangeLegendClass(50.00f, 9999999f, "> 50.0", diffColors[18]));
+            Description = "Differences";
         }
 
+        /// <summary>
+        /// Add factor legend classes for to specified legend. Use specified color for the value that signifies nodifference
+        /// </summary>
+        /// <param name="noDifferenceColor">color to use when there is no difference (default is white)</param>
+        /// <param name="isColorsReversed">if true, legendcolors (red-green for neg-pos) are reversed to (green-red)</param>
+        public void AddDivisionLegendClasses(Color? noDifferenceColor = null, bool isColorsReversed = false)
+        {
+            if (noDifferenceColor == null)
+            {
+                noDifferenceColor = Color.FromArgb(225, 225, 225);
+            }
+
+            Color[] diffColors = new Color[] { Color.FromArgb(255, 0, 0), Color.FromArgb(60, 30, 0), Color.FromArgb(85, 43, 0), Color.FromArgb(128, 64, 0), Color.FromArgb(174, 87, 0), Color.FromArgb(210, 105, 0),
+                                                   Color.FromArgb(255, 128, 0), Color.FromArgb(249, 191, 57), Color.FromArgb(255, 255, 89), Color.FromArgb(255,255,157), (Color) noDifferenceColor,
+                                                   Color.FromArgb(162, 254, 122), Color.FromArgb(50, 233, 0), Color.FromArgb(0, 203, 0), Color.FromArgb(0, 170, 0), Color.FromArgb(0, 140, 0),
+                                                   Color.FromArgb(0, 114, 0), Color.FromArgb(0, 70, 0), Color.FromArgb(0, 43, 0), Color.FromArgb(0, 64, 128) };
+            if (isColorsReversed)
+            {
+                diffColors.Reverse();
+            }
+
+            AddClass(new RangeLegendClass(-9999999f, -0.999999f, "< 0.0", diffColors[0]));
+            AddClass(new RangeLegendClass(-0.999999f, 0.01f, "0.00 - 0.01", diffColors[1]));
+            AddClass(new RangeLegendClass(0.01f, 0.05f, "0.01 - 0.05", diffColors[2]));
+            AddClass(new RangeLegendClass(0.05f, 0.10f, "0.05 - 0.10", diffColors[3]));
+            AddClass(new RangeLegendClass(0.10f, 0.25f, "0.10 - 0.25", diffColors[4]));
+            AddClass(new RangeLegendClass(0.25f, 0.33f, "0.25 - 0.33", diffColors[5]));
+            AddClass(new RangeLegendClass(0.33f, 0.50f, "0.33 - 0.50", diffColors[6]));
+            AddClass(new RangeLegendClass(0.50f, 0.66f, "0.50 - 0.66", diffColors[7]));
+            AddClass(new RangeLegendClass(0.66f, 0.90f, "0.66 - 0.90", diffColors[8]));
+            AddClass(new RangeLegendClass(0.90f, 0.99f, "0.90 - 1.00", diffColors[9]));
+            AddClass(new RangeLegendClass(0.99f, 1.01f, "1.0", diffColors[10]));
+            AddClass(new RangeLegendClass(1.01f, 1.1f, "1.0 - 1.1", diffColors[11]));
+            AddClass(new RangeLegendClass(1.1f, 1.5f, "1.1 - 1.5", diffColors[12]));
+            AddClass(new RangeLegendClass(1.5f, 2.0f, "1.5 - 2.0", diffColors[13]));
+            AddClass(new RangeLegendClass(2.0f, 3.0f, "2.0 - 3.0", diffColors[14]));
+            AddClass(new RangeLegendClass(3.0f, 4.0f, "3.0 - 4.0", diffColors[15]));
+            AddClass(new RangeLegendClass(4.0f, 5.0f, "4.0 - 5.0", diffColors[16]));
+            AddClass(new RangeLegendClass(5.0f, 10.0f, "5.0 - 10.0", diffColors[17]));
+            AddClass(new RangeLegendClass(10.0f, 100.00f, "10.0 - 100.0", diffColors[18]));
+            AddClass(new RangeLegendClass(100.00f, 9999999f, "> 50.0", diffColors[19]));
+            Description = "Differences";
+        }
         /// <summary>
         /// Adds the specified RangeLegendClass object to the legend
         /// </summary>
@@ -378,7 +519,7 @@ namespace Sweco.SIF.iMOD.Legends
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(filename));
-                sw = new StreamWriter(filename);
+                sw = new StreamWriter(filename, false, Encoding);
                 sw.Write(legendString);
             }
             catch (Exception ex)
@@ -401,6 +542,11 @@ namespace Sweco.SIF.iMOD.Legends
         /// <param name="legFilename"></param>
         public void ImportClasses(string legFilename)
         {
+            if (!Path.GetExtension(legFilename).ToLower().Equals(".leg"))
+            {
+                throw new Exception("Invalid LEG-file  extension: " + legFilename);
+            }
+
             StreamReader sr = null;
             try
             {
