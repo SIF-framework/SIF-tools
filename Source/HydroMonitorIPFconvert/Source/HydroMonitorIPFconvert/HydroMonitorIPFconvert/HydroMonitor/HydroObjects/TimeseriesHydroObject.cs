@@ -73,7 +73,6 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
             }
 
             return new Timeseries(timestamps, valueColumns);
-
         }
 
         public List<string> RetrieveDataValueColumnNames()
@@ -127,7 +126,15 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
             }
             else if (value is string)
             {
-                float.TryParse((string)value, System.Globalization.NumberStyles.Float, SIFTool.EnglishCultureInfo, out fltValue);
+                // First try one of the predefined keywords
+                if (HydroMonitorSettings.TSValueStrings.ContainsKey((string)value))
+                {
+                    fltValue = HydroMonitorSettings.TSValueStrings[(string)value];
+                }
+                else
+                {
+                    float.TryParse((string)value, System.Globalization.NumberStyles.Float, SIFTool.EnglishCultureInfo, out fltValue);
+                }
             }
             return fltValue;
         }
@@ -150,6 +157,20 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
             }
 
             return dateTime;
+        }
+
+        public int RetrieveColNameIdx(string selColumnName)
+        {
+            int valueColumnCount = HydroMonitorFile.DataColumnNames.Count;
+            for (int colIdx = 0; colIdx < HydroMonitorFile.DataColumnNames.Count; colIdx++)
+            {
+                string colName = HydroMonitorFile.DataColumnNames[colIdx];
+                if (colName.Equals(selColumnName))
+                {
+                    return colIdx;
+                }
+            }
+            return -1;
         }
     }
 }

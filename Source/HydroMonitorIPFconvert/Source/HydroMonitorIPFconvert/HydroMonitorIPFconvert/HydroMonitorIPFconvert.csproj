@@ -70,12 +70,21 @@
     <Compile Include="HydroMonitor\HydroObjects\PumpingWell.cs" />
     <Compile Include="HydroMonitor\HydroUtils.cs" />
     <Compile Include="HydroMonitor\HydroObjects\WeatherStation.cs" />
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
     <Compile Include="SIFTool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SIFToolSettings.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Content Include="Sweco.ico" />

@@ -27,6 +27,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Sweco.SIF.Common;
+using Sweco.SIF.GIS;
 
 namespace Sweco.SIF.HydroMonitorIPFconvert
 {
@@ -80,6 +81,7 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
         public bool IsRecursive { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
+        public Extent Extent { get; set; }
 
         /// <summary>
         /// Either a sheetname or (one-based) sheet index
@@ -121,6 +123,8 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
             AddToolParameterDescription("filter", "Filter to select input files (e.g. *.xlsx)", "*.xlsx");
             AddToolParameterDescription("outPath", "Path to write results", "C:\\Test\\Output");
 
+            AddToolOptionDescription("e", "Clip HydroMonitor points within specified extent (xll,yll,xur,yur)", "/e:184000,352500,200500,371000",
+                                          "Clip extent defined: {0},{1},{2},{3}", new string[] { "xll", "yll", "xur", "yur" });
             AddToolOptionDescription("r", "Process input path recursively", "/r", "Input path is searched recursively");
             AddToolOptionDescription("s", "Sheet in input Excel files to process, define with name or (one-based) sheet index i", "/s:2", "Processed Excelsheet(s): {0}", new string[] { "i" });
             AddToolOptionDescription("p", "Period to clip/extend (with 0-values) timeseries to, defined d1 and d2 (format: yyyymmdd)\n"
@@ -131,8 +135,9 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
                 + "v2=0: use rate 0 for last timestamp in resulting IPF-timeseries (default)\n"
                 + "v2=1: copy rate value of previous timestamp in resulting IPF-timeseries\n"
                 + "v2=2: do not copy the last timestamp to resulting IPF-timeseries\n"
-                + "Note: volume in HydroMonitor-timeseries is defined as withdrawn (positive) flux over timestep: volume at timestamp d1 is the\n"
-                + "total volume (m3) between d1 and d2, and is converted to (negative) rate (m3/d) in IPF-timeseries", null, "Volume method: {0}", new string[] { "v1", "v2" });
+                + "Note: volume in HydroMonitor-timeseries is defined as withdrawn (positive) flux over timestep:\n"
+                + "      volume at timestamp d1 is the total volume (m3) between d1 and d2, and is converted to\n"
+                + "      (negative) rate (m3/d) in IPF-timeseries", null, "Volume method: {0}", new string[] { "v1", "v2" });
             AddToolOptionDescription("c", "Clean when no option parameters are specified: remove columns without values, or\n"
                 + "specify comma-seperated columnnames or -numbers (one-based) from input HydroMonitor-file to export\n"
                 + "in this order. Note: XY-column will always be used for first two columns.", "/c", "Clean/columns option is specified: {...}", null, new string[] { "..." });
@@ -168,7 +173,26 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
         /// <returns>true if recognized and processed</returns>
         protected override bool ParseOption(string optionName, bool hasOptionParameters, string optionParametersString = null)
         {
-            if (optionName.ToLower().Equals("r"))
+            if (optionName.ToLower().Equals("e"))
+            {
+                if (hasOptionParameters)
+                {
+                    // split option parameter string into comma seperated substrings
+                    try
+                    {
+                        Extent = Extent.ParseExtent(optionParametersString);
+                    }
+                    catch
+                    {
+                        throw new ToolException("Could not parse extent: " + optionParametersString);
+                    }
+                }
+                else
+                {
+                    throw new ToolException("Parameter value expected for option '" + optionName + "'");
+                }
+            }
+            else if (optionName.ToLower().Equals("r"))
             {
                 IsRecursive = true;
             }

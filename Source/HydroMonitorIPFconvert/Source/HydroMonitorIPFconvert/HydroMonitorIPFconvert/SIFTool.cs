@@ -132,7 +132,7 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
 
                 if (hydroMonitorFile != null)
                 {
-                    string outputFilename = Path.Combine(settings.OutputPath, Path.GetFileNameWithoutExtension(inputFilename) + ".IPF");
+                    string outputFilename = Path.Combine(settings.OutputPath, Path.GetFileNameWithoutExtension(inputFilename).Trim() + ".IPF");
                     Log.AddInfo("Exporting file " + Path.GetFileName(outputFilename) + " ...", 1);
                     Metadata metadata = new Metadata(outputFilename, null, "Converted HydroMonitor v" + hydroMonitorFile.FormatVersion + " file of type " + hydroMonitorFile.FileType);
                     metadata.Source = inputFilename;

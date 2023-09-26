@@ -53,11 +53,12 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
         /// Convert volume value in timeseries to volume flow rates with specified unit (e.g. m3/d)
         /// </summary>
         /// <param name="ts"></param>
+        /// <param name="selValColIdx">index of column that is converted, or -1 for all columns</param>
         /// <param name="rateUnit"></param>
         /// <param name="volumeFirstVolumeMethod"></param>
         /// <param name="volumeEndDateMethod"></param>
         /// <returns></returns>
-        public static Timeseries ConvertVolumeToRate(Timeseries ts, Unit rateUnit, VolumeFirstVolumeMethod volumeFirstVolumeMethod, VolumeEndDateMethod volumeEndDateMethod)
+        public static Timeseries ConvertVolumeToRate(Timeseries ts, int selValColIdx, Unit rateUnit, VolumeFirstVolumeMethod volumeFirstVolumeMethod, VolumeEndDateMethod volumeEndDateMethod)
         {
             if (ts.Timestamps.Count < 2)
             {
@@ -88,17 +89,25 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
 
                     for (int valColIdx = 0; valColIdx < ts.ValueColumns.Count; valColIdx++)
                     {
-                        float volume = ts.ValueColumns[valColIdx][idx];
-                        float flowRate;
-                        if (volume.Equals(float.NaN))
+                        if ((valColIdx == selValColIdx) || (selValColIdx == -1))
                         {
-                            flowRate = 0;
+                            float volume = ts.ValueColumns[valColIdx][idx];
+                            float flowRate;
+                            if (volume.Equals(float.NaN))
+                            {
+                                flowRate = 0;
+                            }
+                            else
+                            {
+                                flowRate = -1 * (float)(volume / interval);
+                            }
+                            newValueColumns[valColIdx].Add(flowRate);
                         }
                         else
                         {
-                            flowRate = -1 * (float)(volume / interval);
+                            // Copy other values without conversion
+                            newValueColumns[valColIdx].Add(ts.ValueColumns[valColIdx][idx]);
                         }
-                        newValueColumns[valColIdx].Add(flowRate);
                     }
                 }
                 prevTimeStamp = timeStamp;

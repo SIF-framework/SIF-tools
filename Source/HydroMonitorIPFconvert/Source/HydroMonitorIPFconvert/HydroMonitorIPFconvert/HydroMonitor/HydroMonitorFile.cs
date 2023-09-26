@@ -669,7 +669,7 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
                     ExportIPF(outputFilename, settings, metadata);
                     break;
                 default:
-                    throw new Exception("Export not defined for file extensions '" + extension + "': " + outputFilename);
+                    throw new Exception("Export not defined for file extension '" + extension + "': " + outputFilename);
             }
         }
 
@@ -685,7 +685,7 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
             List<int> selColumnIndices = null;
             if (selColumnStrings == null)
             {
-                // Add all metadata columns ass a defautlt in order: X, Y, Ids and rest
+                // Add all metadata columns as a default in order: X, Y, Ids and rest
                 ipfFile.AddColumns(ObjectIdentificationNames);
                 foreach (string columnName in MetadataColumnNames)
                 {
@@ -745,97 +745,103 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
                 }
             }
 
+            Extent clipExtent = settings.Extent;
             foreach (HydroObject hydroObject in HydroObjects)
             {
                 HydroMetadataEntry metadataEntry = hydroObject.GetMetadataEntry(HydroMetadataSearchMethod.Recent);
                 if (metadataEntry != null)
                 {
-                    List<string> ipfColumnValues = new List<string>();
-                    ipfColumnValues.Add(metadataEntry.XString);
-                    ipfColumnValues.Add(metadataEntry.YString);
-
-                    IPFTimeseries ipfTimeseries = null;
-                    if ((hydroObject.DataValues.Count > 0) && (hydroObject is TimeseriesHydroObject))
+                    if ((clipExtent == null) || clipExtent.Contains(metadataEntry.Point.X, metadataEntry.Point.Y))
                     {
-                        Timeseries ts = null;
-                        int valueColIdx = ((TimeseriesHydroObject)hydroObject).GetDateColumnIndex() + 1;
-                        if (DataColumnUnits[valueColIdx].Equals(HydroMonitorSettings.VolumeUnitString))
-                        {
-                            Timeseries tsVolume = ((TimeseriesHydroObject)hydroObject).RetrieveTimeseries();
-                            ts = HydroUtils.ConvertVolumeToRate(tsVolume, Unit.m3d, settings.VolumeFirstVolumeMethod, settings.VolumeEndDateMethod);
-                        }
-                        else
-                        {
-                            ts = ((TimeseriesHydroObject)hydroObject).RetrieveTimeseries();
-                        }
-                        if ((settings.StartDate != null) || (settings.EndDate != null))
-                        {
-                            ts = ts.Select(settings.StartDate, settings.EndDate);
-                            ExtendTS(ts, settings.StartDate, settings.EndDate, 0);
-                        }
+                        List<string> ipfColumnValues = new List<string>();
+                        ipfColumnValues.Add(metadataEntry.XString);
+                        ipfColumnValues.Add(metadataEntry.YString);
 
-                        List<string> valueColNames = ((TimeseriesHydroObject)hydroObject).RetrieveDataValueColumnNames();
-                        ipfTimeseries = new IPFTimeseries(ts, valueColNames);
-                    }
-
-                    IPFPoint ipfPoint = null;
-                    if (selColumnIndices == null)
-                    {
-                        // Add column values in default order: X, Y, Ids and rest
-                        ipfColumnValues.AddRange(metadataEntry.IdStrings);
-                        for (int colIdx = 0; colIdx < MetadataColumnNames.Count; colIdx++)
+                        IPFTimeseries ipfTimeseries = null;
+                        if ((hydroObject.DataValues.Count > 0) && (hydroObject is TimeseriesHydroObject))
                         {
-                            string columnName = MetadataColumnNames[colIdx];
-                            string columnValue = metadataEntry.Values[colIdx];
-                            if (!XYColumnNames.Contains(columnName) && !ObjectIdentificationNames.Contains(columnName))
+                            Timeseries ts = null;
+                            int dateColIdx = ((TimeseriesHydroObject)hydroObject).GetDateColumnIndex();
+                            int volumeColIdx = dateColIdx + 1;
+                            if (DataColumnUnits[volumeColIdx].Equals(HydroMonitorSettings.VolumeUnitString))
                             {
-                                ipfColumnValues.Add(columnValue);
-                            }
-                        }
-
-                        ipfPoint = new IPFPoint(ipfFile, metadataEntry.Point, ipfColumnValues);
-                        if (ipfTimeseries != null)
-                        {
-                            if (!hasTimeseries)
-                            {
-                                hasTimeseries = true;
-                                ipfFile.AddColumn(SIFToolSettings.TSFilename);
-                                ipfFile.AssociatedFileColIdx = ipfFile.ColumnCount - 1;
-                            }
-                            //  Add associated timeseries 
-                            string txtFilenameWithoutExtension = Path.Combine(Path.GetFileNameWithoutExtension(outputFilename), hydroObject.Id);
-                            ipfPoint.ColumnValues.Add(txtFilenameWithoutExtension);
-                            ipfPoint.Timeseries = ipfTimeseries;
-                        }
-                    }
-                    else
-                    {
-                        // Add selected column values in specified order
-                        for (int idx = 0; idx < selColumnIndices.Count; idx++)
-                        {
-                            int selColIdx = selColumnIndices[idx];
-                            if (selColIdx != -1)
-                            {
-                                string columnName = MetadataColumnNames[selColIdx];
-                                string columnValue = metadataEntry.Values[selColIdx];
-                                ipfColumnValues.Add(columnValue);
+                                int valColIdx = volumeColIdx - dateColIdx - 1;
+                                Timeseries tsVolume = ((TimeseriesHydroObject)hydroObject).RetrieveTimeseries();
+                                ts = HydroUtils.ConvertVolumeToRate(tsVolume, valColIdx, Unit.m3d, settings.VolumeFirstVolumeMethod, settings.VolumeEndDateMethod);
                             }
                             else
                             {
-                                if (ipfTimeseries != null)
-                                {
-                                    //  Add associated timeseries 
-                                    string txtFilenameWithoutExtension = Path.Combine(Path.GetFileNameWithoutExtension(outputFilename), hydroObject.Id);
-                                    ipfColumnValues.Add(txtFilenameWithoutExtension);
-                                }
+                                ts = ((TimeseriesHydroObject)hydroObject).RetrieveTimeseries();
                             }
+                            if ((settings.StartDate != null) || (settings.EndDate != null))
+                            {
+                                ts = ts.Select(settings.StartDate, settings.EndDate, -1);
+                                ExtendTS(ts, settings.StartDate, settings.EndDate, 0);
+                            }
+
+                            List<string> valueColNames = ((TimeseriesHydroObject)hydroObject).RetrieveDataValueColumnNames();
+                            ipfTimeseries = new IPFTimeseries(ts, valueColNames);
                         }
 
-                        ipfPoint = new IPFPoint(ipfFile, metadataEntry.Point, ipfColumnValues);
-                        ipfPoint.Timeseries = ipfTimeseries;
-                    }
+                        IPFPoint ipfPoint = null;
+                        if (selColumnIndices == null)
+                        {
+                            // Add column values in default order: X, Y, Ids and rest
+                            ipfColumnValues.AddRange(metadataEntry.IdStrings);
+                            for (int colIdx = 0; colIdx < MetadataColumnNames.Count; colIdx++)
+                            {
+                                string columnName = MetadataColumnNames[colIdx];
+                                string columnValue = metadataEntry.Values[colIdx];
+                                if (!XYColumnNames.Contains(columnName) && !ObjectIdentificationNames.Contains(columnName))
+                                {
+                                    ipfColumnValues.Add(columnValue);
+                                }
+                            }
 
-                    ipfFile.AddPoint(ipfPoint);
+                            ipfPoint = new IPFPoint(ipfFile, metadataEntry.Point, ipfColumnValues);
+                            if (ipfTimeseries != null)
+                            {
+                                if (!hasTimeseries)
+                                {
+                                    hasTimeseries = true;
+                                    ipfFile.AddColumn(SIFToolSettings.TSFilename);
+                                    ipfFile.AssociatedFileColIdx = ipfFile.ColumnCount - 1;
+                                }
+                                //  Add associated timeseries 
+                                string txtFilenameWithoutExtension = Path.Combine(Path.GetFileNameWithoutExtension(outputFilename), hydroObject.Id);
+                                ipfPoint.ColumnValues.Add(txtFilenameWithoutExtension);
+                                ipfPoint.Timeseries = ipfTimeseries;
+                            }
+                        }
+                        else
+                        {
+                            // Add selected column values in specified order
+                            for (int idx = 0; idx < selColumnIndices.Count; idx++)
+                            {
+                                int selColIdx = selColumnIndices[idx];
+                                if (selColIdx != -1)
+                                {
+                                    string columnName = MetadataColumnNames[selColIdx];
+                                    string columnValue = metadataEntry.Values[selColIdx];
+                                    ipfColumnValues.Add(columnValue);
+                                }
+                                else
+                                {
+                                    if (ipfTimeseries != null)
+                                    {
+                                        //  Add associated timeseries 
+                                        string txtFilenameWithoutExtension = Path.Combine(Path.GetFileNameWithoutExtension(outputFilename), hydroObject.Id);
+                                        ipfColumnValues.Add(txtFilenameWithoutExtension);
+                                    }
+                                }
+                            }
+
+                            ipfPoint = new IPFPoint(ipfFile, metadataEntry.Point, ipfColumnValues);
+                            ipfPoint.Timeseries = ipfTimeseries;
+                        }
+
+                        ipfFile.AddPoint(ipfPoint);
+                    }
                 }
             }
 

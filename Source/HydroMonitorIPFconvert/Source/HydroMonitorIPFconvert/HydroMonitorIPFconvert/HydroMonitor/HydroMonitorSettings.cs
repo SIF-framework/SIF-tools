@@ -19,6 +19,8 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with HydroMonitorIPFconvert. If not, see <https://www.gnu.org/licenses/>.
+using Sweco.SIF.Common;
+using System;
 using System.Collections.Generic;
 
 namespace Sweco.SIF.HydroMonitorIPFconvert
@@ -38,6 +40,7 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
         public static string ExcelDateUnitString { get; private set; }
         public static List<string> ValidUnitStrings { get; private set; }
         public static string VolumeUnitString = "[m^3]";
+        public static Dictionary<string, int> TSValueStrings { get; set; }
 
         public static string DateTimeFormatString { get; set; }
 
@@ -56,6 +59,30 @@ namespace Sweco.SIF.HydroMonitorIPFconvert
             };
 
             DateTimeFormatString = "dd-MM-yyyy hh:mm:ss";
+
+            TSValueStrings = ParseTSValueStrings();
+        }
+
+        private static Dictionary<string, int> ParseTSValueStrings()
+        {
+            Dictionary<string,int> tsValueStrings = new Dictionary<string, int>();
+            int index = 0;
+            foreach (string tsValueString in Properties.Settings.Default.TSValueStrings)
+            {
+                string[] tsValueStringParts = tsValueString.Split(new char[] { ','});
+                int value = index++;
+                if (tsValueStringParts.Length > 1)
+                {
+                    if (!int.TryParse(tsValueStringParts[1], out value))
+                    {
+                        throw new ToolException("Invalid non-integer (" + tsValueStringParts[1] + ") for TSValueString (in .exe.config file): " + tsValueString + "; using index " + value);
+                    }
+                }
+
+                tsValueStrings.Add(tsValueStringParts[0], value);
+            }
+
+            return tsValueStrings;
         }
     }
 }

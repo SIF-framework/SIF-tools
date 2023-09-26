@@ -27,7 +27,7 @@ using System.Collections.Generic;
 namespace Sweco.SIF.HydroMonitorIPFconvert
 {
     /// <summary>
-    /// Class for storing a metadata entry of an HydroObject, defined by xy-coordinats, one or more ID-strings and a list of values
+    /// Class for storing a metadata entry of an HydroObject, defined by xy-coordinates, one or more ID-strings and a list of values
     /// </summary>
     public class HydroMetadataEntry
     {
