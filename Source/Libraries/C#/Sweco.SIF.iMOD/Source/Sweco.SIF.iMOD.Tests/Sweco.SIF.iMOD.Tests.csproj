@@ -61,14 +61,16 @@
   <ItemGroup>
     <Reference Include="Microsoft.VisualStudio.QualityTools.UnitTestFramework, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
     <Reference Include="Sweco.SIF.Common">
-      <HintPath>..\..\Bin\Sweco.SIF.Common.dll</HintPath>
+      <HintPath>..\..\Bin\x64\Sweco.SIF.Common.dll</HintPath>
     </Reference>
     <Reference Include="Sweco.SIF.GIS">
-      <HintPath>..\..\Bin\Sweco.SIF.GIS.dll</HintPath>
+      <HintPath>..\..\Bin\x64\Sweco.SIF.GIS.dll</HintPath>
     </Reference>
-    <Reference Include="Sweco.SIF.iMOD, Version=1.0.0.0, Culture=neutral, processorArchitecture=AMD64">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\Bin\Sweco.SIF.iMOD.dll</HintPath>
+    <Reference Include="Sweco.SIF.iMOD">
+      <HintPath>..\..\Bin\x64\Sweco.SIF.iMOD.dll</HintPath>
+    </Reference>
+    <Reference Include="Sweco.SIF.Statistics">
+      <HintPath>..\..\Bin\x64\Sweco.SIF.Statistics.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />

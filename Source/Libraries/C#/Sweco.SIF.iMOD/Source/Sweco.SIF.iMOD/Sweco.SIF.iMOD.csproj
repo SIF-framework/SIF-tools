@@ -30,6 +30,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Release\Sweco.SIF.iMOD.xml</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DebugSymbols>true</DebugSymbols>
@@ -78,16 +79,18 @@
   <ItemGroup>
     <Compile Include="ARR\ARRFile.cs" />
     <Compile Include="ASC\ASCFile.cs" />
+    <Compile Include="DLF\DLFClass.cs" />
     <Compile Include="GEN\2D\GENLine.cs" />
     <Compile Include="GEN\2D\GENPolygon.cs" />
     <Compile Include="GEN\DATFile.cs" />
     <Compile Include="GEN\DATRow.cs" />
-    <Compile Include="GEN\GENClipper.cs" />
     <Compile Include="GEN\GENFeature.cs" />
+    <Compile Include="GEN\GENFeatureExtension.cs" />
     <Compile Include="GEN\GENFile.cs" />
     <Compile Include="GEN\2D\GENPoint.cs" />
     <Compile Include="GEN\GENLegend.cs" />
     <Compile Include="GEN\GENUtils.cs" />
+    <Compile Include="GEN\SnapSettings.cs" />
     <Compile Include="IDF\ConstantIDFFile.cs" />
     <Compile Include="IDF\IDFCell.cs" />
     <Compile Include="IDF\IDFCellIterator.cs" />
@@ -97,19 +100,32 @@
     <Compile Include="IDF\IDFStatistics.cs" />
     <Compile Include="IDF\IDFUtils.cs" />
     <Compile Include="IDF\SparseIDFFile.cs" />
+    <Compile Include="DLF\DLFFile.cs" />
+    <Compile Include="IFF\IFFFile.cs" />
+    <Compile Include="IFF\ParticleList.cs" />
     <Compile Include="IMF\IDFMap.cs" />
     <Compile Include="IMF\IMFFile.cs" />
     <Compile Include="IMF\IPFMap.cs" />
     <Compile Include="IMF\Map.cs" />
     <Compile Include="IMF\Overlay.cs" />
     <Compile Include="IMODFile.cs" />
+    <Compile Include="IPF\IPFCluster.cs" />
     <Compile Include="IPF\IPFFile.cs" />
     <Compile Include="IPF\IPFLegend.cs" />
     <Compile Include="IPF\IPFPoint.cs" />
     <Compile Include="IPF\IPFTimeseries.cs" />
     <Compile Include="IPF\IPFUtils.cs" />
+    <Compile Include="ISG\ISGCalculationPoint.cs" />
+    <Compile Include="ISG\ISGCoordinate.cs" />
+    <Compile Include="ISG\ISGCrossSection.cs" />
+    <Compile Include="ISG\ISGCrossSectionData.cs" />
     <Compile Include="ISG\ISGFile.cs" />
     <Compile Include="ISG\ISGLegend.cs" />
+    <Compile Include="ISG\ISGNetwork.cs" />
+    <Compile Include="ISG\ISGNode.cs" />
+    <Compile Include="ISG\ISGSegment.cs" />
+    <Compile Include="ISG\ISGStructure.cs" />
+    <Compile Include="ISG\ISGStructureData.cs" />
     <Compile Include="Legends\ClassLegend.cs" />
     <Compile Include="Legends\Legend.cs" />
     <Compile Include="Legends\RangeLegendClass.cs" />
@@ -118,6 +134,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Timeseries.cs" />
     <Compile Include="Utils\IMODUtils.cs" />
+    <Compile Include="Utils\ParseUtils.cs" />
     <Compile Include="Values\ValueOperator.cs" />
     <Compile Include="Values\ValueRange.cs" />
   </ItemGroup>
@@ -128,7 +145,7 @@
   <PropertyGroup>
     <PostBuildEvent>REM Copy results to Bin(-platform) folder
 COPY "$(TargetDir)$(TargetName).*" "$(ProjectDir)..\..\Bin\$(PlatformName)"
-DEL /Q "$(ProjectDir)..\..\Bin\*.*"
+REM DEL /Q "$(ProjectDir)..\..\Bin\*.*"
 </PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
