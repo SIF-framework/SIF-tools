@@ -32,6 +32,7 @@ namespace Sweco.SIF.Statistics
     /// </summary>
     public enum OutlierMethodEnum
     {
+        SD,
         IQR,
         HistogramGap
     }
@@ -136,6 +137,11 @@ namespace Sweco.SIF.Statistics
         /// Array (with length 101) of calculated percentiles 
         /// </summary>
         protected float[] percentiles;
+
+        /// <summary>
+        /// Resulting bin size for Histogramgap method
+        /// </summary>
+        protected float histogramGapBinSize;
 
         /// <summary>
         /// Current number of values (after optional removal(s) of skipped values)
@@ -289,6 +295,14 @@ namespace Sweco.SIF.Statistics
         }
 
         /// <summary>
+        /// Resulting bin size for Histogramgap method
+        /// </summary>
+        public float HistogramGapBinSize
+        {
+            get { return histogramGapBinSize; }
+        }
+
+        /// <summary>
         /// Create new, empty Statistics object
         /// </summary>
         public Statistics()
@@ -344,6 +358,7 @@ namespace Sweco.SIF.Statistics
 
             outlierRangeLowerValue = float.NaN;
             outlierRangeUpperValue = float.NaN;
+            this.histogramGapBinSize = float.NaN;
         }
 
         /// <summary>
@@ -411,6 +426,26 @@ namespace Sweco.SIF.Statistics
                     ReleaseValuesMemory(isMemoryCollected);
                 }
             }
+        }
+
+        /// <summary>
+        /// Remove skipped values and calculate percentile and outlier statistics
+        /// </summary>
+        public virtual SortedDictionary<float, int> ComputeHistogramClasses(float binsize, bool areValuesReleased = true, bool isMemoryCollected = false)
+        {
+            RemoveSkippedValues();
+            if ((values != null) && (values.Count() > 3))
+            {
+                SortedDictionary<float, int> classDictionary = DoComputeHistogramClasses(binsize);
+                if (areValuesReleased)
+                {
+                    ReleaseValuesMemory(isMemoryCollected);
+                }
+
+                return classDictionary;
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -504,69 +539,128 @@ namespace Sweco.SIF.Statistics
         }
 
         /// <summary>
+        /// Compute HistogramClasses. Returns dictionary with class centers and counts
+        /// </summary>
+        /// <param name="binsize"></param>
+        protected virtual SortedDictionary<float, int> DoComputeHistogramClasses(float binsize)
+        {
+            SortedDictionary<float, int> classDictionary = new SortedDictionary<float, int>();
+            List<float> sortedValues = new List<float>(values);
+            sortedValues.Sort();
+
+            float minValue = sortedValues[0];
+            float maxValue = sortedValues[sortedValues.Count - 1];
+
+            float classMinValue = minValue - binsize;
+            float classMaxValue = minValue;
+            float classX = (classMinValue + classMinValue) / 2f;
+            int classCount = 0;
+            for (int valueIdx = 0; valueIdx < sortedValues.Count; valueIdx++)
+            {
+                float value = sortedValues[valueIdx];
+                if (value < classMaxValue)
+                {
+                    classCount++;
+                }
+                else
+                {
+                    // Add previous class
+                    if (classCount > 0)
+                    {
+                        classDictionary.Add(classX, classCount);
+                    }
+                    classMinValue = classMaxValue;
+                    classMaxValue += binsize;
+                    classX = (classMinValue + classMaxValue) / 2f;
+                    classCount = 0;
+                }
+            }
+            if (classCount > 0)
+            {
+                classDictionary.Add(classX, classCount);
+            }
+
+            return classDictionary;
+        }
+
+        /// <summary>
         /// Calculate percentiles and outlier statistics
         /// </summary>
         protected virtual void DoComputeOutlierStatistics(OutlierMethodEnum outlierMethod, OutlierBaseRangeEnum outlierBaseRange, float multiplier)
         {
+            float baseRange = float.NaN;
+            float baseRangeLowerPct = float.NaN;
+            float baseRangeLowerValue = float.NaN;
+            float baseRangeUpperPct = float.NaN;
+            float baseRangeUpperValue = float.NaN;
+
             // Compute percentiles 
             List<float> sortedValues;
             DoComputePercentileStatistics(out sortedValues);
 
-            // Compute outlier base range for histogram-gap method
-            float baseRangeLowerPct = 0;
-            float baseRangeLowerValue = percentiles[(int)baseRangeLowerPct];
-            float baseRangeUpperPct = 100;
-            float baseRangeUpperValue = percentiles[(int)baseRangeUpperPct];
-            float baseRange = 0;
-            switch (outlierBaseRange)
+            if (outlierMethod != OutlierMethodEnum.SD)
             {
-                case OutlierBaseRangeEnum.Pct75_25:
-                    baseRangeLowerPct = 25;
-                    baseRangeUpperPct = 75;
-                    break;
-                case OutlierBaseRangeEnum.Pct90_10:
-                    baseRangeLowerPct = 10;
-                    baseRangeUpperPct = 90;
-                    break;
-                case OutlierBaseRangeEnum.Pct95_5:
-                    baseRangeLowerPct = 5;
-                    baseRangeUpperPct = 95;
-                    break;
-                default:
-                    throw new Exception("Invalid outlier base range enum: " + outlierBaseRange);
+                // Compute outlier base range for histogram-gap or IQGR-method
+                baseRange = 0;
+                baseRangeLowerPct = 0;
+                baseRangeLowerValue = percentiles[(int)baseRangeLowerPct];
+                baseRangeUpperPct = 100;
+                baseRangeUpperValue = percentiles[(int)baseRangeUpperPct];
+
+                switch (outlierBaseRange)
+                {
+                    case OutlierBaseRangeEnum.Pct75_25:
+                        baseRangeLowerPct = 25;
+                        baseRangeUpperPct = 75;
+                        break;
+                    case OutlierBaseRangeEnum.Pct90_10:
+                        baseRangeLowerPct = 10;
+                        baseRangeUpperPct = 90;
+                        break;
+                    case OutlierBaseRangeEnum.Pct95_5:
+                        baseRangeLowerPct = 5;
+                        baseRangeUpperPct = 95;
+                        break;
+                    default:
+                        throw new Exception("Invalid outlier base range enum: " + outlierBaseRange);
+                }
+                baseRangeLowerValue = percentiles[(int)baseRangeLowerPct];
+                baseRangeUpperValue = percentiles[(int)baseRangeUpperPct];
+                baseRange = baseRangeUpperValue - baseRangeLowerValue;
             }
-            baseRangeLowerValue = percentiles[(int)baseRangeLowerPct];
-            baseRangeUpperValue = percentiles[(int)baseRangeUpperPct];
-            baseRange = baseRangeUpperValue - baseRangeLowerValue;
 
             // Compute outlier range
             switch (outlierMethod)
             {
+                case OutlierMethodEnum.SD:
+                    outlierRangeLowerValue = Mean - multiplier * SD;
+                    outlierRangeUpperValue = Mean + multiplier * SD;
+                    break;
                 case OutlierMethodEnum.IQR:
                     outlierRangeLowerValue = baseRangeLowerValue - multiplier * baseRange;
                     outlierRangeUpperValue = baseRangeUpperValue + multiplier * baseRange;
                     break;
                 case OutlierMethodEnum.HistogramGap:
                     // Calculate binsize
-                    float binSize = multiplier * baseRange * ((float)Math.Pow(values.Count(), -1.0 / 3.0));
-                    float margin = (binSize / 100);
+                    histogramGapBinSize = multiplier * baseRange * ((float)Math.Pow(values.Count(), -1.0 / 3.0));
+                    float margin = (histogramGapBinSize / 100);
 
                     // Calculate lower- and upperrange values (initialize to extreme defaults)
                     outlierRangeLowerValue = sortedValues[0];
                     outlierRangeUpperValue = sortedValues[sortedValues.Count() - 1];
-                    // Search lower outlier range value only in low value part ( < baseRangeLowerPct / 100)
-                    for (int i = (int)(sortedValues.Count() * baseRangeLowerPct / 100); i >= 0; i--)
+                    // Search lower outlier range value only in low value half
+                    for (int i = (int)(sortedValues.Count() / 2); i >= 0; i--)
                     {
                         // Find values in sorted list that differ more than the calculated binsize
-                        if ((sortedValues[i + 1] - sortedValues[i]) > binSize)
+                        if ((sortedValues[i + 1] - sortedValues[i]) > histogramGapBinSize)
                         {
                             outlierRangeLowerValue = sortedValues[i + 1] - margin;
                             i = 0;
                         }
                     }
-                    for (int i = (int)(sortedValues.Count() * baseRangeUpperPct / 100); i < sortedValues.Count(); i++)
+                    for (int i = (int)(sortedValues.Count() / 2); i < sortedValues.Count(); i++)
                     {
-                        if ((sortedValues[i] - sortedValues[i - 1]) > binSize)
+                        if ((sortedValues[i] - sortedValues[i - 1]) > histogramGapBinSize)
                         {
                             outlierRangeUpperValue = sortedValues[i - 1] + margin;
                             i = sortedValues.Count();
