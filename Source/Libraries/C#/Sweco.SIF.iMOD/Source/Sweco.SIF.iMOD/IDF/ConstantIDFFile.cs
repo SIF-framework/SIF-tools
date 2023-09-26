@@ -165,20 +165,30 @@ namespace Sweco.SIF.iMOD.IDF
 
         /// <summary>
         /// Allocate the constantvalue of this object to a new IDF-file with the same characteristics as the specified IDF-file. 
-        /// A NoData-value in the ConstantIDFFile is set to the NoData-value of the specified IDF-file or to the NoDataCalculationValue of this ConstantIDFFile if it was defined.
+        /// When the constantvalue is NoData, is set to the NoDataCalculationValue of this ConstantIDFFile if it was defined, or otherwise to the NoData-value of the specified IDF-file.
         /// </summary>
         /// <param name="someIDFFile"></param>
         /// <returns></returns>
         public IDFFile Allocate(IDFFile someIDFFile)
         {
-            IDFFile newIDFFile = someIDFFile.CopyIDF(Path.Combine(Path.GetDirectoryName(someIDFFile.Filename), Path.GetFileNameWithoutExtension(someIDFFile.Filename) + "_allocation.idf"));
+            IDFFile newIDFFile = null;
             float value = ConstantValue;
-            if (ConstantValue.Equals(NoDataValue) || ConstantValue.Equals(float.NaN))
+            if (value.Equals(NoDataValue) || value.Equals(float.NaN))
             {
-                // Set new value to NoDataCalculationValue if it is defined.
-                value = (NoDataCalculationValue.Equals(float.NaN) ? newIDFFile.NoDataValue : NoDataCalculationValue);
+                // Set new value to NoDataCalculationValue if it is defined, otherwise use NoData-value of specified other IDF-file
+                value = (NoDataCalculationValue.Equals(float.NaN) ? someIDFFile.NoDataValue : NoDataCalculationValue);
             }
-            newIDFFile.SetValues(value);
+
+            if (someIDFFile is ConstantIDFFile)
+            {
+                newIDFFile = new ConstantIDFFile(value);
+            }
+            else
+            {
+                newIDFFile = someIDFFile.CopyIDF(Path.Combine(Path.GetDirectoryName(someIDFFile.Filename), Path.GetFileNameWithoutExtension(someIDFFile.Filename) + "_allocated.idf"));
+                newIDFFile.SetValues(value);
+            }
+
             return newIDFFile;
         }
 
