@@ -198,18 +198,32 @@ namespace Sweco.SIF.Del2Bin
 
         }
 
+        //protected virtual void DeleteDirectory(string inputPath, SIFToolSettings settings)
+        //{
+        //    Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(inputPath,
+        //        Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+        //        Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+        //}
+
+        //protected virtual void DeleteFile(string filename, SIFToolSettings settings)
+        //{
+        //    Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(filename,
+        //        Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+        //        Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+        //}
+
         protected virtual void DeleteDirectory(string inputPath, SIFToolSettings settings)
         {
             Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(inputPath,
                 Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
-                Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                ((SIFToolSettings)settings).IsBinSkipped ? Microsoft.VisualBasic.FileIO.RecycleOption.DeletePermanently : Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
         }
 
         protected virtual void DeleteFile(string filename, SIFToolSettings settings)
         {
             Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(filename,
                 Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
-                Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                ((SIFToolSettings)settings).IsBinSkipped ? Microsoft.VisualBasic.FileIO.RecycleOption.DeletePermanently : Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
         }
     }
 }

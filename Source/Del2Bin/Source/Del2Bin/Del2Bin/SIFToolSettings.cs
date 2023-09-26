@@ -41,6 +41,7 @@ namespace Sweco.SIF.Del2Bin
         public bool IsRecursive { get; set; }
         public bool IsErrorLevelReturned { get; set; }
         public bool IsReadOnlyDeleted { get; set; }
+        public bool IsBinSkipped { get; set; }
 
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
@@ -53,6 +54,7 @@ namespace Sweco.SIF.Del2Bin
             IsErrorLevelReturned = false;
             IsRecursive = false;
             IsReadOnlyDeleted = false;
+            IsBinSkipped = false;
         }
 
         /// <summary>
@@ -64,6 +66,7 @@ namespace Sweco.SIF.Del2Bin
             AddToolParameterDescription("pathfilter", "path and/or filter for file(s) or subdirectory to delete", "C:\\Test\\*_L?.*", 0);
             AddToolParameterDescription("path", "path for file(s), specified by filter, to delete", "C:\\Test\\Input", 1);
             AddToolParameterDescription("filter", "filter (e.q. *_L?.*) or single filename for file(s) to delete", "*_L?.*", 1);
+            AddToolOptionDescription("b", "skip moving to recycle bin for faster deletion", "/b", "files are not moved to recycle bin, but deleted permanently", null, null, null, new int[] { 0, 1 });
             AddToolOptionDescription("e", "return errorlevel instead of number of deletions (0 for success, 1 in case of errors)", "/e", "errorlevel is returned (0 for success, 1 for errors) instead of number of deletions", null, null, null, new int[] { 0, 1 });
             AddToolOptionDescription("f", "force deletion of read-only files", "/f", "read-only files are also deleted", null, null, null, new int[] { 0, 1 });
             AddToolOptionDescription("s", "delete specified files recursively from all subdirectories", "/s", "specified files are deleted recursively from all subdirectories", null, null, null, new int[] { 0, 1 });
@@ -133,7 +136,11 @@ namespace Sweco.SIF.Del2Bin
         /// <returns>true if recognized and processed</returns>
         protected override bool ParseOption(string optionName, bool hasOptionParameters, string optionParametersString = null)
         {
-            if (optionName.ToLower().Equals("e"))
+            if (optionName.ToLower().Equals("b"))
+            {
+                IsBinSkipped = true;
+            }
+            else if (optionName.ToLower().Equals("e"))
             {
                 IsErrorLevelReturned = true;
             }
@@ -177,6 +184,10 @@ namespace Sweco.SIF.Del2Bin
             // Check restrictions
             CheckRootPath();
             CheckNetworkPath();
+            if (IsBinSkipped && ((InputFilter != null) && (InputFilter.Equals("*") || InputFilter.Equals("*.*"))))
+            {
+                throw new ToolException("Filter '*' or '*.*' is not allowed with option '/b'");
+            }
         }
 
         /// <summary>
@@ -209,9 +220,34 @@ namespace Sweco.SIF.Del2Bin
         protected virtual void CheckNetworkPath()
         {
             bool isNetworkPath = FileUtils.IsNetworkPath(InputPath);
-            if (isNetworkPath)
+            if (isNetworkPath && IsBinSkipped)
             {
-                throw new ToolException("Deleting to recycle bin on a network path is not possible: " + InputPath);
+                if (InputFilter != null)
+                {
+                    // A filter or filename was specified
+                    if (Path.GetExtension(InputFilter).Equals(string.Empty))
+                    {
+                        // No extension was specified
+                        if (InputFilter.Contains("*"))
+                        {
+                            throw new ToolException("Filter with wildcard * in filename is not allowed for network paths with option '/b': " + InputFilter);
+                        }
+                    }
+                    else if ((Path.GetExtension(InputFilter).Contains("?") || Path.GetExtension(InputFilter).Contains("*")))
+                    {
+                        throw new ToolException("Filter with wildcards in extension is not allowed for network paths with option '/b': " + InputFilter);
+                    }
+                }
+                else
+                {
+                    // A directory was specified
+                    throw new ToolException("Deletion of subdirectories is not allowed for network paths with option '/b': " + InputPath);
+                }
+            }
+
+            if (isNetworkPath && !IsBinSkipped)
+            {
+                throw new ToolException("Deleting to recycle bin on a network path is not possible (use option '/b' to delete permanently): " + InputPath);
             }
         }
     }
