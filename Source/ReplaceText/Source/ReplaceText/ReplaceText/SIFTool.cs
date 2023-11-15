@@ -139,6 +139,7 @@ namespace Sweco.SIF.ReplaceText
             {
                 if (matchedFilenames.Count > 0)
                 {
+                    Log.AddInfo();
                     if (settings.IsFindOnly)
                     {
                         Log.AddInfo("Summary of matched files:");
@@ -156,6 +157,7 @@ namespace Sweco.SIF.ReplaceText
 
             if (settings.IsMatchesShown)
             {
+                Log.AddInfo();
                 Log.AddInfo("Summary of matched patterns:", 0, false);
                 if (matchedPatterns.Keys.Count > 0)
                 {
@@ -250,7 +252,6 @@ namespace Sweco.SIF.ReplaceText
             foreach (string filename in filenames)
             {
                 string text = null;
-                string newText = null;
                 string relativeFilenamePath = settings.BasePath.Equals(string.Empty) ? filename : filename.Replace(settings.BasePath, string.Empty);
                 if (settings.IsOnlyEnvVarsExpanded)
                 {
@@ -308,199 +309,11 @@ namespace Sweco.SIF.ReplaceText
                 }
 
                 // Now replace text1 with text2 according to settings
-                List<string> matches = new List<string>();
-                int matchCount = 0;
-                int excludeCount = 0;
-                if (text != null)
+                ReplaceText(filename, relativeFilenamePath, ref text, ref resultCode, matchedPatterns, matchedFilenames, settings, log);
+                if (resultCode == -1)
                 {
-                    if (settings.IsOnlyEnvVarsExpanded)
-                    {
-                        // Expand environment variables
-                        newText = Environment.ExpandEnvironmentVariables(text);
-                    }
-                    else
-                    {
-                        if (settings.IsCaseSensitive)
-                        {
-                            // Process case sensitively
-                            if (settings.IsRegExp)
-                            {
-                                // Process case sensitively with regular expressions
-                                newText = Regex.Replace(text, settings.Text1, (match) =>
-                                {
-                                    bool isExcluded = IsSkipped(match.Value, settings.ExcludePatterns, settings.IsRegExp, settings.IsCaseSensitive);
-                                    if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
-                                    {
-                                        excludeCount++;
-                                        return match.Value;
-                                    }
-                                    else
-                                    {
-                                        matches.Add(match.Value);
-                                        matchCount++;
-                                        return match.Result(settings.Text2);
-                                    }
-                                });
-                            }
-                            else
-                            {
-                                // Process case sensitively without regular expressions
-                                bool isExcluded = IsSkipped(settings.Text1, settings.ExcludePatterns, false, true);
-                                if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
-                                {
-                                    newText = text;
-                                }
-                                else
-                                {
-                                    newText = CustomReplace(text, settings.Text1, settings.Text2, true, out matchCount, ref matches, settings.IsFirstOnly);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            // Process case insensitively
-                            if (settings.IsRegExp)
-                            {
-                                // Process case insensitively with regular expressions
-                                newText = Regex.Replace(text, settings.Text1, (match) =>
-                                {
-                                    bool isExcluded = IsSkipped(match.Value, settings.ExcludePatterns, settings.IsRegExp, settings.IsCaseSensitive);
-                                    if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
-                                    {
-                                        excludeCount++;
-                                        return match.Value;
-                                    }
-                                    else
-                                    {
-                                        matches.Add(match.Value);
-                                        matchCount++;
-                                        return match.Result(settings.Text2);
-                                    }
-                                }, (!settings.IsCaseSensitive ? RegexOptions.IgnoreCase : RegexOptions.None));
-                            }
-                            else
-                            {
-                                // Process case insensitively without regular expressions
-                                bool isExcluded = IsSkipped(settings.Text1, settings.ExcludePatterns, false, false);
-                                if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
-                                {
-                                    newText = text;
-                                }
-                                else
-                                {
-                                    newText = CustomReplace(text, settings.Text1, settings.Text2, false, out matchCount, ref matches, settings.IsFirstOnly);
-                                }
-                            }
-                        }
-                    }
-
-                    // Check if source file has been modified because of replacement (note: also for option findonly the source text is replaced in memory)
-                    if (!text.Equals(newText))
-                    {
-                        resultCode += matchCount;
-                        message = matchCount.ToString() + " matches";
-                        if (excludeCount > 0)
-                        {
-                            message += " (" + excludeCount + " matches were excluded)";
-                        }
-                        matchedFilenames.Add(relativeFilenamePath);
-                        log.AddInfo(message);
-
-                        // Show modifications
-                        message = "\t" + matchCount.ToString() + " matches for '" + settings.Text1 + "' in " + relativeFilenamePath + ((excludeCount > 0) ? " (" + excludeCount + " exclusions)" : string.Empty);
-                        log.AddInfo(message);
-                        if (log.Listeners.Count == 0)
-                        {
-                            System.Console.WriteLine(message);
-                        }
-                        if (settings.IsMatchesShown)
-                        {
-                            if (!matchedPatterns.ContainsKey(filename))
-                            {
-                                matchedPatterns.Add(filename, matches);
-                            }
-                            else
-                            {
-                                matchedPatterns[filename].AddRange(matches);
-                            }
-                        }
-
-                        if (!settings.IsFindOnly)
-                        {
-                            // Save access datetimes in case of reset
-                            DateTime creationTime = File.GetCreationTime(filename);
-                            DateTime lastAccessTime = File.GetLastAccessTime(filename);
-                            DateTime lastWriteTime = File.GetLastWriteTime(filename);
-
-                            // Write modified file
-                            StreamWriter sw = null;
-                            try
-                            {
-                                sw = new StreamWriter(filename, false);
-                                sw.Write(newText);
-                            }
-                            catch (UnauthorizedAccessException ex)
-                            {
-                                HandleIOException(filename, ex, log);
-                                text = null;
-                                resultCode = -1;
-                                return resultCode;
-                            }
-                            catch (IOException ex)
-                            {
-                                HandleIOException(filename, ex, log);
-                                text = null;
-                                resultCode = -1;
-                                return resultCode;
-                            }
-                            finally
-                            {
-                                if (sw != null)
-                                {
-                                    sw.Close();
-                                }
-                            }
-
-                            if (settings.IsDateTimeReset)
-                            {
-                                try
-                                {
-                                    File.SetCreationTime(filename, creationTime);
-                                    File.SetLastAccessTime(filename, lastAccessTime);
-                                    File.SetLastWriteTime(filename, lastWriteTime);
-                                }
-                                catch (Exception ex)
-                                {
-                                    System.Console.WriteLine("Warning: could not reset file datetime for '" + Path.GetFileName(filename) + "': " + ex.GetBaseException().Message);
-                                }
-                            }
-                        }
-
-                        //if (settings.IsFindOnly)
-                        //{
-                        //    message = "\tMatch found in file " + relativeFilenamePath;
-                        //}
-                        //else
-                        //{
-                        //    message = "\tModified source file " + relativeFilenamePath;
-                        //}
-                        //log.AddInfo(message);
-                    }
-                    else
-                    {
-                        if (settings.IsErrorNoMatch && !settings.Text1.Equals(settings.Text2))
-                        {
-                            log.AddInfo("No match for '" + settings.Text1 + "'");
-                            throw new ToolException("ERROR: No match for '" + settings.Text1 + "'");
-                        }
-
-                        message = (settings.IsFindOnly) ? "no match" : "no modifications needed";
-                        if (excludeCount > 0)
-                        {
-                            message += " (" + excludeCount + " matches were excluded)";
-                        }
-                        log.AddInfo(message);
-                    }
+                    // An error occured, stop and return
+                    return resultCode;
                 }
             }
             if (settings.IsRecursive)
@@ -514,6 +327,195 @@ namespace Sweco.SIF.ReplaceText
             }
 
             return resultCode;
+        }
+
+        protected virtual void ReplaceText(string filename, string relativeFilenamePath, ref string text, ref int resultCode, Dictionary<string, List<string>> matchedPatterns, List<string> matchedFilenames, SIFToolSettings settings, Log log)
+        {
+            string message;
+            string newText = null;
+            List<string> matches = new List<string>();
+            int matchCount = 0;
+            int excludeCount = 0;
+            if (text != null)
+            {
+                if (settings.IsOnlyEnvVarsExpanded)
+                {
+                    // Expand environment variables
+                    newText = Environment.ExpandEnvironmentVariables(text);
+                }
+                else
+                {
+                    if (settings.IsCaseSensitive)
+                    {
+                        // Process case sensitivity
+                        if (settings.IsRegExp)
+                        {
+                            // Process case sensitivity with regular expressions
+                            newText = Regex.Replace(text, settings.Text1, (match) =>
+                            {
+                                bool isExcluded = IsSkipped(match.Value, settings.ExcludePatterns, settings.IsRegExp, settings.IsCaseSensitive);
+                                if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
+                                {
+                                    excludeCount++;
+                                    return match.Value;
+                                }
+                                else
+                                {
+                                    matches.Add(match.Value);
+                                    matchCount++;
+                                    return match.Result(settings.Text2);
+                                }
+                            });
+                        }
+                        else
+                        {
+                            // Process case sensitivity without regular expressions
+                            bool isExcluded = IsSkipped(settings.Text1, settings.ExcludePatterns, false, true);
+                            if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
+                            {
+                                newText = text;
+                            }
+                            else
+                            {
+                                newText = CustomReplace(text, settings.Text1, settings.Text2, true, out matchCount, ref matches, settings.IsFirstOnly);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Process case insensitivity
+                        if (settings.IsRegExp)
+                        {
+                            // Process case insensitivity with regular expressions
+                            newText = Regex.Replace(text, settings.Text1, (match) =>
+                            {
+                                bool isExcluded = IsSkipped(match.Value, settings.ExcludePatterns, settings.IsRegExp, settings.IsCaseSensitive);
+                                if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
+                                {
+                                    excludeCount++;
+                                    return match.Value;
+                                }
+                                else
+                                {
+                                    matches.Add(match.Value);
+                                    matchCount++;
+                                    return match.Result(settings.Text2);
+                                }
+                            }, (!settings.IsCaseSensitive ? RegexOptions.IgnoreCase : RegexOptions.None));
+                        }
+                        else
+                        {
+                            // Process case insensitivity without regular expressions
+                            bool isExcluded = IsSkipped(settings.Text1, settings.ExcludePatterns, false, false);
+                            if (isExcluded || (settings.IsFirstOnly && (matchCount > 0)))
+                            {
+                                newText = text;
+                            }
+                            else
+                            {
+                                newText = CustomReplace(text, settings.Text1, settings.Text2, false, out matchCount, ref matches, settings.IsFirstOnly);
+                            }
+                        }
+                    }
+                }
+
+                // Check if source file has been modified because of replacement (note: also for option findonly the source text is replaced in memory)
+                if (!text.Equals(newText))
+                {
+                    resultCode += matchCount;
+                    message = matchCount.ToString() + " matches";
+                    if (excludeCount > 0)
+                    {
+                        message += " (" + excludeCount + " matches were excluded)";
+                    }
+                    matchedFilenames.Add(relativeFilenamePath);
+                    log.AddInfo(message);
+
+                    // Show modifications
+                    string matchedTextString = "for '" + settings.Text1 + "' ";
+                    message = "\t" + matchCount.ToString() + " matches " + (settings.IsMatchedStringShown ? matchedTextString : string.Empty) + "in " + relativeFilenamePath + ((excludeCount > 0) ? " (" + excludeCount + " exclusions)" : string.Empty);
+                    log.AddInfo(message);
+                    if (log.Listeners.Count == 0)
+                    {
+                        System.Console.WriteLine(message);
+                    }
+                    if (settings.IsMatchesShown)
+                    {
+                        if (!matchedPatterns.ContainsKey(filename))
+                        {
+                            matchedPatterns.Add(filename, matches);
+                        }
+                        else
+                        {
+                            matchedPatterns[filename].AddRange(matches);
+                        }
+                    }
+
+                    if (!settings.IsFindOnly)
+                    {
+                        // Save access datetimes in case of reset
+                        DateTime creationTime = File.GetCreationTime(filename);
+                        DateTime lastAccessTime = File.GetLastAccessTime(filename);
+                        DateTime lastWriteTime = File.GetLastWriteTime(filename);
+
+                        // Write modified file
+                        StreamWriter sw = null;
+                        try
+                        {
+                            sw = new StreamWriter(filename, false);
+                            sw.Write(newText);
+                        }
+                        catch (UnauthorizedAccessException ex)
+                        {
+                            HandleIOException(filename, ex, log);
+                            text = null;
+                            resultCode = -1;
+                        }
+                        catch (IOException ex)
+                        {
+                            HandleIOException(filename, ex, log);
+                            text = null;
+                            resultCode = -1;
+                        }
+                        finally
+                        {
+                            if (sw != null)
+                            {
+                                sw.Close();
+                            }
+                        }
+
+                        if (settings.IsDateTimeReset)
+                        {
+                            try
+                            {
+                                File.SetCreationTime(filename, creationTime);
+                                File.SetLastAccessTime(filename, lastAccessTime);
+                                File.SetLastWriteTime(filename, lastWriteTime);
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Console.WriteLine("Warning: could not reset file datetime for '" + Path.GetFileName(filename) + "': " + ex.GetBaseException().Message);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    if (settings.IsErrorNoMatch && !settings.Text1.Equals(settings.Text2))
+                    {
+                        log.AddInfo("No match for '" + settings.Text1 + "'");
+                        throw new ToolException("ERROR: No match for '" + settings.Text1 + "'");
+                    }
+
+                    message = (settings.IsFindOnly) ? "no match" : "no modifications needed";
+                    if (excludeCount > 0)
+                    {
+                        message += " (" + excludeCount + " matches were excluded)";
+                    }
+                    log.AddInfo(message);
+                }
+            }
         }
 
         protected virtual string[] SelectFiles(string path, SIFToolSettings settings, Log log)
@@ -589,7 +591,7 @@ namespace Sweco.SIF.ReplaceText
             StringComparison sc = StringComparison.OrdinalIgnoreCase;
             if (matchCase)
             {
-                sc = StringComparison.Ordinal;
+                sc = StringComparison.Ordinal; //Ordinal;
             }
 
             if (toReplace == null)

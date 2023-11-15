@@ -55,6 +55,7 @@ namespace Sweco.SIF.ReplaceText
         public bool IsBinarySkipped { get; set; }
         public List<string> ExcludePatterns { get; set; }
         public bool IsMatchesShown { get; set; }
+        public bool IsMatchedStringShown { get; set; }
 
         /// <summary>
         /// If true, no text1/text2 are defined and only environment variables are replaced in the input file
@@ -85,7 +86,8 @@ namespace Sweco.SIF.ReplaceText
             IsBinarySkipped = true;
             ExcludePatterns = null;
             IsMatchesShown = false;
-		}
+            IsMatchedStringShown = true;
+        }
 
         /// <summary>
         /// Define the syntax of the tool as shown in the tool usage block. 
@@ -254,6 +256,12 @@ namespace Sweco.SIF.ReplaceText
             if (Filter.Contains(Path.DirectorySeparatorChar))
             {
                 throw new ToolException("Filter should not contain path separator(s): " + Filter);
+            }
+
+            // Check that Text1 is not empty
+            if ((Text1 != null) && Text1.Equals(string.Empty))
+            {
+                throw new ToolException("Please specify a non-empty string for text1");
             }
 
             // Check that when either Text1 or Text2 is specified, Text2/Text1 is also specified
