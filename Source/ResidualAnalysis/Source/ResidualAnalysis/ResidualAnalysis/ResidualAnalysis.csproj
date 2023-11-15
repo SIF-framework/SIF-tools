@@ -85,8 +85,8 @@ COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Common\Bin\$(PlatformName)\Swec
 COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.GIS\Bin\$(PlatformName)\Sweco.SIF.GIS.*" "$(ProjectDir)..\..\Libraries"
 COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.iMOD\Bin\$(PlatformName)\Sweco.SIF.iMOD.*" "$(ProjectDir)..\..\Libraries"
 COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Statistics\Bin\$(PlatformName)\Sweco.SIF.Statistics.*" "$(ProjectDir)..\..\Libraries"
-COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Spreadsheets\Bin\$(PlatformName)\Sweco.SIF.Spreadsheets.*" "$(ProjectDir)..\..\Libraries"
-COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Spreadsheets\Bin\$(PlatformName)\EPPlus.*" "$(ProjectDir)..\..\Libraries"
+COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Spreadsheets\Bin\AnyCPU\Sweco.SIF.Spreadsheets.*" "$(ProjectDir)..\..\Libraries"
+COPY "$(SolutionDir)..\..\Libraries\C#\Sweco.SIF.Spreadsheets\Bin\AnyCPU\EPPlus.*" "$(ProjectDir)..\..\Libraries"
 </PreBuildEvent>
   </PropertyGroup>
   <PropertyGroup>

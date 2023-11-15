@@ -64,6 +64,11 @@ namespace Sweco.SIF.ResidualAnalysis
         protected static int MinBinCount = 4;
 
         /// <summary>
+        /// Mask IDF-file with zones that correspond to masked values in settings
+        /// </summary>
+        protected IDFFile maskIDFFile = null;
+
+        /// <summary>
         /// Entry point of tool
         /// </summary>
         /// <param name="args">command-line arguments</param>
@@ -1778,8 +1783,35 @@ namespace Sweco.SIF.ResidualAnalysis
 
         protected virtual bool IsIPFPointMasked(IPFPoint ipfPoint, int layer, SIFToolSettings settings, Log log, int logIndentLevel)
         {
-            // Currently all points are processed
-            return false;
+            bool isSkipped = false;
+            if (settings.MaskIDFFilename != null)
+            {
+                if (maskIDFFile == null)
+                {
+                    Log.AddInfo("Reading pointer IDF-file: " + Path.GetFileName(settings.MaskIDFFilename) + " ...", logIndentLevel);
+                    maskIDFFile = IDFFile.ReadFile(settings.MaskIDFFilename);
+                }
+
+                float pointerValue = maskIDFFile.GetValue((float)ipfPoint.X, (float)ipfPoint.Y);
+                if (!pointerValue.Equals(float.NaN) && !pointerValue.Equals(maskIDFFile.NoDataValue))
+                {
+                    for (int i = 0; i < settings.MaskIDFValues.Length; i++)
+                    {
+                        if (pointerValue.Equals(settings.MaskIDFValues[i]))
+                        {
+                            isSkipped = true;
+                            break;
+                            // If pointervalue is NoData don't skip
+                        }
+                    }
+                }
+                else
+                {
+                    isSkipped = true;
+                }
+            }
+
+            return isSkipped;
         }
 
         protected virtual void RetrieveHistogramClasses(List<float> residualValues, out List<float> histogramClasses, out int binCount, SIFToolSettings settings)
