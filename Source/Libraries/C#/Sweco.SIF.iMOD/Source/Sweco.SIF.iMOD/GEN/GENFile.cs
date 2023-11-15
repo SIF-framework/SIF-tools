@@ -26,7 +26,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD.Legends;
@@ -718,7 +717,7 @@ namespace Sweco.SIF.iMOD.GEN
         /// <summary>
         /// Add feature (as defined by a list of points and an ID) to GEN-file
         /// </summary>
-        /// <param name="points"></param>
+        /// <param name="points">feature points; ensure polygons are closed: equal first and last point</param>
         /// <param name="id">id value</param>
         /// <param name="isIDRecalculated"></param>
         /// <param name="startID"></param>
@@ -731,7 +730,7 @@ namespace Sweco.SIF.iMOD.GEN
         /// <summary>
         /// Add feature (as defined by a list of points and an ID) to GEN-file
         /// </summary>
-        /// <param name="points"></param>
+        /// <param name="points">feature points; ensure polygons are closed: equal first and last point</param>
         /// <param name="id">id string</param>
         /// <param name="isIDRecalculated"></param>
         /// <param name="startID"></param>
@@ -1252,22 +1251,6 @@ namespace Sweco.SIF.iMOD.GEN
             clippedGENFile.fileExtent = (fileExtent != null) ? fileExtent.Copy() : null;
             clippedGENFile.modifiedExtent = (clipExtent != null) ? clipExtent.Copy() : null;
             clippedGENFile.extent = (clipExtent != null) ? clipExtent.Copy() : null;
-
-            //if (DATFile != null)
-            //{
-            //    DATFile clippedDATFile = new DATFile(clippedGENFile);
-            //    clippedGENFile.DATFile = clippedDATFile;
-            //    clippedGENFile.DATFile.ColumnNames.AddRange(DATFile.ColumnNames);
-            //    for (int clippedFeatureIdx = 0; clippedFeatureIdx < clippedGENFile.Features.Count; clippedFeatureIdx++)
-            //    {
-            //        GENFeature clippedFeature = clippedGENFile.Features[clippedFeatureIdx];
-            //        string clippedFeatureId = clippedFeature.ID;
-            //        if (DATFile.ContainsID(clippedFeatureId))
-            //        {
-            //            clippedDATFile.AddRow(DATFile.GetRow(clippedFeatureId).Copy());
-            //        }
-            //    }
-            //}
 
             if (Legend != null)
             {

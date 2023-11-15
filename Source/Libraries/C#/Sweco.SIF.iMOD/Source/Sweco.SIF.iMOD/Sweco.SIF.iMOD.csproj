@@ -109,6 +109,7 @@
     <Compile Include="IMF\Map.cs" />
     <Compile Include="IMF\Overlay.cs" />
     <Compile Include="IMODFile.cs" />
+    <Compile Include="IPF\ConcaveHull.cs" />
     <Compile Include="IPF\IPFCluster.cs" />
     <Compile Include="IPF\IPFFile.cs" />
     <Compile Include="IPF\IPFLegend.cs" />

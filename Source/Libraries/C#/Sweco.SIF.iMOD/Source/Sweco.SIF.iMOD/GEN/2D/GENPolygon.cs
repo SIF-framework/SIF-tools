@@ -180,7 +180,7 @@ namespace Sweco.SIF.iMOD.GEN
             DATFile clippedDATFile = CreateDATFile(clippedGENFile, this.GENFile, DATFile.SourceIDColumnName);
             int sourceIDColIdx = clippedDATFile.GetColIdx(DATFile.SourceIDColumnName);
 
-            // Clip feature
+            // Clip feature: CSHFClipper requires not to close polygons; make copy of point list to prevent removal of points in source features
             List<Point> pointList1 = this.Points.ToList();
             pointList1.RemoveAt(pointList1.Count - 1);
             List<Point> pointList2 = clipPolygon.Points.ToList();
@@ -206,8 +206,9 @@ namespace Sweco.SIF.iMOD.GEN
         /// Clips this polygon without DATRow to specified clip extent. Note: ensure order of points is defined clockwise as this defines inside/outside.
         /// </summary>
         /// <param name="clipExtent"></param>
+        /// <param name="isClockwise">specify boolean true (or false) if points are known to be clockwise (or not), use null if uncertain and points should be checked</param>
         /// <returns></returns>
-        public List<GENPolygon> ClipPolygonWithoutDATRow(Extent clipExtent)
+        public List<GENPolygon> ClipPolygonWithoutDATRow(Extent clipExtent, bool? isClockwise = null)
         {
             List<GENPolygon> clippedGENPolygons = new List<GENPolygon>();
             GENFile clippedGENFile = new GENFile();
@@ -227,16 +228,18 @@ namespace Sweco.SIF.iMOD.GEN
             }
             else
             {
+                bool isSourcePolygonClockWise = (isClockwise != null) ? ((bool)isClockwise) : GISUtils.IsClockwise(this.Points);
+
                 // Clip feature
                 List<Point> extentPoints = clipExtent.ToPointList();
                 extentPoints.RemoveAt(extentPoints.Count - 1);
-                List<Point> clippedPointList = CSHFClipper.ClipPolygon(this.Points, extentPoints); // pointList1
+                List<Point> clippedPointList = CSHFClipper.ClipPolygon(this.Points, extentPoints, isClockwise); // pointList1
                 if ((clippedPointList != null) && (clippedPointList.Count > 0))
                 {
                     clippedPointList.Add(clippedPointList[0]);
                     GENPolygon clippedGENPolygon = new GENPolygon(clippedGENFile, ID, clippedPointList);
                     clippedGENPolygon.RemoveDuplicatePoints();
-                    if (GISUtils.IsClockwise(this.Points) != GISUtils.IsClockwise(clippedGENPolygon.Points))
+                    if (isSourcePolygonClockWise != GISUtils.IsClockwise(clippedGENPolygon.Points))
                     {
                         // Ensure order of clipped points is same as source polygon
                         clippedGENPolygon.ReversePoints();
@@ -252,6 +255,11 @@ namespace Sweco.SIF.iMOD.GEN
             return clippedGENPolygons;
         }
 
+        /// <summary>
+        /// Check if specified point is inside this GEN-polygon
+        /// </summary>
+        /// <param name="point"></param>
+        /// <returns></returns>
         public bool Contains(Point point)
         {
             return point.IsInside(this.Points);
@@ -303,7 +311,8 @@ namespace Sweco.SIF.iMOD.GEN
                         clippedGENPolygon.ReversePoints();
                     }
 
-                    if (clippedGENPolygon.CalculateArea() > 0)
+                    // Skip empty polygons, but do add polygons with negative area which should be islands
+                    if (!clippedGENPolygon.CalculateArea().Equals(0))
                     {
                         // Add DATRow
                         DATRow datRow = clippedGENPolygon.AddDATRow(this);

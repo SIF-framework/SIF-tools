@@ -46,6 +46,7 @@ namespace Sweco.SIF.GIS
         /// <summary>
         /// Check if points of polygon are defined in a clockwise direction.
         /// </summary>
+        /// <param name="polygonPoints">list of polygon point, either closed or not closed</param>
         /// <returns></returns>
         public static bool IsClockwise(List<Point> polygonPoints)
         {

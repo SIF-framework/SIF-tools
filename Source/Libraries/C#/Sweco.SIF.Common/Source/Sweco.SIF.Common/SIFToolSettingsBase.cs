@@ -348,7 +348,7 @@ namespace Sweco.SIF.Common
                             }
                             else
                             {
-                                throw new Exception("Invalid number of option parameters for log format string: " + logString + ". Use {...} instead of {0} for multiple values");
+                                throw new Exception("Invalid number of option parameters for log format string: " + logString + ". Use {...} instead of {0} for multiple values. Do not use {...} for obligatory parameters.");
                             }
                         }
                         optionParameterValues = formattedOptionParameterValues;
@@ -1076,7 +1076,7 @@ namespace Sweco.SIF.Common
             {
                 if (toolUsageOptionDescriptions.ContainsKey(groupIndex))
                 {
-                    int idx = FindToolOptionDescriptionListIndex(name);
+                    int idx = FindToolOptionDescriptionListIndex(name, groupIndex);
                     if (idx >= 0)
                     {
                         // Replace option description

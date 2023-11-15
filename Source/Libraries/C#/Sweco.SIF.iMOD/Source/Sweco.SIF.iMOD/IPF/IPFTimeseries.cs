@@ -559,7 +559,7 @@ namespace Sweco.SIF.iMOD.IPF
                             string rowString = timestamp.Year.ToString() + timestamp.Month.ToString("D2") + timestamp.Day.ToString("D2");
                             if (isTimeComponentDefined)
                             {
-                                rowString += timestamp.Hour.ToString("D2") + timestamp.Second.ToString("D2") + timestamp.Minute.ToString("D2");
+                                rowString += timestamp.Hour.ToString("D2") + timestamp.Minute.ToString("D2") + timestamp.Second.ToString("D2");
                             }
                             for (int colIdx = 0; colIdx < ValueColumns.Count; colIdx++)
                             {

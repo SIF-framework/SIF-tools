@@ -63,7 +63,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
                 bool hasHyperlinkStyle = false;
                 for (int styleIdx = 0; styleIdx < epplusWorkbook.Styles.NamedStyles.Count; styleIdx++)
                 {
-                    if (epplusWorkbook.Styles.NamedStyles[styleIdx].Name.Equals("HyperLink"))
+                    if (epplusWorkbook.Styles.NamedStyles[styleIdx].Name.ToLower().Equals("hyperlink"))
                     {
                         hasHyperlinkStyle = true;
                         styleIdx = epplusWorkbook.Styles.NamedStyles.Count;

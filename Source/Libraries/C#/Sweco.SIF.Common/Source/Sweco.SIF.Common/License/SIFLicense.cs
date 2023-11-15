@@ -42,7 +42,7 @@ namespace Sweco.SIF.Common
         /// <summary>
         /// Current version of this SIF/license-type 
         /// </summary>
-        protected const string SIFVersion = "1.2.0.0";
+        protected const string SIFVersion = "2.1.0.0";
 
         /// <summary>
         /// Short name of license holder as used in written text

@@ -505,7 +505,7 @@ namespace Sweco.SIF.iMOD
         private string AddMetadataValue(string value1, string value2)
         {
             // Overwrite value1 string if '=' symbol is prefixed before value2
-            if (value2.StartsWith(MetadataSettings.OverwritePrefix) && (value2.Length > 1))
+            if (value2.StartsWith(MetadataSettings.OverwritePrefix) && (value2.Length >= 1))
             {
                 return value2.Substring(1);
             }
@@ -556,7 +556,7 @@ namespace Sweco.SIF.iMOD
         public static string RemovePrefixes(string value)
         {
             // remove dash (-) symbol when text is started with it
-            if ((value.Length > 1) && value.StartsWith(MetadataSettings.Instance.OverwritePrefix))
+            if ((value.Length >= 1) && value.StartsWith(MetadataSettings.Instance.OverwritePrefix))
             {
                 return value.Substring(1);
             }

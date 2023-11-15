@@ -138,13 +138,14 @@ namespace Sweco.SIF.GIS.Clipping
         /// Note: an exception is thrown if all points are collineair or for polygons with less than 3 points.
         /// </summary>
         /// <remarks>
-        /// Code from: http://rosettacode.org/wiki/Sutherland-Hodgman_polygon_clipping. License: GNU Free Documentation License 1.2. 
+        /// Code from: https://www.rosettacode.org/wiki/Sutherland-Hodgman_polygon_clipping. License: GNU Free Documentation License 1.2. 
         /// Based on the psuedocode from: http://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman
         /// </remarks>
-        /// <param name="subjectPolygon">Can be concave or convex</param>
-        /// <param name="clipPolygon">Must be convex</param>
+        /// <param name="subjectPolygon">Can be concave or convex; do not close polygon by repeating first point at end</param>
+        /// <param name="clipPolygon">Must be convex; do not close polygon by repeating first point at end</param>
+        /// <param name="isClockwise">specify boolean true (or false) if points are known to be clockwise (or not), use null if uncertain and points should be checked</param>
         /// <returns>The intersection of the two polygons (or null)</returns>
-        public static List<Point> ClipPolygon(List<Point> subjectPolygon, List<Point> clipPolygon)
+        public static List<Point> ClipPolygon(List<Point> subjectPolygon, List<Point> clipPolygon, bool? isClockwise = null)
         {
             if (subjectPolygon.Count < 3 || clipPolygon.Count < 3)
             {
@@ -154,7 +155,8 @@ namespace Sweco.SIF.GIS.Clipping
             List<Point> outputList = subjectPolygon.ToList();
 
             //	Make sure polygon points have clockwise order
-            if (!IsClockwise(outputList))
+            bool isSourcePolygonClockWise = (isClockwise != null) ? ((bool)isClockwise) : IsClockwise(outputList);
+            if (!isSourcePolygonClockWise)
             {
                 outputList.Reverse();
             }
@@ -162,12 +164,12 @@ namespace Sweco.SIF.GIS.Clipping
             //	Walk around the clip polygon clockwise
             foreach (LineSegment clipEdge in IterateEdgesClockwise(clipPolygon))
             {
-                List<Point> inputList = outputList.ToList();		//	clone it
+                List<Point> inputList = outputList.ToList();		// clone it
                 outputList.Clear();
 
                 if (inputList.Count == 0)
                 {
-                    //	Sometimes when the polygons don't intersect, this list goes to zero.  Jump out to avoid an index out of range exception
+                    // Sometimes when the polygons don't intersect, this list goes to zero.  Jump out to avoid an index out of range exception
                     break;
                 }
 

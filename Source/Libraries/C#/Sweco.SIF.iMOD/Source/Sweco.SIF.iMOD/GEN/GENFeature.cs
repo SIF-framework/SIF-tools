@@ -382,7 +382,8 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
-        /// Copies DATRow of given feature to DATRow of this GEN-feature. New columns of other GENFeature are added. Values are copied to corresponding columns (using string.Empty as a default).
+        /// Copies DATRow of specified feature to DATRow of this GEN-feature. New columns of other GENFeature are added. Values are copied to corresponding columns (using string.Empty as a default).
+        /// If specified feature does not have a DATRow, no DATRow is added and null is returned.
         /// </summary>
         /// <param name="copiedFeature"></param>
         /// <returns>Copied DATRow is added but also returned</returns>

@@ -131,6 +131,7 @@ COPY "$(ProjectDir)..\..\Bin\$(PlatformName)\*" "$(ProjectDir)..\..\Bin"
     <PostBuildEvent>REM Copy results to Bin(-platform) folder
 COPY "$(TargetDir)$(TargetName).*" "$(ProjectDir)..\..\Bin\$(PlatformName)"
 COPY "$(TargetDir)EPPlus.*" "$(ProjectDir)..\..\Bin\$(PlatformName)"
+ECHO Note: platform=$(PlatformName)
 DEL /Q "$(ProjectDir)..\..\Bin\*.*"</PostBuildEvent>
   </PropertyGroup>
 </Project>

@@ -19,6 +19,7 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with Sweco.SIF.Spreadsheets. If not, see <https://www.gnu.org/licenses/>.
+using Sweco.SIF.Common.ExceptionHandling;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -76,6 +77,33 @@ namespace Sweco.SIF.Spreadsheets
                 retVal = retVal + colNum * (int)Math.Pow(26, col.Length - (iChar + 1));
             }
             return retVal;
+        }
+
+        /// <summary>
+        /// Retrieve sheet index from a string with either a sheet name or a sheet number in specified workbook
+        /// Note: -1 is returned for an invalid sheet ID
+        /// </summary>
+        /// <param name="workbook"></param>
+        /// <param name="sheetID"></param>
+        /// <returns>zero-based sheet index or -1 for an invalid sheet ID</returns>
+        public static int FindSheetIndex(IWorkbook workbook, string sheetID)
+        {
+            int sheetIdx = workbook.FindSheetIndex(sheetID);
+            if (sheetIdx < 0)
+            {
+                if (!int.TryParse(sheetID, out int sheetNr))
+                {
+                    return -1;
+                }
+
+                sheetIdx = sheetNr - 1;
+                if ((sheetIdx < 0) || (sheetIdx >= workbook.Sheets.Count))
+                {
+                    return -1;
+                }
+            }
+
+            return sheetIdx;
         }
 
         /// <summary>

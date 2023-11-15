@@ -465,7 +465,8 @@ namespace Sweco.SIF.iMOD.GEN
         /// Add a row with values to this DAT-file. When the number of values doesn't match the number of columns a ToolException is thrown.
         /// When a row with the same ID already exists, an ToolException is thrown (when IsErrorOnDuplicateID is true) or the new row is ignored without a warning.
         /// </summary>
-        /// <param name="row"></param>
+        /// <param name="row">DAT-row, ensure values match column definitions of DAT-file</param>
+        /// <param name="checkDuplicateIDs">if true: duplicate IDs are ignored, unless IsErrorOnDuplicateID==true, then a ToolExpection is thrown</param>
         public void AddRow(DATRow row, bool checkDuplicateIDs = true)
         {
             // Check that number of values matches column count
@@ -776,13 +777,20 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
-        /// Does basic check on columns: currently is only checked that columncount is larger than zero
+        /// Does basic checks on columns: currently is only checked that columncount is larger than zero and double quotes are removed from columnnames
         /// </summary>
         private void CheckColumns()
         {
             if (ColumnNames.Count == 0)
             {
                 throw new Exception("No columnnames found in DAT-file");
+            }
+
+            // Remove double quotes
+            for (int colIdx = 0; colIdx < ColumnNames.Count; colIdx++)
+            {
+                
+                ColumnNames[colIdx] = ColumnNames[colIdx].Replace("\"", string.Empty);
             }
             //// Check for "ID"-name in first column. Note: this is not mandatory, iMOD doesn't create an ID column itself for converted shapefiles ...
             //if (!columnNames[0].ToUpper().Equals(IDColumnName))
