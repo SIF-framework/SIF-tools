@@ -50,8 +50,17 @@ The following third party libraries are used in some of the SIF-tools:
   See:
   https://www.nuget.org/packages/Newtonsoft.Json/13.0.1
   https://www.newtonsoft.com/json
+* MIConvexHull for retrieving a convex hull aorund points
+  It has the following license: The MIT License (MIT). 
+  The dll is used in and merged with IDFGENconvert.exe 
+  See: https://github.com/DesignEngrLab/MIConvexHull
+* ClipperLib, version 6.4.2 (27 February 2017), for clipping polygons
+  It has the following license: Boost Software License - Version 1.0 (August 17th, 2003)
+  The source code is used in Sweco.SIF.GIS.dll
+  See: https://angusj.com/clipper2/Docs/Overview.htm
 These third party libraries are downloaded/installed via Visual Studio's 
 NuGet Packager Manager. Check above NuGet webpages for more information.
+
 
 # 2. Documentation
 The SIF-tools are part of SIF-basis, a framework by Sweco for working with 
@@ -79,6 +88,7 @@ and use when run without parameters. Currently the following tools are available
 | IDFinfo       | For retrieving info about IDF-file (e.g. extent, cellsize, nr of values) |
 | IDFmath       | For simple math operations on IDF-files (use IDFexp if complex)  |
 | IDFresample   | For resampling values in IDF-file with nearest neighbor method   |
+| IDFselect     | For selection of cells in IDF-files                              |
 | IDFvoxel      | For manipulation of voxel IDF-files or creation from GeoTOP CSV-files |
 | IMFcreate     | For creating iMOD IMF-files with specified iMOD-files, legends, etc. |
 | iMODclip      | For clipping iMOD-files (IDF/ASC/IPF) to specified extent        |
@@ -99,10 +109,12 @@ and use when run without parameters. Currently the following tools are available
 | ReplaceText   | For replacing text in one or more files, optionally using regular expressions |
 | ResidualAnalysis | For comparison of residuals in IPF-files and formatting in Excelsheet |
 | Tee           | For teeing standard output of a command to both standard output and file |
+| URLdownload   | For downloading files via somne URL                                      |
 | [WorkflowViz](https://github.com/SIF-framework/SIF-tools/tree/main/Source/WorkflowViz)   | For visualisation of SIF-workflows with GraphViz-graphs          |
 
 The tools are build and tested for Windows 10, 64bit (x64) with .NET Framework 4.5.
 A release can be downloaded via: https://github.com/SIF-framework/SIF-tools/releases
+
 
 # 3. Build
 For building the SIF-tools, Visual Studio Express 2017 was used. 

@@ -52,10 +52,16 @@ The following third party libraries are used in some of the SIF-tools:
   https://www.newtonsoft.com/json
 - MIConvexHull for retrieving a convex hull aorund points
   It has the following license: The MIT License (MIT). 
-  The dll is usedd in en merged with IDFGENconvert.exe 
+  The dll is used in and merged with IDFGENconvert.exe 
   See: https://github.com/DesignEngrLab/MIConvexHull
-These third party libraries are downloaded/installed via Visual Studio's 
+- ClipperLib, version 6.4.2 (27 February 2017), for clipping polygons
+  It has the following license: Boost Software License - Version 1.0 (August 17th, 2003)
+  The source code is used in Sweco.SIF.GIS.dll
+  See: https://angusj.com/clipper2/Docs/Overview.htm
+  
+Some of these third party libraries are downloaded/installed via Visual Studio's 
 NuGet Packager Manager. Check above NuGet webpages for more information.
+
 
 2. Documentation
 ----------------
@@ -84,6 +90,7 @@ IDFGENconvert           For IDF-GEN (convex hull) or GEN-IDF (polygons/lines) co
 IDFinfo                 For retrieving info about IDF-file (e.g. extent, cellsize, nr of values)
 IDFmath                 For simple math operations on IDF-files (use IDFexp if complex)
 IDFresample             For resampling values in IDF-file with nearest neighbor method or IDW
+IDFselect               For selection of cells in IDF-files
 IDFvoxel                For manipulation of voxel IDF-files or creation from GeoTOP CSV-files
 IMFcreate               For creating iMOD IMF-files with specified iMOD-files, legends, etc.
 iMODclip                For clipping iMOD-files (IDF/ASC/IPF) to specified extent
@@ -104,10 +111,12 @@ ReplaceLine             For replacing line at specified linenumber within a text
 ReplaceText             For replacing text in one or more files, optionally using regular expressions
 ResidualAnalysis        For comparison of residuals in IPF-files and formatting in Excelsheet
 Tee                     For teeing standard output of a command to both standard output and file
+URLdownload             For downloading files via somne URL
 WorkflowViz             For visualisation of SIF-workflows with GraphViz-graphs
 
 The tools are build and tested for Windows 10, 64bit (x64) with .NET Framework 4.5.
 A release can be downloaded via: https://github.com/SIF-framework/SIF-tools/releases
+
 
 3. Build
 --------
@@ -115,6 +124,9 @@ For building the SIF-tools, Visual Studio Express 2017 was used.
 For each tool there is a subdirectory Source with the solution file for the tool.
 
 0. For VSE2017, see: https://visualstudio.microsoft.com/vs/express
+   Note: Microsoft removed VS2017 Express from its server, VS2013 Express is 
+         still available and (except for some new language constructs) should
+         work as well. Otherwise try the a Visual Studio Community version.
 1. The SIF-source can be downloaded from: https://github.com/SIF-framework/SIF-tools
 2. Build the library solutions Sweco.SIF.* under the Libraries\C# directory:
    - Build both the 'Any CPU' and 'x64' configurations.
