@@ -151,7 +151,12 @@ namespace Sweco.SIF.ExcelMapper
                 Log.AddInfo("Reading Excelsheet '" + Path.GetFileName(settings.ExcelFilename) + "' ...");
                 excelManager = ExcelManagerFactory.CreateExcelManager(settings.ExcelFilename);
                 workbook = excelManager.OpenWorkbook(settings.ExcelFilename);
-                IWorksheet sheet = workbook.GetSheet(settings.SheetNumber - 1);
+                int sheetIdx = SpreadsheetUtils.FindSheetIndex(workbook, settings.SheetRef);
+                if (sheetIdx < 0)
+                {
+                    throw new ToolException("Specified sheet reference is neither an existing sheet name nor a valid sheet number: " + settings.SheetRef);
+                }
+                IWorksheet sheet = workbook.GetSheet(sheetIdx);
 
                 // Split base string line in seperate lines
                 List<List<int>> colIndicesList = new List<List<int>>();

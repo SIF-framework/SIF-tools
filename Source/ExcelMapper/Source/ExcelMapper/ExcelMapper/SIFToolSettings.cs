@@ -46,7 +46,7 @@ namespace Sweco.SIF.ExcelMapper
         public string InsertedString { get; set; }
         public string AppendedString { get; set; }
         public int StartRow { get; set; }
-        public int SheetNumber { get; set; }
+        public string SheetRef { get; set; }
         public List<string> ReplacedCellStrings { get; set; }
         public List<string> ReplacementCellStrings { get; set; }
         public bool IsEmptyCellAllowed { get; set; }
@@ -61,8 +61,8 @@ namespace Sweco.SIF.ExcelMapper
             BaseString = null;
             OutputFilename = null;
 
-            StartRow = 0;
-            SheetNumber = 0;
+            StartRow = 1;
+            SheetRef = "1";
             IsMerged = false;
             IsVarExpanded = false;
             IsBottomUp = false;
@@ -98,7 +98,7 @@ namespace Sweco.SIF.ExcelMapper
             AddToolOptionDescription("a", "Define appended string, or filename with appended string(s), to add to output after processing Excel-rows", null, "Append string: {0}", new string[] { "a1" });
             AddToolOptionDescription("i", "Define inserted string, or filename with inserted string(s), to add to output before processing Excel-rows", null, "Insert string: {0}", new string[] { "i1" });
             AddToolOptionDescription("r", "Start processing at row r1 of input sheet (one based, default is 1)", "/r:4", "Start processing at (one-based) row: {0}", new string[] { "r1" });
-            AddToolOptionDescription("s", "Use Excelsheet s1 for input (default 1)", "/s:2", "Process data from (one-based) sheet: {0}", new string[] { "s1" });
+            AddToolOptionDescription("s", "Use Excelsheet s1 (sheet name or number) for input (default 1)", "/s:2", "Process data from sheet: {0}", new string[] { "s1" });
             AddToolOptionDescription("m", "Do not overwrite an existing output file, but merge to existing outputfile", "/m", "Result is merged with existing output file");
             AddToolOptionDescription("p", "Replace substrings si in selected cellvalues with other strings ri (use English notation for values)", "/p:typeA,1,typeB,2", "The following search/replacement strings are used for cellvalues: {...}", new string[] { "s1", "r1" }, new string[] { "..." });
             AddToolOptionDescription("x", "Expand enviroment variables in output strings. Note: variables between {}-symbols are always expanded.", "/x", "Environment variables are expanded");
@@ -174,15 +174,11 @@ namespace Sweco.SIF.ExcelMapper
             {
                 if (hasOptionParameters)
                 {
-                    if (!int.TryParse(optionParametersString, out int intValue))
-                    {
-                        throw new ToolException("Could not parse value for option 's':" + optionParametersString);
-                    }
-                    SheetNumber = intValue;
+                    SheetRef = optionParametersString;
                 }
                 else
                 {
-                    throw new ToolException("Please specify sheet number index after 's:': " + optionParametersString);
+                    throw new ToolException("Please specify sheet ID (name or number) after 's:': " + optionParametersString);
                 }
             }
             else if (optionName.ToLower().Equals("a"))
@@ -277,20 +273,12 @@ namespace Sweco.SIF.ExcelMapper
             {
                 throw new ToolException("Value 1 or larger expected for option r");
             }
-            if (SheetNumber < 0)
+            if ((SheetRef == null) || SheetRef.Equals(string.Empty))
             {
-                throw new ToolException("Value 1 or larger expected for option s");
+                throw new ToolException("sheet ID cannot be empty for option s");
             }
 
             // Set default values
-            if (StartRow == 0)
-            {
-                StartRow = 1;
-            }
-            if (SheetNumber == 0)
-            {
-                SheetNumber = 1;
-            }
         }
     }
 }
