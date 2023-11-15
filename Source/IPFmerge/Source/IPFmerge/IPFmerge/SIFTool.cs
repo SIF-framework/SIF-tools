@@ -81,7 +81,7 @@ namespace Sweco.SIF.IPFmerge
         protected override void DefineToolProperties()
         {
             AddAuthor("Koen van der Hauw");
-            ToolPurpose = "SIF-tool for for merging multiple IPF-files to a single IPF-file";
+            ToolPurpose = "SIF-tool for merging multiple IPF-files to a single IPF-file";
         }
 		
         /// <summary>
