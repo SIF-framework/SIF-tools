@@ -51,7 +51,7 @@ namespace Sweco.SIF.IPFreorder
         public string[] TargetColumnNames { get; set; }            // new column names in target IPF-file for constant values
         public string[] TargetColumnExpressions { get; set; }      // constant values
         public string[] RemovedColumnNames { get; set; }           // column names of renamed or deleted columns 
-        public int AssociatedFileColumnIndex { get; set; }
+        public string AssociatedFileColumnRef { get; set; }
 
         /// <summary>
         /// If true, no timeseries are read and/or written
@@ -77,7 +77,7 @@ namespace Sweco.SIF.IPFreorder
             TargetColumnNames = null;
             TargetColumnExpressions = null;
             RemovedColumnNames = null;
-            AssociatedFileColumnIndex = -1;
+            AssociatedFileColumnRef = null;
             IsTimeseriesSkipped = false;
             TimeseriesPath = null;
         }
@@ -104,7 +104,7 @@ namespace Sweco.SIF.IPFreorder
                                                 + "Notes: when no column definitions are specified, all columns are copied without reordering.\n"
                                                 + "       environment variables are replaced before evaluating column definitions.",
                                                 "1 2 3;ID +ColumnA;\"some value\"", true, new int[] { 0 });
-            AddToolOptionDescription("a", "define column number (in new IPF-file) of associated files, use 0 for IPF-files without associated files\n"
+            AddToolOptionDescription("a", "define column (in new IPF-file) of associated files, use name or number or use 0 for no associated files\n"
                                         + "if not specified, for columns with existing associated files, the index is corrected for the new order", "/a:3", "Column index of associated files: {0}", new string[] { "i" }, null, null, new int[] { 0, 1 } );
             AddToolOptionDescription("o", "overwrite existing target IPF-files; if not specified, existing files will be skipped", "/o", "Existing output files are overwritten", null, null, null, new int[] { 0, 1 });
             AddToolOptionDescription("r", "process input path recursively", "/r", "Input path is processed recursively", null, null, null, new int[] { 0, 1 });
@@ -205,16 +205,11 @@ namespace Sweco.SIF.IPFreorder
             {
                 if (hasOptionParameters)
                 {
-                    // split option parameter string into comma seperated substrings
-                    if (!int.TryParse(optionParametersString, out int idx))
-                    {
-                        throw new ToolException("Invalid column number for option 'a': " + optionParametersString);
-                    }
-                    AssociatedFileColumnIndex = idx;
+                    AssociatedFileColumnRef = optionParametersString;
                 }
                 else
                 {
-                    throw new ToolException("Could not parse values for option '" + optionName + "':" + optionParametersString);
+                    throw new ToolException("Missing column reference for option '" + optionName + "':" + optionParametersString);
                 }
             }
             else
@@ -341,11 +336,6 @@ namespace Sweco.SIF.IPFreorder
             catch (Exception ex)
             {
                 throw new ToolException("Specified output path is not a valid file- or directoryname: " + ex.GetBaseException().Message);
-            }
-
-            if (AssociatedFileColumnIndex < -1)
-            {
-                throw new ToolException("Value 0 or larger expected for option 'a': " + AssociatedFileColumnIndex);
             }
         }
     }

@@ -388,10 +388,21 @@ namespace Sweco.SIF.IPFreorder
 
             // Update text column idx 
             targetIPFFile.AssociatedFileColIdx = -1;
-            if (settings.AssociatedFileColumnIndex >= 0)
+            if (settings.AssociatedFileColumnRef != null)
             {
+                int idx = targetIPFFile.FindColumnIndex(settings.AssociatedFileColumnRef);
+                if (idx < 0)
+                {
+                    // split option parameter string into comma seperated substrings
+                    if (!int.TryParse(settings.AssociatedFileColumnRef, out int nr))
+                    {
+                        throw new ToolException("Invalid column reference for associated file: " + settings.AssociatedFileColumnRef);
+                    }
+                    idx = nr - 1;
+                }
+
                 // Set user specified column index
-                targetIPFFile.AssociatedFileColIdx = settings.AssociatedFileColumnIndex - 1;
+                targetIPFFile.AssociatedFileColIdx = idx;
             }
             else
             {
