@@ -68,7 +68,7 @@ namespace Sweco.SIF.LayerManager.LayerModels
         /// Define if checks should report unexpected kdc values with default values in dummy layers.
         /// Often these values are set in the model just to prevent a zero value in dummy layers
         /// </summary>
-        public static bool IsDummyDefaultKDCSkipped = true;
+        public static bool IsDummyDefaultKDCWarningSkipped = true;
 
         public string LayerName { get; set; }
         public int ModellayerNumber { get; set; }
@@ -446,7 +446,7 @@ namespace Sweco.SIF.LayerManager.LayerModels
                     else
                     {
                         // If specified, check for the defined minimal kDc-value)
-                        if (!IsDummyDefaultKDCSkipped &&
+                        if (!IsDummyDefaultKDCWarningSkipped &&
                             (((LayerType == LayerType.Aquifer) && (kdcValue.Equals(Properties.Settings.Default.DefaultKDValue)))
                             || ((LayerType == LayerType.Aquitard) && (kdcValue.Equals(Properties.Settings.Default.DefaultCValue)))))
                         {
@@ -472,7 +472,7 @@ namespace Sweco.SIF.LayerManager.LayerModels
                     // Note: no thickness is checked with equality of TOP and BOT, ignore small differences (below Layer.LevelTolerance)
                     if (!kdcValue.Equals(0) && !kdcValue.Equals(KDCIDFFile.NoDataValue))
                     {
-                        if (!IsDummyDefaultKDCSkipped ||
+                        if (!IsDummyDefaultKDCWarningSkipped ||
                             (((LayerType == LayerType.Aquifer) && !(kdcValue.Equals(Properties.Settings.Default.DefaultKDValue)))
                             || ((LayerType == LayerType.Aquitard) && !(kdcValue.Equals(Properties.Settings.Default.DefaultCValue)))))
                         {

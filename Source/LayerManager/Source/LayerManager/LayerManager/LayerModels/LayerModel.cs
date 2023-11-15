@@ -365,7 +365,21 @@ namespace Sweco.SIF.LayerManager.LayerModels
                                     lowerAquiferThicknessIDFFile = (lowerBotIDFFile != null) ? (lowerTopIDFFile - lowerBotIDFFile) : null;
                                     if (lowerAquiferThicknessIDFFile != null)
                                     {
-                                        IDFFile cAqf2 = (lowerAquiferThicknessIDFFile * 0.5f) / (KVAIDFFiles[layerNumber + 1] * KHVIDFFiles[layerNumber + 1]);
+                                        IDFFile lowerKVAIDFFile = RetrieveIDFFileOrDefault(KVAIDFFiles[layerNumber + 1], 1f);
+                                        IDFFile lowerKHVIDFFile = KHVIDFFiles[layerNumber + 1];
+                                        if (lowerKHVIDFFile == null)
+                                        {
+                                            if (useDefaultKDCValues)
+                                            {
+                                                lowerKHVIDFFile = new ConstantIDFFile(Properties.Settings.Default.DefaultKHValue);
+                                            }
+                                            else
+                                            {
+                                                throw new ToolException("KHV-file not found for layer " + (layerNumber + 1) + ", C cannot be calculated");
+                                            }
+                                        }
+                                        
+                                        IDFFile cAqf2 = (lowerAquiferThicknessIDFFile * 0.5f) / (lowerKVAIDFFile * lowerKHVIDFFile);
                                         cAqf2.NoDataCalculationValue = 0;
                                         VCWIDFFiles[layerNumber] += cAqf2;
                                     }
@@ -394,6 +408,25 @@ namespace Sweco.SIF.LayerManager.LayerModels
             if (isMemoryReleased)
             {
                 ReleaseMemory(true, true, true, true, true, isWritten, isWritten);
+            }
+        }
+
+        /// <summary>
+        /// Always returns an IDF-file: either the specified IDF-file if not null, or otherwise a ConstantIDFFile with specified value
+        /// </summary>
+        /// <param name="idfFile"></param>
+        /// <param name="defaultValue"></param>
+        /// <returns></returns>
+        protected IDFFile RetrieveIDFFileOrDefault(IDFFile idfFile, float defaultValue)
+        {
+            if (idfFile == null)
+            {
+                // Assume constant 1.0 for missing KVA-files
+                return new ConstantIDFFile(1f);
+            }
+            else
+            {
+                return idfFile;
             }
         }
 

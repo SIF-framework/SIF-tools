@@ -84,8 +84,9 @@ namespace Sweco.SIF.LayerManager
         public bool IsDeleteFiles { get; set; }
         public bool IsModelChecked { get; set; }
         public bool IsKDCCalculated { get; set; }
+        public bool IsSkipWriteKDCDefault { get; set; }
         public bool IsLayerGroupLevelMerged { get; set; }
-        public bool IsDummyDefaultKDCSkipped { get; set; }
+        public bool IsDummyDefaultKDCWarningSkipped { get; set; }
         public Extent Extent { get; set; }
 
         /// <summary>
@@ -126,10 +127,11 @@ namespace Sweco.SIF.LayerManager
             DefaultKVAValue = float.NaN;
 
             IsLayerGroupLevelMerged = true;
-            IsDummyDefaultKDCSkipped = false;
+            IsDummyDefaultKDCWarningSkipped = false;
             IsDeleteFiles = false;
             IsModelChecked = false;
             IsKDCCalculated = false;
+            IsSkipWriteKDCDefault = false;
             Extent = null;
         }
 
@@ -159,6 +161,7 @@ namespace Sweco.SIF.LayerManager
                                             "  - c: {1}\n" + 
                                             "  - thickness: {2}", null, new string[] { "p1", "p2", "p3" }, 
                                             new string[] { Properties.Settings.Default.kDSubdirname, Properties.Settings.Default.CSubdirName, Properties.Settings.Default.ThicknessSubdirname });
+            AddToolOptionDescription("kdcs", "Skip layers with missing kh-/kv-files in kDc-calculation", "/kdcs", "No kDc created for missing k-files");
             AddToolOptionDescription("d", "Delete all existing files in output folder(s)", "/d", "Existing files in output path are deleted");
             AddToolOptionDescription("e", "specify extent (xll,yll,xur,yur) to clip input IDF-files to", "/e:220000,550000,242000,570000", "Exent specified for clipping IDF-files: {0},{1},{2},{3}",
                                            new string[] { "xll", "yll", "xur", "yur" });
@@ -430,9 +433,13 @@ namespace Sweco.SIF.LayerManager
                     }
                 }
             }
+            else if (optionName.ToLower().Equals("kdcs"))
+            {
+                IsSkipWriteKDCDefault = true;
+            }
             else if (optionName.ToLower().Equals("s"))
             {
-                IsDummyDefaultKDCSkipped = true;
+                IsDummyDefaultKDCWarningSkipped = true;
             }
             else if (optionName.ToLower().Equals("t"))
             {

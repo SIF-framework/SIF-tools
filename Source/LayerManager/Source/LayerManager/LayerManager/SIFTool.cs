@@ -141,9 +141,9 @@ namespace Sweco.SIF.LayerManager
         /// <param name="settings"></param>
         protected virtual void PropagateSettings(SIFToolSettings settings)
         {
-            if (settings.IsDummyDefaultKDCSkipped)
+            if (settings.IsDummyDefaultKDCWarningSkipped)
             {
-                Layer.IsDummyDefaultKDCSkipped = true;
+                Layer.IsDummyDefaultKDCWarningSkipped = true;
             }
         }
 

@@ -247,41 +247,71 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
                         regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, LayerType.Aquifer, regisTopIDFFile, regisBotIDFFile, settings.Extent, log);
                         if (regisKDCIDFFile == null)
                         {
-                            throw new ToolException("No kh-, kv-, kD- or c-files were found: kD-values cannot be calculated");
+                            if (settings.IsSkipWriteKDCDefault)
+                            {
+                                log.AddInfo("Input k-file missing, writing of kD-file is skipped ...", logIndentLevel + 2);
+                            }
+                            else
+                            {
+                                throw new ToolException("No kh-, kv-, kD- or c-files were found: kD-values cannot be calculated");
+                            }
                         }
-                        // regisLayer = new Layer(layerName, regisModellayerNumber, LayerType.Aquifer, regisTopIDFFile, regisBotIDFFile, regisKDCIDFFile);
-                        string kdcFilename = Path.Combine(settings.OutputPath, Path.Combine(settings.OutputKDSubdirname, layerName + Properties.Settings.Default.REGISkDFilePostfix + ".IDF"));
-                        regisKDCIDFFile.WriteFile(kdcFilename);
-
-                        log.AddInfo("calculating c-values for " + REGISLayerModelMap.GetREGISPrefix(regisLayerModelMap.BOTFilenames[fileIdx]) + "-complex aquitard-part ...", logIndentLevel + 1);
-                        regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, LayerType.Aquitard, regisTopIDFFile, regisBotIDFFile, settings.Extent, log);
-                        if (regisKDCIDFFile == null)
+                        else
                         {
-                            throw new ToolException("No kh-, kv-, kD- or c-files were found: kD-values cannot be calculated");
+                            // regisLayer = new Layer(layerName, regisModellayerNumber, LayerType.Aquifer, regisTopIDFFile, regisBotIDFFile, regisKDCIDFFile);
+                            string kdcFilename = Path.Combine(settings.OutputPath, Path.Combine(settings.OutputKDSubdirname, layerName + Properties.Settings.Default.REGISkDFilePostfix + ".IDF"));
+                            regisKDCIDFFile.WriteFile(kdcFilename);
+
+                            log.AddInfo("calculating c-values for " + REGISLayerModelMap.GetREGISPrefix(regisLayerModelMap.BOTFilenames[fileIdx]) + "-complex aquitard-part ...", logIndentLevel + 1);
+                            regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, LayerType.Aquitard, regisTopIDFFile, regisBotIDFFile, settings.Extent, log);
+                            if (regisKDCIDFFile == null)
+                            {
+                                if (settings.IsSkipWriteKDCDefault)
+                                {
+                                    log.AddInfo("Input k-file missing, writing of c-file is skipped ...", logIndentLevel + 2);
+                                }
+                                else
+                                {
+                                    throw new ToolException("No kh-, kv-, kD- or c-files were found: c-values cannot be calculated");
+                                }
+                            }
+                            else
+                            {
+                                // regisLayer = new Layer(layerName, regisModellayerNumber, LayerType.Aquitard, regisTopIDFFile, regisBotIDFFile, regisKDCIDFFile);
+                                kdcFilename = Path.Combine(settings.OutputPath, Path.Combine(settings.OutputCSubdirname, layerName + Properties.Settings.Default.REGISCFilePostfix + ".IDF"));
+                                regisKDCIDFFile.WriteFile(kdcFilename);
+                            }
                         }
-                        // regisLayer = new Layer(layerName, regisModellayerNumber, LayerType.Aquitard, regisTopIDFFile, regisBotIDFFile, regisKDCIDFFile);
-                        kdcFilename = Path.Combine(settings.OutputPath, Path.Combine(settings.OutputCSubdirname, layerName + Properties.Settings.Default.REGISCFilePostfix + ".IDF"));
-                        regisKDCIDFFile.WriteFile(kdcFilename);
                     }
                     else
                     {
                         regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, regisLayerType, regisTopIDFFile, regisBotIDFFile, settings.Extent, log);
                         if (regisKDCIDFFile == null)
                         {
-                            throw new ToolException("No kh-, kv-, kD- or c-files were found: kD-values cannot be calculated");
-                        }
-                        // regisLayer = new Layer(layerName, regisModellayerNumber, regisLayerType, regisTopIDFFile, regisBotIDFFile, regisKDCIDFFile);
-                        string kdcFilename = null;
-                        if (regisLayerType == LayerType.Aquifer)
-                        {
-                            kdcFilename = Path.Combine(settings.OutputPath, Path.Combine(settings.OutputKDSubdirname, layerName + Properties.Settings.Default.REGISkDFilePostfix + ".IDF"));
+                            if (settings.IsSkipWriteKDCDefault)
+                            {
+                                log.AddInfo("Input k-file missing, writing of kD/c-file is skipped ...", logIndentLevel + 2);
+                            }
+                            else
+                            {
+                                throw new ToolException("No kh-, kv-, kD- or c-files were found: kD/c-values cannot be calculated");
+                            }
                         }
                         else
                         {
-                            kdcFilename = Path.Combine(settings.OutputPath, Path.Combine(settings.OutputCSubdirname, layerName + Properties.Settings.Default.REGISCFilePostfix + ".IDF"));
-                        }
+                            // regisLayer = new Layer(layerName, regisModellayerNumber, regisLayerType, regisTopIDFFile, regisBotIDFFile, regisKDCIDFFile);
+                            string kdcFilename = null;
+                            if (regisLayerType == LayerType.Aquifer)
+                            {
+                                kdcFilename = Path.Combine(settings.OutputPath, Path.Combine(settings.OutputKDSubdirname, layerName + Properties.Settings.Default.REGISkDFilePostfix + ".IDF"));
+                            }
+                            else
+                            {
+                                kdcFilename = Path.Combine(settings.OutputPath, Path.Combine(settings.OutputCSubdirname, layerName + Properties.Settings.Default.REGISCFilePostfix + ".IDF"));
+                            }
 
-                        regisKDCIDFFile.WriteFile(kdcFilename);
+                            regisKDCIDFFile.WriteFile(kdcFilename);
+                        }
                     }
                 }
             }
@@ -462,62 +492,71 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
                 }
             }
 
-            // File is not found. Create default file. 
-            if (layerType == LayerType.Aquitard)
+            // File is not found
+            if (!Settings.IsSkipWriteKDCDefault)
             {
-                if (regisLayerModelMap.HasVCWFiles() || regisLayerModelMap.HasKVVFiles())
+                // Create default file
+                if (layerType == LayerType.Aquitard)
                 {
-                    // Add log message only if other c or kv-files have been defined
-                    log.AddWarning("No c/kv-values found, using default kv-value (" + Properties.Settings.Default.DefaultKVValue + ") for " + topFilename, logIndentLevel);
-                }
-                idfFile = (IDFFile)topIDFFile.Copy(string.Empty);
-                for (int rowidx = 0; rowidx < idfFile.NRows; rowidx++)
-                {
-                    for (int colidx = 0; colidx < idfFile.NCols; colidx++)
+                    if (regisLayerModelMap.HasVCWFiles() || regisLayerModelMap.HasKVVFiles())
                     {
-                        float topValue = topIDFFile.values[rowidx][colidx];
-                        float botValue = botIDFFile.values[rowidx][colidx];
-                        if (!topValue.Equals(topIDFFile.NoDataValue) && !botValue.Equals(botIDFFile.NoDataValue))
+                        // Add log message only if other c or kv-files have been defined
+                        log.AddWarning("No c/kv-values found, using default kv-value (" + Properties.Settings.Default.DefaultKVValue + ") for " + topFilename, logIndentLevel);
+                    }
+                    idfFile = (IDFFile)topIDFFile.Copy(string.Empty);
+                    for (int rowidx = 0; rowidx < idfFile.NRows; rowidx++)
+                    {
+                        for (int colidx = 0; colidx < idfFile.NCols; colidx++)
                         {
-                            idfFile.values[rowidx][colidx] = (topValue - botValue) / Properties.Settings.Default.DefaultKVValue;
-                        }
-                        else
-                        {
-                            idfFile.values[rowidx][colidx] = 0;
+                            float topValue = topIDFFile.values[rowidx][colidx];
+                            float botValue = botIDFFile.values[rowidx][colidx];
+                            if (!topValue.Equals(topIDFFile.NoDataValue) && !botValue.Equals(botIDFFile.NoDataValue))
+                            {
+                                idfFile.values[rowidx][colidx] = (topValue - botValue) / Properties.Settings.Default.DefaultKVValue;
+                            }
+                            else
+                            {
+                                idfFile.values[rowidx][colidx] = 0;
+                            }
                         }
                     }
                 }
+                else
+                {
+                    idfFile = (IDFFile)topIDFFile.Copy(string.Empty);
+                    if (regisLayerModelMap.HasKDWFiles() || regisLayerModelMap.HasKHVFiles())
+                    {
+                        // Add log message only if other kD or kh-files have been defined
+                        log.AddWarning("No kD/kh-values found, using default kh-value (" + Properties.Settings.Default.DefaultKHValue + ") for " + topFilename, logIndentLevel);
+                    }
+                    for (int rowidx = 0; rowidx < idfFile.NRows; rowidx++)
+                    {
+                        for (int colidx = 0; colidx < idfFile.NCols; colidx++)
+                        {
+                            float topValue = topIDFFile.values[rowidx][colidx];
+                            float botValue = botIDFFile.values[rowidx][colidx];
+                            if (!topValue.Equals(topIDFFile.NoDataValue) && !botValue.Equals(botIDFFile.NoDataValue))
+                            {
+                                idfFile.values[rowidx][colidx] = (topValue - botValue) * Properties.Settings.Default.DefaultKHValue;
+                            }
+                            else
+                            {
+                                idfFile.values[rowidx][colidx] = 0;
+                            }
+                        }
+                    }
+                }
+
+                // Replace NoData-values by zero value
+                idfFile.ReplaceValues(idfFile.NoDataValue, 0);
+
+                return idfFile;
             }
             else
             {
-                idfFile = (IDFFile)topIDFFile.Copy(string.Empty);
-                if (regisLayerModelMap.HasKDWFiles() || regisLayerModelMap.HasKHVFiles())
-                {
-                    // Add log message only if other kD or kh-files have been defined
-                    log.AddWarning("No kD/kh-values found, using default kh-value (" + Properties.Settings.Default.DefaultKHValue + ") for " + topFilename, logIndentLevel);
-                }
-                for (int rowidx = 0; rowidx < idfFile.NRows; rowidx++)
-                {
-                    for (int colidx = 0; colidx < idfFile.NCols; colidx++)
-                    {
-                        float topValue = topIDFFile.values[rowidx][colidx];
-                        float botValue = botIDFFile.values[rowidx][colidx];
-                        if (!topValue.Equals(topIDFFile.NoDataValue) && !botValue.Equals(botIDFFile.NoDataValue))
-                        {
-                            idfFile.values[rowidx][colidx] = (topValue - botValue) * Properties.Settings.Default.DefaultKHValue;
-                        }
-                        else
-                        {
-                            idfFile.values[rowidx][colidx] = 0;
-                        }
-                    }
-                }
+                // No default was created
+                return null;
             }
-
-            // Replace NoData-values by zero value
-            idfFile.ReplaceValues(idfFile.NoDataValue, 0);
-
-            return idfFile;
         }
 
         protected void RetrieveLayerInfo(LayerModelMap regisLayerModelMap, int fileIdx, out LayerType layerType, out int layerNumber, Log log, int logIndentlevel)
