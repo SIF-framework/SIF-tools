@@ -47,18 +47,10 @@ namespace Sweco.SIF.iMODValidator.Checks
         public string MaxRelStageLevelChange { get; set; }
 
         [Category("Change-properties"), Description("The maximum valid absolute change in stage (m) this region"), PropertyOrder(11)]
-        public string MaxAbsStageLevelChange
-        {
-            get { return MaxAbsStageLevelChange1; }
-            set { MaxAbsStageLevelChange1 = value; }
-        }
+        public string MaxAbsStageLevelChange { get; set; }
 
         [Category("Change-properties"), Description("The minimum nunmber of surrounding cells with an exceeded stage change, before reporting a warning in this region"), PropertyOrder(12)]
-        public string MinStageChangeCellCount
-        {
-            get { return MinStageChangeCellCount1; }
-            set { MinStageChangeCellCount1 = value; }
-        }
+        public string MinStageChangeCellCount { get; set; }
 
         [Category("Change-properties"), Description("The maximum nunmber of surrounding cells with an exceeded stage change, for  reporting a warning in this region"), PropertyOrder(13)]
         public string MaxStageChangeCellCount { get; set; }
@@ -93,14 +85,11 @@ namespace Sweco.SIF.iMODValidator.Checks
         [Category("Orphan-properties"), Description("The minimum difference between a possible orphan cell and the most ocurring surrounding values to report it as an orphan cell"), PropertyOrder(35)]
         public string MinDifference { get; set; }
 
-        public string MaxAbsStageLevelChange1 { get; set; }
-        public string MinStageChangeCellCount1 { get; set; }
-
         public RIVSpatialCheckSettings(string checkName) : base(checkName)
         {
             MaxRelStageLevelChange = "0.04";
-            MaxAbsStageLevelChange1 = "2";
-            MinStageChangeCellCount1 = "6";
+            MaxAbsStageLevelChange = "2";
+            MinStageChangeCellCount = "6";
             MaxStageChangeCellCount = "8";
             MaxRelBottomLevelChange = "0.5";
             MaxAbsBottomLevelChange = "10";
@@ -118,8 +107,8 @@ namespace Sweco.SIF.iMODValidator.Checks
         public override void LogSettings(Log log, int logIndentLevel = 0)
         {
             log.AddInfo("MaxRelStageLevelChange: " + MaxRelStageLevelChange, logIndentLevel);
-            log.AddInfo("MaxAbsStageLevelChange: " + MaxAbsStageLevelChange1, logIndentLevel);
-            log.AddInfo("MinStageChangeCellCount: " + MinStageChangeCellCount1, logIndentLevel);
+            log.AddInfo("MaxAbsStageLevelChange: " + MaxAbsStageLevelChange, logIndentLevel);
+            log.AddInfo("MinStageChangeCellCount: " + MinStageChangeCellCount, logIndentLevel);
             log.AddInfo("MaxStageChangeCellCount: " + MaxStageChangeCellCount, logIndentLevel);
             log.AddInfo("MaxRelBottomLevelChange: " + MaxRelBottomLevelChange, logIndentLevel);
             log.AddInfo("MaxAbsBottomLevelChange: " + MaxAbsBottomLevelChange, logIndentLevel);

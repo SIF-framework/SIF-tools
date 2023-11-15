@@ -131,7 +131,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             // errorLegend.AddUpperRangeClass(CombinedResultLabel, true);
             // errorLegend.AddInbetweenClasses(CombinedResultLabel, true);
 
-            CheckWarning RangeWarning = new CheckWarning(1, "Level outside the expected range ["
+            CheckWarning RangeWarning = new CheckWarning(1, "RCH-value outside expected range ["
              + settings.MinRCH.ToString() + "," + settings.MaxRCH.ToString() + "]");
 
             IDFLegend warningLegend = new IDFLegend("Legend for RCH-file check");
