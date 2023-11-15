@@ -56,6 +56,7 @@ namespace Sweco.SIF.IDFGENconvert
         public string GridPar1String { get; set; }
         public string GridPar2String { get; set; }
         public float GridPar3 { get; set; }
+        public int GridPar4 { get; set; }
         public bool AddAngleIDFFile { get; set; }
         public bool AddLengthAreaIDFFile { get; set; }
         public bool IsIslandConverted { get; set; }
@@ -85,6 +86,7 @@ namespace Sweco.SIF.IDFGENconvert
             GridPar1String = null;  // column name or index for point, polygon or first line vertex
             GridPar2String = null;  // for polygons: method for overlap; for lines: column index for value at last/end vertex on line
             GridPar3 = float.NaN;   // method for cell overlap (for polygons), or max extrapolation distance (for lines)
+            GridPar4 = 1;           // method for aligning extent and cellsize
 
             AddAngleIDFFile = false;
             AddLengthAreaIDFFile = false;
@@ -113,7 +115,13 @@ namespace Sweco.SIF.IDFGENconvert
             AddToolUsageOptionPreRemark("\nFor IDF-GEN conversion:", 1);
             AddToolOptionDescription("h", "Create a hull of type h1:\n" +
                                           "0) no hull, just write IPF-points for all non-NoData IDF-cells\n" +
-                                          "1) convex hull based on cell centers (default)", "/h:1", "Hull of type {0} created for IDF-files", new string[] { "h1" }, null, null, 1);
+                                          "1) convex hull based on cell centers (default)" +
+                                          "2) concave hull based on cell centers\n" +
+                                          "3) outer edges of cells (GEN-lines)\n" +
+                                          "4) edges, as 3, but also write cell centers of outer cells (GEN-lines/IPF-points)\n" +
+                                          "5) as 4 but only write outer edges of outer cells, so islands in (convex) polygons are removed\n" +
+                                          "Add hull parameter h2 depending on h1:\n" +
+                                          "2) for concave hull, specify initial number of neighbours (k-value)", "/h:2,100", "Hull of type {0} created for IDF-files", new string[] { "h1" }, new string[] { "h2" }, new string[] { "3" }, new int[] { 1 });
             AddToolOptionDescription("m", "Merge all resulting GEN-features into one GEN-file with filename 'fname':\n" +
                                           "If no filename is given, the default is 'IDFconversion.GEN'", "/m", "Resulting GEN-files are merged to: {0}", null, new string[] { "f" }, new string[] { DefaultMergedGENFilename }, 1);
 
@@ -124,9 +132,9 @@ namespace Sweco.SIF.IDFGENconvert
                                           "cellsize 'sz' (default 25)\n" +
                                           "for polygons: cells that overlap with a polygon are assigned a value\n" +
                                           "- c1: columnname or number (one based) or (integer) value c1 if no DAT-file is present\n" +
-                                          "- c2: method for checking polygon-cell overlap: 1) cell center inside polygon; 2) actual overlap\n" +
+                                          "- c2: method for checking polygon-cell overlap: 1) cell center inside polygon (default); 2) actual overlap\n" +
                                           "- c3: method for cellvalue/area when multiple polygons intersect cell:\n" +
-                                          "      1)  first: value/area of first processed polygon of GEN-file;\n" +
+                                          "      1)  first: value/area of first processed polygon of GEN-file (default);\n" +
                                           "      2)  min: value/area of polygon with minimum cell-value;\n" +
                                           "      3)  max: value/area of polygon with maximum cell-value;\n" +
                                           "      4)  sum: sum of value/area of polygon(s);\n" +
@@ -137,21 +145,25 @@ namespace Sweco.SIF.IDFGENconvert
                                           "      9)  smallest area: value/area of polygon with smallest (total) area;\n" +
                                           "      10) last: value/area of last processed polygon of GEN-file.\n" +
                                           "      For methods 5-9, the value/area of the first polygon is used for equal areas.\n" +
-                                          "for lines: linear interpolation from value in column c1 for first vertex to value in column c2\n" +
+                                          "- c4: method for aligning grid extent and cellsize:\n" +
+                                          "      0: do not snap extent (but a warning is given for mismatch with cellsize)\n" +
+                                          "      1: snap (enlarged) extent to (multiple) of cellsize (default)\n" +
+                                          "      2: snap extent to (multiple) of cellsize (extent can be corrected for cellsize)\n" +
+                                          "for lines: linear interpolation from value in column c1 (one based) for first vertex to value in column c2\n" +
                                           "           (if defined) for last vertex, or (integer) values c1/c2 if no DAT-file is present\n" +
                                           "           optionally, specify max. distance c3 for extrapolation along vector with only one column value\n" +
                                           "           columns c1 and/or c2 can be specified as a column name or (one-based) number.\n" + 
-                                          "when DAT-file misses and c1/c2 is not defined, sequence numbers are used, starting with 1", "/g:100,5,6", "Grid is created with cellsize: {0} and values c1/c2/c3: {...}", new string[] { "sz" }, new string[] { "c1", "c2", "c3" }, new string[] { "seq.nr", "N/A", "N/A", "Default" }, 2);
+                                          "when DAT-file misses and c1/c2 is not defined, sequence numbers are used, starting with 1", "/g:100,5,6", "Grid is created with cellsize: {0} and values c1/c2/c3/c4: {...}", new string[] { "sz" }, new string[] { "c1", "c2", "c3", "c4" }, new string[] { "seq.nr", "N/A", "N/A", "1" }, 2);
             AddToolOptionDescription("a", "Add IDF-file with angle (line) of first GEN-line(s) in cell", "/a", "IDF-file with angle is added", null, null, null, 2);
             AddToolOptionDescription("l", "Add IDF-file with length (line) or area (polygon) of features in cell", "/l", "IDF-file with length/area is added", null, null, null, 2);
-            AddToolOptionDescription("n", "Ignore point order, process counterclockwise like clockwise (otherwise counterclockwise is ignored)", null, "Issues with point order are ignored", null, null, null, 2);
+            AddToolOptionDescription("n", "Ignore point order, process counterclockwise like clockwise (otherwise counterclockwise is ignored)", null, "Point order is ignored (counterclockwise is processed like clockwise order)", null, null, null, 2);
             AddToolOptionDescription("i", "Convert also island polygons (donut holes, i.e. inner polygons with points in counterclockwise order)\n" +
                                           "for islands the value of the island (the smaller polygon) is always used (par c3 of option g is ignored).\n" +
                                           "without option i or n only polygons with points in clockwise order are converted.\n" + 
                                           "note: for islands, option o (ordered GEN-features) is enforced.", "/i", "Islands (donut holes) are also converted", null, null, null, 2);
             AddToolOptionDescription("o", "Order GEN-polygons/-lines from large to small area/length before processing;\n" + 
                                           "islands (with negative area) are kept directly after previous polygon in source GEN-file", "/o", "GEN-polygons are ordered from large to small area", null, null, null, 2);
-            AddToolOptionDescription("w", "Show all warnings (and not only first occurance)", "/w",  "All warnings are shown", null, null, null, new int[] { 1, 2 });
+            AddToolOptionDescription("w", "Show all warnings (and not only first occurance)", "/w", "All warnings are shown", null, null, null, new int[] { 1, 2 });
         }
 
         /// <summary>
@@ -174,6 +186,14 @@ namespace Sweco.SIF.IDFGENconvert
                             return "no hull, just IPF-points";
                         case "1":
                             return "convex hull";
+                        case "2":
+                            return "concave hull";
+                        case "3":
+                            return "outer edges";
+                        case "4":
+                            return "outer edges + IPF-points";
+                        case "5":
+                            return "outer edges (no islands)";
 
                         default: return parameterValue;
                     }
@@ -211,8 +231,18 @@ namespace Sweco.SIF.IDFGENconvert
 
                                 default: return parameterValue;
                             }
+                        case "c4":
+                            switch (parameterValue)
+                            {
+                                case "0": return "don't snap extent";
+                                case "1": return "snap (enlarged) extent";
+                                case "2": return "snap extent";
+
+                                default: return parameterValue;
+                            }
                         default: return parameterValue;
                     }
+
                 // As a default, do not use special formatting and simply return parameter value
                 default: return parameterValue;
             }
@@ -317,6 +347,10 @@ namespace Sweco.SIF.IDFGENconvert
                             if (optionParameters.Length >= 2)
                             {
                                 GridPar1String = optionParameters[1];
+                                if (GridPar1String.Equals(string.Empty))
+                                {
+                                    GridPar1String = null;
+                                }
                             }
                             if (optionParameters.Length >= 3)
                             {
@@ -325,6 +359,10 @@ namespace Sweco.SIF.IDFGENconvert
                             if (optionParameters.Length >= 4)
                             {
                                 GridPar3 = float.Parse(optionParameters[3], NumberStyles.Float, EnglishCultureInfo);
+                            }
+                            if (optionParameters.Length >= 5)
+                            {
+                                GridPar4 = int.Parse(optionParameters[4], EnglishCultureInfo);
                             }
                         }
                         catch (Exception)
@@ -395,16 +433,22 @@ namespace Sweco.SIF.IDFGENconvert
                     string[] optionParametersStrings = GetOptionParameters(optionParametersString);
                     if (optionParametersStrings.Length > 0)
                     {
-                        int val;
-                        if (int.TryParse(optionParametersStrings[0], out val))
+                        if (int.TryParse(optionParametersStrings[0], out int val))
                         {
-                            if ((optionParametersStrings.Length == 1) && (val >= 0) && (val <= 1))
+                            if ((val >= 0) && (val <= 5))
                             {
                                 HullType = val;
+                                if (optionParametersStrings.Length > 1)
+                                {
+                                    if (double.TryParse(optionParametersStrings[1], NumberStyles.Float, EnglishCultureInfo, out double dblVal))
+                                    {
+                                        HullPar1 = dblVal;
+                                    }
+                                }
                             }
                             else
                             {
-                                throw new ToolException("Invalid Hull-method, only value 0 - 1 is allowed: " + optionParametersString);
+                                throw new ToolException("Invalid Hull-method, only value 0 - 5 is allowed: " + optionParametersString);
                             }
                         }
                         else
@@ -520,6 +564,14 @@ namespace Sweco.SIF.IDFGENconvert
                     return "IPF-points";
                 case 1:
                     return "convex hull";
+                case 2:
+                    return "concave hull";
+                case 3:
+                    return "cell edges";
+                case 4:
+                    return "cell edges/points";
+                case 5:
+                    return "outer cell edges";
                 default:
                     throw new ToolException("Unknown hull type: " + HullType);
             }

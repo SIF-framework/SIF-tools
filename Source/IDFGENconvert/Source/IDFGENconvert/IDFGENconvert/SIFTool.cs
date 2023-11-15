@@ -175,6 +175,18 @@ namespace Sweco.SIF.IDFGENconvert
                 {
                     throw new Exception("Unexpected error while converting file: " + Path.GetFileName(inputFilename), ex);
                 }
+                finally
+                {
+                    if (genIDFConverter.HasWarnings())
+                    {
+                        Log.AddWarning("Warnings were found. IPF- and/or GEN-file with related IPF-points/GEN-features are written to output path ...");
+                        if (!settings.ShowWarnings)
+                        {
+                            Log.AddInfo("Only the first warning of each category was reported, use option w to write all warning messages", 1);
+                        }
+                        genIDFConverter.WriteWarnings();
+                    }
+                }
             }
 
             if (settings.IsMerged && (genFile.Count > 0))

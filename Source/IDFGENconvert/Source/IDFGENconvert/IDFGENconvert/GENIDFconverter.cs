@@ -71,9 +71,11 @@ namespace Sweco.SIF.IDFGENconvert
         protected float polygonArea;
         protected bool isIsland = false;
         private IPFFile warningIPFFile;
+        private GENFile warningGENFile;
         bool isNegativeAreaWarningShown;
         bool isInvalidGridPar2WarningShown;
         bool isCellCoverageWarningShown;
+        bool isConversionWarningShown;
 
         public GENIDFConverter(SIFToolSettings settings, Log log)
         {
@@ -90,11 +92,16 @@ namespace Sweco.SIF.IDFGENconvert
             isNegativeAreaWarningShown = false;
             isInvalidGridPar2WarningShown = false;
             isCellCoverageWarningShown = false;
+            isConversionWarningShown = false;
+
             warningIPFFile = new IPFFile();
             warningIPFFile.Filename = Path.Combine(settings.OutputPath, "GENIDFConverterWarnings.IPF");
             warningIPFFile.AddXYColumns();
             warningIPFFile.AddColumn("ErrorValue");
             warningIPFFile.AddColumn("Remark");
+
+            warningGENFile = new GENFile();
+            warningGENFile.Filename = Path.Combine(settings.OutputPath, "GENIDFConverterWarnings.GEN");
         }
 
         public virtual bool Convert(string inputFilename, string outputPath, string outputFilename, int logIndentLevel)
@@ -129,24 +136,36 @@ namespace Sweco.SIF.IDFGENconvert
 
                 GENFeature genFeature = genFile.Features[genFeatureIdx];
 
-                // Retrieve value to use for cells inside this GEN-feature
-                RetrieveGENValue(genFeature, genFeatureIdx, logIndentLevel);
+                try
+                {
+                    // Retrieve value to use for cells inside this GEN-feature
+                    RetrieveGENValue(genFeature, genFeatureIdx, logIndentLevel);
 
-                if (genFeature is GENPolygon)
-                {
-                    GENPolygonToIDF((GENPolygon)genFeature, genFeatureIdx, logIndentLevel + 1);
-                }
-                else if (genFeature is GENLine)
-                {
-                    GENLineToIDF((GENLine)genFeature, ref genFeatureIdx, logIndentLevel + 1);
-                    CorrectLineInconsistencies();
-                }
-                else
-                {
-                    log.AddWarning("Conversion of GEN-feature " + genFeature.GetType().Name + " is currently not supported.", logIndentLevel + 1);
-                }
+                    if (genFeature is GENPolygon)
+                    {
+                        GENPolygonToIDF((GENPolygon)genFeature, genFeatureIdx, logIndentLevel + 1);
+                    }
+                    else if (genFeature is GENLine)
+                    {
+                        GENLineToIDF((GENLine)genFeature, ref genFeatureIdx, logIndentLevel + 1);
+                        CorrectLineInconsistencies();
+                    }
+                    else
+                    {
+                        log.AddWarning("Conversion of GEN-feature " + genFeature.GetType().Name + " is currently not supported.", logIndentLevel + 1);
+                    }
 
-                DoFeaturePostProcessing();
+                    DoFeaturePostProcessing();
+                }
+                catch (Exception ex)
+                {
+                    warningGENFile.AddFeature(genFeature);
+                    if (!isConversionWarningShown || settings.ShowWarnings)
+                    {
+                        log.AddWarning("Skipped conversion of feature " + genFeature.ID + " because of unexpected error: " + ex.GetBaseException().Message, logIndentLevel + 1);
+                        isConversionWarningShown = true;
+                    }
+                }
             }
 
             DoFilePostProcessing();
@@ -154,6 +173,30 @@ namespace Sweco.SIF.IDFGENconvert
             WriteResults(outputPath, outputFilename, logIndentLevel);
 
             return true;
+        }
+
+        /// <summary>
+        /// Write warning IPF/GEN-file with related IPF-points/GEN-features when warnings did occur
+        /// </summary>
+        public virtual void WriteWarnings()
+        {
+            if (warningIPFFile.PointCount > 0)
+            {
+                warningIPFFile.WriteFile();
+            }
+            if (warningGENFile.Count > 0)
+            {
+                warningGENFile.WriteFile();
+            }
+        }
+
+        /// <summary>
+        /// Checks if IPF-points/GEN-features with warnings were stored
+        /// </summary>
+        /// <returns></returns>
+        public virtual bool HasWarnings()
+        {
+            return ((warningIPFFile.PointCount > 0) || (warningGENFile.Count > 0));
         }
 
         private void SortFeatures(GENFile genFile)
@@ -344,7 +387,20 @@ namespace Sweco.SIF.IDFGENconvert
         protected virtual Extent GetIDFExtent(GENFile genFile)
         {
             // Use extent of GEN-file aligned to specified cellsize
-            return genFile.Extent.Snap(settings.GridCellsize, true);
+            switch (settings.GridPar4)
+            {
+                case 0:
+                    Extent checkExtent = new Extent(genFile.Extent.llx, genFile.Extent.lly, genFile.Extent.llx + settings.GridCellsize, genFile.Extent.lly + settings.GridCellsize);
+                    if (!genFile.Extent.IsAligned(checkExtent, settings.GridCellsize, settings.GridCellsize))
+                    {
+                        log.AddWarning("Extent (" + genFile.Extent + ") is not aligned with cellsize (" + settings.GridCellsize.ToString(SIFTool. EnglishCultureInfo) + ")", 1);
+                    }
+                    return genFile.Extent;
+                case 1: return genFile.Extent.Snap(settings.GridCellsize, true);
+                case 2: return genFile.Extent.Snap(settings.GridCellsize, false);
+                default:
+                    throw new ToolException("Invalid value for alignment of extent (parameter c4): " + settings.GridPar4);
+            }
         }
 
         /// <summary>
@@ -374,30 +430,6 @@ namespace Sweco.SIF.IDFGENconvert
             {
                 minColIdx = 0;
             }
-
-            //            Extent testExtent = new Extent(107000, 416000, 118000, 422000);
-            //            if (testExtent.Contains(polygonExtent))
-            ////            if ((genPolygon.Points[0].X > 112553f) && (genPolygon.Points[0].X < 112555f))
-            //            {
-            //                string fname = Path.Combine(settings.OutputPath, "ExtentFeatures.GEN");
-            //                GENFile tmpGENFile = null;
-            //                if (!File.Exists(fname))
-            //                {
-            //                    tmpGENFile = new GENFile();
-            //                }
-            //                else
-            //                {
-            //                    tmpGENFile = GENFile.ReadFile(fname);
-            //                }
-
-            //                tmpGENFile.AddFeature(genPolygon.Copy());
-            //                tmpGENFile.WriteFile(fname);
-            //            }
-
-            //// For debugging
-            //windowIDFFile = valueIDFFile.CopyIDF(string.Empty, false);
-            //windowIDFFile.DeclareValuesMemory();
-            //windowIDFFile.SetValues(0);
 
             GENPolygonToIDF(minRowIdx, minColIdx, maxRowIdx, maxColIdx);
         }
@@ -444,9 +476,10 @@ namespace Sweco.SIF.IDFGENconvert
                         }
                         catch (Exception ex)
                         {
+                            warningIPFFile.AddPoint(new IPFPoint(warningIPFFile, new FloatPoint(x, y), new List<string>() { x.ToString(SIFTool.EnglishCultureInfo), y.ToString(SIFTool.EnglishCultureInfo), string.Empty, "Polygon " + genPolygon.ID + ": " + ex.GetBaseException().Message }));
                             if (!isCellCoverageWarningShown || settings.ShowWarnings)
                             {
-                                log.AddWarning("Cell coverage could not be evaluated for cell with (x,y) = (" + x.ToString(SIFTool.EnglishCultureInfo) + "," + y.ToString(SIFTool.EnglishCultureInfo) + "): " + ex.GetBaseException().Message, 2);
+                                log.AddWarning("Cell coverage could not be evaluated for cell with (x,y) = (" + x.ToString(SIFTool.EnglishCultureInfo) + "," + y.ToString(SIFTool.EnglishCultureInfo) + "), polygon " + genPolygonID + ": " + ex.GetBaseException().Message, 2);
                                 isCellCoverageWarningShown = true;
                             }
                         }
@@ -528,7 +561,7 @@ namespace Sweco.SIF.IDFGENconvert
             Extent currWindowExtent = new Extent(valueIDFFile.GetX(minColIdx) - halfCellsizeX, valueIDFFile.GetY(maxRowIdx) - halfCellsizeY, 
                 valueIDFFile.GetX(maxColIdx) + halfCellsizeX, valueIDFFile.GetY(minRowIdx) + halfCellsizeY);
 
-            List<GENPolygon> clippedGENPolygons = clockwiseGENPolygon.ClipPolygonWithoutDATRow(currWindowExtent);
+            List<GENPolygon> clippedGENPolygons = clockwiseGENPolygon.ClipPolygonWithoutDATRow(currWindowExtent, true);
             return (clippedGENPolygons.Count > 0);
         }
 
@@ -552,7 +585,8 @@ namespace Sweco.SIF.IDFGENconvert
                     idfCellArea = 0;
                     Extent currCellExtent = new Extent(x - halfCellsizeX, y - halfCellsizeY, x + halfCellsizeX, y + halfCellsizeY);
 
-                    List<GENPolygon> clippedGENPolygons = clockwiseGENPolygon.ClipPolygonWithoutDATRow(currCellExtent);
+                    List<GENPolygon> clippedGENPolygons = null;
+                    clippedGENPolygons = clockwiseGENPolygon.ClipPolygonWithoutDATRow(currCellExtent, true);
                     foreach (GENPolygon clippedGENPolygon in clippedGENPolygons)
                     {
                         idfCellArea += (float)Math.Abs(clippedGENPolygon.CalculateArea());
@@ -757,7 +791,7 @@ namespace Sweco.SIF.IDFGENconvert
                 if (genFile.HasDATFile())
                 {
                     int gridPar1 = genFile.DATFile.FindColumnNumber(settings.GridPar1String, true);
-                    if (gridPar1 < 0)
+                    if (gridPar1 <= 0)
                     {
                         throw new ToolException("Column(number) " + settings.GridPar1String + " is not found for GEN-file " + Path.GetFileName(genFile.Filename));
                     }
@@ -1279,8 +1313,7 @@ namespace Sweco.SIF.IDFGENconvert
             if (emptySegmentCount > 2)
             {
                 log.AddWarning("Unexpected missing segment, set to zero-value: (" + currCellX.ToString("F3", SIFTool.EnglishCultureInfo) + "," + currCellY.ToString("F3", SIFTool.EnglishCultureInfo) + ")");
-                warningIPFFile.AddPoint(new IPFPoint(warningIPFFile, new FloatPoint(currCellX, currCellY), new List<string>() { currCellX.ToString(), (segmentLength - processedSegmentLength).ToString(SIFTool.EnglishCultureInfo), currCellY.ToString(), "Unexpected missing segment: segment.Length (" + segmentLength + ") - processedSegmentLength (" + processedSegmentLength + ") > ERRORMARGIN (" + ERRORMARGIN + ")" }));
-                warningIPFFile.WriteFile();
+                warningIPFFile.AddPoint(new IPFPoint(warningIPFFile, new FloatPoint(currCellX, currCellY), new List<string>() { currCellX.ToString(SIFTool.EnglishCultureInfo), currCellY.ToString(SIFTool.EnglishCultureInfo), (segmentLength - processedSegmentLength).ToString(SIFTool.EnglishCultureInfo), "Unexpected missing segment: segment.Length (" + segmentLength + ") - processedSegmentLength (" + processedSegmentLength + ") > ERRORMARGIN (" + ERRORMARGIN + ")" }));
             }
         }
 
