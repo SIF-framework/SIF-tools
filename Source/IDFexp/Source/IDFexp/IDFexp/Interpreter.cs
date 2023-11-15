@@ -44,6 +44,7 @@ namespace Sweco.SIF.IDFexp
 
         /// <summary>
         /// Dictionary with all variable names (and corresponding IDF-files) that are defined up to the current line
+        /// If IDFexpVariable is null for some variable, the referred result/file does not exist. 
         /// </summary>
         protected Dictionary<string, IDFExpVariable> VariableDictionary { get; set; }
 
@@ -125,9 +126,9 @@ namespace Sweco.SIF.IDFexp
         }
 
         /// <summary>
-        /// Defines if quiet mode shoud be used: end without raising an error for missing IDF-files
+        /// Quiet mode that shoud be used in case a missing file is referred
         /// </summary>
-        public static bool IsQuietMode { get; set; }
+        public static QuietMode QuietMode { get; set; }
 
         /// <summary>
         /// Defines if metadata should be added to result IDF-files
@@ -267,7 +268,14 @@ namespace Sweco.SIF.IDFexp
                     ParseINILine(wholeLine, iniLines, ref lineIdx);
                 }
 
-                Log.AddInfo("Finished processing INI-file");
+                if (Log.Warnings.Count > 0)
+                {
+                    Log.AddInfo("Finished processing INI-file (with warnings)");
+                }
+                else
+                {
+                    Log.AddInfo("Finished processing INI-file");
+                }
             }
             catch (QuietException ex)
             {
@@ -296,7 +304,11 @@ namespace Sweco.SIF.IDFexp
         /// <param name="metadata"></param>
         protected virtual void RegisterVariable(Dictionary<string, IDFExpVariable> variableDictionary, string name, IDFFile idfFile, IDFExpressionType expressionType, string prefix = null, Metadata metadata = null)
         {
-            idfFile.UseLazyLoading = SIFToolSettings.UseLazyLoading;
+            if (idfFile != null)
+            {
+                idfFile.UseLazyLoading = SIFToolSettings.UseLazyLoading;
+            }
+
             IDFExpVariable idfExpVariable = CreateIDFExpVariable(name, idfFile, expressionType, prefix, metadata);
             if (variableDictionary.ContainsKey(name))
             {
@@ -479,9 +491,13 @@ namespace Sweco.SIF.IDFexp
                         expResultIDFFile = IDFExpParser.ParseIDFFilename(expression, out expressionType);
                         if (expResultIDFFile == null)
                         {
-                            if (IsQuietMode)
+                            if (QuietMode == QuietMode.SilentExit)
                             {
                                 throw new QuietException("IDF-file not found: " + Environment.ExpandEnvironmentVariables(expression));
+                            }
+                            else if (QuietMode == QuietMode.SilentSkip)
+                            {
+                                Log.AddWarning("Silently skipping definition of variable '" + variableName + "' that refers to a missing IDF-file ...", 1);
                             }
                             else
                             {
@@ -492,6 +508,7 @@ namespace Sweco.SIF.IDFexp
                     else
                     {
                         // Parse IDF-expression (part after the '='-symbol and assign to IDF-variable
+                        expressionType = IDFExpressionType.Undefined;
                         if (VariableDictionary.ContainsKey(expression))
                         {
                             // Expression is equal to an existing variable
@@ -500,10 +517,35 @@ namespace Sweco.SIF.IDFexp
                         else
                         {
                             // Parse expression
-                            expResultIDFFile = IDFExpParser.Parse(expression, VariableDictionary, out expressionType);
+                            try
+                            {
+                                expResultIDFFile = IDFExpParser.Parse(expression, VariableDictionary, out expressionType);
+                            } 
+                            catch (NullReferenceException ex)
+                            {
+                                if (QuietMode == QuietMode.SilentSkip)
+                                {
+                                    // ignore here, show warning in next block
+                                }
+                                else
+                                {
+                                    throw ex;
+                                }
+                            }
                         }
 
-                        if ((expressionType != IDFExpressionType.Undefined) && (expressionType != IDFExpressionType.Constant) && (expressionType != IDFExpressionType.File))
+                        if (expResultIDFFile == null)
+                        {
+                            if (QuietMode == QuietMode.SilentSkip)
+                            {
+                                Log.AddWarning("Silently skipping definition of variable '" + variableName + "' that refers to a skipped variable ...", 1);
+                            }
+                            else
+                            {
+                                throw new Exception("Unexpected error in expression");
+                            }
+                        }
+                        else if ((expressionType != IDFExpressionType.Undefined) && (expressionType != IDFExpressionType.Constant) && (expressionType != IDFExpressionType.File))
                         {
                             string currentOutputPath = OutputPath;
                             if (resultPath != null)
@@ -531,7 +573,6 @@ namespace Sweco.SIF.IDFexp
                     }
 
                     // (Re)save variable in dictionary: save new variable, replace existing variable
-                    // 
                     RegisterVariable(VariableDictionary, variableName, expResultIDFFile, expressionType, resultPath, expResultMetadata);
 
                     // Handle memory and persistance management: for all currently defined/read IDF-variables check if values should be released from memory 
@@ -540,7 +581,7 @@ namespace Sweco.SIF.IDFexp
                         long usedMemory = GC.GetTotalMemory(true) / 1000000;
                         Log.AddInfo("Allocated memory after evaluating line " + lineIdx + ": " + usedMemory + "Mb", 1);
                     }
-                     ManageMemory(VariableDictionary, Log);
+                    ManageMemory(VariableDictionary, Log);
                     if (IsDebugMode)
                     {
                         long usedMemory = GC.GetTotalMemory(true) / 1000000;
@@ -609,6 +650,7 @@ namespace Sweco.SIF.IDFexp
                     case "exist":
                         // Check existance of directory or file
                         string path = preconditionParts[2].Replace("\"", string.Empty);
+                        path = Environment.ExpandEnvironmentVariables(path);
                         if (!Path.IsPathRooted(path) && (BasePath != null))
                         {
                             path = Path.Combine(BasePath, path);
@@ -668,9 +710,16 @@ namespace Sweco.SIF.IDFexp
         {
             IDFExpVariable idfExpVariable = variableDictionary[expression];
             IDFFile idfFile = idfExpVariable.IDFFile;
-            idfFile.EnsureLoadedValues();
             expressionType = IDFExpressionType.Variable;
-            return idfFile.CopyIDF(null);
+            if (idfFile != null)
+            {
+                idfFile.EnsureLoadedValues();
+                return idfFile.CopyIDF(null);
+            }
+            else
+            {
+                return null;
+            }
         }
 
         protected virtual void ManageMemory(Dictionary<string, IDFExpVariable> variableDictionary, Log log)

@@ -49,9 +49,10 @@ namespace Sweco.SIF.IDFexp
     }
 
     /// <summary>
-    /// Parser as developed by Kaplan, see: https://msdn.microsoft.com/nl-nl/magazine/mt573716.aspx. Modified for parsing IDF-expressions.
+    /// IDFExpParser based on parser developed by Kaplan, see: https://msdn.microsoft.com/nl-nl/magazine/mt573716.aspx. Modified for parsing IDF-expressions.
     /// V. Kaplan, “Split and Merge Algorithm for Parsing Mathematical Expressions,” CVu, 27-2, May 2015, http://bit.ly/1Jb470l
     /// V. Kaplan, “Split and Merge Revisited,” CVu, 27-3, July 2015, http://bit.ly/1UYHmE9
+    /// Modified for usage in IDFexp.
     /// </summary>
     public class IDFExpParser
     {
@@ -286,6 +287,10 @@ namespace Sweco.SIF.IDFexp
 
                 IncreaseExpressionCount();
                 IDFFile idfFile = func.GetIDFFile(data, variableDictionary, out expressionType, ref from);
+                if (idfFile == null)
+                {
+                    throw new NullReferenceException("Null reference for variable in expression " + data);
+                }
 
                 // At the end of the splitting step, all of the subexpressions in parentheses and all of the function calls
                 // are eliminated via the recursive calls to the whole algorithm evaluation. But the resulting actions of
@@ -535,6 +540,11 @@ namespace Sweco.SIF.IDFexp
 
             IDFFile leftCellIDFFile = leftCell.IDFFile;
             IDFFile rightCellIDFFile = rightCell.IDFFile;
+
+            if (rightCellIDFFile == null)
+            {
+                throw new NullReferenceException("Null reference for IDFFile object of rightCell " + rightCell.IDFId);
+            }
 
             // Check and correct for NoData-values, use NoData-value of leftcell expression
             if (leftCell.IDFId.Equals("NoData"))
@@ -897,8 +907,11 @@ namespace Sweco.SIF.IDFexp
                 IDFFile idfFile = idfExpVariable.IDFFile;
                 expressionType = (idfFile is ConstantIDFFile) ? IDFExpressionType.Constant : IDFExpressionType.Variable;
 
-                // Force values to be loaded now, since it is used in an expression, the values are needed (also to allow redefined variables to be written to file)
-                idfFile.EnsureLoadedValues();
+                if (idfFile != null)
+                {
+                    // Force values to be loaded now, since it is used in an expression, the values are needed (also to allow redefined variables to be written to file)
+                    idfFile.EnsureLoadedValues();
+                }
 
                 return idfFile;
             }
@@ -913,9 +926,6 @@ namespace Sweco.SIF.IDFexp
             }
             else
             {
-                //int a = 0;
-                //expressionType = IDFExpressionType.Undefined;
-                //return null;
                 throw new ToolException("Could not parse token '" + Item + "'");
             }
         }

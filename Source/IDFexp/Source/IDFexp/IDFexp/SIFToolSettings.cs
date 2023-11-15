@@ -32,6 +32,13 @@ using Sweco.SIF.iMOD.IDF;
 
 namespace Sweco.SIF.IDFexp
 {
+    public enum QuietMode
+    {
+        Off,
+        SilentExit,
+        SilentSkip
+    }
+
     /// <summary>
     /// Class for processing command-line arguments and storing settings for this tool
     /// </summary>
@@ -50,7 +57,7 @@ namespace Sweco.SIF.IDFexp
         public Extent Extent { get; set; }
         public bool IsMetadataAdded { get; set; }
         public bool IsDebugMode { get; set; }
-        public bool IsQuietMode { get; set; }
+        public QuietMode QuietMode { get; set; }
         public int DecimalCount { get; set; }
         public bool IsIntermediateResultWritten { get; set; }
 
@@ -67,7 +74,7 @@ namespace Sweco.SIF.IDFexp
             NoDataValue = float.NaN;
             Extent = null;
             IsMetadataAdded = false;
-            IsQuietMode = false;
+            QuietMode = QuietMode.Off;
             DecimalCount = -1;
             IsDebugMode = false;
             IsIntermediateResultWritten = false;
@@ -97,7 +104,9 @@ namespace Sweco.SIF.IDFexp
             AddToolOptionDescription("d", "Run in debug mode: write intermediate expressions and IDF-files", "/d", "Running in debug mode");
             AddToolOptionDescription("i", "Write intermediate results (all IDF-variables) to IDF-files", "/i", "Intermediate variables are written to IDF-files");
             AddToolOptionDescription("m", "Add metadatafiles with (part of) expression(s) and source path", "/m", "Metadata is added to result files");
-            AddToolOptionDescription("q", "Quiet mode: end without raising an error for missing IDF-files", null, "Quiet mode is used");
+            AddToolOptionDescription("q", "Define Quiet-mode for missing IDF-files with one of the following options:" +
+                                          "1) end IDFexp if a missing file is accessed, without raising an error (default);" +
+                                          "2) skip lines or expressions that refer to missing files, without raising an error", null, "Quiet mode {0} is used", null, new string[] { "m" }, new string[] { "1" });
             AddToolOptionDescription("r", "Round values in (intermediate) result IDF-files to d decimals", "/d:3", "Rounding cell values to {0} decimals", new string[] { "d" });
 
             AddToolUsageOptionPostRemark("\n"
@@ -229,7 +238,33 @@ namespace Sweco.SIF.IDFexp
             }
             else if (optionName.ToLower().Equals("q"))
             {
-                IsQuietMode = true;
+                if (hasOptionParameters)
+                {
+                    if (int.TryParse(optionParametersString, out int number))
+                    {
+                        switch (number)
+                        {
+                            case 1:
+                                QuietMode = QuietMode.SilentExit;
+                                break;
+                            case 2:
+                                QuietMode = QuietMode.SilentSkip;
+                                break;
+                            default:
+                                throw new ToolException("Invalid number for quiet mode: " + optionParametersString);
+                        }
+                    }
+                    else
+                    {
+                        throw new ToolException("Invalid parameter for quiet mode, integer expected: " + optionParametersString);
+                    }
+                    
+                }
+                else
+                {
+                    // Use default
+                    QuietMode = QuietMode.SilentExit;
+                }
             }
             else if (optionName.ToLower().Equals("i"))
             {

@@ -87,8 +87,8 @@ namespace Sweco.SIF.IDFexp
             this.Prefix = prefix;
             this.Metadata = metadata;
 
-            // The variable is already persisted if it is a constant or if it was read from an existing file
-            IsPersisted = (IDFFile is ConstantIDFFile) || (expressionType == IDFExpressionType.Constant) || (expressionType == IDFExpressionType.File) || (expressionType == IDFExpressionType.Undefined);
+            // Check if variable needs persisting (storage): the variable is already persisted if it is a constant or if it was read from an existing file
+            IsPersisted = ((idfFile != null) && (idfFile is ConstantIDFFile)) || (expressionType == IDFExpressionType.Constant) || (expressionType == IDFExpressionType.File) || (expressionType == IDFExpressionType.Undefined);
         }
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace Sweco.SIF.IDFexp
         /// </summary>
         public virtual void ReleaseMemory()
         {
-            if (IDFFile.values != null)
+            if ((IDFFile != null) && (IDFFile.values != null))
             {
                 IDFFile.ReleaseMemory(false);
                 if (IDFExpParser.IsDebugMode)

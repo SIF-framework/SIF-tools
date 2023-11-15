@@ -131,7 +131,7 @@ namespace Sweco.SIF.IDFexp
             Interpreter.Extent = settings.Extent;
             Interpreter.NoDataValue = settings.NoDataValue;
             Interpreter.IsMetadataAdded = settings.IsMetadataAdded;
-            Interpreter.IsQuietMode = settings.IsQuietMode;
+            Interpreter.QuietMode = settings.QuietMode;
             Interpreter.DecimalCount = settings.DecimalCount;
             Interpreter.BasePath = Path.GetDirectoryName(settings.InputFilename);
             Interpreter.IsDebugMode = settings.IsDebugMode;
