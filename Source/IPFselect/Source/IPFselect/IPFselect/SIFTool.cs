@@ -44,6 +44,7 @@ namespace Sweco.SIF.IPFselect
         /// </summary>
         public SIFTool(SIFToolSettingsBase settings) : base(settings)
         {
+            SetLicense(new SIFGPLLicense(this));
             settings.RegisterSIFTool(this);
         }
 

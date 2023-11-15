@@ -39,6 +39,7 @@ namespace Sweco.SIF.IPFsplit
         /// </summary>
         public SIFTool(SIFToolSettingsBase settings) : base(settings)
         {
+            SetLicense(new SIFGPLLicense(this));
             settings.RegisterSIFTool(this);
         }
 
@@ -81,7 +82,7 @@ namespace Sweco.SIF.IPFsplit
         {
             AddAuthor("Koen Jansen");
             AddAuthor("Koen van der Hauw");
-            ToolPurpose = "Tool for splitting rows from IPF-file(s) into two or more new IPF-file(s)";
+            ToolPurpose = "SIF-tool for splitting rows from IPF-file(s) into two or more new IPF-file(s)";
         }
 
         /// <summary>
