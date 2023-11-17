@@ -115,7 +115,7 @@ namespace Sweco.SIF.IDFGENconvert
             AddToolUsageOptionPreRemark("\nFor IDF-GEN conversion:", 1);
             AddToolOptionDescription("h", "Create a hull of type h1:\n" +
                                           "0) no hull, just write IPF-points for all non-NoData IDF-cells\n" +
-                                          "1) convex hull based on cell centers (default)" +
+                                          "1) convex hull based on cell centers (default)\n" +
                                           "2) concave hull based on cell centers\n" +
                                           "3) outer edges of cells (GEN-lines)\n" +
                                           "4) edges, as 3, but also write cell centers of outer cells (GEN-lines/IPF-points)\n" +
