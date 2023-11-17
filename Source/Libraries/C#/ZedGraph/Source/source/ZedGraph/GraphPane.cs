@@ -1,4 +1,10 @@
 //============================================================================
+// Modified original ZedGraph-library version v5.1.7, see license below
+// The following changes were applied for usage in SIF-tools suite:
+// - Added ResetAutoScale() method to undo zoom
+// Author: Koen van der Hauw, Sweco Netherlands B.V.
+// Date: 07-06-2023
+//============================================================================
 //ZedGraph Class Library - A Flexible Line Graph/Bar Graph Library in C#
 //Copyright © 2004  John Champion
 //
@@ -2324,8 +2330,23 @@ namespace ZedGraph
 			return ( containedObjs.Count > 0 );
 		}
 
-	#endregion
+        /// <summary>
+        /// Reset scale to auto, undoes zoom
+        /// </summary>
+        public void ResetAutoScale()
+        {
+            Graphics g = Graphics.FromHwnd(IntPtr.Zero);
 
-	}
+            this.XAxis.ResetAutoScale(this, g);
+            this.X2Axis.ResetAutoScale(this, g);
+            foreach (YAxis axis in this.YAxisList)
+                axis.ResetAutoScale(this, g);
+            foreach (Y2Axis axis in this.Y2AxisList)
+                axis.ResetAutoScale(this, g);
+        }
+
+        #endregion
+
+    }
 }
 

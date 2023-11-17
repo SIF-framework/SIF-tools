@@ -1,4 +1,10 @@
 //============================================================================
+// Modified original ZedGraph-library version v5.1.7, see license below
+// The following changes were applied for usage in SIF-tools suite:
+// - DrawSmoothFilledCurve: Allowed different yMin and zero line for LineType.CrossSection
+// Author: Koen van der Hauw, Sweco Netherlands B.V.
+// Date: 07-06-2023
+//============================================================================
 //ZedGraph Class Library - A Flexible Line Graph/Bar Graph Library in C#
 //Copyright © 2004  John Champion
 //
@@ -548,8 +554,16 @@ namespace ZedGraph
 					{
 						path.AddCurve( arrPoints, 0, count - 2, tension );
 
-						double yMin = yAxis._scale._min < 0 ? 0.0 : yAxis._scale._min;
-						CloseCurve( pane, curve, arrPoints, count, yMin, path );
+                        double yMin;
+                        if (pane.LineType == LineType.CrossSection)
+                        {
+                            yMin = yAxis.Scale.Min;
+                        }
+                        else
+                        {
+                            yMin = yAxis._scale._min < 0 ? 0.0 : yAxis._scale._min;
+                        }
+                        CloseCurve( pane, curve, arrPoints, count, yMin, path );
 
 						RectangleF rect = path.GetBounds();
 						using ( Brush brush = source._fill.MakeBrush( rect ) )
@@ -573,8 +587,11 @@ namespace ZedGraph
 							//brush.Dispose();
 						}
 
-						// restore the zero line if needed (since the fill tends to cover it up)
-						yAxis.FixZeroLine( g, pane, scaleFactor, rect.Left, rect.Right );
+                        if (pane.LineType != LineType.CrossSection)
+                        {
+                            // restore the zero line if needed (since the fill tends to cover it up)
+                            yAxis.FixZeroLine(g, pane, scaleFactor, rect.Left, rect.Right);
+                        }
 					}
 				}
 

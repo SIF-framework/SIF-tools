@@ -1,4 +1,11 @@
 //============================================================================
+// Modified original ZedGraph-library version v5.1.7, see license below
+// The following changes were applied for usage in SIF-tools suite:
+// - Added LineType.CrossSection for which lines are drawn as normal, 
+//   but fill areas are below line and continue until minimum yAxis-value.
+// Author: Koen van der Hauw, Sweco Netherlands B.V.
+// Date: 07-06-2023
+//============================================================================
 //ZedGraph Class Library - A Flexible Line Graph/Bar Graph Library in C#
 //Copyright © 2004  John Champion
 //
@@ -572,14 +579,18 @@ namespace ZedGraph
 		/// <summary>
 		/// Draw the lines stacked on top of each other, accumulating values to a total value.
 		/// </summary>
-		Stack
-	}
-	
-	/// <summary>
-	/// Enumeration type that defines the available types of <see cref="BarItem"/> graphs.
-	/// </summary>
-	/// <seealso cref="BarSettings.Type"/>
-	public enum BarType
+		Stack,
+        /// <summary>
+        /// Draw the lines as normal, but fill areas are below line and continue until minimum yAxis-value.
+        /// </summary>
+        CrossSection
+    }
+
+    /// <summary>
+    /// Enumeration type that defines the available types of <see cref="BarItem"/> graphs.
+    /// </summary>
+    /// <seealso cref="BarSettings.Type"/>
+    public enum BarType
 	{
 		/// <summary>
 		/// Draw each <see cref="BarItem"/> side by side in clusters.

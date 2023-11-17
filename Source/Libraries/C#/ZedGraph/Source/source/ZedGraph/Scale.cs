@@ -1,4 +1,10 @@
 //============================================================================
+// Modified original ZedGraph-library version v5.1.7, see license below
+// The following changes were applied for usage in SIF-tools suite:
+// - Draw: Excluded drawing of zero line for LineType.CrossSection
+// Author: Koen van der Hauw, Sweco Netherlands B.V.
+// Date: 07-06-2023
+//============================================================================
 //ZedGraph Class Library - A Flexible Line Graph/Bar Graph Library in C#
 //Copyright © 2004  John Champion
 //
@@ -2270,16 +2276,16 @@ namespace ZedGraph
 				if ( _ownerAxis.IsAxisSegmentVisible )
 					g.DrawLine( pen, 0.0F, shiftPos, rightPix, shiftPos );
 
-				// Draw a zero-value line if needed
-				if ( majorGrid._isZeroLine && _min < 0.0 && _max > 0.0 )
-				{
-					float zeroPix = LocalTransform( 0.0 );
-					g.DrawLine( pen, zeroPix, 0.0F, zeroPix, topPix );
-				}
-			}
+                // Draw a zero-value line if needed
+                if ((pane.LineType != LineType.CrossSection) && majorGrid._isZeroLine && _min < 0.0 && _max > 0.0)
+                {
+                    float zeroPix = LocalTransform(0.0);
+                    g.DrawLine(pen, zeroPix, 0.0F, zeroPix, topPix);
+                }
+            }
 
-			// draw the major tics and labels
-			DrawLabels( g, pane, baseVal, nTics, topPix, shiftPos, scaleFactor );
+            // draw the major tics and labels
+            DrawLabels( g, pane, baseVal, nTics, topPix, shiftPos, scaleFactor );
 
 //			_ownerAxis.DrawMinorTics( g, pane, baseVal, shiftPos, scaleFactor, topPix );
 

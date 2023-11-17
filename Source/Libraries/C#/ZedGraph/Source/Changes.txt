@@ -7,3 +7,10 @@ The following general changes were made to this version:
 - Removed NuGet imports from source\ZedGraph.csproj
 - Removed unused projects: controltest, demo, libtest, unittest, web
 
+07-06-2023 
+----------
+The following changes were made to C# classes:
+- Types.cs: Added LineType.CrossSection for which fill areas are below line and continue until minimum yAxis-value
+- GraphPane.cs: Added ResetAutoScale() method to undo zoom
+- Line.cs: DrawSmoothFilledCurve.cs: Allowed different yMin and zero line for LineType.CrossSection
+- Scale.cs: Draw: Excluded drawing of zero line for LineType.CrossSection
