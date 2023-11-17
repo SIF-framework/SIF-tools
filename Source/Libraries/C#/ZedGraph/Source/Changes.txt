@@ -1,0 +1,9 @@
+The source code is a copy of version 5.1.17 of ZedGraph, which was downloaded from: https://github.com/ZedGraph/ZedGraph/tree/v5.1.7
+
+05-06-2023
+----------
+The following general changes were made to this version: 
+- Removed NuGet package: MSBuildVersioning.1.0.34.0
+- Removed NuGet imports from source\ZedGraph.csproj
+- Removed unused projects: controltest, demo, libtest, unittest, web
+
