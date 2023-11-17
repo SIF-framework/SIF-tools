@@ -109,6 +109,9 @@ namespace Sweco.SIF.IPFselect
                                           "  'c2' is a constant value, a mathetical expression or a string expression. \n" +
                                           "    a mathemetical expression is defined as an operator and value \n" +
                                           "      valid operators are: '*', '/', '+' and '-'. E.g. \"/c:3;*2.5,TOP;-1\" \n" +
+                                          "      for the value a floating point value or a columnname can be specified. \n" +
+                                          "        a columnname must be surrounded with curly braces, e.g. '-{TOP}' \n" +
+                                          "      for stringvalues only operators '+' and '-' are valid (to concatenate or remove a substring). \n" + 
                                           "    a string expression is a combination of (one-based) column numbers/names and/or \n" +
                                           "    constant values/strings; column numbers/names must be surrounded by {}-brackets and \n" +
                                           "      {<col>}-substrings are replaced with the corresponding column values in that row; \n" +
@@ -424,8 +427,16 @@ namespace Sweco.SIF.IPFselect
         public string ColumnDefinition;
         public string ExpressionString;
         public OperatorEnum ExpOperator;
+
+        /// <summary>
+        /// Either a valid, numeric value or NaN, which indicates that the expression value is textual
+        /// </summary>
         public double ExpDoubleValue;
-        public string ExpStringValue;
+
+        /// <summary>
+        /// The string represention of specified expression value, which be textual or numeric
+        /// </summary>
+        public string ExpStringValue;   
         public string NoDataString;
 
         /// <summary>

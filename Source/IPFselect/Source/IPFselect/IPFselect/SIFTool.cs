@@ -299,15 +299,24 @@ namespace Sweco.SIF.IPFselect
                 }
             }
 
+            bool hasParseError = false;
+            string parseErrorString = null;
+            bool isParseErrorLogged = false;
             for (int selPointIdx = 0; selPointIdx < selSourcePointIndices.Count; selPointIdx++)
-            {
+            {   
                 int pointIdx = selSourcePointIndices[selPointIdx];
                 IPFPoint ipfPoint = ipfFile.Points[pointIdx];
                 for (int defIdx = 0; defIdx < settings.ColumnExpressionDefs.Count; defIdx++)
                 {
                     ColumnExpressionDef colExpDef = settings.ColumnExpressionDefs[defIdx];
                     int colNr = ipfFile.FindColumnNumber(colExpDef.ColumnDefinition, true, false);
-                    ipfPoint.ColumnValues[colNr - 1] = EvaluateExpression(ipfPoint.ColumnValues[colNr - 1], colExpDef, inputIPFFile, ipfPoint.ColumnValues);
+                    ipfPoint.ColumnValues[colNr - 1] = EvaluateExpression(ipfPoint.ColumnValues[colNr - 1], colExpDef, inputIPFFile, ipfPoint.ColumnValues, out hasParseError, out parseErrorString);
+                    if (hasParseError && !isParseErrorLogged)
+                    {
+                        log.AddWarning("Expression value '" + (parseErrorString.Equals(string.Empty) ? "Empty" : parseErrorString) + "' in expression '" + colExpDef.ExpressionString + "' could not be parsed as a value for point " + ipfPoint.ToString(), logIndentLevel + 1);
+                        log.AddInfo("Note: other parse errors are not logged.", logIndentLevel);
+                        isParseErrorLogged = true;
+                    }
                 }
             }
             return ipfFile;
@@ -357,8 +366,10 @@ namespace Sweco.SIF.IPFselect
             return newIPFFile;
         }
 
-        private string EvaluateExpression(string currentValueString, ColumnExpressionDef colExpDef, IPFFile ipfInputFile, List<string> columnValues)
+        private string EvaluateExpression(string currentValueString, ColumnExpressionDef colExpDef, IPFFile ipfInputFile, List<string> columnValues, out bool hasParseError, out string parseErrorString)
         {
+            hasParseError = false;
+            parseErrorString = null;
             if (colExpDef.ExpOperator == OperatorEnum.None)
             {
                 // Try to parse string expression
@@ -383,41 +394,47 @@ namespace Sweco.SIF.IPFselect
                         expStringValue = ipfInputFile.EvaluateStringExpression(colExpDef.ExpStringValue, columnValues);
                         if (!double.TryParse(expStringValue, NumberStyles.Float, EnglishCultureInfo, out expDoubleValue))
                         {
+                            hasParseError = true;
+                            parseErrorString = expStringValue;
                             expDoubleValue = double.NaN;
                         }
                     }
                     if (expDoubleValue.Equals(double.NaN) || !double.TryParse(currentValueString, NumberStyles.Float, EnglishCultureInfo, out currentValue))
                     {
-                        // Parse 
+                        // Process string expressions
                         if (colExpDef.ExpOperator == OperatorEnum.Add)
                         {
                             return currentValueString + expStringValue;
                         }
                         else if (colExpDef.ExpOperator == OperatorEnum.Substract)
                         {
-                            return currentValueString.Replace(expStringValue, string.Empty);
+                            // Remove substring currentValueString from existing string if existing
+                            return ((expStringValue == null) || expStringValue.Equals(string.Empty)) ? currentValueString : currentValueString.Replace(expStringValue, string.Empty);
                         }
                         else
                         {
                             throw new ToolException("Expression is not defined for expression operator " + colExpDef.ExpOperator + ", NaN expression value and current value: " + currentValueString);
                         }
                     }
-                    switch (colExpDef.ExpOperator)
+                    else
                     {
-                        case OperatorEnum.Multiply:
-                            resultValue = currentValue * expDoubleValue;
-                            break;
-                        case OperatorEnum.Divide:
-                            resultValue = currentValue / expDoubleValue;
-                            break;
-                        case OperatorEnum.Add:
-                            resultValue = currentValue + expDoubleValue;
-                            break;
-                        case OperatorEnum.Substract:
-                            resultValue = currentValue - expDoubleValue;
-                            break;
-                        default:
-                            throw new Exception("Unexpected operator: " + colExpDef.ExpOperator);
+                        switch (colExpDef.ExpOperator)
+                        {
+                            case OperatorEnum.Multiply:
+                                resultValue = currentValue * expDoubleValue;
+                                break;
+                            case OperatorEnum.Divide:
+                                resultValue = currentValue / expDoubleValue;
+                                break;
+                            case OperatorEnum.Add:
+                                resultValue = currentValue + expDoubleValue;
+                                break;
+                            case OperatorEnum.Substract:
+                                resultValue = currentValue - expDoubleValue;
+                                break;
+                            default:
+                                throw new Exception("Unexpected operator: " + colExpDef.ExpOperator);
+                        }
                     }
 
                     // currentValueString = currentValue.ToString(englishCultureInfo);
