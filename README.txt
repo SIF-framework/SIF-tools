@@ -63,19 +63,13 @@ The following third party libraries are used in some of the SIF-tools:
   It has the following license: GNU Lesser General Public License v2.1
   The dll is included seperately in the tools directory.
   See: https://www.easygisdotnet.com
- - ZedGraph v5.1.7, a charting library for .NET by John Champion
-   It has the following license: GNU Lesser General Public License v2.1
-   Note: Some changes were applied to fix some issues, see Source\Changes.txt
-   The dll is included seperately in the tools directory. 
-   See: 
-   https://github.com/ZedGraph/ZedGraph/tree/v5.1.7
-   https://www.nuget.org/packages/ZedGraph
-
-License: Lesser General Public License v2.1 (LGPL-2.1)
-
-ZedGraph is also available via NuGet: 
-
-
+- ZedGraph v5.1.7, a charting library for .NET by John Champion
+  It has the following license: GNU Lesser General Public License v2.1
+  Note: Some changes were applied to fix some issues, see Source\Changes.txt
+  The dll is included seperately in the tools directory. 
+  See: 
+  https://github.com/ZedGraph/ZedGraph/tree/v5.1.7
+  https://www.nuget.org/packages/ZedGraph
 
   
 Some of these third party libraries are downloaded/installed via Visual Studio's 
