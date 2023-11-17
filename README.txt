@@ -58,6 +58,25 @@ The following third party libraries are used in some of the SIF-tools:
   It has the following license: Boost Software License - Version 1.0 (August 17th, 2003)
   The source code is used in Sweco.SIF.GIS.dll
   See: https://angusj.com/clipper2/Docs/Overview.htm
+- EGIS.ShapeFileLib (Easy GIS .NET), Desktop Edition v4.5.6, 
+  for reading/writing of shapefiles. 
+  It has the following license: GNU Lesser General Public License v2.1
+  The dll is included seperately in the tools directory.
+  See: https://www.easygisdotnet.com
+ - ZedGraph v5.1.7, a charting library for .NET by John Champion
+   It has the following license: GNU Lesser General Public License v2.1
+   Note: Some changes were applied to fix some issues, see Source\Changes.txt
+   The dll is included seperately in the tools directory. 
+   See: 
+   https://github.com/ZedGraph/ZedGraph/tree/v5.1.7
+   https://www.nuget.org/packages/ZedGraph
+
+License: Lesser General Public License v2.1 (LGPL-2.1)
+
+ZedGraph is also available via NuGet: 
+
+
+
   
 Some of these third party libraries are downloaded/installed via Visual Studio's 
 NuGet Packager Manager. Check above NuGet webpages for more information.
@@ -81,29 +100,39 @@ ExcelMapper             For mapping data from Excel rows to textfile, based on a
 ExcelSelect             For selection of rows and/or sheets in Excel file(s)
 GENcreate               For creating GEN-files for specified extent coordinates
 GENselect               For selection of features in GEN-files based and modification of column values
+GENSHPconvert           For converting GEN-files to shapefiles or vice versa
 GENsplit                For splitting GEN-features on column values or IPF-points (for lines)
 GeoTOPscale             For adapting kv-values based on (MODFLOW 6) calculated flow through GeoTOP-layers
+HFBmanager              For manipulating or retrieving info (e.g. resistance) about GEN-files for HFB-package 
 HydroMonitorIPFconvert  For converting HydroMonitor Excel-files to IPF-files
 IDFbnd                  For correcting boundary- condition around selected IDF-cells
 IDFexp                  For evaluating multiple (nested) IDF-expressions on IDF-files
 IDFGENconvert           For IDF-GEN (convex hull) or GEN-IDF (polygons/lines) conversion
 IDFinfo                 For retrieving info about IDF-file (e.g. extent, cellsize, nr of values)
 IDFmath                 For simple math operations on IDF-files (use IDFexp if complex)
+IDFmerge                For (groupwise) aggregation of IDF-files
 IDFresample             For resampling values in IDF-file with nearest neighbor method or IDW
 IDFselect               For selection of cells in IDF-files
 IDFvoxel                For manipulation of voxel IDF-files or creation from GeoTOP CSV-files
+IFFselect               For selecting IFF-pathlines in relation to specified volume
+IFFSHPconvert           For converting IFF-files to shapefiles
 IMFcreate               For creating iMOD IMF-files with specified iMOD-files, legends, etc.
 iMODclip                For clipping iMOD-files (IDF/ASC/IPF) to specified extent
 iMODdel                 For selective deletion of iMOD-files (IDF/IPF/GEN) (e.g. empty files)
 iMODmetadata            For adding or merging metadata to iMOD .MET-files
 iMODstats               For creating Excelfile with statistics of IDF-file(s)
 iMODValidator           For checking iMOD-models (RUN-file) for some known modelissues
+iMODWBalFormat          For formatting CSV-output of iMOD-batchfunction WBALANCE
 IPFcolidx               For retrieving a column number for specified column name in an IPF-file
+IPFGENconvert           For converting IPF- to GEN-files or vice versa
 IPFmerge                For merging rows from different IPF-files with equal columns
+IPFplot                 For plotting IPF-files
 IPFreorder              For reordering columns from IPF-file(s) with simple column expressions
 IPFsample               For sampling values from IDF-files at points from specified IPF-files
 IPFselect               For selection and modification of points/rows in IPF-files
+IPFSHPconvert           For converting IPF-file(s) to shapefile(s) or vice versa
 IPFsplit                For splitting IPF-files based on column values
+ISDcreate               For creating ISD-files from IPF- or GEN-files
 ISGinfo                 For retrieving information (extent or number of segments) from an ISG-file
 LayerManager            For checking REGIS/iMOD-layermodel for inconsistencies or kD/c-calculation
 NumberRounder           For rounding numeric values in textfiles
@@ -114,12 +143,12 @@ Tee                     For teeing standard output of a command to both standard
 URLdownload             For downloading files via somne URL
 WorkflowViz             For visualisation of SIF-workflows with GraphViz-graphs
 
-The tools are build and tested for Windows 10, 64bit (x64) with .NET Framework 4.5.
 A release can be downloaded via: https://github.com/SIF-framework/SIF-tools/releases
 
 
 3. Build
 --------
+The tools are build and tested for Windows 10, 64bit (x64) with .NET Framework 4.5.
 For building the SIF-tools, Visual Studio Express 2017 was used. 
 For each tool there is a subdirectory Source with the solution file for the tool.
 
@@ -149,11 +178,6 @@ For each tool there is a subdirectory Source with the solution file for the tool
 
 4. Contacts
 -----------
-If you have a bug, other feedback or a question please contact:
-
-Koen van der Hauw
-koen.vanderhauw[@]sweco.nl
-Sweco Nederland B.V.
-De Holle Bilt 22
-3732 HM De Bilt, The Netherlands.
-www.sweco.nl
+If you have a bug, other feedback or a question please contact via:
+- https://github.com/SIF-framework/SIF-tools/issues
+- https://github.com/SIF-framework/SIF-tools/discussions
