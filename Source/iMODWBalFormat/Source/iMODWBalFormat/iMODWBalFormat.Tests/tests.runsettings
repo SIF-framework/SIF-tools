@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File name extension must be .runsettings -->
+<RunSettings>
+  <RunConfiguration>
+    <!-- Controls degree of parallel test execution when running unit tests using available cores -->
+    <MaxCpuCount>1</MaxCpuCount>
+
+    <!-- Path relative to directory that contains .runsettings file-->
+    <ResultsDirectory>.\TestResults</ResultsDirectory>
+
+    <!-- x86 or x64; You can also change it from the Test menu; choose "Processor Architecture for AnyCPU Projects" -->
+    <TargetPlatform>x64</TargetPlatform>
+
+    <!-- Framework35 | [Framework40] | Framework45 -->
+    <TargetFrameworkVersion>Framework45</TargetFrameworkVersion>
+
+    <!-- Specify timeout in milliseconds. A valid value should be greater than 0 -->
+    <!-- Allows users to terminate a test session when it exceeds a given timeout. -->
+    <TestSessionTimeout>10000</TestSessionTimeout>
+
+    <!-- Value that specifies the exit code when no tests are discovered: true or false -->
+    <TreatNoTestsAsError>false</TreatNoTestsAsError>
+  </RunConfiguration>
+</RunSettings>

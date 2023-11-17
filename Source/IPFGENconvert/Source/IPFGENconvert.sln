@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1525
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPFGENconvert", "IPFGENconvert\IPFGENconvert\IPFGENconvert.csproj", "{086FCECD-BDF8-41EF-80BC-227201509521}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPFGENconvert.Tests", "IPFGENconvert\IPFGENconvert.Tests\IPFGENconvert.Tests.csproj", "{08560FD4-6BF7-49C2-BFB9-18C9273B8E3A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{086FCECD-BDF8-41EF-80BC-227201509521}.Debug|x64.ActiveCfg = Debug|x64
+		{086FCECD-BDF8-41EF-80BC-227201509521}.Debug|x64.Build.0 = Debug|x64
+		{086FCECD-BDF8-41EF-80BC-227201509521}.Release|x64.ActiveCfg = Release|x64
+		{086FCECD-BDF8-41EF-80BC-227201509521}.Release|x64.Build.0 = Release|x64
+		{08560FD4-6BF7-49C2-BFB9-18C9273B8E3A}.Debug|x64.ActiveCfg = Debug|x64
+		{08560FD4-6BF7-49C2-BFB9-18C9273B8E3A}.Debug|x64.Build.0 = Debug|x64
+		{08560FD4-6BF7-49C2-BFB9-18C9273B8E3A}.Release|x64.ActiveCfg = Release|x64
+		{08560FD4-6BF7-49C2-BFB9-18C9273B8E3A}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B4C71D96-E002-4B82-9E09-EDC529E571CA}
+	EndGlobalSection
+EndGlobal

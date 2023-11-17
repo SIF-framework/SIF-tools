@@ -1,0 +1,15 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="Sweco.SIF.GENSHPconvert.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="Point_postfix" Type="System.String" Scope="User">
+      <Value Profile="(Default)">_p</Value>
+    </Setting>
+    <Setting Name="Line_postfix" Type="System.String" Scope="User">
+      <Value Profile="(Default)">_l</Value>
+    </Setting>
+    <Setting Name="Polygon_postfix" Type="System.String" Scope="User">
+      <Value Profile="(Default)">_v</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

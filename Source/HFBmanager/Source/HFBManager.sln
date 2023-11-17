@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1622
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HFBManager", "HFBManager\HFBManager\HFBManager.csproj", "{3C01A543-4A41-42BA-929C-E88DFA033D2D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HFBManager.Tests", "HFBManager\HFBManager.Tests\HFBManager.Tests.csproj", "{5945EED3-A1A1-4E27-85BB-2F68A776C3EF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3C01A543-4A41-42BA-929C-E88DFA033D2D}.Debug|x64.ActiveCfg = Debug|x64
+		{3C01A543-4A41-42BA-929C-E88DFA033D2D}.Debug|x64.Build.0 = Debug|x64
+		{3C01A543-4A41-42BA-929C-E88DFA033D2D}.Release|x64.ActiveCfg = Release|x64
+		{3C01A543-4A41-42BA-929C-E88DFA033D2D}.Release|x64.Build.0 = Release|x64
+		{5945EED3-A1A1-4E27-85BB-2F68A776C3EF}.Debug|x64.ActiveCfg = Debug|x64
+		{5945EED3-A1A1-4E27-85BB-2F68A776C3EF}.Debug|x64.Build.0 = Debug|x64
+		{5945EED3-A1A1-4E27-85BB-2F68A776C3EF}.Release|x64.ActiveCfg = Release|x64
+		{5945EED3-A1A1-4E27-85BB-2F68A776C3EF}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C21AD6E8-533D-4DCE-8469-31DA503252F6}
+	EndGlobalSection
+EndGlobal

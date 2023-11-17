@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1525
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IFFselect", "IFFselect\IFFselect\IFFselect.csproj", "{D730ED04-1663-4DEE-B020-1633A560CDA9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IFFselect.Tests", "IFFselect\IFFselect.Tests\IFFselect.Tests.csproj", "{8DD245FD-C283-44DC-A555-A798CBE576EE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D730ED04-1663-4DEE-B020-1633A560CDA9}.Debug|x64.ActiveCfg = Debug|x64
+		{D730ED04-1663-4DEE-B020-1633A560CDA9}.Debug|x64.Build.0 = Debug|x64
+		{D730ED04-1663-4DEE-B020-1633A560CDA9}.Release|x64.ActiveCfg = Release|x64
+		{D730ED04-1663-4DEE-B020-1633A560CDA9}.Release|x64.Build.0 = Release|x64
+		{8DD245FD-C283-44DC-A555-A798CBE576EE}.Debug|x64.ActiveCfg = Debug|x64
+		{8DD245FD-C283-44DC-A555-A798CBE576EE}.Debug|x64.Build.0 = Debug|x64
+		{8DD245FD-C283-44DC-A555-A798CBE576EE}.Release|x64.ActiveCfg = Release|x64
+		{8DD245FD-C283-44DC-A555-A798CBE576EE}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D4870432-8683-4877-BFFD-156A350CD33E}
+	EndGlobalSection
+EndGlobal

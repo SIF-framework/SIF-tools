@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1525
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iMODWBalFormat", "iMODWBalFormat\iMODWBalFormat\iMODWBalFormat.csproj", "{74D201EB-97F4-46EB-AA0F-6FD53554777B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iMODWBalFormat.Tests", "iMODWBalFormat\iMODWBalFormat.Tests\iMODWBalFormat.Tests.csproj", "{79BB3BDA-1B39-4840-A19D-CBE277DE6066}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{74D201EB-97F4-46EB-AA0F-6FD53554777B}.Debug|x64.ActiveCfg = Debug|x64
+		{74D201EB-97F4-46EB-AA0F-6FD53554777B}.Debug|x64.Build.0 = Debug|x64
+		{74D201EB-97F4-46EB-AA0F-6FD53554777B}.Release|x64.ActiveCfg = Release|x64
+		{74D201EB-97F4-46EB-AA0F-6FD53554777B}.Release|x64.Build.0 = Release|x64
+		{79BB3BDA-1B39-4840-A19D-CBE277DE6066}.Debug|x64.ActiveCfg = Debug|x64
+		{79BB3BDA-1B39-4840-A19D-CBE277DE6066}.Debug|x64.Build.0 = Debug|x64
+		{79BB3BDA-1B39-4840-A19D-CBE277DE6066}.Release|x64.ActiveCfg = Release|x64
+		{79BB3BDA-1B39-4840-A19D-CBE277DE6066}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {49059C27-6893-4842-B62E-1E64D4406E83}
+	EndGlobalSection
+EndGlobal

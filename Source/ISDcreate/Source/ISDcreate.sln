@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1525
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ISDcreate", "ISDcreate\ISDcreate\ISDcreate.csproj", "{6B076BD8-F2DB-40E9-AA69-D682E75E07DB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ISDcreate.Tests", "ISDcreate\ISDcreate.Tests\ISDcreate.Tests.csproj", "{BD49AA73-B2B2-4A4C-A8F3-E415B1AED92B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6B076BD8-F2DB-40E9-AA69-D682E75E07DB}.Debug|x64.ActiveCfg = Debug|x64
+		{6B076BD8-F2DB-40E9-AA69-D682E75E07DB}.Debug|x64.Build.0 = Debug|x64
+		{6B076BD8-F2DB-40E9-AA69-D682E75E07DB}.Release|x64.ActiveCfg = Release|x64
+		{6B076BD8-F2DB-40E9-AA69-D682E75E07DB}.Release|x64.Build.0 = Release|x64
+		{BD49AA73-B2B2-4A4C-A8F3-E415B1AED92B}.Debug|x64.ActiveCfg = Debug|x64
+		{BD49AA73-B2B2-4A4C-A8F3-E415B1AED92B}.Debug|x64.Build.0 = Debug|x64
+		{BD49AA73-B2B2-4A4C-A8F3-E415B1AED92B}.Release|x64.ActiveCfg = Release|x64
+		{BD49AA73-B2B2-4A4C-A8F3-E415B1AED92B}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {76072943-0B09-4851-942B-0612EF9E59E2}
+	EndGlobalSection
+EndGlobal
