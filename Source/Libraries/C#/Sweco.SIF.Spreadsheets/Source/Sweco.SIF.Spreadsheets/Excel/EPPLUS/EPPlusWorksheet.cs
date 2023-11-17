@@ -626,7 +626,53 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="colCount"></param>
         public void DeleteColumns(int startColIdx, int colCount)
         {
-            epplusWorksheet.DeleteColumn(startColIdx, colCount);
+            epplusWorksheet.DeleteColumn(startColIdx + 1, colCount);
+        }
+
+        /// <summary>
+        /// Clear cells in specified range; note because of a bug in EPPlus, clearing ranges does not work properly if drawing are present.
+        /// </summary>
+        /// <param name="range"></param>
+        public void Clear(Range range = null)
+        {
+            if (range != null)
+            {
+                ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
+                epplusRange.Clear();
+            }
+            else
+            {
+                /// Because of a bug in EPPlus, comments in drawings are not properly removed when Clea() is called. This can be solved by clearing Drawings explicitly before.
+                epplusWorksheet.Drawings.Clear();
+                epplusCells.Clear();
+            }
+        }
+
+        /// <summary>
+        /// Remove all comments in sheet
+        /// </summary>
+        public void ClearComments()
+        {
+            List<ExcelComment> comments = new List<ExcelComment>();
+            for (int idx = 0; idx < epplusWorksheet.Comments.Count; idx++)
+            {
+                comments.Add(epplusWorksheet.Comments[idx]);
+            }
+
+            for (int idx = 0; idx < comments.Count; idx++)
+            {
+                if (comments[idx] != null)
+                {
+                    try
+                    {
+                        epplusWorksheet.Comments.Remove(comments[idx]);
+                    }
+                    catch (Exception)
+                    {
+                        // ignore
+                    }
+                }
+            }
         }
 
         /// <summary>

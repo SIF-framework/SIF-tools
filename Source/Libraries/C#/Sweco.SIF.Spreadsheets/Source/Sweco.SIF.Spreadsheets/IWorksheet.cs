@@ -352,6 +352,17 @@ namespace Sweco.SIF.Spreadsheets
         void DeleteColumns(int startColIdx, int colCount);
 
         /// <summary>
+        /// Clear cells in specified range
+        /// </summary>
+        /// <param name="range"></param>
+        void Clear(Range range = null);
+
+        /// <summary>
+        /// Remove all comments in sheet
+        /// </summary>
+        void ClearComments();
+
+        /// <summary>
         /// Check if the specified cell is empty
         /// </summary>
         /// <param name="cell"></param>

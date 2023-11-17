@@ -634,6 +634,19 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
             throw new NotImplementedException();
         }
 
+        public void Clear(Range range = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Remove all comments in sheet
+        /// </summary>
+        public void ClearComments()
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Check if the specified cell is empty
         /// </summary>
