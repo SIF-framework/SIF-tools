@@ -287,30 +287,42 @@ namespace Sweco.SIF.iMOD.ARR
                 }
                 arrFile.NoDataValue = fltNoDataValue;
 
-                // Convert doubles to float
-                try
+                if (values.Count > 0)
                 {
-                    arrFile.Values = new float[arrFile.NRows * arrFile.NCols];
-                    for (int valueIdx = 0; valueIdx < values.Count; valueIdx++)
+                    if ((arrFile.NRows * arrFile.NCols) != values.Count)
                     {
-                        if (values[valueIdx].Equals(dblNoDataValue))
+                        throw new ToolException("Defined number of rows and columns (" + arrFile.NRows + "x" + arrFile.NCols + ") is not equal to number of values (" + values + ")");
+                    }
+
+                    // Convert doubles to float
+                    try
+                    {
+                        arrFile.Values = new float[arrFile.NRows * arrFile.NCols];
+                        for (int valueIdx = 0; valueIdx < values.Count; valueIdx++)
                         {
-                            arrFile.Values[valueIdx] = fltNoDataValue;
-                        }
-                        else
-                        {
-                            arrFile.Values[valueIdx] = (float)values[valueIdx];
+                            if (values[valueIdx].Equals(dblNoDataValue))
+                            {
+                                arrFile.Values[valueIdx] = fltNoDataValue;
+                            }
+                            else
+                            {
+                                arrFile.Values[valueIdx] = (float)values[valueIdx];
+                            }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        throw new Exception("Could not convert ARR double values to IDF float values", ex);
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    throw new Exception("Could not convert ARR double values to IDF float values", ex);
-                }
-
-                if ((arrFile.NRows * arrFile.NCols) != arrFile.Values.Length)
-                {
-                    throw new ToolException("Defined number of rows and columns (" + arrFile.NRows + "x" + arrFile.NCols + ") is not equal to number of values (" + arrFile.Values + ")");
+                    // Correct for empty ARR-file: set all values to NoData
+                    arrFile.Values = new float[arrFile.NRows * arrFile.NCols];
+                    for (int valueIdx = 0; valueIdx < arrFile.Values.Length; valueIdx++)
+                    {
+                        arrFile.Values[valueIdx] = fltNoDataValue;
+                    }
                 }
             }
             catch (Exception ex)

@@ -2624,5 +2624,19 @@ namespace Sweco.SIF.iMOD.IPF
 
             return fieldTypes;
         }
+
+        /// <summary>
+        /// Sort points alphabetically on ID's in specified ID column
+        /// </summary>
+        /// <param name="idColIdx">zero-based column index with unique ID</param>
+        public void SortIPFPoints(int idColIdx)
+        {
+            if ((idColIdx < 0) || (idColIdx >= ColumnCount))
+            {
+                throw new Exception("Invalid ID column index for SortIPFPoints() and column count " + ColumnCount + ": " + idColIdx);
+            }
+
+            points.Sort(new IPFPointIDComparer(idColIdx));
+        }
     }
 }

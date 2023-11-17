@@ -207,7 +207,7 @@ namespace Sweco.SIF.iMOD.IPF
         public bool HasTimeseriesDefined(bool isFloatTXTFilenameAllowed = false)
         {
             // Check for positive TextFileColumnIdx and non-null, non-empty, non-numeric value.  
-            return ((IPFFile.AssociatedFileColIdx >= 0) && (IPFFile.AssociatedFileColIdx < ColumnValues.Count) && (columnValues[IPFFile.AssociatedFileColIdx] != null) 
+            return ((IPFFile.AssociatedFileColIdx >= 0) && (IPFFile.AssociatedFileColIdx < ColumnValues.Count) && (columnValues[IPFFile.AssociatedFileColIdx] != null)
                 && !columnValues[IPFFile.AssociatedFileColIdx].Trim().Equals(string.Empty) && (isFloatTXTFilenameAllowed || !HasFloatValue(IPFFile.AssociatedFileColIdx)));
         }
 
@@ -296,7 +296,7 @@ namespace Sweco.SIF.iMOD.IPF
             }
             if (!((IPFFile.AssociatedFileColIdx > 0) && (IPFFile.AssociatedFileColIdx < columnValues.Count())))
             {
-                throw new ToolException( "Invalid column index for associated filenames: " + IPFFile.AssociatedFileColIdx + " for IPF-file " + Path.GetFileName(IPFFile.Filename));
+                throw new ToolException("Invalid column index for associated filenames: " + IPFFile.AssociatedFileColIdx + " for IPF-file " + Path.GetFileName(IPFFile.Filename));
             }
             string timeseriesFilename = columnValues[IPFFile.AssociatedFileColIdx];
             if ((timeseriesFilename == null) || timeseriesFilename.Equals(string.Empty))
@@ -462,7 +462,7 @@ namespace Sweco.SIF.iMOD.IPF
                 {
                     return point1.Y.CompareTo(point2.Y);
                 }
-                else 
+                else
                 {
                     return point1.Z.CompareTo(point2.Z);
                 }
@@ -488,6 +488,70 @@ namespace Sweco.SIF.iMOD.IPF
             {
                 IPFPoint other = (IPFPoint)obj;
                 return Equals(other);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Class for comparing ID of IPF-points alphabeticallty. It is assumed that specified ID column index is valid for both IPFPoints
+    /// </summary>
+    public class IPFPointIDComparer : IComparer<IPFPoint>
+    {
+        public int IDColIdx { get; private set; }
+
+        private IPFPointIDComparer()
+        {
+        }
+
+        /// <summary>
+        /// Create comparer for specified ID column index (zero-based)
+        /// </summary>
+        /// <param name="idColIdx"></param>
+        public IPFPointIDComparer(int idColIdx)
+        {
+            IDColIdx = idColIdx;
+        }
+
+        /// <summary>
+        /// Compares two IPFPoint objects on ID-column value: -1 is returned when ID of point1 is null or (alphabetically) before ID of point1, 0 is returned if objects are equal, 1 is returned otherwise
+        /// </summary>
+        /// <param name="point1"></param>
+        /// <param name="point2"></param>
+        /// <returns></returns>
+        public int Compare(IPFPoint point1, IPFPoint point2)
+        {
+            if (point1 == null)
+            {
+                return -1;
+            }
+            else if (point2 == null)
+            {
+                return 1;
+            }
+            else
+            {
+                // Retrieve ID's, assume specified ID column index is valid for both IPFPoints
+                string id1 = point1.ColumnValues[IDColIdx];
+                string id2 = point2.ColumnValues[IDColIdx];
+
+                return id1.CompareTo(id2);
+                // Compare first to X, and if equal to Y-coordinate
+                //if (id1.Equals(id2))
+                //{
+                //    return 0;
+                //}
+                //else if ((Math.Abs(point1.X - point2.X) > 0))
+                //{
+                //    return point1.X.CompareTo(point2.X);
+                //}
+                //else if ((Math.Abs(point1.Y - point2.Y) > 0))
+                //{
+                //    return point1.Y.CompareTo(point2.Y);
+                //}
+                //else
+                //{
+                //    return point1.Z.CompareTo(point2.Z);
+                //}
             }
         }
     }

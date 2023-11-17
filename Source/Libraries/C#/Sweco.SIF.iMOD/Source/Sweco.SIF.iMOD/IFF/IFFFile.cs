@@ -211,6 +211,10 @@ namespace Sweco.SIF.iMOD.IFF
                 {
                     line = sr.ReadLine().Trim();
                     lineIdx++;
+
+                    // Replace iMOD-string for infinity by string that is recognize by float.Parse()
+                    line = line.Replace("Infinity", float.PositiveInfinity.ToString(englishCultureInfo));
+
                     string[] lineValues = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                     int particleNumber = int.Parse(lineValues[0]);
                     IFFPointEnum pointType = IFFPointEnum.Undefined;
