@@ -746,7 +746,7 @@ namespace Sweco.SIF.IDFexp
         /// <returns></returns>
         protected static IDFFile ReadIDFFile(string idfFilename)
         {
-            IDFFile resultIDF = IDFFile.ReadFile(idfFilename, true);
+            IDFFile resultIDF = IDFFile.ReadFile(idfFilename, true, null, 0, Interpreter.Extent);
             // IDFFile resultIDF = (isSparseIDFUsed) ? SparseIDFFile.ReadIDFFile(idfFilename, true) : IDFFile.ReadFile(idfFilename, true);
             if (UseNoDataAsValue)
             {
@@ -1631,7 +1631,7 @@ namespace Sweco.SIF.IDFexp
             }
             else if (cellSize > idfFile1.XCellsize)
             {
-                // Downscale
+                // Upscale
                 scaleTypeString = "upscaling";
                 UpscaleMethodEnum upscaleMethod = UpscaleMethodEnum.Mean;
                 if (hasThirdArg)
@@ -1639,7 +1639,8 @@ namespace Sweco.SIF.IDFexp
                     upscaleMethod = GetUpscaleMethod((int)((ConstantIDFFile)(idfFile4 != null ? idfFile4 : idfFile3)).ConstantValue);
                     scaleMethodString = upscaleMethod.ToString();
                 }
-                resultIDFFile = idfFile1.ScaleUp(cellSize, upscaleMethod);
+                // Scale and try to keep (align to) extent of source IDF-file
+                resultIDFFile = idfFile1.ScaleUp(cellSize, upscaleMethod, null, idfFile1.Extent);
             }
             else
             {
@@ -1695,7 +1696,7 @@ namespace Sweco.SIF.IDFexp
 
         /// <summary>
         /// Retrieve UpscaleMethodEnum for integer method value.
-        /// 0=Mean, 1=Median, 2=Minimum, 3=Maximum, 4=Most occurring, 5=Boundary
+        /// 0=Mean, 1=Median, 2=Minimum, 3=Maximum, 4=Most occurring, 5=Boundary, 6=Sum
         /// </summary>
         /// <param name="methodValue"></param>
         /// <returns>an enum value or a ToolException for invalid number</returns>
@@ -1717,6 +1718,8 @@ namespace Sweco.SIF.IDFexp
                     return UpscaleMethodEnum.Boundary;
                 case 6:
                     return UpscaleMethodEnum.Sum;
+                case 7:
+                    return UpscaleMethodEnum.MostOccurringNoData;
                 default:
                     throw new ToolException("Invalid method number for downscale: " + methodValue);
             }

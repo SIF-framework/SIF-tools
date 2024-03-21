@@ -104,8 +104,8 @@ namespace Sweco.SIF.IDFexp
             AddToolOptionDescription("d", "Run in debug mode: write intermediate expressions and IDF-files", "/d", "Running in debug mode");
             AddToolOptionDescription("i", "Write intermediate results (all IDF-variables) to IDF-files", "/i", "Intermediate variables are written to IDF-files");
             AddToolOptionDescription("m", "Add metadatafiles with (part of) expression(s) and source path", "/m", "Metadata is added to result files");
-            AddToolOptionDescription("q", "Define Quiet-mode for missing IDF-files with one of the following options:" +
-                                          "1) end IDFexp if a missing file is accessed, without raising an error (default);" +
+            AddToolOptionDescription("q", "Define Quiet-mode for missing IDF-files with one of the following options:\n" +
+                                          "1) end IDFexp if a missing file is accessed, without raising an error (default);\n" +
                                           "2) skip lines or expressions that refer to missing files, without raising an error", null, "Quiet mode {0} is used", null, new string[] { "m" }, new string[] { "1" });
             AddToolOptionDescription("r", "Round values in (intermediate) result IDF-files to d decimals", "/d:3", "Rounding cell values to {0} decimals", new string[] { "d" });
 
@@ -162,7 +162,11 @@ namespace Sweco.SIF.IDFexp
                                    + "                  scale(<exp1>,<exp2>,<methodDown>,<methodUp>)\n"
                                    + "  to scale IDF-expression <exp1> to the cellsize of (IDF-expression) <exp2>. Optional method:\n"
                                    + "    for downscale: 0=Block (default), 1=Divide\n"
-                                   + "    for upscale: 0=Mean (default), 1=Median, 2=Minimum, 3=Maximum, 4=Most occurring, 5=Boundary, 6=Sum\n"
+                                   + "    for upscale: 0=Mean (default), 1=Median, 2=Minimum, 3=Maximum, 4=MostOccurring, 5=Boundary, 6=Sum,\n"
+                                   + "                 7=MostOccuringNoData (including NoData); For 1-6 NoData-values are excluded.\n"
+                                   + "                 Note for MostOcurring(NoData): if several vales have same occurance, the most upperleft value is used\n"
+                                   + "                 Note for Boundary: retrieves most occuring minus value above most occuring positive value.\n"
+                                   + "                                    when only zero and/or NoData-values are present, 0 is returned.\n"
                                    + "- bbox-function: bbox(<exp1>) \n "
                                    + "  to find bounding box with all non-NoData-values; results in NoData-centercell(s) if only NoData-values are present\n"
                                    + "- cellsize-function: cellsize(<exp1>) \n "
@@ -172,6 +176,7 @@ namespace Sweco.SIF.IDFexp
                                    + "- In general the cellsize of leftmost expression/IDF-file will be used for result\n"
                                    + "- In general the ITB-levels of leftmost expression/IDF-file will be used for result\n"
                                    + "  for if, min and max the first expresion/IDF-file with ITB-levels is used\n"
+                                   + "- Relative paths are evualated as follows: relative to INI-file when reading; relative to outputpath when writing\n"
                                    + "- Environment variables enclosed by %-symbols will be evaluated");
 
             AddToolUsageOptionPostRemark("\n"

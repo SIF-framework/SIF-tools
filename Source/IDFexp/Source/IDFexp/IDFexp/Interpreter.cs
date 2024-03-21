@@ -294,7 +294,8 @@ namespace Sweco.SIF.IDFexp
         }
 
         /// <summary>
-        /// Add an IDFExpVariable with specified property sto the variable dictionary. If already existing it is replaced with specified properties.
+        /// Add an IDFExpVariable with specified propertie to the variable dictionary. If already existing it is replaced with specified properties.
+        /// If new IDF-file is null, the current value is kept if name already exists in the dictionary
         /// </summary>
         /// <param name="variableDictionary"></param>
         /// <param name="name"></param>
@@ -312,8 +313,15 @@ namespace Sweco.SIF.IDFexp
             IDFExpVariable idfExpVariable = CreateIDFExpVariable(name, idfFile, expressionType, prefix, metadata);
             if (variableDictionary.ContainsKey(name))
             {
-                // Replace current value
-                variableDictionary[name] = idfExpVariable;
+                if (idfFile!= null)
+                {
+                    // Replace current value
+                    variableDictionary[name] = idfExpVariable;
+                }
+                else
+                {
+                    // Leave current value
+                }
             }
             else
             {
@@ -538,7 +546,7 @@ namespace Sweco.SIF.IDFexp
                         {
                             if (QuietMode == QuietMode.SilentSkip)
                             {
-                                Log.AddWarning("Silently skipping definition of variable '" + variableName + "' that refers to a skipped variable ...", 1);
+                                Log.AddWarning("Silently skipping expression for variable '" + variableName + "' that refers to a skipped variable ...", 1);
                             }
                             else
                             {
