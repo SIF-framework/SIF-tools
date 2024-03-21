@@ -30,7 +30,7 @@ namespace Sweco.SIF.GENSHPconvert
 {
     public class FieldDefinition
     {
-        public const int DefaultDecimalCount = 3;
+        public const int DefaultDecimalCount = 0;
 
         public string Name;
         public DbfFieldType Type;

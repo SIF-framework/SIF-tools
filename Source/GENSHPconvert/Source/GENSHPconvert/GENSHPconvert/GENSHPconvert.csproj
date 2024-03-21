@@ -36,8 +36,7 @@
     <ApplicationIcon>Sweco.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="EGIS.ShapeFileLib, Version=4.6.2.0, Culture=neutral, PublicKeyToken=05b98c869b5ffe6a, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
+    <Reference Include="EGIS.ShapeFileLib">
       <HintPath>..\..\Libraries\EGIS.ShapeFileLib.dll</HintPath>
     </Reference>
     <Reference Include="Sweco.SIF.Common">

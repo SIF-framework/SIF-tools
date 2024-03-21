@@ -161,7 +161,7 @@ namespace Sweco.SIF.GENSHPconvert
 
                 Log.AddInfo(string.Format("Shape Type: {0}", sf.ShapeType), 2);
 
-                dbfReader = new DbfReader(System.IO.Path.ChangeExtension(shapeFilename, ".dbf"));
+                dbfReader = new DbfReader(Path.ChangeExtension(shapeFilename, ".dbf"));
                 ShapeType shapeType = sf.ShapeType;
                 if (sf.ShapeType == ShapeType.PolygonZ)
                 {
@@ -182,6 +182,7 @@ namespace Sweco.SIF.GENSHPconvert
                 datFile.AddColumn("ID2");
 
                 // Now add columns from shapefile
+                DbfFieldType[] fieldTypes = new DbfFieldType[fieldDescs.Length];
                 for (int fieldIdx = 0; fieldIdx < fieldDescs.Length; fieldIdx++)
                 {
                     DbfFieldDesc fieldDesc = fieldDescs[fieldIdx];
@@ -209,6 +210,7 @@ namespace Sweco.SIF.GENSHPconvert
                         fieldName = newIdColName;
                     }
                     datFile.AddColumn(fieldName);
+                    fieldTypes[fieldIdx] = fieldDesc.FieldType;
                 }
 
                 // Calculate number of points between 5% logmessages, use multiple of 50
@@ -237,10 +239,16 @@ namespace Sweco.SIF.GENSHPconvert
                         datFile = newDATFile;
                     }
 
-                    string[] fields = sf.GetAttributeFieldValues(featureIdx);
-
                     // Get the DBF record
+                    string[] fieldValues = sf.GetAttributeFieldValues(featureIdx);
+
+                    // Retrieve feature(parts)
                     IReadOnlyCollection<PointD[]> pds = sf.GetShapeDataD(featureIdx);
+                    if (pds.Count == 0)
+                    {
+                        Log.AddWarning("Feature " + (featureIdx + 1) + " has no shape data and is skipped: " + CommonUtils.ToString(fieldValues.ToList(), ",", true), 3);
+                    }
+
                     hasFeatureParts |= (pds.Count > 1);
                     for (int partIdx = 0; partIdx < pds.Count; partIdx++)
                     {
@@ -274,7 +282,7 @@ namespace Sweco.SIF.GENSHPconvert
                             }
                         }
 
-                        AddDatFileRow(datFile, fields, id, id2, false);
+                        AddDatFileRow(datFile, fieldValues, fieldTypes, id, id2, false);
                         id++;
                     }
 
@@ -304,6 +312,7 @@ namespace Sweco.SIF.GENSHPconvert
                     }
                 }
 
+                // Write GEN-file(s)
                 for (int fileIdx = 0; fileIdx < genFiles.Count; fileIdx++)
                 {
                     genFile = genFiles[fileIdx];
@@ -432,7 +441,7 @@ namespace Sweco.SIF.GENSHPconvert
             extentGENFile.WriteFile(extentGENFilename);
         }
 
-        protected void AddDatFileRow(DATFile datFile, string[] fields, int id, string id2, bool checkDuplicateIDs = true)
+        protected void AddDatFileRow(DATFile datFile, string[] fields, DbfFieldType[] fieldTypes, int id, string id2, bool checkDuplicateIDs = true)
         {
             List<string> rowValues = new List<string>();
             rowValues.Add(id.ToString());
@@ -440,18 +449,29 @@ namespace Sweco.SIF.GENSHPconvert
             for (int fieldIdx = 0; fieldIdx < fields.Length; fieldIdx++)
             {
                 string value = fields[fieldIdx].Trim();
-                if (value.StartsWith(SIFToolSettings.ShpNoData1Prefix))
+
+                // Peform corrections for 0 and null values which do not seem to be handled correctly by EGIS
+                switch (fieldTypes[fieldIdx])
                 {
-                    rowValues.Add(SIFToolSettings.ShpNoData1ReplacementString);
+                    case DbfFieldType.Number:
+                    case DbfFieldType.FloatingPoint:
+                        if (value.StartsWith("\0"))
+                        {
+                            value = "0";
+                        }
+                        break;
+                    default:
+                        if (value.StartsWith(SIFToolSettings.ShpNoData1Prefix))
+                        {
+                            value = SIFToolSettings.ShpNoData1ReplacementString;
+                        }
+                        else if (value.StartsWith(SIFToolSettings.ShpNoData2Prefix))
+                        {
+                            value = SIFToolSettings.ShpNoData2ReplacementString;
+                        }
+                        break;
                 }
-                else if (value.StartsWith(SIFToolSettings.ShpNoData2Prefix))
-                {
-                    rowValues.Add(SIFToolSettings.ShpNoData2ReplacementString);
-                }
-                else
-                {
-                    rowValues.Add(value);
-                }
+                rowValues.Add(value);
             }
             datFile.AddRow(new DATRow(rowValues), checkDuplicateIDs);
         }
@@ -576,7 +596,7 @@ namespace Sweco.SIF.GENSHPconvert
                             // leave fieldType to shpDouble, but redefine length
                             int decimalCount = length - value.IndexOf(".") - 1;
                             length = Math.Max(length, decimalCount + 8);
-                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Character, length, decimalCount);
+                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.FloatingPoint, length, decimalCount);
                         }
                         else if (!fieldDefinitions[colIdx].Type.Equals(DbfFieldType.Number))
                         {
