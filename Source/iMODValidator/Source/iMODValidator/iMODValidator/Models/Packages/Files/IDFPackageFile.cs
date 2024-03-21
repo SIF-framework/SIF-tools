@@ -44,7 +44,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
                 {
                     if (File.Exists(FName))
                     {
-                        ReadFile(true, null, 0, package.Model.GetExtent());
+                        ReadFile(true, null, 0, Package.Model.GetExtent());
                     }
                     else
                     {
@@ -83,42 +83,14 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
         {
         }
 
-        public override void ReadFile(bool useLazyLoading = false, Log log = null, int logIndentLevel = 0, Extent extent = null)
-        {
-            idffile = IDFFile.ReadFile(FName, useLazyLoading, log, logIndentLevel, extent);
-        }
-
         public override bool Exists()
         {
             return File.Exists(FName);
         }
 
-        public override void ReleaseMemory(bool isMemoryCollected = true)
+        public override void ReadFile(bool useLazyLoading = false, Log log = null, int logIndentLevel = 0, Extent extent = null)
         {
-            if (idffile != null)
-            {
-                idffile.ReleaseMemory(isMemoryCollected);
-            }
-        }
-
-        public override PackageFile Copy(string copiedFilename)
-        {
-            IDFPackageFile copiedIDFPackageFile = new IDFPackageFile(this.package, copiedFilename, this.ilay, this.fct, this.imp, this.stressPeriod);
-            if (idffile != null)
-            {
-                copiedIDFPackageFile.idffile = idffile.CopyIDF(copiedFilename);
-            }
-            return copiedIDFPackageFile;
-        }
-
-        public override PackageFile Clip(Extent extent)
-        {
-            IDFPackageFile clippedIDFPackageFile = new IDFPackageFile(this.package, this.fname, this.ilay, this.fct, this.imp, this.stressPeriod);
-            if (idffile != null)
-            {
-                clippedIDFPackageFile.idffile = idffile.ClipIDF(extent);
-            }
-            return clippedIDFPackageFile;
+            idffile = IDFFile.ReadFile(FName, useLazyLoading, log, logIndentLevel, extent);
         }
 
         public override void WriteFile(Metadata metadata = null, Log log = null, int logIndentLevel = 0)
@@ -149,6 +121,85 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
             metadata.IMODFilename = FName;
             metadata.Type = "IDF";
             return metadata;
+        }
+
+        public override void ReleaseMemory(bool isMemoryCollected = true)
+        {
+            if (idffile != null)
+            {
+                idffile.ReleaseMemory(isMemoryCollected);
+            }
+        }
+
+        public override PackageFile Copy(string copiedFilename)
+        {
+            IDFPackageFile copiedIDFPackageFile = new IDFPackageFile(this.Package, copiedFilename, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
+            if (idffile != null)
+            {
+                copiedIDFPackageFile.idffile = idffile.CopyIDF(copiedFilename);
+            }
+            return copiedIDFPackageFile;
+        }
+
+        public override PackageFile Clip(Extent extent)
+        {
+            IDFPackageFile clippedIDFPackageFile = new IDFPackageFile(this.Package, this.fname, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
+            if (idffile != null)
+            {
+                idffile.EnsureLoadedValues();
+                clippedIDFPackageFile.idffile = idffile.ClipIDF(extent);
+            }
+            return clippedIDFPackageFile;
+        }
+
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, bool isNoDataCompared, Log log, int indentLevel = 0)
+        {
+            return CreateDifferenceFile(comparedPackageFile, useLazyLoading, OutputFoldername, null, isNoDataCompared, log, indentLevel);
+        }
+
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, Extent extent, bool isNoDataCompared, Log log, int indentLevel = 0)
+        {
+            if (!this.Exists())
+            {
+                log.AddInfo("Correct difference cannot be created, input file doesn't exist: " + this.fname, indentLevel);
+                return null;
+            }
+            if (!comparedPackageFile.Exists())
+            {
+                log.AddInfo("Difference cannot be created, input file doesn't exist: " + comparedPackageFile.FName, indentLevel);
+                return null;
+            }
+            if (comparedPackageFile is IDFPackageFile)
+            {
+                IDFPackageFile diffIDFPackageFile = new IDFPackageFile(this.Package, this.FName, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
+
+                // Process fct and imp values before calculating differences
+                IDFFile thisProcessedIDFFile = this.idffile.CopyIDF(this.idffile.Filename);
+                thisProcessedIDFFile.Multiply(this.FCT);
+                thisProcessedIDFFile.Add(this.IMP);
+                IDFFile otherProcessedIDFFile = ((IDFPackageFile)comparedPackageFile).IDFFile.CopyIDF(comparedPackageFile.IMODFile.Filename);
+                otherProcessedIDFFile.Multiply(comparedPackageFile.FCT);
+                otherProcessedIDFFile.Add(comparedPackageFile.IMP);
+
+                if (!this.FCT.Equals(comparedPackageFile.FCT))
+                {
+                    log.AddInfo("Difference in FCT-value: " + this.FCT + " vs " + comparedPackageFile.FCT, indentLevel);
+                }
+                if (!this.IMP.Equals(comparedPackageFile.IMP))
+                {
+                    log.AddInfo("Difference in IMP-value: " + this.IMP + " vs " + comparedPackageFile.IMP, indentLevel);
+                }
+
+                diffIDFPackageFile.IDFFile = thisProcessedIDFFile.CreateDifferenceFile(otherProcessedIDFFile, OutputFoldername, isNoDataCompared, extent);
+                diffIDFPackageFile.FName = diffIDFPackageFile.IDFFile.Filename;
+                diffIDFPackageFile.IDFFile.UseLazyLoading = useLazyLoading;
+                return diffIDFPackageFile;
+            }
+            else
+            {
+                log.AddWarning("Source type is " + this.GetType().Name + ", compared type is " + comparedPackageFile.GetType().Name + ", files cannot be compared ", indentLevel);
+                return null;
+            }
         }
     }
 }

@@ -150,7 +150,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             settings = new TOPBOTCheckSettings(this.Name);
         }
 
-        private void createCheckResultAndLegends()
+        private void CreateCheckResultAndLegends(CheckResultHandler resultHandler)
         {
             // Define errors
             TopBelowBottomError = new CheckError(1, "Top below bottom", "Top is below bottom of this layer");
@@ -180,7 +180,7 @@ namespace Sweco.SIF.iMODValidator.Checks
 
         public override void Run(Model model, CheckResultHandler resultHandler, Log log)
         {
-            createCheckResultAndLegends();
+            CreateCheckResultAndLegends(resultHandler);
 
             log.AddInfo("Checking TOP- and BOT-packages ...");
             settings.LogSettings(log, 1);
@@ -243,11 +243,11 @@ namespace Sweco.SIF.iMODValidator.Checks
                     }
 
                     // Create error IDFfile for current layer
-                    CheckErrorLayer errorLayer = CreateErrorLayer(resultHandler, botPackage, null, 0, entryIdx + 1, botIDFFile.XCellsize, errorLegend);
+                    CheckErrorLayer errorLayer = CreateErrorLayer(resultHandler, botPackage, null, StressPeriod.SteadyState, entryIdx + 1, botIDFFile.XCellsize, errorLegend);
                     errorLayer.AddSourceFiles(new List<IDFFile>() { topIDFFile, botIDFFile });
 
                     // Create warning IDFfile for current layer
-                    CheckWarningLayer warningLayer = CreateWarningLayer(resultHandler, botPackage, null, 0, entryIdx + 1, botIDFFile.XCellsize, warningLegend);
+                    CheckWarningLayer warningLayer = CreateWarningLayer(resultHandler, botPackage, null, StressPeriod.SteadyState, entryIdx + 1, botIDFFile.XCellsize, warningLegend);
                     errorLayer.AddSourceFiles(new List<IDFFile>() { topIDFFile, botIDFFile });
 
                     // Compare extent and cellsizes
@@ -357,7 +357,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                 }
                 else
                 {
-                    log.AddError(topPackage.Key, model.Runfilename, "TOP and/or BOT-file not found for layer " + (entryIdx + 1), 1);
+                    log.AddError(topPackage.Key, model.RUNFilename, "TOP and/or BOT-file not found for layer " + (entryIdx + 1), 1);
                 }
 
                 topPackage.ReleaseMemory(true);

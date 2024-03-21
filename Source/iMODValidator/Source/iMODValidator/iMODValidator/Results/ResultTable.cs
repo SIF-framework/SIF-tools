@@ -33,7 +33,7 @@ namespace Sweco.SIF.iMODValidator.Results
 {
     /// <summary>
     /// A table with results/statistics per modellayer. In the table a layer is defined as an 
-    /// actual modellayer or modelsystem for some stressperiod. So each stressperiod gives another layer. 
+    /// actual modellayer or modelsystem for some stress period. So each stress period gives another layer. 
     /// In the table statistics of all resultTypes are combined for a modellayer and presented in one row
     /// </summary>
     public class ResultTable
@@ -121,7 +121,6 @@ namespace Sweco.SIF.iMODValidator.Results
 
         public ResultTable(string baseModelFilename, Extent extent)
         {
-            this.layerStatisticsList = new List<LayerStatistics>();
             this.baseModelFilename = baseModelFilename;
             this.extent = extent;
             this.tableTitle = "iMODValidator result table";
@@ -373,7 +372,7 @@ namespace Sweco.SIF.iMODValidator.Results
             DateTime minStressPeriod = DateTime.MaxValue;
             foreach (LayerStatistics layerStatistics in this.layerStatisticsList)
             {
-                DateTime stressPeriod = StressPeriod.ParseStressPeriodString(layerStatistics.StressperiodString);
+                DateTime stressPeriod = StressPeriod.ParseSNAME(layerStatistics.StressperiodString);
                 if (stressPeriod < minStressPeriod)
                 {
                     minStressPeriod = stressPeriod;
@@ -387,7 +386,7 @@ namespace Sweco.SIF.iMODValidator.Results
             List<string> filenames = new List<string>();
             foreach (LayerStatistics layerStatistics in this.layerStatisticsList)
             {
-                int kper = StressPeriod.ParseStressPeriodString(layerStatistics.StressperiodString).Subtract(minStressPeriod).Days + 1;
+                int kper = StressPeriod.ParseSNAME(layerStatistics.StressperiodString).Subtract(minStressPeriod).Days + 1;
                 int ilay = layerStatistics.Ilay;
                 foreach (ResultLayerStatistics resultLayerStatistics in layerStatistics.ResultLayerStatisticsDictionary.Values)
                 {

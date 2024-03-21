@@ -29,7 +29,7 @@ namespace Sweco.SIF.iMODValidator.Results
 {
     /// <summary>
     /// Used for storing ResultLayer statistics. A layer is defined here as an actual modellayer or 
-    /// modelsystem for some stressperiod. So each stressperiod gives another layer. 
+    /// modelsystem for some stress period. So each stress period gives another layer. 
     /// In a LayerStatistics object all resultTypes are stored together in one object
     /// </summary>
     public class LayerStatistics : IEquatable<LayerStatistics>, IComparable<LayerStatistics>
@@ -86,7 +86,7 @@ namespace Sweco.SIF.iMODValidator.Results
 
         protected string stressperiodString;
         /// <summary>
-        /// The stressperiod for this layer statistic
+        /// The stress period for this layer statistic
         /// </summary>
         public string StressperiodString
         {
@@ -130,7 +130,7 @@ namespace Sweco.SIF.iMODValidator.Results
         /// <param name="subType">A secondary type of this layerstatistic, e.g. packagename or resultype</param>
         /// <param name="messageType">The type used in the messagetables, e.g. one of the other type's or a combination</param>
         /// <param name="ilay">The layer number</param>
-        /// <param name="stressperiodString">The stressperiod for this layer statistic</param>
+        /// <param name="stressperiodString">The stress period for this layer statistic</param>
         public LayerStatistics(string layerName, string mainType, string subType, string messageType, int ilay, string stressperiodString)
         {
             this.layerName = layerName;
@@ -185,41 +185,41 @@ namespace Sweco.SIF.iMODValidator.Results
         /// <returns></returns>
         public int CompareTo(LayerStatistics other)
         {
-            if (this.layerName != null)
+            if (((this.layerName == null) && (other.layerName == null)) || ((this.layerName != null) && this.layerName.Equals(other.layerName)))
             {
-                if (this.layerName.Equals(other.layerName))
+                if (this.mainType.Equals(other.mainType))
                 {
-                    if (this.mainType.Equals(other.mainType))
+                    if (this.subType.Equals(other.subType))
                     {
-                        if (this.subType.Equals(other.subType))
+                        if (this.stressperiodString.Equals(other.stressperiodString))
                         {
-                            if (this.stressperiodString.Equals(other.stressperiodString))
-                            {
-                                return this.ilay.CompareTo(other.ilay);
-                            }
-                            else
-                            {
-                                return this.stressperiodString.CompareTo(other.stressperiodString);
-                            }
+                            return this.ilay.CompareTo(other.ilay);
                         }
                         else
                         {
-                            return this.subType.CompareTo(other.subType);
+                            return this.stressperiodString.CompareTo(other.stressperiodString);
                         }
                     }
                     else
                     {
-                        return this.mainType.CompareTo(other.mainType);
+                        return this.subType.CompareTo(other.subType);
                     }
                 }
                 else
                 {
-                    return this.layerName.CompareTo(other.layerName);
+                    return this.mainType.CompareTo(other.mainType);
                 }
             }
             else
             {
-                return -1;
+                if (this.layerName != null)
+                {
+                    return this.layerName.CompareTo(other.layerName);
+                }
+                else
+                {
+                    return -1;
+                }
             }
         }
 

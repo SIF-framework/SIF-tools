@@ -56,12 +56,18 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
             }
         }
 
-        public override void ParseRunfilePackageFiles(Runfile runfile, int fileCount, Log log, StressPeriod stressPeriod = null)
+        /// <summary>
+        /// Retrieve file extensions that are defined for this package and number of entries per extension
+        /// </summary>
+        /// <returns>Dictionary with extenion-count pairs; use lower case extension without dot, or null if no variable definitions are needed</returns>
+        public override Dictionary<string, int> GetDefinedExtensions()
         {
-            Dictionary<string, int> extensionFileCountDictionary = new Dictionary<string, int>();
-            extensionFileCountDictionary.Add(".idf", 2);
-            extensionFileCountDictionary.Add(".gen", 1);
-            base.ParseRunfileVariablePackageFiles(runfile, fileCount, extensionFileCountDictionary, log, stressPeriod);
+            Dictionary<string, int> extensionDictionary = new Dictionary<string, int>();
+
+            extensionDictionary.Add(".idf", 2);
+            extensionDictionary.Add(".gen", 1);
+
+            return extensionDictionary;
         }
 
         public override Package CreateInstance()

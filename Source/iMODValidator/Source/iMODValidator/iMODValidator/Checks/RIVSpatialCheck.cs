@@ -192,9 +192,8 @@ namespace Sweco.SIF.iMODValidator.Checks
         {
             // Retrieve RIV-package
             IDFPackage rivPackage = (IDFPackage)model.GetPackage(RIVPackage.DefaultKey);
-            if ((rivPackage == null) || !rivPackage.IsActive)
+            if (!IsPackageActive(rivPackage, RIVPackage.DefaultKey, log, 1))
             {
-                log.AddWarning(this.Name, model.Runfilename, "RIV-package is not active. " + this.Name + " is skipped.", 1);
                 return;
             }
 
@@ -202,13 +201,15 @@ namespace Sweco.SIF.iMODValidator.Checks
             {
                 if (rivPackage.GetEntryCount(kper) > 0)
                 {
+                    StressPeriod stressPeriod = model.RetrieveStressPeriod(kper);
+
                     if (model.NPER > 1)
                     {
-                        log.AddInfo("Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + " ...", 1);
+                        log.AddInfo("Checking stress period " + kper + " " + model.RetrieveSNAME(kper) + " ...", 1);
                     }
                     else
                     {
-                        log.AddInfo("Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + " ...", 1);
+                        log.AddInfo("Checking stress period " + kper + " " + model.RetrieveSNAME(kper) + " ...", 1);
                     }
 
                     // Process all entries
@@ -236,7 +237,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                             {
                                 // Create warning IDFfiles for current layer
                                 IDFCellIterator idfCellIterator = new IDFCellIterator(checkFileList);
-                                CheckWarningLayer rivWarningLayer = CreateWarningLayer(resultHandler, rivPackage, "SYS" + (entryIdx + 1), kper, entryIdx + 1, rivStageIDFFile.XCellsize, warningLegend);
+                                CheckWarningLayer rivWarningLayer = CreateWarningLayer(resultHandler, rivPackage, "SYS" + (entryIdx + 1), stressPeriod, entryIdx + 1, rivStageIDFFile.XCellsize, warningLegend);
                                 rivWarningLayer.Id2 = Abbreviation;
                                 rivWarningLayer.Description = rivWarningLayer.CreateLayerDescription("RIV-spatial", entryIdx + 1);
                                 rivWarningLayer.ProcessDescription = this.Description;

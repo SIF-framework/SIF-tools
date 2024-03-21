@@ -183,9 +183,8 @@ namespace Sweco.SIF.iMODValidator.Checks
             log.AddInfo("Checking CAP-package ...");
 
             CAPPackage capPackage = (CAPPackage)model.GetPackage(CAPPackage.DefaultKey);
-            if ((capPackage == null) || !capPackage.IsActive)
+            if (!IsPackageActive(capPackage, CAPPackage.DefaultKey, log, 1))
             {
-                log.AddWarning(this.Name, model.Runfilename, "CAP-package is not active. " + this.Name + " is skipped.", 1);
                 return;
             }
 
@@ -206,15 +205,15 @@ namespace Sweco.SIF.iMODValidator.Checks
         /// </summary>
         /// <param name="resultHandler"></param>
         /// <param name="capSubPackage"></param>
-        /// <param name="kper"></param>
+        /// <param name="stressPeriod"></param>
         /// <param name="entryIdx"></param>
         /// <param name="cellsize"></param>
         /// <param name="errorLegend"></param>
         /// <returns></returns>
-        internal CheckErrorLayer CreateErrorLayer(CheckResultHandler resultHandler, CAPSubPackage capSubPackage, int kper, int entryIdx, float cellsize, IDFLegend errorLegend)
+        internal CheckErrorLayer CreateErrorLayer(CheckResultHandler resultHandler, CAPSubPackage capSubPackage, StressPeriod stressPeriod, int entryIdx, float cellsize, IDFLegend errorLegend)
         {
             // Allow MetaSWAPSubChecks in this file to create error layers
-            return base.CreateErrorLayer(resultHandler, capSubPackage, null, kper, entryIdx, cellsize, errorLegend);
+            return base.CreateErrorLayer(resultHandler, capSubPackage, capSubPackage.Key, stressPeriod, entryIdx, cellsize, errorLegend);
         }
 
         /// <summary>
@@ -222,15 +221,15 @@ namespace Sweco.SIF.iMODValidator.Checks
         /// </summary>
         /// <param name="resultHandler"></param>
         /// <param name="capSubPackage"></param>
-        /// <param name="kper"></param>
+        /// <param name="stressPeriod"></param>
         /// <param name="entryIdx"></param>
         /// <param name="cellsize"></param>
         /// <param name="warningLegend"></param>
         /// <returns></returns>
-        internal CheckWarningLayer CreateWarningLayer(CheckResultHandler resultHandler, CAPSubPackage capSubPackage, int kper, int entryIdx, float cellsize, IDFLegend warningLegend)
+        internal CheckWarningLayer CreateWarningLayer(CheckResultHandler resultHandler, CAPSubPackage capSubPackage, StressPeriod stressPeriod, int entryIdx, float cellsize, IDFLegend warningLegend)
         {
             // Allow MetaSWAPSubChecks in this file to create warning layers
-            return base.CreateWarningLayer(resultHandler, capSubPackage, null, kper, entryIdx, cellsize, warningLegend);
+            return base.CreateWarningLayer(resultHandler, capSubPackage, capSubPackage.Key, stressPeriod, entryIdx, cellsize, warningLegend);
         }
     }
 
@@ -241,7 +240,7 @@ namespace Sweco.SIF.iMODValidator.Checks
     {
         private const string MergedSurfaceWaterPrefix = "MergedSWConductance";
 
-        private MetaSWAPCheck check = null;
+        private MetaSWAPCheck metaswapCheck = null;
         private MetaSWAPCheckSettings settings = null;
 
         private IDFLegend rtzSFUErrorLegend = null;
@@ -251,8 +250,6 @@ namespace Sweco.SIF.iMODValidator.Checks
         private IDFLegend rtzSFUWarningLegend = null;
         private IDFLegend luseWarningLegend = null;
         private IDFLegend pduPDRWarningLegend = null;
-        private int kper = 0;
-        private int entryIdx = 0;
 
         private Log Log { get; set; }
         private CAPPackage capPackage = null;
@@ -315,16 +312,13 @@ namespace Sweco.SIF.iMODValidator.Checks
         private CheckWarning PDRRangeWarning { get; set; }
 
         /// <summary>
-        /// Store specified settings and initialize MetaSWAPCheck object
+        /// Create MetaSWAP subcheck for landuse
         /// </summary>
-        /// <param name="check"></param>
-        /// <param name="model"></param>
-        /// <param name="resultHandler"></param>
+        /// <param name="metaswapCheck">MetaSWAP base check that this landuse-check is part of</param>
         /// <param name="settings"></param>
-        /// <param name="log"></param>
-        public MetaSWAPLandUseCheck(MetaSWAPCheck check, MetaSWAPCheckSettings settings)
+        public MetaSWAPLandUseCheck(MetaSWAPCheck metaswapCheck, MetaSWAPCheckSettings settings)
         {
-            this.check = check;
+            this.metaswapCheck = metaswapCheck;
             this.settings = settings;
 
             Initialize();
@@ -432,7 +426,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             if ((sfuCodes == null) || (sfuCodes.Count == 0))
             {
                 // SFU-codes not found, some error occurred, skip test
-                log.AddError(check.Name, "para_sim.inp", "No SFU-codes found, MetaSWAP-DB may be missing. SFU-checks are skipped.", 3);
+                log.AddError(metaswapCheck.Name, "para_sim.inp", "No SFU-codes found, MetaSWAP-DB may be missing. SFU-checks are skipped.", 3);
 
                 minSFUCode = -1;
                 maxSFUCode = -1;
@@ -446,27 +440,27 @@ namespace Sweco.SIF.iMODValidator.Checks
             // Get Landuse codes
             log.AddInfo("Retrieving land use codes from luse_svat.inp ...", 2);
             luseCodeDictionary = GetLUSECodes();
-            ubaLUSECodes = GetUBALUSECodes(luseCodeDictionary);
-            wtaLUSECodes = GetWTALUSECodes(luseCodeDictionary);
+            ubaLUSECodes = GetUBALUSECodes(luseCodeDictionary, log, 3);
+            wtaLUSECodes = GetWTALUSECodes(luseCodeDictionary, log, 3);
             log.AddInfo("Land use codes for UBA: " + CommonUtils.ToString(ubaLUSECodes, SIFTool.EnglishCultureInfo), 3);
             log.AddInfo("Land use codes for WTA: " + CommonUtils.ToString(wtaLUSECodes, SIFTool.EnglishCultureInfo), 3);
 
             // Check that UBA/WTA-file is not a constant file. This doesn't make sense for area
             if (ubaIDFFile is ConstantIDFFile)
             {
-                log.AddWarning(check.Name, Path.GetFileName(ubaIDFFile.Filename), "UBA is a constant IDF-file, cellsize 100 is assumed; UBA-checks may give invalid results", 3);
+                log.AddWarning(metaswapCheck.Name, Path.GetFileName(ubaIDFFile.Filename), "UBA is a constant IDF-file, cellsize 100 is assumed; UBA-checks may give invalid results", 3);
             }
             if (wtaIDFFile is ConstantIDFFile)
             {
-                log.AddWarning(check.Name, Path.GetFileName(wtaIDFFile.Filename), "WTA is a constant IDF-file, cellsize 100 is assumed; WTA-checks may give invalid results", 3);
+                log.AddWarning(metaswapCheck.Name, Path.GetFileName(wtaIDFFile.Filename), "WTA is a constant IDF-file, cellsize 100 is assumed; WTA-checks may give invalid results", 3);
             }
 
-            ubaCellArea = ubaIDFFile.XCellsize * ubaIDFFile.YCellsize;
-            wtaCellArea = wtaIDFFile.XCellsize * wtaIDFFile.YCellsize;
+            ubaCellArea = (ubaIDFFile != null) ? ubaIDFFile.XCellsize * ubaIDFFile.YCellsize : float.NaN;
+            wtaCellArea = (wtaIDFFile != null) ? wtaIDFFile.XCellsize * wtaIDFFile.YCellsize : float.NaN;
 
             // Combine surface water area
             log.AddInfo("Combining surface water input files ...", 2);
-            MergeSurfaceWater(model, resultHandler, (wtaIDFFile is ConstantIDFFile) ? 100 : wtaIDFFile.XCellsize, settings, log, 3);
+            MergeSurfaceWater(model, resultHandler, ((wtaIDFFile == null) || (wtaIDFFile is ConstantIDFFile)) ? 100 : wtaIDFFile.XCellsize, settings, log, 3);
 
             // Initialize cell iterator
             InitializeIDFCellIterator(resultHandler.Extent, log);
@@ -477,14 +471,15 @@ namespace Sweco.SIF.iMODValidator.Checks
             CAPSubPackage luseSubPackage = CAPSubPackage.CreateInstance(capPackage.Key, "LUSE");
             CAPSubPackage pduPDRSubPackage = CAPSubPackage.CreateInstance(capPackage.Key, "PDU-PDR");
 
-            // Create error and warning IDF-files for current layer     
-            rtzSFUErrorLayer = check.CreateErrorLayer(resultHandler, rtzSFUSubPackage, kper, entryIdx, idfCellIterator.XStepsize, rtzSFUErrorLegend);
-            luseErrorLayer = check.CreateErrorLayer(resultHandler, luseSubPackage, kper, entryIdx, idfCellIterator.XStepsize, luseErrorLegend);
-            pduPDRErrorLayer = check.CreateErrorLayer(resultHandler, pduPDRSubPackage, kper, entryIdx, idfCellIterator.XStepsize, pduPDRErrorLegend);
+            // Create error and warning IDF-files for current layer
+            int entryIdx = 0;
+            rtzSFUErrorLayer = metaswapCheck.CreateErrorLayer(resultHandler, rtzSFUSubPackage, null, entryIdx, idfCellIterator.XStepsize, rtzSFUErrorLegend);
+            luseErrorLayer = metaswapCheck.CreateErrorLayer(resultHandler, luseSubPackage, null, entryIdx, idfCellIterator.XStepsize, luseErrorLegend);
+            pduPDRErrorLayer = metaswapCheck.CreateErrorLayer(resultHandler, pduPDRSubPackage, null, entryIdx, idfCellIterator.XStepsize, pduPDRErrorLegend);
 
-            rtzSFUWarningLayer = check.CreateWarningLayer(resultHandler, rtzSFUSubPackage, kper, entryIdx, idfCellIterator.XStepsize, rtzSFUWarningLegend);
-            luseWarningLayer = check.CreateWarningLayer(resultHandler, luseSubPackage, kper, entryIdx, idfCellIterator.XStepsize, luseWarningLegend);
-            pduPDRWarningLayer = check.CreateWarningLayer(resultHandler, pduPDRSubPackage, kper, entryIdx, idfCellIterator.XStepsize, pduPDRWarningLegend);
+            rtzSFUWarningLayer = metaswapCheck.CreateWarningLayer(resultHandler, rtzSFUSubPackage, null, entryIdx, idfCellIterator.XStepsize, rtzSFUWarningLegend);
+            luseWarningLayer = metaswapCheck.CreateWarningLayer(resultHandler, luseSubPackage, null, entryIdx, idfCellIterator.XStepsize, luseWarningLegend);
+            pduPDRWarningLayer = metaswapCheck.CreateWarningLayer(resultHandler, pduPDRSubPackage, null, entryIdx, idfCellIterator.XStepsize, pduPDRWarningLegend);
 
             while (idfCellIterator.IsInsideExtent())
             {
@@ -616,7 +611,7 @@ namespace Sweco.SIF.iMODValidator.Checks
 
         private void CheckLUSE(float x, float y, float luseValue, CheckResultHandler resultHandler)
         {
-            if (luseValue.Equals(luseIDFFile.NoDataValue) || (luseValue < 0) || !int.TryParse(luseValue.ToString(), out int luseIntCode))
+            if (((luseIDFFile != null) && luseValue.Equals(luseIDFFile.NoDataValue)) || (luseValue < 0) || !int.TryParse(luseValue.ToString(), out int luseIntCode))
             {
                 // Rootzone is either NoData, negative or not an integer; all are never allowed
                 resultHandler.AddCheckResult(luseErrorLayer, x, y, InvalidLUSEError);
@@ -643,7 +638,7 @@ namespace Sweco.SIF.iMODValidator.Checks
 
         private void CheckUBAvsLUSE(float x, float y, float ubaValue, float ubaPercentage, float luseValue, CheckResultHandler resultHandler)
         {
-            if (ubaValue.Equals(ubaIDFFile.NoDataValue) || (ubaValue < 0) || (ubaPercentage > 100))
+            if (((ubaIDFFile != null) && ubaValue.Equals(ubaIDFFile.NoDataValue)) || (ubaValue < 0) || (ubaPercentage > 100))
             {
                 resultHandler.AddCheckResult(luseErrorLayer, x, y, InvalidUBAError);
                 resultHandler.AddExtraMapFile(ubaIDFFile);
@@ -663,7 +658,7 @@ namespace Sweco.SIF.iMODValidator.Checks
 
         private void CheckWTAvsUBA(float x, float y, float wtaValue, float wtaPercentage, float ubaPercentage, CheckResultHandler resultHandler)
         {
-            if (wtaValue.Equals(wtaIDFFile.NoDataValue) || (wtaValue < 0) || (wtaPercentage > 100))
+            if (((wtaIDFFile != null) && wtaValue.Equals(wtaIDFFile.NoDataValue)) || (wtaValue < 0) || (wtaPercentage > 100))
             {
                 // WTA area is not allowed to be NoData for MetaSWAP, also and negative area or area larger than cellsize are invalid
                 resultHandler.AddCheckResult(luseErrorLayer, x, y, InvalidWTAError);
@@ -770,7 +765,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             if (settings.IsISGConverted)
             {
                 ISGPackage isgPackage = (ISGPackage)model.GetPackage(ISGPackage.DefaultKey);
-                if (isgPackage != null)
+                if ((isgPackage != null) && ISGRIVConverter.HasISGPackageEntries(isgPackage, model, resultHandler))
                 {
                     log.AddInfo("Merging surface water from (converted) ISG-package ...", logIndentLevel);
                     IDFPackage isgRIVPackage = ISGRIVConverter.ConvertISGtoRIVPackage(isgPackage, "ISGRIV", model, resultHandler, log, logIndentLevel + 1);
@@ -809,7 +804,7 @@ namespace Sweco.SIF.iMODValidator.Checks
 
             if (!mergedPackage.IsActive)
             {
-                log.AddInfo(mergedPackage.Key.ToString() + "-package is not active. " + check.Name + " is skipped.", logIndentLevel);
+                log.AddInfo(mergedPackage.Key.ToString() + "-package is not active. " + metaswapCheck.Name + " is skipped.", logIndentLevel);
                 return;
             }
 
@@ -839,8 +834,8 @@ namespace Sweco.SIF.iMODValidator.Checks
                         {
                             // Create empty merged IDF-file from first entry IDF-file
                             // Initialize IDF-file with merged surface water: ensure cellsize is equal to specified cellsize (which should come from the WTA IDF-file)
-                            string mergedFilename = Path.Combine(resultHandler.OutputPath, "checks-imodfiles", check.Name, MergedSurfaceWaterPrefix + cellsize + ".IDF");
-                            mergedSurfacewaterIDFFile = new IDFFile(mergedFilename, wtaIDFFile.Extent, cellsize, wtaIDFFile.NoDataValue);
+                            string mergedFilename = Path.Combine(resultHandler.OutputPath, "checks-imodfiles", metaswapCheck.Name, MergedSurfaceWaterPrefix + cellsize + ".IDF");
+                            mergedSurfacewaterIDFFile = new IDFFile(mergedFilename, (wtaIDFFile != null) ? wtaIDFFile.Extent : model.GetExtent(), cellsize, (wtaIDFFile != null) ? wtaIDFFile.NoDataValue : -9999.0f);
                         }
 
                         // Ensure extents match
@@ -876,7 +871,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                 }
                 else
                 {
-                    log.AddWarning(check.Name, mergedPackage.Key, mergedPackage.Key + "-package does not contain any IDF-files and is skipped for " + check.Name, 3);
+                    log.AddWarning(metaswapCheck.Name, mergedPackage.Key, mergedPackage.Key + "-package does not contain any IDF-files and is skipped for " + metaswapCheck.Name, 3);
                 }
             }
         }
@@ -909,14 +904,14 @@ namespace Sweco.SIF.iMODValidator.Checks
             IDFPackage rivPackage = (IDFPackage)model.GetPackage(RIVPackage.DefaultKey);
             if (rivPackage == null || !rivPackage.IsActive)
             {
-                log.AddWarning(check.Name, model.Runfilename, "RIV-package is not active. " + check.Name + " is skipped.", 1);
+                log.AddWarning(metaswapCheck.Name, model.RUNFilename, "RIV-package is not active. " + metaswapCheck.Name + " is skipped.", 1);
                 return;
             }
 
             IDFPackage drnPackage = (IDFPackage)model.GetPackage(DRNPackage.DefaultKey);
             if (drnPackage == null || !drnPackage.IsActive)
             {
-                log.AddWarning(check.Name, model.Runfilename, "DRN-package is not active. " + check.Name + " is skipped.", 1);
+                log.AddWarning(metaswapCheck.Name, model.RUNFilename, "DRN-package is not active. " + metaswapCheck.Name + " is skipped.", 1);
                 return;
             }
         }
@@ -976,7 +971,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                 }
                 if (endOfStream)
                 {
-                    Log.AddError(check.Name, "para_sim.inp", "Reference to unsa_svat_path is missing in para_sim.inp", 3);
+                    Log.AddError(metaswapCheck.Name, "para_sim.inp", "Reference to unsa_svat_path is missing in para_sim.inp", 3);
                     return sfuCodes;
                 }
                 sr.Close();
@@ -992,7 +987,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             }
             catch
             {
-                Log.AddError(check.Name, "para_sim.inp", "unsa_svat_path in para_sim.inp does not exist: " + dataBaseSFUDir, 3);
+                Log.AddError(metaswapCheck.Name, "para_sim.inp", "unsa_svat_path in para_sim.inp does not exist: " + dataBaseSFUDir, 3);
                 return sfuCodes;
             }
 
@@ -1031,7 +1026,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                     }
                     else
                     {
-                        Log.AddError(check.Name, "para_sim.inp", "Land use code in luse_svat.inp in line " + lineCount.ToString() + "is not an integer: " + line.Substring(26, 6).Trim(), 3);
+                        Log.AddError(metaswapCheck.Name, "para_sim.inp", "Land use code in luse_svat.inp in line " + lineCount.ToString() + "is not an integer: " + line.Substring(26, 6).Trim(), 3);
                         return luseCodeDictionary;
                     }
                     lineCount++;
@@ -1049,8 +1044,10 @@ namespace Sweco.SIF.iMODValidator.Checks
         /// Retrieve UBA-codes from LUSE-table luse_svat.inp
         /// </summary>
         /// <param name="luseCodeDictionary"></param>
+        /// <param name="log"></param>
+        /// <param name="logIndentLevel"></param>
         /// <returns></returns>
-        private List<int> GetUBALUSECodes(Dictionary<string, int> luseCodeDictionary)
+        private List<int> GetUBALUSECodes(Dictionary<string, int> luseCodeDictionary, Log log, int logIndentLevel)
         {
             List<int> urbanLUSECodes = new List<int>();
             string[] urbanAreaNames = settings.LuseUBANames.Split(';');
@@ -1062,7 +1059,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                 }
                 else
                 {
-                    throw new Exception("Name for specified urban LUSE-entry does not exist in luse_svat.inp for the name: " + urbanAreaName);
+                    log.AddWarning(metaswapCheck.Name, "luse_svat.inp", "Name for specified urban LUSE-entry does not exist in luse_svat.inp for the name: " + urbanAreaName, logIndentLevel);
                 }
             }
             return urbanLUSECodes;
@@ -1072,8 +1069,10 @@ namespace Sweco.SIF.iMODValidator.Checks
         /// Retrieve WTA-codes from LUSE-table luse_svat.inp
         /// </summary>
         /// <param name="luseCodeDictionary"></param>
+        /// <param name="log"></param>
+        /// <param name="logIndentLevel"></param>
         /// <returns></returns>
-        private List<int> GetWTALUSECodes(Dictionary<string, int> luseCodeDictionary)
+        private List<int> GetWTALUSECodes(Dictionary<string, int> luseCodeDictionary, Log log, int logIndentLevel)
         {
             List<int> wettedLUSECodes = new List<int>();
             string[] wettedAreaNames = settings.LuseWTANames.Split(';');
@@ -1085,7 +1084,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                 }
                 else
                 {
-                    throw new Exception("Wetted area does not exist in luse_svat.inp for the name: " + wettedAreaName);
+                    log.AddWarning(metaswapCheck.Name, "luse_svat.inp", "Wetted area does not exist in luse_svat.inp for the name: " + wettedAreaName, logIndentLevel);
                 }
             }
             return wettedLUSECodes;
@@ -1113,14 +1112,17 @@ namespace Sweco.SIF.iMODValidator.Checks
 
             idfCellIterator.AddIDFFile(MinPondingDepthIDFFile);
             idfCellIterator.AddIDFFile(MaxPondingDepthIDFFile);
-            idfCellIterator.CheckExtent(log, 2, LogLevel.Warning);
+            idfCellIterator.CheckExtent(log, 2, LogLevel.Debug);
             idfCellIterator.Reset();
         }
     }
 
+    /// <summary>
+    /// Class for Meteo subchecks of MetaSWAP
+    /// </summary>
     internal class MetaSWAPMeteoCheck
     {
-        private MetaSWAPCheck check = null;
+        private MetaSWAPCheck metaswapCheck = null;
         private MetaSWAPCheckSettings settings = null;
 
         private IDFLegend errorLegend = new IDFLegend("Legend for Meteo input MetaSWAP-file check");
@@ -1152,9 +1154,14 @@ namespace Sweco.SIF.iMODValidator.Checks
         private IDFFile minEvapotranspirationSettingsIDFFile { get; set; }
         private IDFFile maxEvapotranspirationSettingsIDFFile { get; set; }
 
-        public MetaSWAPMeteoCheck(MetaSWAPCheck check, MetaSWAPCheckSettings settings)
+        /// <summary>
+        /// Create MetaSWAP subcheck for meteo
+        /// </summary>
+        /// <param name="metaswapCheck">MetaSWAP base check that this meteo-check is part of</param>
+        /// <param name="settings"></param>
+        public MetaSWAPMeteoCheck(MetaSWAPCheck metaswapCheck, MetaSWAPCheckSettings settings)
         {
-            this.check = check;
+            this.metaswapCheck = metaswapCheck;
             this.settings = settings;
 
             Initialize();
@@ -1207,7 +1214,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             List<IDFFile[]> meteoFiles = ReadMeteoFiles(model, resultHandler.OutputPath, log);
             if ((meteoFiles == null) || (meteoFiles.Count == 0))
             {
-                log.AddError(check.Name, "Meteo", "No meteo files found, check is skipped", 1);
+                log.AddError(metaswapCheck.Name, "Meteo", "No meteo files found, check is skipped", 1);
                 return;
             }
 
@@ -1215,13 +1222,15 @@ namespace Sweco.SIF.iMODValidator.Checks
             int issueFileCount = 0;
             for (kper = resultHandler.MinKPER; (kper <= model.NPER) && (kper <= resultHandler.MaxKPER); kper++)
             {
+                StressPeriod stressPeriod = model.RetrieveStressPeriod(kper);
+
                 if (model.NPER > 1)
                 {
-                    log.AddMessage(LogLevel.Info, "Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + "...", 2);
+                    log.AddMessage(LogLevel.Info, "Checking stress period " + kper + " " + model.RetrieveSNAME(kper) + "...", 2);
                 }
                 else
                 {
-                    log.AddMessage(LogLevel.Trace, "Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + "...", 2);
+                    log.AddMessage(LogLevel.Trace, "Checking stress period " + kper + " " + model.RetrieveSNAME(kper) + "...", 2);
                 }
 
                 const int precipitationIdx = 0;
@@ -1236,10 +1245,10 @@ namespace Sweco.SIF.iMODValidator.Checks
 
                 // Create error IDF-files for current layer                  
                 CAPSubPackage meteoSubPackage = CAPSubPackage.CreateInstance(capPackage.Key, "meteo");
-                errorLayer = check.CreateErrorLayer(resultHandler, meteoSubPackage, kper, entryIdx, idfCellIterator.XStepsize, errorLegend);
+                errorLayer = metaswapCheck.CreateErrorLayer(resultHandler, meteoSubPackage, stressPeriod, entryIdx, idfCellIterator.XStepsize, errorLegend);
 
                 // Create warning IDFfiles for current layer     
-                warningLayer = check.CreateWarningLayer(resultHandler, meteoSubPackage, kper, entryIdx, idfCellIterator.XStepsize, warningLegend);
+                warningLayer = metaswapCheck.CreateWarningLayer(resultHandler, meteoSubPackage, stressPeriod, entryIdx, idfCellIterator.XStepsize, warningLegend);
 
                 // Iterate through cells
                 int issueCount = 0;
@@ -1342,23 +1351,23 @@ namespace Sweco.SIF.iMODValidator.Checks
                     day = 0;
                     if (!int.TryParse(lineParts[0], out day))
                     {
-                        Log.AddError(check.Name, "para_sim.inp", "Value day is not an integer: " + lineParts[0] + " in mete_grid.inp in line " + lineCount.ToString(), 3);
+                        Log.AddError(metaswapCheck.Name, "para_sim.inp", "Value day is not an integer: " + lineParts[0] + " in mete_grid.inp in line " + lineCount.ToString(), 3);
                         continue;
                     }
                     else if (day < 0 || day > 366)
                     {
-                        Log.AddError(check.Name, "para_sim.inp", "Value day is out of range (0-365): " + lineParts[0] + " in mete_grid.inp in line " + lineCount.ToString(), 3);
+                        Log.AddError(metaswapCheck.Name, "para_sim.inp", "Value day is out of range (0-365): " + lineParts[0] + " in mete_grid.inp in line " + lineCount.ToString(), 3);
                         continue;
                     }
                     year = 0;
                     if (!int.TryParse(lineParts[1], out year))
                     {
-                        Log.AddError(check.Name, "para_sim.inp", "Value year is not an integer: " + lineParts[1] + " in mete_grid.inp in line " + lineCount.ToString(), 3);
+                        Log.AddError(metaswapCheck.Name, "para_sim.inp", "Value year is not an integer: " + lineParts[1] + " in mete_grid.inp in line " + lineCount.ToString(), 3);
                         continue;
                     }
                     else if (year < 0 || year > 9999)
                     {
-                        Log.AddError(check.Name, "para_sim.inp", "Value year is out of range (1-366): " + lineParts[1] + " in mete_grid.inp in line " + lineCount.ToString(), 3);
+                        Log.AddError(metaswapCheck.Name, "para_sim.inp", "Value year is out of range (1-366): " + lineParts[1] + " in mete_grid.inp in line " + lineCount.ToString(), 3);
                         continue;
                     }
 
@@ -1372,7 +1381,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                     {
                         if (!hasMissingPrecFiles)
                         {
-                            log.AddError(check.Name, Path.GetFileName(precFilename), "Meteo file not found: " + precFilename + ". Note: other missing meteo files are not logged.", 3);
+                            log.AddError(metaswapCheck.Name, Path.GetFileName(precFilename), "Meteo file not found: " + precFilename + ". Note: other missing meteo files are not logged.", 3);
                             isMissingMeteoFile = true;
                             hasMissingPrecFiles = true;
                         }
@@ -1382,7 +1391,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                         try
                         {
                             precipitationIDFFile = IDFFile.ReadFile(precFilename);
-                            precipitationIDFFile.Filename = Path.Combine(outputPath, "checks-imodfiles", check.Name, Path.GetFileName(precFilename));
+                            precipitationIDFFile.Filename = Path.Combine(outputPath, "checks-imodfiles", metaswapCheck.Name, Path.GetFileName(precFilename));
                         }
                         catch (Exception ex)
                         {
@@ -1395,7 +1404,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                     {
                         if (!hasMissingEvapFiles)
                         {
-                            log.AddError(check.Name, Path.GetFileName(evapFilename), "Meteo file not found: " + precFilename + ". Note: other missing meteo files are not logged.", 3);
+                            log.AddError(metaswapCheck.Name, Path.GetFileName(evapFilename), "Meteo file not found: " + precFilename + ". Note: other missing meteo files are not logged.", 3);
                             hasMissingEvapFiles = true;
                             isMissingMeteoFile = true;
                         }
@@ -1405,7 +1414,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                         try
                         {
                             evapotranspirationIDFFile = IDFFile.ReadFile(evapFilename);
-                            evapotranspirationIDFFile.Filename = Path.Combine(outputPath, "checks-imodfiles", check.Name, Path.GetFileName(evapotranspirationIDFFile.Filename));
+                            evapotranspirationIDFFile.Filename = Path.Combine(outputPath, "checks-imodfiles", metaswapCheck.Name, Path.GetFileName(evapotranspirationIDFFile.Filename));
                         }
                         catch (Exception ex)
                         {
@@ -1455,7 +1464,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             string message = idfCellIterator.CheckExtent();
             if (message != null)
             {
-                log.AddWarning(check.Name, "Meteo", message, 2);
+                log.AddWarning(metaswapCheck.Name, "Meteo", message, 2);
             }
             idfCellIterator.Reset();
         }

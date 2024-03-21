@@ -230,9 +230,8 @@ namespace Sweco.SIF.iMODValidator.Checks
 
             // Retrieve ANI-package, note: ANI-files can be either IDF (angle/factor) or GEN-files
             Package aniPackage = model.GetPackage(ANIPackage.DefaultKey);
-            if ((aniPackage == null) || !aniPackage.IsActive)
+            if (!IsPackageActive(aniPackage, ANIPackage.DefaultKey, log, 1))
             {
-                log.AddWarning(this.Name, model.Runfilename, "ANI-package is not active. " + this.Name + " is skipped.", 1);
                 return;
             }
 
@@ -243,7 +242,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             bool hasKHVPackage = model.HasActivePackage(KHVPackage.DefaultKey);
             if ((hasKDWPackage && hasKHVPackage) || (!hasKDWPackage && !hasKHVPackage))
             {
-                log.AddError(aniPackage.Key, model.Runfilename, "ANI-package is active, but neither or both KDW and KHV-packages are defined...", 2);
+                log.AddError(aniPackage.Key, model.RUNFilename, "ANI-package is active, but neither or both KDW and KHV-packages are defined...", 2);
             }
 
             //            IDFPackage topPackage = (IDFPackage)model.GetPackage(TOPPackage.DefaultKey);
@@ -353,7 +352,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                     //                    idfCellIterator.AddIDFFile(botIDFFile);
 
                     // Check that ANI-files have equal extent
-                    idfCellIterator.CheckExtent(log, 2, LogLevel.Warning);
+                    idfCellIterator.CheckExtent(log, 2, LogLevel.Debug);
                     if (idfCellIterator.IsEmptyExtent())
                     {
                         return;
@@ -361,11 +360,11 @@ namespace Sweco.SIF.iMODValidator.Checks
                     else
                     {
                         // Create error IDFfiles for current layer
-                        CheckErrorLayer aniErrorLayer = CreateErrorLayer(resultHandler, aniPackage, null, kper, entryIdx + 1, idfCellIterator.XStepsize, errorLegend);
+                        CheckErrorLayer aniErrorLayer = CreateErrorLayer(resultHandler, aniPackage, null, StressPeriod.SteadyState, entryIdx + 1, idfCellIterator.XStepsize, errorLegend);
                         aniErrorLayer.AddSourceFiles(aniPackageIDFFiles);
 
                         // Create warning IDFfiles for current layer
-                        CheckWarningLayer aniWarningLayer = CreateWarningLayer(resultHandler, aniPackage, null, kper, entryIdx + 1, idfCellIterator.XStepsize, warningLegend);
+                        CheckWarningLayer aniWarningLayer = CreateWarningLayer(resultHandler, aniPackage, null, StressPeriod.SteadyState, entryIdx + 1, idfCellIterator.XStepsize, warningLegend);
                         aniWarningLayer.AddSourceFiles(aniPackageIDFFiles);
 
                         // Iterate through cells

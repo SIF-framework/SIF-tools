@@ -99,9 +99,8 @@ namespace Sweco.SIF.iMODValidator.Checks
             log.AddInfo("Checking RCH-package ...");
 
             IDFPackage rchPackage = (IDFPackage)model.GetPackage(RCHPackage.DefaultKey);
-            if (rchPackage == null || !rchPackage.IsActive)
+            if (!IsPackageActive(rchPackage, RCHPackage.DefaultKey, log, 1))
             {
-                log.AddWarning(this.Name, model.Runfilename, "RCH-package is not active. " + this.Name + " is skipped.", 1);
                 return;
             }
 
@@ -168,13 +167,13 @@ namespace Sweco.SIF.iMODValidator.Checks
 
                 idfCellIterator.AddIDFFile(minRCHSettingIDFFile);
                 idfCellIterator.AddIDFFile(maxRCHSettingIDFFile);
-                idfCellIterator.CheckExtent(log, 2, LogLevel.Warning);
+                idfCellIterator.CheckExtent(log, 2, LogLevel.Debug);
 
                 // Create warning IDFfiles for current layer        
-                CheckWarningLayer warningLayer = CreateWarningLayer(resultHandler, rchPackage, null, kper, entryIdx, idfCellIterator.XStepsize, warningLegend);
+                CheckWarningLayer warningLayer = CreateWarningLayer(resultHandler, rchPackage, null, StressPeriod.SteadyState, entryIdx, idfCellIterator.XStepsize, warningLegend);
 
                 // Create errors IDFfiles for current layer                  
-                CheckErrorLayer errorLayer = CreateErrorLayer(resultHandler, rchPackage, null, 0, 1, idfCellIterator.XStepsize, warningLegend);
+                CheckErrorLayer errorLayer = CreateErrorLayer(resultHandler, rchPackage, null, StressPeriod.SteadyState, 1, idfCellIterator.XStepsize, warningLegend);
 
                 // Iterate through cells
                 idfCellIterator.Reset();

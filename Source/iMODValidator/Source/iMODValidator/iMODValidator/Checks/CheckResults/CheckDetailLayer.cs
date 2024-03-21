@@ -47,14 +47,14 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
             resolution = "-";
         }
 
-        public CheckDetailLayer(Model model, Check check, Package package, string subString, int kper, int ilay, Legend legend)
-            : this(check, package, subString, kper, ilay, model.StartDate, check.GetIMODFilesPath(model), legend)
+        public CheckDetailLayer(Model model, Check check, Package package, string subString, StressPeriod stressPeriod, int ilay, Legend legend)
+            : this(check, package, subString, stressPeriod, ilay, check.GetIMODFilesPath(model), legend)
         {
             resolution = "-";
         }
 
-        public CheckDetailLayer(Check check, Package package, string subString, int kper, int ilay, DateTime? StartDate, string outputPath, Legend legend)
-            : base(check.Name, package?.Key, subString, kper, ilay, StartDate,
+        public CheckDetailLayer(Check check, Package package, string subString, StressPeriod stressPeriod, int ilay, string outputPath, Legend legend)
+            : base(check.Name, package?.Key, subString, stressPeriod, ilay, 
                    new List<string>() { "X", "Y", "ClassNumber", "ClassName", "Filename(s)", "Details", "MoreDetails", "Timeseries" }, 7, outputPath, legend)
         {
             this.check = check;
@@ -136,7 +136,7 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
 
         public override ResultLayer Copy()
         {
-            ResultLayer resultLayer = new CheckDetailLayer(check, package, substring, kper, ilay, startDate, outputPath, Legend);
+            ResultLayer resultLayer = new CheckDetailLayer(check, package, substring, StressPeriod, ilay, outputPath, Legend);
             resultLayer.AddSourceFiles(sourceFiles);
             return resultLayer;
         }

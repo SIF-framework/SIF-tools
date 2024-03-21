@@ -264,15 +264,22 @@ namespace Sweco.SIF.iMODValidator.Checks
             {
                 log.AddInfo("Checking BDGFLF-files ...");
 
-                string bdgflfPath = Path.Combine(model.ModelresultsPath, "bdgflf");
-                if (!Directory.Exists(bdgflfPath))
+                if (model.ModelresultsPath == null)
                 {
-                    log.AddWarning(BDGFLFPackage.DefaultKey, null, "BDGFLF outputfolder not found, check is skipped: " + bdgflfPath, 1);
-                    return;
+                    log.AddWarning(BDGFLFPackage.DefaultKey, null, "Model RESULTS-path not defined, check is skipped", 1);
                 }
+                else
+                {
+                    string bdgflfPath = Path.Combine(model.ModelresultsPath, "bdgflf");
+                    if (!Directory.Exists(bdgflfPath))
+                    {
+                        log.AddWarning(BDGFLFPackage.DefaultKey, null, "BDGFLF RESULTS-path not found, check is skipped: " + bdgflfPath, 1);
+                        return;
+                    }
 
-                settings.LogSettings(log, 1);
-                RunFLFCheck1(model, resultHandler, log);
+                    settings.LogSettings(log, 1);
+                    RunFLFCheck1(model, resultHandler, log);
+                }
             }
             catch (Exception ex)
             {
@@ -349,12 +356,12 @@ namespace Sweco.SIF.iMODValidator.Checks
                 int ilay = GetLayerNumber(bdgflfFilename);
                 if ((ilay >= resultHandler.MinEntryNumber) && (ilay <= resultHandler.MaxEntryNumber))
                 {
-                    string stressPeriodString = GetStressPeriodString(bdgflfFilename);
-                    if ((model.StartDate == null) && !isSteadyState)
-                    {
-                        model.SDATE = long.Parse(stressPeriodString);
-                    }
-                    int kper = model.GetKPER(stressPeriodString);
+                    string sname = GetStressPeriodString(bdgflfFilename);
+                    //if ((model.StartDate == null) && !isSteadyState)
+                    //{
+                    //    model.SDATE = long.Parse(stressPeriodString);
+                    //}
+                    int kper = model.RetrieveKPER(sname);
 
                     if ((kper >= resultHandler.MinKPER) && (kper <= resultHandler.MaxKPER))
                     {
@@ -365,7 +372,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                         idfCellIterator.AddIDFFile(bdgflfIDFFile);
 
                         // Create warning IDFfile for bdgflf-file
-                        CheckWarningLayer bdgflfWarningLayer = CreateWarningLayer(resultHandler, bdgflfPackage, null, kper, ilay, idfCellIterator.XStepsize, warningLegend);
+                        CheckWarningLayer bdgflfWarningLayer = CreateWarningLayer(resultHandler, bdgflfPackage, null, StressPeriod.SteadyState, ilay, idfCellIterator.XStepsize, warningLegend);
                         bdgflfWarningLayer.AddSourceFile(bdgflfIDFFile);
 
                         float bdgflfOutlierRangeLowerValue = float.NaN;
@@ -466,7 +473,7 @@ namespace Sweco.SIF.iMODValidator.Checks
         {
             if (!int.TryParse(stressPeriodString, out int stressPeriodInt))
             {
-                return stressPeriodString.ToLower().Equals("steady-state");
+                return stressPeriodString.ToUpper().Equals(StressPeriod.SteadyStateSNAME);
             }
 
             try

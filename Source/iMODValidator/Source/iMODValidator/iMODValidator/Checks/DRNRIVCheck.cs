@@ -132,9 +132,8 @@ namespace Sweco.SIF.iMODValidator.Checks
         {
             // Retrieve DRN-package
             IDFPackage drnPackage = (IDFPackage)model.GetPackage(DRNPackage.DefaultKey);
-            if ((drnPackage == null) || !drnPackage.IsActive)
+            if (!IsPackageActive(drnPackage, DRNPackage.DefaultKey, log, 1))
             {
-                log.AddWarning(this.Name, model.Runfilename, "DRN-package is not active. " + this.Name + " is skipped.", 1);
                 return;
             }
 
@@ -157,9 +156,16 @@ namespace Sweco.SIF.iMODValidator.Checks
             // retrieve RIV-package (if present) for comparison of levels
             IDFPackage rivPackage = (IDFPackage)model.GetPackage(RIVPackage.DefaultKey);
             ISGPackage isgPackage = (ISGPackage)model.GetPackage(ISGPackage.DefaultKey);
+            if (!IsPackageActive(rivPackage))
+            {
+                if (!IsPackageActive(isgPackage, "ISG/RIV", log, 1))
+                {
+                    return;
+                }
+            }
 
             IDFPackage isgRIVPackage = null;
-            if ((settings.IsISGConverted) && (isgPackage != null))
+            if ((settings.IsISGConverted) && (isgPackage != null) && ISGRIVConverter.HasISGPackageEntries(isgPackage, model, resultHandler))
             {
                 log.AddInfo("Converting ISG-files to RIV-files and applying RIV-check", 1);
                 isgRIVPackage = ISGRIVConverter.ConvertISGtoRIVPackage(isgPackage, "ISGRIV", model, resultHandler, log, 2);
@@ -193,10 +199,11 @@ namespace Sweco.SIF.iMODValidator.Checks
             List<List<IDFFile>> checkedFileLists = new List<List<IDFFile>>();
             for (int kper = resultHandler.MinKPER; (kper <= model.NPER) && (kper <= resultHandler.MaxKPER); kper++)
             {
-                DoDRNRIVCheck(drnPackage, rivPackage, drnRivPackage, kper, model, resultHandler, checkedFileLists, useDRNL1OLF, prevValidDRNKPER, prevValidRIVKPER, levelErrorMargin, log);
+                StressPeriod stressPeriod = model.RetrieveStressPeriod(kper);
+                DoDRNRIVCheck(drnPackage, rivPackage, drnRivPackage, stressPeriod, model, resultHandler, checkedFileLists, useDRNL1OLF, prevValidDRNKPER, prevValidRIVKPER, levelErrorMargin, log);
             }
 
-            if ((settings.IsISGConverted) && (isgPackage != null))
+            if ((settings.IsISGConverted) && (isgPackage != null) && (isgRIVPackage != null) && isgRIVPackage.HasPackageFiles())
             {
                 log.AddInfo("Checking converted ISG-files ... ", 1);
                 int orgMinEntryNumber = resultHandler.MinEntryNumber;
@@ -207,7 +214,8 @@ namespace Sweco.SIF.iMODValidator.Checks
                 drnRivPackage.Key = drnRivPackage.Key + "ISG";
                 for (int kper = resultHandler.MinKPER; (kper <= model.NPER) && (kper <= resultHandler.MaxKPER); kper++)
                 {
-                    DoDRNRIVCheck(drnPackage, isgRIVPackage, drnRivPackage, kper, model, resultHandler, checkedFileLists, useDRNL1OLF, prevValidDRNKPER, prevValidRIVKPER, levelErrorMargin, log, isgPackage);
+                    StressPeriod stressPeriod = model.RetrieveStressPeriod(kper);
+                    DoDRNRIVCheck(drnPackage, isgRIVPackage, drnRivPackage, stressPeriod, model, resultHandler, checkedFileLists, useDRNL1OLF, prevValidDRNKPER, prevValidRIVKPER, levelErrorMargin, log, isgPackage);
                 }
                 resultHandler.MinEntryNumber = orgMinEntryNumber;
                 resultHandler.MaxEntryNumber = orgMaxEntryNumber;
@@ -215,17 +223,18 @@ namespace Sweco.SIF.iMODValidator.Checks
             }
         }
 
-        public void DoDRNRIVCheck(IDFPackage drnPackage, IDFPackage rivPackage, CustomPackage drnRivPackage, int kper, Model model, CheckResultHandler resultHandler, List<List<IDFFile>> checkedFileLists, bool useDRNL1OLF, int prevValidDRNKPER, int prevValidRIVKPER, float levelErrorMargin, Log log, ISGPackage isgPackage = null)
+        public void DoDRNRIVCheck(IDFPackage drnPackage, IDFPackage rivPackage, CustomPackage drnRivPackage, StressPeriod stressPeriod, Model model, CheckResultHandler resultHandler, List<List<IDFFile>> checkedFileLists, bool useDRNL1OLF, int prevValidDRNKPER, int prevValidRIVKPER, float levelErrorMargin, Log log, ISGPackage isgPackage = null)
         {
+            int kper = stressPeriod.KPER;
             if ((drnPackage.GetEntryCount(kper) > 0) || (rivPackage.GetEntryCount(kper) > 0))
             {
                 if (model.NPER > 1)
                 {
-                    log.AddInfo("Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + " ...", 1);
+                    log.AddInfo("Checking stress period " + stressPeriod.KPER + " " + stressPeriod.SNAME + " ...", 1);
                 }
                 else
                 {
-                    log.AddInfo("Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + " ...", 1);
+                    log.AddInfo("Checking stress period " + stressPeriod.KPER + " " + stressPeriod.SNAME + " ...", 1);
                 }
 
                 int drnFirstLayerIdx = 0;
@@ -263,7 +272,7 @@ namespace Sweco.SIF.iMODValidator.Checks
 
                     // Retrieve IDF files for current layer
                     PackageFile drnLevelPackageIDFFile = drnPackage.GetPackageFile(drnEntryIdx, DRNPackage.LevelPartIdx, drnKPER);
-                    int ilay = drnLevelPackageIDFFile.ilay;
+                    int ilay = drnLevelPackageIDFFile.ILAY;
                     IDFFile drnLevelIDFFile = drnPackage.GetIDFFile(drnEntryIdx, DRNPackage.LevelPartIdx, drnKPER);
                     if ((drnLevelIDFFile == null))
                     {
@@ -272,7 +281,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                     else
                     {
                         // Create warning IDF-files for current layer
-                        CheckWarningLayer drnWarningLayer = CreateWarningLayer(resultHandler, drnRivPackage, "SYS" + (drnEntryIdx + 1), kper, drnEntryIdx + 1, drnLevelIDFFile.XCellsize, warningLegend);
+                        CheckWarningLayer drnWarningLayer = CreateWarningLayer(resultHandler, drnRivPackage, "SYS" + (drnEntryIdx + 1), stressPeriod, drnEntryIdx + 1, drnLevelIDFFile.XCellsize, warningLegend);
                         drnWarningLayer.AddSourceFile(drnLevelIDFFile);
 
                         // Process all RIV-layers/systems

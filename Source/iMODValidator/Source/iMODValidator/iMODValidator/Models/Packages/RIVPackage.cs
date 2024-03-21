@@ -47,7 +47,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
         {
             get
             {
-                return 4;   // DRN-package has 2 files per entry
+                return 4;   // RIV-package has 4 files per entry
             }
         }
 

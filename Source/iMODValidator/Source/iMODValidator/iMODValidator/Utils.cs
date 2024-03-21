@@ -48,5 +48,20 @@ namespace Sweco.SIF.iMODValidator
             return count;
         }
 
+        /// <summary>
+        /// Converts decimal defined by tweo whole/decimal integer values to a float
+        /// </summary>
+        /// <param name="integerPart"></param>
+        /// <param name="decimalPart"></param>
+        /// <returns></returns>
+        public static float IntegersToDecimal(int integerPart, int decimalPart)
+        {
+            float decimals = (float)decimalPart;
+            while (decimals >= 1f)
+            {
+                decimals /= 10;
+            }
+            return (float)(integerPart) + decimals;
+        }
     }
 }

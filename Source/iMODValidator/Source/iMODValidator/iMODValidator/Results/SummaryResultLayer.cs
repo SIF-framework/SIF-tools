@@ -44,33 +44,33 @@ namespace Sweco.SIF.iMODValidator.Results
             this.isResultReAddingAllowed = true;
         }
 
-        protected SummaryResultLayer(int kper, int ilay, DateTime? startDate, string outputPath)
-            : base(SummaryResultLayer.Name, null, null, kper, ilay, startDate, outputPath)
+        protected SummaryResultLayer(StressPeriod stressPeriod, int ilay, string outputPath)
+            : base(SummaryResultLayer.Name, null, null, stressPeriod, ilay, outputPath)
         {
             this.isResultReAddingAllowed = true;
         }
 
-        public SummaryResultLayer(int kper, int ilay, DateTime? startDate, Extent extent, float cellsize, float noDataValue, string outputPath, ClassLegend legend = null)
-            : base(SummaryResultLayer.Name, null, null, kper, ilay, startDate, extent, cellsize, noDataValue, outputPath, legend)
+        public SummaryResultLayer(StressPeriod stressPeriod, int ilay, Extent extent, float cellsize, float noDataValue, string outputPath, ClassLegend legend = null)
+            : base(SummaryResultLayer.Name, null, null, stressPeriod, ilay, extent, cellsize, noDataValue, outputPath, legend)
         {
             this.isResultReAddingAllowed = true;
         }
 
-        protected SummaryResultLayer(Model model, int kper, int ilay)
-            : base(SummaryResultLayer.Name, null, null, kper, ilay, model.StartDate, model.ToolOutputPath)
+        protected SummaryResultLayer(Model model, StressPeriod stressPeriod, int ilay)
+            : base(SummaryResultLayer.Name, null, null, stressPeriod, ilay, model.ToolOutputPath)
         {
             this.isResultReAddingAllowed = true;
         }
 
-        public SummaryResultLayer(Model model, int kper, int ilay, Extent extent, float cellsize, float noDataValue, ClassLegend legend = null)
-            : base(SummaryResultLayer.Name, null, null, kper, ilay, model.StartDate, extent, cellsize, noDataValue, model.ToolOutputPath, legend)
+        public SummaryResultLayer(Model model, StressPeriod stressPeriod, int ilay, Extent extent, float cellsize, float noDataValue, ClassLegend legend = null)
+            : base(SummaryResultLayer.Name, null, null, stressPeriod, ilay, extent, cellsize, noDataValue, model.ToolOutputPath, legend)
         {
             this.isResultReAddingAllowed = true;
         }
 
         public override ResultLayer Copy()
         {
-            SummaryResultLayer copiedLayer = new SummaryResultLayer(kper, ilay, startDate, outputPath);
+            SummaryResultLayer copiedLayer = new SummaryResultLayer(StressPeriod, ilay, outputPath);
             copiedLayer.resultFile = this.resultFile.Copy(this.resultFile.Filename);
             copiedLayer.description = description;
             copiedLayer.processDescription = processDescription;

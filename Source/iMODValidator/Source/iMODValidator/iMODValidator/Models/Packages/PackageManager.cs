@@ -68,6 +68,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
             RegisterPackage(new STOPackage(STOPackage.DefaultKey));
             RegisterPackage(new HEADPackage(HEADPackage.DefaultKey));
             RegisterPackage(new BDGFLFPackage(BDGFLFPackage.DefaultKey));
+            RegisterPackage(new PCGPackage(PCGPackage.DefaultKey));
         }
 
         public static PackageManager Instance

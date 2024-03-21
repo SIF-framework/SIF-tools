@@ -79,7 +79,6 @@ namespace Sweco.SIF.iMODValidator.Settings
         public bool IsIMODOpened;
         public bool IsExcelOpened;
         public bool IsRelativePathIMFAdded;
-        public List<GENFileSettings> GENFiles;
         public bool UseLazyLoading;
         public string RunfileTimestepsHeader;
         public string RunfileActivemodulesHeader;
@@ -89,6 +88,7 @@ namespace Sweco.SIF.iMODValidator.Settings
         public bool UseSparseMatrix;
         public bool UseIPFWarningForExistingPoints;
         public bool UseIPFWarningForColumnMismatch;
+        public List<GENFileSettings> GENFiles;
         public MetadataSettings Metadata;
 
         public iMODValidatorSettings()
@@ -111,20 +111,17 @@ namespace Sweco.SIF.iMODValidator.Settings
             DefaultNoDataValue = -9999;
             LevelErrorMargin = 0.005f;
             MinTimestep = "0";
-            MaxTimestep = "1";
+            MaxTimestep = "";
             SplitValidationrunOption = SplitValidationrunSettings.Options.None;
             DefaultSummaryMinCellSize = 100;
 
-            iMODExecutablePath = @"iMOD\iMOD_V4_4_X64R.exe";
+            iMODExecutablePath = @"iMOD\iMOD_V5_6.exe";
             IsIMODOpened = true;
             IsExcelOpened = true;
             IsRelativePathIMFAdded = false;
 
             GENFiles = new List<GENFileSettings>();
-            //GENFiles.Add(new GENFileSettings(@"C:\Data\Tools\iMOD Tools\iMODValidator\Shapes\provincies.gen", "0,0,0", 2, true));
-            //GENFiles.Add(new GENFileSettings(@"C:\Data\Tools\iMOD Tools\iMODValidator\Shapes\T250WEG.gen", "200,200,200", 2, false));
-            //GENFiles.Add(new GENFileSettings(@"C:\Data\Tools\iMOD Tools\iMODValidator\Shapes\T250WATERGRT.gen", "0,64,128", 2, false));
-            //GENFiles.Add(new GENFileSettings(@"C:\Data\Tools\iMOD Tools\iMODValidator\Shapes\T250WTR.gen", "0,128,182", 2, false));
+            // Note: do not add GEN-files here, since these will be added by JsonSerializer to the GEN-files that are present in actual ssettingsfiles
 
             UseLazyLoading = true;
             RunfileTimestepsHeader = "PACKAGES FOR EACH LAYER AND STRESS-PERIOD";
@@ -141,6 +138,12 @@ namespace Sweco.SIF.iMODValidator.Settings
             MaxILAY = "999";
 
             this.Metadata = new MetadataSettings();
+        }
+
+        public iMODValidatorSettings(bool addDefaultGENFiles) : this()
+        {
+            GENFiles.Add(new GENFileSettings(@"C:\Tools\iMODValidator\Shapes\Provincies.GEN", "100,100,100", 2, true));
+            GENFiles.Add(new GENFileSettings(@"Shapes\T250WTR.GEN", "0,128,182", 2, false));
         }
     }
 

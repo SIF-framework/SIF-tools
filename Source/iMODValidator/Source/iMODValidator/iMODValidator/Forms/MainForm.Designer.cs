@@ -5,7 +5,7 @@
         /// <summary>
         /// Required designer variable.
         /// </summary>
-        private System.ComponentModel.IContainer components = null;
+        protected System.ComponentModel.IContainer components = null;
 
         /// <summary>
         /// Clean up any resources being used.
@@ -26,7 +26,7 @@
         /// Required method for Designer support - do not modify
         /// the contents of this method with the code editor.
         /// </summary>
-        private void InitializeComponent()
+        protected void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.groupBox2 = new System.Windows.Forms.GroupBox();
@@ -73,6 +73,9 @@
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.comparedRUNFileTextBox = new System.Windows.Forms.TextBox();
+            this.comparedRUNFileButton = new System.Windows.Forms.Button();
+            this.isModelComparedCheckBox = new System.Windows.Forms.CheckBox();
             this.isModelValidatedCheckBox = new System.Windows.Forms.CheckBox();
             this.label1 = new System.Windows.Forms.Label();
             this.runfileTextBox = new System.Windows.Forms.TextBox();
@@ -243,9 +246,9 @@
             this.addRelativePathIMFCheckBox.Location = new System.Drawing.Point(15, 240);
             this.addRelativePathIMFCheckBox.Margin = new System.Windows.Forms.Padding(2);
             this.addRelativePathIMFCheckBox.Name = "addRelativePathIMFCheckBox";
-            this.addRelativePathIMFCheckBox.Size = new System.Drawing.Size(217, 17);
+            this.addRelativePathIMFCheckBox.Size = new System.Drawing.Size(244, 17);
             this.addRelativePathIMFCheckBox.TabIndex = 28;
-            this.addRelativePathIMFCheckBox.Text = "Add iMOD-projectfile with relatieve paths";
+            this.addRelativePathIMFCheckBox.Text = "Add iMOD-projectfile (IMF) with relatieve paths";
             this.addRelativePathIMFCheckBox.UseVisualStyleBackColor = true;
             // 
             // label13
@@ -276,7 +279,7 @@
             this.firstTimeStepTextBox.Name = "firstTimeStepTextBox";
             this.firstTimeStepTextBox.Size = new System.Drawing.Size(34, 20);
             this.firstTimeStepTextBox.TabIndex = 10;
-            this.firstTimeStepTextBox.Text = "1";
+            this.firstTimeStepTextBox.Text = "0";
             // 
             // label12
             // 
@@ -372,7 +375,6 @@
             this.maxTimeStepTextBox.Name = "maxTimeStepTextBox";
             this.maxTimeStepTextBox.Size = new System.Drawing.Size(34, 20);
             this.maxTimeStepTextBox.TabIndex = 11;
-            this.maxTimeStepTextBox.Text = "1";
             // 
             // label10
             // 
@@ -469,7 +471,7 @@
             // llxLabel
             // 
             this.llxLabel.AutoSize = true;
-            this.llxLabel.Enabled = false;
+            this.llxLabel.ForeColor = System.Drawing.Color.Gray;
             this.llxLabel.Location = new System.Drawing.Point(356, 49);
             this.llxLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.llxLabel.Name = "llxLabel";
@@ -480,7 +482,7 @@
             // urxLabel
             // 
             this.urxLabel.AutoSize = true;
-            this.urxLabel.Enabled = false;
+            this.urxLabel.ForeColor = System.Drawing.Color.Gray;
             this.urxLabel.Location = new System.Drawing.Point(356, 20);
             this.urxLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.urxLabel.Name = "urxLabel";
@@ -491,7 +493,7 @@
             // llyLabel
             // 
             this.llyLabel.AutoSize = true;
-            this.llyLabel.Enabled = false;
+            this.llyLabel.ForeColor = System.Drawing.Color.Gray;
             this.llyLabel.Location = new System.Drawing.Point(441, 49);
             this.llyLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.llyLabel.Name = "llyLabel";
@@ -502,7 +504,7 @@
             // uryLabel
             // 
             this.uryLabel.AutoSize = true;
-            this.uryLabel.Enabled = false;
+            this.uryLabel.ForeColor = System.Drawing.Color.Gray;
             this.uryLabel.Location = new System.Drawing.Point(441, 20);
             this.uryLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.uryLabel.Name = "uryLabel";
@@ -522,7 +524,7 @@
             // lllabel
             // 
             this.lllabel.AutoSize = true;
-            this.lllabel.Enabled = false;
+            this.lllabel.ForeColor = System.Drawing.Color.Gray;
             this.lllabel.Location = new System.Drawing.Point(292, 49);
             this.lllabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.lllabel.Name = "lllabel";
@@ -542,7 +544,7 @@
             // urlabel
             // 
             this.urlabel.AutoSize = true;
-            this.urlabel.Enabled = false;
+            this.urlabel.ForeColor = System.Drawing.Color.Gray;
             this.urlabel.Location = new System.Drawing.Point(292, 20);
             this.urlabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.urlabel.Name = "urlabel";
@@ -565,6 +567,7 @@
             this.openIMODCheckBox.AutoSize = true;
             this.openIMODCheckBox.Checked = true;
             this.openIMODCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.openIMODCheckBox.ForeColor = System.Drawing.Color.White;
             this.openIMODCheckBox.Location = new System.Drawing.Point(5, 510);
             this.openIMODCheckBox.Margin = new System.Windows.Forms.Padding(2);
             this.openIMODCheckBox.Name = "openIMODCheckBox";
@@ -619,6 +622,9 @@
             // 
             this.groupBox3.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.groupBox3.Controls.Add(this.comparedRUNFileTextBox);
+            this.groupBox3.Controls.Add(this.comparedRUNFileButton);
+            this.groupBox3.Controls.Add(this.isModelComparedCheckBox);
             this.groupBox3.Controls.Add(this.isModelValidatedCheckBox);
             this.groupBox3.Controls.Add(this.label1);
             this.groupBox3.Controls.Add(this.runfileTextBox);
@@ -630,6 +636,42 @@
             this.groupBox3.TabIndex = 46;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Input specifications";
+            // 
+            // comparedRUNFileTextBox
+            // 
+            this.comparedRUNFileTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.comparedRUNFileTextBox.Enabled = false;
+            this.comparedRUNFileTextBox.Location = new System.Drawing.Point(123, 65);
+            this.comparedRUNFileTextBox.Name = "comparedRUNFileTextBox";
+            this.comparedRUNFileTextBox.Size = new System.Drawing.Size(786, 20);
+            this.comparedRUNFileTextBox.TabIndex = 8;
+            // 
+            // comparedRUNFileButton
+            // 
+            this.comparedRUNFileButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.comparedRUNFileButton.BackColor = System.Drawing.SystemColors.ButtonFace;
+            this.comparedRUNFileButton.Enabled = false;
+            this.comparedRUNFileButton.ForeColor = System.Drawing.Color.Black;
+            this.comparedRUNFileButton.Location = new System.Drawing.Point(915, 64);
+            this.comparedRUNFileButton.Name = "comparedRUNFileButton";
+            this.comparedRUNFileButton.Size = new System.Drawing.Size(24, 23);
+            this.comparedRUNFileButton.TabIndex = 9;
+            this.comparedRUNFileButton.Text = "...";
+            this.comparedRUNFileButton.UseVisualStyleBackColor = false;
+            this.comparedRUNFileButton.Click += new System.EventHandler(this.comparedRUNFileButton_Click);
+            // 
+            // isModelComparedCheckBox
+            // 
+            this.isModelComparedCheckBox.AutoSize = true;
+            this.isModelComparedCheckBox.Location = new System.Drawing.Point(12, 70);
+            this.isModelComparedCheckBox.Margin = new System.Windows.Forms.Padding(2);
+            this.isModelComparedCheckBox.Name = "isModelComparedCheckBox";
+            this.isModelComparedCheckBox.Size = new System.Drawing.Size(99, 17);
+            this.isModelComparedCheckBox.TabIndex = 7;
+            this.isModelComparedCheckBox.Text = "&Compare model";
+            this.isModelComparedCheckBox.UseVisualStyleBackColor = true;
+            this.isModelComparedCheckBox.CheckedChanged += new System.EventHandler(this.isModelComparedCheckBox_CheckedChanged);
             // 
             // isModelValidatedCheckBox
             // 
@@ -837,7 +879,7 @@
             this.checkPropertyGrid.Location = new System.Drawing.Point(2, 0);
             this.checkPropertyGrid.Margin = new System.Windows.Forms.Padding(2);
             this.checkPropertyGrid.Name = "checkPropertyGrid";
-            this.checkPropertyGrid.Size = new System.Drawing.Size(302, 347);
+            this.checkPropertyGrid.Size = new System.Drawing.Size(305, 347);
             this.checkPropertyGrid.TabIndex = 20;
             this.checkPropertyGrid.ToolbarVisible = false;
             this.checkPropertyGrid.PropertyValueChanged += new System.Windows.Forms.PropertyValueChangedEventHandler(this.checkPropertyGrid_PropertyValueChanged);
@@ -909,6 +951,7 @@
             this.openExcelCheckBox.AutoSize = true;
             this.openExcelCheckBox.Checked = true;
             this.openExcelCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.openExcelCheckBox.ForeColor = System.Drawing.Color.White;
             this.openExcelCheckBox.Location = new System.Drawing.Point(264, 510);
             this.openExcelCheckBox.Margin = new System.Windows.Forms.Padding(2);
             this.openExcelCheckBox.Name = "openExcelCheckBox";
@@ -1008,75 +1051,78 @@
 
         #endregion
 
-        private System.Windows.Forms.GroupBox groupBox2;
-        private System.Windows.Forms.RadioButton surfacelevelMetaSWAPradioButton;
-        private System.Windows.Forms.RadioButton surfaceLevelSmartRadioButton;
-        private System.Windows.Forms.Button surfacelevelFileButton;
-        private System.Windows.Forms.TextBox surfacelevelFileTextBox;
-        private System.Windows.Forms.RadioButton surfacelevelFileRadioButton;
-        private System.Windows.Forms.RadioButton surfacelevelOLFRadioButton;
-        private System.Windows.Forms.TabPage tabPage3;
-        private System.Windows.Forms.CheckBox addRelativePathIMFCheckBox;
-        private System.Windows.Forms.Label label13;
-        private System.Windows.Forms.ComboBox splitValidationrunOptionComboBox;
-        private System.Windows.Forms.TextBox firstTimeStepTextBox;
-        private System.Windows.Forms.Label label12;
-        private System.Windows.Forms.CheckBox useIPFWarningForColumnMismatchCheckBox;
-        private System.Windows.Forms.CheckBox useIPFWarningForExistingPointCheckBox;
-        private System.Windows.Forms.CheckBox useSparseMatrixCheckBox;
-        private System.Windows.Forms.TextBox maxLayerNumberTextBox;
-        private System.Windows.Forms.Label label9;
-        private System.Windows.Forms.TextBox firstLayerNumberTextBox;
-        private System.Windows.Forms.Label label11;
-        private System.Windows.Forms.TextBox maxTimeStepTextBox;
-        private System.Windows.Forms.Label label10;
-        private System.Windows.Forms.Label label6;
-        private System.Windows.Forms.TextBox summaryMinCellSizeTextBox;
-        private System.Windows.Forms.Label label7;
-        private System.Windows.Forms.Label label5;
-        private System.Windows.Forms.ComboBox logLevelComboBox;
-        private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.TextBox levelErrorMarginTextBox;
-        private System.Windows.Forms.Label levelErrorMarginLabel;
-        private System.Windows.Forms.Label llxLabel;
-        private System.Windows.Forms.Label urxLabel;
-        private System.Windows.Forms.Label llyLabel;
-        private System.Windows.Forms.Label uryLabel;
-        private System.Windows.Forms.TextBox uryTextBox;
-        private System.Windows.Forms.Label lllabel;
-        private System.Windows.Forms.TextBox llxTextBox;
-        private System.Windows.Forms.Label urlabel;
-        private System.Windows.Forms.TextBox llyTextBox;
-        private System.Windows.Forms.CheckBox openIMODCheckBox;
-        private System.Windows.Forms.RadioButton packageExtentRadioButton;
+        protected System.Windows.Forms.GroupBox groupBox2;
+        protected System.Windows.Forms.RadioButton surfacelevelMetaSWAPradioButton;
+        protected System.Windows.Forms.RadioButton surfaceLevelSmartRadioButton;
+        protected System.Windows.Forms.Button surfacelevelFileButton;
+        protected System.Windows.Forms.TextBox surfacelevelFileTextBox;
+        protected System.Windows.Forms.RadioButton surfacelevelFileRadioButton;
+        protected System.Windows.Forms.RadioButton surfacelevelOLFRadioButton;
+        protected System.Windows.Forms.TabPage tabPage3;
+        protected System.Windows.Forms.CheckBox addRelativePathIMFCheckBox;
+        protected System.Windows.Forms.Label label13;
+        protected System.Windows.Forms.ComboBox splitValidationrunOptionComboBox;
+        protected System.Windows.Forms.TextBox firstTimeStepTextBox;
+        protected System.Windows.Forms.Label label12;
+        protected System.Windows.Forms.CheckBox useIPFWarningForColumnMismatchCheckBox;
+        protected System.Windows.Forms.CheckBox useIPFWarningForExistingPointCheckBox;
+        protected System.Windows.Forms.CheckBox useSparseMatrixCheckBox;
+        protected System.Windows.Forms.TextBox maxLayerNumberTextBox;
+        protected System.Windows.Forms.Label label9;
+        protected System.Windows.Forms.TextBox firstLayerNumberTextBox;
+        protected System.Windows.Forms.Label label11;
+        protected System.Windows.Forms.TextBox maxTimeStepTextBox;
+        protected System.Windows.Forms.Label label10;
+        protected System.Windows.Forms.Label label6;
+        protected System.Windows.Forms.TextBox summaryMinCellSizeTextBox;
+        protected System.Windows.Forms.Label label7;
+        protected System.Windows.Forms.Label label5;
+        protected System.Windows.Forms.ComboBox logLevelComboBox;
+        protected System.Windows.Forms.Label label2;
+        protected System.Windows.Forms.TextBox levelErrorMarginTextBox;
+        protected System.Windows.Forms.Label levelErrorMarginLabel;
+        protected System.Windows.Forms.Label llxLabel;
+        protected System.Windows.Forms.Label urxLabel;
+        protected System.Windows.Forms.Label llyLabel;
+        protected System.Windows.Forms.Label uryLabel;
+        protected System.Windows.Forms.TextBox uryTextBox;
+        protected System.Windows.Forms.Label lllabel;
+        protected System.Windows.Forms.TextBox llxTextBox;
+        protected System.Windows.Forms.Label urlabel;
+        protected System.Windows.Forms.TextBox llyTextBox;
+        protected System.Windows.Forms.CheckBox openIMODCheckBox;
+        protected System.Windows.Forms.RadioButton packageExtentRadioButton;
         protected System.Windows.Forms.TabControl tabControl1;
-        private System.Windows.Forms.TabPage tabPage1;
+        protected System.Windows.Forms.TabPage tabPage1;
         protected System.Windows.Forms.GroupBox groupBox3;
         protected System.Windows.Forms.CheckBox isModelValidatedCheckBox;
         protected System.Windows.Forms.Label label1;
         protected System.Windows.Forms.TextBox runfileTextBox;
-        private System.Windows.Forms.Button runfileButton;
-        private System.Windows.Forms.GroupBox groupBox1;
-        private System.Windows.Forms.Label label4;
+        protected System.Windows.Forms.Button runfileButton;
+        protected System.Windows.Forms.GroupBox groupBox1;
+        protected System.Windows.Forms.Label label4;
         protected System.Windows.Forms.TextBox outputPathTextBox;
-        private System.Windows.Forms.Button outputFolderButton;
+        protected System.Windows.Forms.Button outputFolderButton;
         protected System.Windows.Forms.TextBox resultTextBox;
-        private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.TabPage tabPage2;
-        private System.Windows.Forms.SplitContainer splitContainer;
-        private System.Windows.Forms.DataGridView checkDataGridView;
-        private System.Windows.Forms.DataGridViewCheckBoxColumn IsActive;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Check;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Description;
-        private System.Windows.Forms.PropertyGrid checkPropertyGrid;
-        private System.Windows.Forms.GroupBox groupBox4;
-        private System.Windows.Forms.TextBox urxTextBox;
-        private System.Windows.Forms.RadioButton customExtentRadioButton;
-        private System.Windows.Forms.RadioButton modelExtentRadioButton;
-        private System.Windows.Forms.CheckBox openExcelCheckBox;
-        private System.Windows.Forms.Button startButton;
-        private System.Windows.Forms.Label label8;
-        private System.Windows.Forms.Button exitButton;
-        private System.Windows.Forms.Button helpButton;
+        protected System.Windows.Forms.Label label3;
+        protected System.Windows.Forms.TabPage tabPage2;
+        protected System.Windows.Forms.SplitContainer splitContainer;
+        protected System.Windows.Forms.DataGridView checkDataGridView;
+        protected System.Windows.Forms.DataGridViewCheckBoxColumn IsActive;
+        protected System.Windows.Forms.DataGridViewTextBoxColumn Check;
+        protected System.Windows.Forms.DataGridViewTextBoxColumn Description;
+        protected System.Windows.Forms.PropertyGrid checkPropertyGrid;
+        protected System.Windows.Forms.GroupBox groupBox4;
+        protected System.Windows.Forms.TextBox urxTextBox;
+        protected System.Windows.Forms.RadioButton customExtentRadioButton;
+        protected System.Windows.Forms.RadioButton modelExtentRadioButton;
+        protected System.Windows.Forms.CheckBox openExcelCheckBox;
+        protected System.Windows.Forms.Button startButton;
+        protected System.Windows.Forms.Label label8;
+        protected System.Windows.Forms.Button exitButton;
+        protected System.Windows.Forms.Button helpButton;
+        protected System.Windows.Forms.TextBox comparedRUNFileTextBox;
+        protected System.Windows.Forms.Button comparedRUNFileButton;
+        protected System.Windows.Forms.CheckBox isModelComparedCheckBox;
     }
 }

@@ -159,9 +159,9 @@ namespace Sweco.SIF.iMODValidator.Checks
             log.AddInfo("Checking OLF-package...");
 
             RetrievePackages(model, log);
-            if (olfPackage == null)
+            if (!IsPackageActive(olfPackage))
             {
-                // OLF-package not defined, warning has already been shown
+                // OLF-package not present/activate, warning has already been shown
                 return;
             }
 
@@ -177,9 +177,11 @@ namespace Sweco.SIF.iMODValidator.Checks
             // Check all KPERs
             for (int kper = resultHandler.MinKPER; (kper <= model.NPER) && (kper <= resultHandler.MaxKPER); kper++)
             {
+                StressPeriod stressPeriod = model.RetrieveStressPeriod(kper);
+
                 if (model.NPER > 1)
                 {
-                    log.AddMessage(LogLevel.Info, "Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + "...", 1);
+                    log.AddMessage(LogLevel.Info, "Checking stress period " + kper + " " + stressPeriod.SNAME + "...", 1);
                 }
                 else
                 {
@@ -207,13 +209,13 @@ namespace Sweco.SIF.iMODValidator.Checks
                             olfIDFFile = drnPackage.GetIDFFile(0, DRNPackage.LevelPartIdx, kper);
                             if (olfIDFFile == null)
                             {
-                                log.AddWarning(this.Name, model.Runfilename, "DRN_L1 file not found, OLF-check is skipped", 1);
+                                log.AddWarning(this.Name, model.RUNFilename, "DRN_L1 file not found, OLF-check is skipped", 1);
                                 return;
                             }
                         }
                         else
                         {
-                            log.AddWarning(this.Name, model.Runfilename, "No (active) DRN-package, OLF-check is skipped.", 1);
+                            log.AddWarning(this.Name, model.RUNFilename, "No (active) DRN-package, OLF-check is skipped.", 1);
                             return;
                         }
                     }
@@ -243,14 +245,14 @@ namespace Sweco.SIF.iMODValidator.Checks
                 idfCellIterator.AddIDFFile(minLevelSettingIDFFile);
                 idfCellIterator.AddIDFFile(maxLevelSettingIDFFile);
 
-                idfCellIterator.CheckExtent(log, 2, LogLevel.Warning);
+                idfCellIterator.CheckExtent(log, 2, LogLevel.Debug);
 
                 // Create error IDFfiles for current layer
-                CheckErrorLayer errorLayer = CreateErrorLayer(resultHandler, olfPackage, null, kper, 1, idfCellIterator.XStepsize, errorLegend);
+                CheckErrorLayer errorLayer = CreateErrorLayer(resultHandler, olfPackage, null, stressPeriod, 1, idfCellIterator.XStepsize, errorLegend);
                 errorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
 
                 // Create warning IDFfiles for current layer
-                CheckWarningLayer warningLayer = CreateWarningLayer(resultHandler, olfPackage, null, kper, 1, idfCellIterator.XStepsize, warningLegend);
+                CheckWarningLayer warningLayer = CreateWarningLayer(resultHandler, olfPackage, null, stressPeriod, 1, idfCellIterator.XStepsize, warningLegend);
                 errorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
 
                 // Iterate through cells
@@ -349,7 +351,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                     }
                     else
                     {
-                        log.AddWarning(this.Name, model.Runfilename, "OLF-package is not active. " + this.Name + " is skipped.", 1);
+                        log.AddWarning(this.Name, model.RUNFilename, "OLF-package is not active. " + this.Name + " is skipped.", 1);
                         return;
                     }
                 }

@@ -46,6 +46,11 @@ namespace Sweco.SIF.iMODValidator.Results
             set { sheetManager = value; }
         }
 
+        /// <summary>
+        /// Final message that is shown when nothing is found
+        /// </summary>
+        public string NoIssuesMessage { get; set; } = "No issues found";
+
         protected const int RunfilePart1RowIdx = 4;
         protected const int RunfilePart2RowIdx = 5;
         protected const int ValidationDateRowIdx = 6;
@@ -180,8 +185,6 @@ namespace Sweco.SIF.iMODValidator.Results
                     worksheet.SetWrapText(headerRange, true);
                     // worksheet.AutoFitColumns(headerRange);
 
-                    //headerRange.EntireRow.RowHeight = 2 * (double) headerRange.EntireRow.RowHeight;
-
                     layerStatisticsList.Sort();
                     // Set the actual values
                     int firstRowIdx = CheckSummaryTableHeaderRowIdx + 1;
@@ -225,6 +228,8 @@ namespace Sweco.SIF.iMODValidator.Results
                             int resultTableHeaderColIdx = CheckSummaryTableHeaderColIdx;
 
                             worksheet.SetCellValue(resultTableHeaderRowIdx, resultTableHeaderColIdx, messageTypeColumnName);
+                            SetColumnWidth(worksheet, minColumnWidths, resultTableHeaderColIdx, messageTypeColumnName, 1.2f);
+
                             worksheet.SetCellValue(resultTableHeaderRowIdx, resultTableHeaderColIdx + 1, "Layer\nnr");
                             worksheet.MergeCells(resultTableHeaderRowIdx, resultTableHeaderColIdx + 2, resultTableHeaderRowIdx, resultTableHeaderColIdx + 4);
                             worksheet.SetCellValue(resultTableHeaderRowIdx, resultTableHeaderColIdx + 2, resultType + "file");
@@ -281,18 +286,10 @@ namespace Sweco.SIF.iMODValidator.Results
                     lastColIdx = CheckSummaryTableHeaderColIdx + 8;
                     tableValuesRange = new Range(worksheet, firstRowIdx, CheckSummaryTableHeaderColIdx, lastRowIdx, lastColIdx);
                     worksheet.SetBorderEdgeBottomColor(tableValuesRange, Color.Gray);
-                    
-                    // Skipped, is too slow in EPPlus
-                    // Range hiddenColumnsRange = new Range(worksheet, CheckSummaryTableHeaderRowIdx, CheckSummaryTableHeaderColIdx + 10, CheckSummaryTableHeaderRowIdx, worksheet.GetColumnsCount());
-                    // worksheet.HideColumns(hiddenColumnsRange);
-                    // Range hiddenRowsRange = new Range(worksheet, lastRowIdx + 2, 1, worksheet.GetRowsCount(), 1);
-                    // worksheet.HideRows(hiddenRowsRange);
-
-                    // worksheet.SetColumnWidth(lastColIdx + 1, 2);
                 }
                 else
                 {
-                    worksheet.SetCellValue(CheckSummaryTableHeaderRowIdx, CheckSummaryTableHeaderColIdx, "No issues found.");
+                    worksheet.SetCellValue(CheckSummaryTableHeaderRowIdx, CheckSummaryTableHeaderColIdx, NoIssuesMessage);
                 }
 
                 // Now add other items since columnresize has been done now
@@ -390,7 +387,7 @@ namespace Sweco.SIF.iMODValidator.Results
             }
             catch (Exception ex)
             {
-                throw new Exception("Unexpected error while creating result sheet. It may help restarting " + sheetManager.ApplicationName + " (also look at processes in Windows Taskmananager.", ex);
+                throw new Exception("Unexpected error while creating result sheet for '" + Path.GetFileName(exportFilename) + "'", ex);
             }
             finally
             {
@@ -410,11 +407,20 @@ namespace Sweco.SIF.iMODValidator.Results
             }
         }
 
-        private void SetColumnWidth(IWorksheet worksheet, List<int> minColumnWidths, int colIdx, string columnHeader)
+        /// <summary>
+        /// Set column width of specified column to width as specified in list with column width for all columns.
+        /// As a minimum the width of the column name is used (for a specified/default symbol width) 
+        /// </summary>
+        /// <param name="worksheet"></param>
+        /// <param name="columnWidths">list of (current) widths; this is updated with the new width</param>
+        /// <param name="colIdx">the index of the updated column width</param>
+        /// <param name="columnHeader">the column name of the updated column, to calculate width for specified symbol width</param>
+        /// <param name="avgSymbolWidth">the average symbol width to calculate column width from number of symbols in column header</param>
+        private void SetColumnWidth(IWorksheet worksheet, List<int> columnWidths, int colIdx, string columnHeader, float avgSymbolWidth = 1.4f)
         {
-            ExtendList(minColumnWidths, colIdx, 0);
-            int minColWidth = CommonUtils.Max(minColumnWidths[colIdx], (int)GetMinColumnWidth(columnHeader));
-            minColumnWidths[colIdx] = minColWidth;
+            ExtendList(columnWidths, colIdx, 0);
+            int minColWidth = CommonUtils.Max(columnWidths[colIdx], (int)GetMinColumnWidth(columnHeader, avgSymbolWidth));
+            columnWidths[colIdx] = minColWidth;
             worksheet.SetColumnWidth(colIdx, minColWidth);
         }
 
@@ -563,7 +569,7 @@ namespace Sweco.SIF.iMODValidator.Results
                         LayerStatistics layerStatistics = GetLayerStatistics(packageName, layerNumber, stressPeriodString);
                         if (layerStatistics == null)
                         {
-                            throw new Exception("Layerstatistics not found for " + resultType + "message of package " + packageName + ", layer " + layerNumber + ", stressperiod " + stressPeriodString);
+                            throw new Exception("Layerstatistics not found for " + resultType + "message of package " + packageName + ", layer " + layerNumber + ", stress period " + stressPeriodString);
                         }
                         ResultLayerStatistics resultLayerStatistics = layerStatistics.ResultLayerStatisticsDictionary[resultType];
                         resultLayerStatistics.ResultFilename = filename;

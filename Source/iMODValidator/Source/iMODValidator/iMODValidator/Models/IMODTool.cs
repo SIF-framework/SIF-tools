@@ -79,14 +79,14 @@ namespace Sweco.SIF.iMODValidator.Models
         }
 
         /// <summary>
-        /// Starts the specified batch file
+        /// Starts iMOD with the specified INI-file to run an iMOD-batchfunction
         /// </summary>
-        /// <param name="batchFilename"></param>
+        /// <param name="iniFilename"></param>
         /// <param name="log"></param>
         /// <param name="indentLevel"></param>
         /// <param name="timeout">Timeout in milliseconds, 0 to wait indefinitely, or negative value for no timeout</param>
         /// <returns>iMOD-exitcode</returns>
-        public static int StartBatchFunction(string batchFilename, Log log, int indentLevel = 0, int timeout = 0)
+        public static int StartBatchFunction(string iniFilename, Log log, int indentLevel = 0, int timeout = 0)
         {
             string outputString;
             string iMODExecutablePath = iMODValidatorSettingsManager.Settings.iMODExecutablePath;
@@ -99,12 +99,12 @@ namespace Sweco.SIF.iMODValidator.Models
             {
                 if (log != null)
                 {
-                    log.AddInfo("Executing iMOD batchfunction" + Path.GetFileName(batchFilename) + "...", indentLevel);
+                    log.AddInfo("Executing iMOD with INI-file '" + Path.GetFileName(iniFilename) + "' ...", indentLevel);
                 }
 
                 try
                 {
-                    string command = Path.GetFileName(iMODExecutablePath) + " \"" + batchFilename + "\"";
+                    string command = Path.GetFileName(iMODExecutablePath) + " \"" + iniFilename + "\"";
                     int exitCode = CommonUtils.ExecuteCommand(command, timeout, out outputString, Path.GetDirectoryName(iMODExecutablePath));
                     LogLevel logLevel = LogLevel.Trace;
                     if (exitCode != 0)

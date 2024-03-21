@@ -133,9 +133,8 @@ namespace Sweco.SIF.iMODValidator.Checks
             log.AddInfo("Checking BND-package ...");
 
             bndPackage = (BNDPackage)model.GetPackage(BNDPackage.DefaultKey);
-            if ((bndPackage == null) || !bndPackage.IsActive)
+            if (!IsPackageActive(bndPackage, BNDPackage.DefaultKey, log, 1))
             {
-                log.AddWarning(this.Name, model.Runfilename, "BND-package is not active. " + this.Name + " is skipped.", 1);
                 return;
             }
 
@@ -164,6 +163,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                 log.AddWarning("SHD-package is missing, using IDF-files from CHD-package for SHD-check");
                 shdPackage = chdPackage;
             }
+
             // Retrieve settingfiles 
             RetrieveSettings();
 
@@ -192,13 +192,13 @@ namespace Sweco.SIF.iMODValidator.Checks
 
                 idfCellIterator.AddIDFFile(MinBNDSettingIDFFile);
                 idfCellIterator.AddIDFFile(MaxBNDSettingIDFFile);
-                idfCellIterator.CheckExtent(log, 2, LogLevel.Warning);
+                idfCellIterator.CheckExtent(log, 2, LogLevel.Debug);
 
                 // Create warning IDFfiles for current layer        
-                CheckWarningLayer warningLayer = CreateWarningLayer(resultHandler, bndPackage, null, kper, entryIdx, idfCellIterator.XStepsize, warningLegend);
+                CheckWarningLayer warningLayer = CreateWarningLayer(resultHandler, bndPackage, null, StressPeriod.SteadyState, entryIdx, idfCellIterator.XStepsize, warningLegend);
 
                 // Create errors IDFfiles for current layer                  
-                CheckErrorLayer errorLayer = CreateErrorLayer(resultHandler, bndPackage, null, 0, 1, idfCellIterator.XStepsize, warningLegend);
+                CheckErrorLayer errorLayer = CreateErrorLayer(resultHandler, bndPackage, null, StressPeriod.SteadyState, 1, idfCellIterator.XStepsize, warningLegend);
 
                 // Check SHD/BND for first KPER. Iterate through all cells
                 idfCellIterator.Reset();
@@ -236,9 +236,10 @@ namespace Sweco.SIF.iMODValidator.Checks
                 }
 
                 // Check all KPERs for CHD and FHB
+                log.AddInfo("Checking BND against CHD/FHB-packages for stressperiods ...", 1);
                 for (kper = resultHandler.MinKPER; (kper <= model.NPER) && (kper <= resultHandler.MaxKPER); kper++)
                 {
-                    log.AddMessage((model.NPER > 1) ? LogLevel.Info : LogLevel.Trace, "Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + "...", 1);
+                    log.AddMessage((model.NPER > 1) ? LogLevel.Info : LogLevel.Trace, "Checking stress period " + kper + " " + model.RetrieveSNAME(kper) + "...", 2);
 
                     // Check CHD-package for all cells and current KPER
                     if (chdPackage != null)
@@ -252,40 +253,43 @@ namespace Sweco.SIF.iMODValidator.Checks
                             }
                             catch
                             {
-                                log.AddWarning("CHD-file not found for entry: " + (entryIdx + 1), 1); //continue for BND=-1
+                                log.AddWarning("CHD-file not found for entry: " + (entryIdx + 1), 2); //continue for BND=-1
                             }
                         }
 
-                        idfCellIterator = new IDFCellIterator(resultHandler.Extent);
-                        idfCellIterator.AddIDFFile(bndIDFFile);
-                        idfCellIterator.AddIDFFile(chdIDFFile);
-                        idfCellIterator.CheckExtent(log, 2, LogLevel.Warning);
-
-                        idfCellIterator.Reset();
-                        while (idfCellIterator.IsInsideExtent())
+                        if (chdIDFFile != null)
                         {
-                            float bndValue = idfCellIterator.GetCellValue(bndIDFFile);
-                            float chdValue = idfCellIterator.GetCellValue(chdIDFFile);
-                            float x = idfCellIterator.X;
-                            float y = idfCellIterator.Y;
+                            idfCellIterator = new IDFCellIterator(resultHandler.Extent);
+                            idfCellIterator.AddIDFFile(bndIDFFile);
+                            idfCellIterator.AddIDFFile(chdIDFFile);
+                            idfCellIterator.CheckExtent(log, 2, LogLevel.Debug);
 
-                            if ((bndValue < 0))
+                            idfCellIterator.Reset();
+                            while (idfCellIterator.IsInsideExtent())
                             {
-                                if (chdValue.Equals(chdIDFFile.NoDataValue))
+                                float bndValue = idfCellIterator.GetCellValue(bndIDFFile);
+                                float chdValue = idfCellIterator.GetCellValue(chdIDFFile);
+                                float x = idfCellIterator.X;
+                                float y = idfCellIterator.Y;
+
+                                if ((bndValue < 0))
                                 {
-                                    if ((fhbPackage == null) || !bndValue.Equals(-2))
+                                    if (chdValue.Equals(chdIDFFile.NoDataValue))
                                     {
-                                        resultHandler.AddCheckResult(errorLayer, x, y, CHDNoDataError);
-                                        resultHandler.AddExtraMapFile(chdIDFFile);
-                                    }
-                                    else
-                                    {
-                                        // Ignore; when FHB-package is defined value -2 is valid for BND
+                                        if ((fhbPackage == null) || !bndValue.Equals(-2))
+                                        {
+                                            resultHandler.AddCheckResult(errorLayer, x, y, CHDNoDataError);
+                                            resultHandler.AddExtraMapFile(chdIDFFile);
+                                        }
+                                        else
+                                        {
+                                            // Ignore; when FHB-package is defined value -2 is valid for BND
+                                        }
                                     }
                                 }
-                            }
 
-                            idfCellIterator.MoveNext();
+                                idfCellIterator.MoveNext();
+                            }
                         }
                     }
 
@@ -303,32 +307,35 @@ namespace Sweco.SIF.iMODValidator.Checks
                             }
                             catch
                             {
-                                log.AddWarning("No FHB-file found for entry: " + (entryIdx + 1) + ", BND-check is skipped.", 1);
+                                log.AddWarning("No FHB-file found for entry: " + (entryIdx + 1) + ", BND-check is skipped.", 2);
                                 return;
                             }
                         }
 
-                        idfCellIterator.Reset();
-                        while (idfCellIterator.IsInsideExtent())
+                        if ((fhbHeadIDFFile != null) && (fhbFlowIDFFile != null))
                         {
-                            float bndValue = idfCellIterator.GetCellValue(bndIDFFile);
-                            float fhbHeadValue = idfCellIterator.GetCellValue(fhbHeadIDFFile);
-                            float fhbFlowValue = idfCellIterator.GetCellValue(fhbFlowIDFFile);
-                            float x = idfCellIterator.X;
-                            float y = idfCellIterator.Y;
-
-                            // Check for FHB boundary cells without FHB-values
-                            if (bndValue.Equals(-2) || bndValue.Equals(2))
+                            idfCellIterator.Reset();
+                            while (idfCellIterator.IsInsideExtent())
                             {
-                                if (fhbHeadValue.Equals(fhbHeadIDFFile.NoDataValue) || fhbFlowValue.Equals(fhbFlowIDFFile.NoDataValue))
-                                {
-                                    resultHandler.AddCheckResult(errorLayer, x, y, FHBNoDataError);
-                                    resultHandler.AddExtraMapFile(fhbHeadIDFFile);
-                                    resultHandler.AddExtraMapFile(fhbFlowIDFFile);
-                                }
-                            }
+                                float bndValue = idfCellIterator.GetCellValue(bndIDFFile);
+                                float fhbHeadValue = idfCellIterator.GetCellValue(fhbHeadIDFFile);
+                                float fhbFlowValue = idfCellIterator.GetCellValue(fhbFlowIDFFile);
+                                float x = idfCellIterator.X;
+                                float y = idfCellIterator.Y;
 
-                            idfCellIterator.MoveNext();
+                                // Check for FHB boundary cells without FHB-values
+                                if (bndValue.Equals(-2) || bndValue.Equals(2))
+                                {
+                                    if (fhbHeadValue.Equals(fhbHeadIDFFile.NoDataValue) || fhbFlowValue.Equals(fhbFlowIDFFile.NoDataValue))
+                                    {
+                                        resultHandler.AddCheckResult(errorLayer, x, y, FHBNoDataError);
+                                        resultHandler.AddExtraMapFile(fhbHeadIDFFile);
+                                        resultHandler.AddExtraMapFile(fhbFlowIDFFile);
+                                    }
+                                }
+
+                                idfCellIterator.MoveNext();
+                            }
                         }
                     }
                 }

@@ -40,7 +40,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
         {
         }
 
-        public override void ParseRunfilePackageFiles(Runfile runfile, int fileCount, Log log, StressPeriod sp = null)
+        public override void ParseRUNFilePackageFiles(RUNFile runfile, int fileCount, Log log, int logIndentLevel, StressPeriod sp = null)
         {
             string[] lineParts;
 
@@ -52,12 +52,12 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
             int PE_NPERIOD = 0;
             if (!int.TryParse(lineParts[3], out PE_NPERIOD))
             {
-                log.AddError("Invalid PE_NPERIOD parameter, an integer is expected: " + lineParts[3]);
+                log.AddError("Invalid PE_NPERIOD parameter, an integer is expected: " + lineParts[3], logIndentLevel);
             }
             int PE_NBATCH = 0;
             if (!int.TryParse(lineParts[4], out PE_NBATCH))
             {
-                log.AddError("Invalid PE_NBATCH parameter, an integer is expected: " + lineParts[4]);
+                log.AddError("Invalid PE_NBATCH parameter, an integer is expected: " + lineParts[4], logIndentLevel);
             }
 
             // parse data set 15: Period Settings (S_PERIOD,E_PERIOD)

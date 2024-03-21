@@ -102,7 +102,7 @@ namespace Sweco.SIF.iMODValidator.Settings
                     if (settings == null)
                     {
                         // Use hardcoded default settings
-                        settings = new iMODValidatorSettings();
+                        settings = new iMODValidatorSettings(true);
                     }
                     SaveMainSettings(settingsFilename);
                 }
@@ -276,7 +276,8 @@ namespace Sweco.SIF.iMODValidator.Settings
             }
             else if (File.Exists(GetSettingsFilename()))
             {
-                xmlDoc.Load(GetSettingsFilename());
+                settingsFilename = GetSettingsFilename();
+                xmlDoc.Load(settingsFilename);
             }
             else
             {

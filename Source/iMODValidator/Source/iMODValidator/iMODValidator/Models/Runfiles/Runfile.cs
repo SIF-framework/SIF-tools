@@ -37,21 +37,29 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
     /// <summary>
     /// Base class for handling a specific RUN-file version
     /// </summary>
-    public abstract class Runfile
+    public abstract class RUNFile
     {
         protected static CultureInfo englishCultureInfo = null;
         protected const int MaxUnknownPackageCount = 10;
-        private const string RunfileCategoryString = "Runfile";
+
+        public virtual string RUNFileType
+        {
+            get { return "RUN"; }
+        }
+        public virtual string RUNFileCategoryString
+        {
+            get { return RUNFileType + "-file"; }
+        }
 
         protected string[] runfileLines;
-        public string[] RunfileLines
+        public string[] RUNFileLines
         {
             get { return runfileLines; }
             set { runfileLines = value; }
         }
 
         protected string runfilename;
-        public string Runfilename
+        public string RUNFilename
         {
             get { return runfilename; }
             set { runfilename = value; }
@@ -74,7 +82,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         protected int currentLineIndex;
         protected Dictionary<string, int> unknownPackageCountDictionary;
 
-        public Runfile(string runfilename)
+        public RUNFile(string runfilename)
         {
             englishCultureInfo = new CultureInfo("en-GB", false);
             this.runfilename = runfilename;
@@ -82,7 +90,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             this.unknownPackageCountDictionary = new Dictionary<string, int>();
         }
 
-        public string ReadOutputfolder(Log log)
+        protected string ReadOutputfolder(Log log)
         {
             StreamReader sr = null;
             string outputFolder = null;
@@ -117,6 +125,28 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             return (currentLineIndex == runfileLines.Length);
         }
 
+        protected void ResetCurrentLinenumber()
+        {
+            currentLineIndex = 0;
+        }
+
+        public long GetCurrentLinenumber()
+        {
+            return currentLineIndex; // + 1; // Retrieve last read linenr 
+        }
+
+        public string PeekLine()
+        {
+            if (currentLineIndex < runfileLines.Length)
+            {
+                return runfileLines[currentLineIndex];
+            }
+            else
+            {
+                return null;
+            }
+        }
+
         public string ReadLine()
         {
             if (currentLineIndex < runfileLines.Length)
@@ -141,28 +171,6 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             }
         }
 
-        protected void ResetCurrentLinenumber()
-        {
-            currentLineIndex = 0;
-        }
-
-        public long GetCurrentLinenumber()
-        {
-            return currentLineIndex; // + 1; // Retrieve last read linenr 
-        }
-
-        public string PeekLine()
-        {
-            if (currentLineIndex < runfileLines.Length)
-            {
-                return runfileLines[currentLineIndex];
-            }
-            else
-            {
-                return null;
-            }
-        }
-
         public string RemoveWhitespace(string line)
         {
             line = line.Replace("\t", " ");
@@ -174,14 +182,14 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             return line.Trim();
         }
 
-        public Model ReadModel(Log log, int maxKPER = int.MaxValue)
+        public virtual Model ReadModel(Log log, int maxKPER = int.MaxValue)
         {
             try
             {
                 log.AddMessage(LogLevel.Trace, "Opening runfile " + Path.GetFileName(runfilename) + "...");
                 sr = new StreamReader(runfilename);
 
-                log.AddInfo("Reading runfile " + Path.GetFileName(runfilename) + "...");
+                log.AddInfo("Reading RUN-file " + Path.GetFileName(runfilename) + "...");
                 string runfileString = sr.ReadToEnd();
 
                 runfileLines = SplitLargeString(runfileString, new string[] { "\n" }, log);
@@ -207,28 +215,18 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             ///////////////////////////////////////
             try
             {
-                log.AddInfo("Parsing runfile " + Path.GetFileName(runfilename) + "...");
+                log.AddInfo("Parsing RUN-file " + Path.GetFileName(runfilename) + "...");
 
                 ResetCurrentLinenumber();
 
                 model = new Model();
-                model.Runfilename = runfilename;
+                model.RUNFilename = runfilename;
 
-                ReadDataset1(log);
-                ReadDataset2(log);
-                ReadDataset3(log);
-                ReadDataset4(log);
-                ReadDataset5(log);
-                ReadDataset6(log);
-                ReadDataset7(log);
-                ReadDataset8(log);
-                ReadDataset9(log);
-                ReadDataset10(log);
-                ReadDataset12(log, maxKPER); // Timestep files
+                ParseFile(log, maxKPER);
             }
             catch (ToolException ex)
             {
-                throw new ToolException("Error while parsing runfile line " + GetCurrentLinenumber(), ex);
+                throw new ToolException("Error while parsing RUN-file line " + GetCurrentLinenumber(), ex);
             }
 
             log.AddInfo(string.Empty);
@@ -236,12 +234,27 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             return model;
         }
 
-        private string[] SplitLargeString(string runfileString, string[] values, Log log = null)
+        protected virtual void ParseFile(Log log, int maxKPER)
+        {
+            ReadDataset1(log);
+            ReadDataset2(log);
+            ReadDataset3(log);
+            ReadDataset4(log);
+            ReadDataset5(log);
+            ReadDataset6(log);
+            ReadDataset7(log);
+            ReadDataset8(log);
+            ReadDataset9(log);
+            ReadDataset10(log);
+            ReadDataset12(log, maxKPER); // Parse TA-files
+        }
+
+        protected string[] SplitLargeString(string runfileString, string[] values, Log log = null)
         {
             DateTime prevTime = DateTime.Now;
             if (log != null)
             {
-                log.AddInfo("Splitting runfile " + Path.GetFileName(runfilename) + " ..", 0, false);
+                log.AddInfo("Splitting RUN-file " + Path.GetFileName(runfilename) + " ..", 0, false);
             }
 
             List<string> lineList = new List<string>();
@@ -293,7 +306,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         }
 
         // Parse dataset 1: read model outputfolder
-        public void ReadDataset1(Log log)
+        protected void ReadDataset1(Log log)
         {
             log.AddInfo("Reading dataset 1: outputfolder...");
             OutputFoldername = ReadLine();
@@ -301,7 +314,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         }
 
         // Parse dataset 2:  Configuration number of model layers, stress periods, type of simulation, spatial network methodology  
-        public void ReadDataset2(Log log)
+        protected void ReadDataset2(Log log)
         {
             log.AddInfo("Reading dataset 2: configuration ...");
             string wholeLine = RemoveWhitespace(ReadLine());
@@ -311,28 +324,49 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             Model.NLAY = int.Parse(lineParts[0]);
             Model.MXNLAY = int.Parse(lineParts[1]);
             Model.NPER = int.Parse(lineParts[2]);
+
+            /// Specify ISAVEENDDATE=1 to save each ﬁle with a time stamp equal to the end of the corresponding stress period (and/or time step). 
+            /// By default ISAVEENDDATE=0 and the time stamp will be equal to the start date of each stress period (and/or time step). 
+            /// Note This keyword was obsolete since v3.0 and had a different purposes at that time. Be careful whenever a runﬁle is used that was compatible for v3.0 or older.
+
             try
             {
-                Model.SDATE = long.Parse(lineParts[3]);
+                long value = long.Parse(lineParts[3]);
+                if (value > 1)
+                {
+                    log.AddWarning(RUNFileCategoryString, runfilename, "It seems that this is an old RUN-file (<= 3.0) which might give unexepcted results. Keyword SDATE is obsolete since v3.01");
+                    log.AddInfo("ISAVEENDDATE=0 is assumed");
+                    value = 0;
+                }
+                model.ISAVEENDDATE = (int)value;
             }
             catch (Exception)
             {
-                Model.SDATE = 0;
-                log.AddWarning(RunfileCategoryString, runfilename, "Invalid value for SDATE parameter in dataset 2, assuming default of 0");
+                throw new ToolException("Invalid value for ISAVEENDDATE-parameter in dataset 2: " + lineParts[3]);
             }
+
             Model.NSCL = int.Parse(lineParts[4]);
             Model.IFTEST = (int.Parse(lineParts[5]));
             Model.ICONCHK = (int.Parse(lineParts[6]));
+            if ((Model.ICONCHK != 0) && (Model.ICONCHK != 1))
+            { 
+                log.AddError(RUNFileCategoryString, runfilename, "Invalid ICONCHK value");
+            }
+
             if (lineParts.Length > 7)
             {
                 try
                 {
                     Model.IIPF = (int.Parse(lineParts[7]));
+                    if (Model.IIPF > 1)
+                    {
+                        throw new Exception("Invalid IIPF value");
+                    }
                 }
                 catch (Exception)
                 {
                     Model.IIPF = 0;
-                    log.AddWarning(RunfileCategoryString, runfilename, "Invalid value for IIPF parameter in dataset 2, assuming default of 0");
+                    log.AddWarning(RUNFileCategoryString, runfilename, "Invalid value for IIPF parameter in dataset 2, assuming default of 0");
                 }
             }
             else
@@ -351,7 +385,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         }
 
         // Parse optional dataset 3: File to monitor time-series during a simulation ??
-        public void ReadDataset3(Log log)
+        protected void ReadDataset3(Log log)
         {
             int ipfCount = Math.Abs(Model.IIPF);
             // Apply only whenever IIP(F)=1 or negative from Data Set 2 
@@ -371,7 +405,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         }
 
         // Parse dataset 4: simulation mode (submodels)
-        public void ReadDataset4(Log log)
+        protected void ReadDataset4(Log log)
         {
             log.AddInfo("Reading dataset 4: simulation mode ...");
             string wholeLine = string.Empty;
@@ -409,7 +443,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         }
 
         // Parse optional dataset 5: solver configuration
-        public void ReadDataset5(Log log)
+        protected void ReadDataset5(Log log)
         {
             // todo line is optional? which check?
             log.AddInfo("Reading dataset 5: solver configuration ...");
@@ -421,7 +455,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         }
 
         // Parse optional dataset 6: Simulation window, location of the (sub)model and the chosen raster size 
-        public void ReadDataset6(Log log)
+        protected void ReadDataset6(Log log)
         {
             string wholeLine;
             string[] lineParts;
@@ -449,7 +483,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                                 model.Submodels[i].IACT = int.Parse(lineParts[0]);
                                 if ((model.Submodels[i].IACT < -1) || (model.Submodels[i].IACT > 1))
                                 {
-                                    log.AddError(RunfileCategoryString, runfilename, "Invalid value for IACT in definition for submodel " + i + ": IACT = " + lineParts[0], 1);
+                                    log.AddError(RUNFileCategoryString, runfilename, "Invalid value for IACT in definition for submodel " + i + ": IACT = " + lineParts[0], 1);
                                 }
                                 model.Submodels[i].XMIN = float.Parse(lineParts[1], englishCultureInfo);
                                 model.Submodels[i].YMIN = float.Parse(lineParts[2], englishCultureInfo);
@@ -480,7 +514,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                                     model.Submodels[i].IACT = int.Parse(lineParts[0]);
                                     if ((model.Submodels[i].IACT < -1) || (model.Submodels[i].IACT > 1))
                                     {
-                                        log.AddError(RunfileCategoryString, runfilename, "Invalid value for IACT in definition for submodel " + i + ": IACT = " + lineParts[0], 1);
+                                        log.AddError(RUNFileCategoryString, runfilename, "Invalid value for IACT in definition for submodel " + i + ": IACT = " + lineParts[0], 1);
                                     }
                                     model.Submodels[i].XMIN = float.Parse(lineParts[1], englishCultureInfo);
                                     model.Submodels[i].YMIN = float.Parse(lineParts[2], englishCultureInfo);
@@ -529,7 +563,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         }
 
         // Parse optional dataset dataset 7:  Scenario file, file that describes the scenario configuration 
-        public void ReadDataset7(Log log)
+        protected void ReadDataset7(Log log)
         {
             // Apply only whenever ISCEN=1 from Data Set 4 
             if (Model.ISCEN == 1)
@@ -541,7 +575,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         }
 
         // Parse dataset 8: Activated modules(9)/packages(9) and their corresponding output  
-        public void ReadDataset8(Log log)
+        protected void ReadDataset8(Log log)
         {
             string packageKey;
             string wholeLine;
@@ -590,7 +624,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                 }
                 else
                 {
-                    log.AddWarning(RunfileCategoryString, runfilename, "Package " + packageKey + " is currently not supported and is skipped.", 1);
+                    log.AddWarning(RUNFileCategoryString, runfilename, "Package " + packageKey + " is currently not supported and is skipped.", 1);
                 }
 
                 // read next line
@@ -600,11 +634,12 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         }
 
         // Parse dataset 9: Boundary
-        public void ReadDataset9(Log log)
+        protected void ReadDataset9(Log log)
         {
             log.AddInfo("Reading dataset 9: boundary ...");
             string wholeLine = ReadLine();
             string[] lineParts = wholeLine.Split(new char[] { ',' });
+
             SubModel subModel = new SubModel();
             subModel.IACT = 1;
             subModel.BUFFER = 0;
@@ -626,7 +661,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                 }
                 else
                 {
-                    log.AddWarning(RunfileCategoryString, runfilename, "BND-file does not exist: " + model.BNDFILE, 1);
+                    log.AddWarning(RUNFileCategoryString, runfilename, "BND-file does not exist: " + model.BNDFILE, 1);
                 }
             }
             else if (lineParts.Length == 4)
@@ -652,7 +687,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         }
 
         // Parse dataset 10: Modules for each layers, number of files
-        public void ReadDataset10(Log log)
+        protected void ReadDataset10(Log log)
         {
             log.AddInfo("Reading dataset 10: module/package definitions ...");
 
@@ -671,6 +706,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         /// </summary>
         /// <param name="log"></param>
         /// <param name="firstStressPeriod"></param>
+        /// <param name="maxKPER">maximum KPER (timestep) to read</param>
         private void ReadPackages(Log log, StressPeriod firstStressPeriod = null, int maxKPER = int.MaxValue)
         {
             string wholeLine;
@@ -680,6 +716,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             StressPeriod stressPeriod;
 
             stressPeriod = firstStressPeriod;
+            model.AddStressPeriod(stressPeriod);
 
             // Now start reading packages: NFILES,KEY 
             wholeLine = PeekLine(); // just peek at line, don't actually advance the line. This is necessary to stop reading the non-transient files which are followed by a a line without commma's
@@ -701,7 +738,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                     packageKey = RetrievePackageKey(lineParts[1]);
                     if (packageKey == null)
                     {
-                        log.AddError(RunfileCategoryString, runfilename, "Unexpected line in runfile: " + wholeLine, 2);
+                        log.AddError(RUNFileCategoryString, runfilename, "Unexpected line in runfile: " + wholeLine, 2);
                     }
                     else
                     {
@@ -717,10 +754,12 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                 {
                     if (!IsFileDefinitionLine(lineParts))
                     {
-                        // line is not a new packagedefinition and not a file definition, so it must be a new stressperiod
-                        stressPeriod = RetrieveTransientStressperiod(lineParts, model, log);
+                        // line is not a new packagedefinition and not a file definition, so it must be a new stress period
+                        stressPeriod = ParseTransientStressperiod(lineParts, model, log);
                         if (stressPeriod != null)
                         {
+                            model.AddStressPeriod(stressPeriod);
+
                             // Skip optional steady-state stress period in transient runfiles
                             if ((firstStressPeriod != null) && (firstStressPeriod.DateTime == null))
                             {
@@ -734,13 +773,13 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
 
                             if (stressPeriod.KPER > model.NPER)
                             {
-                                log.AddWarning(RunfileCategoryString, runfilename, "Stressperiod (" + stressPeriod.KPER + ") larger than defined number of stressperiods NPER (" + model.NPER + "). Reading stopped.", 2);
+                                log.AddWarning(RUNFileCategoryString, runfilename, "Stressperiod " + stressPeriod.KPER + " is larger than defined number of stressperiods NPER (" + model.NPER + "). Reading stopped, remaining stressperiods are NOT checked.", 2);
                                 return;
                             }
 
                             if (stressPeriod.KPER > maxKPER)
                             {
-                                log.AddWarning(RunfileCategoryString, runfilename, "Stressperiod (" + stressPeriod.KPER + ") larger than specified maximum number of stressperiods maxKPER (" + maxKPER + "). Reading stopped.", 2);
+                                log.AddWarning(RUNFileCategoryString, runfilename, "Stressperiod " + stressPeriod.KPER + " is larger than specified maximum number of stressperiods maxKPER (" + maxKPER + "). Reading stopped, remaining stressperiods are NOT checked.", 2);
                                 return;
                             }
                         }
@@ -753,7 +792,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                     else
                     {
                         // may be one of some leftover lines from unkown package
-                        // skip lines until a new stressperiod or a new package is found (skipping files for unknown packages)
+                        // skip lines until a new stress period or a new package is found (skipping files for unknown packages)
                         HandleInvalidRunfileLine(wholeLine, packageKey, stressPeriod, firstStressPeriod, log);
                     }
                 }
@@ -764,7 +803,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             }
         }
 
-        private void HandleInvalidRunfileLine(string wholeLine, string packageKey, StressPeriod stressPeriod, StressPeriod firstStressPeriod, Log log)
+        protected void HandleInvalidRunfileLine(string wholeLine, string packageKey, StressPeriod stressPeriod, StressPeriod firstStressPeriod, Log log)
         {
             if (stressPeriod == firstStressPeriod)
             {
@@ -774,11 +813,11 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                 {
                     stressPeriodString = " " + stressPeriod.ToString();
                 }
-                log.AddError(RunfileCategoryString, runfilename, "Unexpected line while parsing packagefile for " + packageKey + " package" + stressPeriodString + ", expected {NFILES, KEY}-pair, but found: " + wholeLine.Trim(), 1);
+                log.AddError(RUNFileCategoryString, runfilename, "Unexpected line while parsing packagefile for " + packageKey + " package" + stressPeriodString + ", expected {NFILES, KEY}-pair, but found: " + wholeLine.Trim(), 1);
             }
             else
             {
-                log.AddError(RunfileCategoryString, runfilename, "Unexpected line: " + wholeLine.Trim(), 1);
+                log.AddError(RUNFileCategoryString, runfilename, "Unexpected line: " + wholeLine.Trim(), 1);
             }
         }
 
@@ -814,13 +853,13 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         }
 
         /// <summary>
-        /// Return a StressPeriod object if valid and null if the line doesn't contain a new stressperiod with a valid date
+        /// Return a StressPeriod object if valid and null if the line doesn't contain a new stress period with a valid date
         /// </summary>
         /// <param name="line"></param>
         /// <returns></returns>
-        private StressPeriod RetrieveTransientStressperiod(string[] lineParts, Model model, Log log)
+        private StressPeriod ParseTransientStressperiod(string[] lineParts, Model model, Log log)
         {
-            // if a new stressperiod is started read it: KPER,DELT,SNAME,ISAVE (, optional number)
+            // if a new stress period is started read it: KPER,DELT,SNAME,ISAVE (, optional number)
             // Note: In some RUN-files extra info is added after the 5th parameter. Ignore this
             if (lineParts.Length < 4)
             {
@@ -835,39 +874,50 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                 // Assume (DELT > 0), a transient modelrun
                 if (!DELT.Equals(1f))
                 {
-                    log.AddWarning(RunfileCategoryString, runfilename, "Currently iMODValidator only works for DELT=1: Timestep string in errorfiles will not be correct!");
+                    log.AddWarning(RUNFileCategoryString, runfilename, "Currently iMODValidator only works for DELT=1: Timestep string in errorfiles may not be correct!");
                 }
 
-                // If Model.SDATE=0, names will be constructed by SNAME solely (see Data 
-                // Set 12), otherwise it is SDATE + DELT notated as yyyymmdd. 
-                string SNAME = null;
-                if (model.SDATE == 0)
+                string SNAME = SNAME = lineParts[2].Trim();
+                // Check for a number with 8 digits: yyyymmdd
+                if (!IsValidSNAMEDate(SNAME))
                 {
-                    long tmpResult;
-                    SNAME = lineParts[2].Trim();
-                    // Check for a number with 8 digits: yyyymmdd
-                    if ((SNAME.Length != 8) || !long.TryParse(SNAME, out tmpResult))
-                    {
-                        log.AddError(RunfileCategoryString, runfilename, "Unexpected SNAME parameter for stressperiod " + KPER + " in line " + GetCurrentLinenumber() + ": " + SNAME, 1);
-                        return null;
-                    }
+                    log.AddError(RUNFileCategoryString, runfilename, "Unexpected SNAME parameter for stress period " + KPER + " in line " + GetCurrentLinenumber() + ": " + SNAME, 1);
+                    return null;
                 }
-                else
-                {
-                    // If SDATE>0, the variable SNAME will be overruled by the computation SDATE+DELT 
-                    // to form a date expressing the end date of the current simulation period
-                    SNAME = Model.GetStressPeriodString(model.StartDate, KPER);
-                }
+                DateTime date = ParseSNAMEDate(SNAME);
+
                 int ISAVE = int.Parse(lineParts[3]);
-                return new StressPeriod(KPER, DELT, SNAME, ISAVE);
+
+                return new StressPeriod(KPER, DELT, SNAME, date, ISAVE);
             }
             catch (Exception ex)
             {
-                throw new Exception("Error while parsing stressperiod-definition in line " + GetCurrentLinenumber() + ": " + lineParts[0] + "," + lineParts[1] + "," + lineParts[2] + "," + lineParts[3], ex);
+                throw new Exception("Error while parsing StressPeriod-definition in line " + GetCurrentLinenumber() + ": " + lineParts[0] + "," + lineParts[1] + "," + lineParts[2] + "," + lineParts[3], ex);
             }
         }
 
-        protected string[] Split(string line, char[] seperator)
+        /// <summary>
+        /// Checks if specified string has RUN-file stress period date format yyyymmdd
+        /// </summary>
+        /// <param name="SNAME"></param>
+        /// <returns></returns>
+        public bool IsValidSNAMEDate(string SNAME)
+        {
+            return ((SNAME.Length == 8) && long.TryParse(SNAME, out long tmpResult));
+        }
+
+        /// <summary>
+        /// Convert SNAME date string with format yyyymmdd to DateTime
+        /// </summary>
+        /// <param name="SNAME"></param>
+        /// <returns>DateTime object or an exception if no valid date string was specicied</returns>
+        public virtual DateTime ParseSNAMEDate(string SNAME)
+        {
+
+            return new DateTime(int.Parse(SNAME.Substring(0, 4)), int.Parse(SNAME.Substring(4, 2)), int.Parse(SNAME.Substring(6, 2)));
+        }
+
+        public string[] Split(string line, char[] seperator)
         {
             if (line == null)
             {
@@ -880,7 +930,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         }
 
         // Parse dataset 11:  Input file assignment, files for each module/package
-        public void ReadDataset11(string packageKey, int fileCount, Log log, StressPeriod stressPeriod = null)
+        protected void ReadDataset11(string packageKey, int fileCount, Log log, StressPeriod stressPeriod = null)
         {
             Package package = Model.GetPackage(packageKey);
 
@@ -893,7 +943,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                 if (package != null)
                 {
                     log.AddWarning("Package " + packageKey + " is used, but not defined as (in)active package in RUN-file header", 1);
-                    // Remove (singleton) packagefiles from a previous run that may still be attacked to this model
+                    // Remove (singleton) packagefiles from a previous run that may still be attached to this model
                     package.ClearFiles();
 
                     package.IsActive = false;
@@ -906,13 +956,21 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                 // Now start reading packagefiles
                 try
                 {
-                    package.ParseRunfilePackageFiles(this, fileCount, log, stressPeriod);
+                    Dictionary<string, int> extensionFileCountDictionary = package.GetDefinedExtensions();
+                    if (extensionFileCountDictionary != null)
+                    {
+                        package.ParseRUNFileVariablePackageFiles(this, fileCount, extensionFileCountDictionary, log, stressPeriod);
+                    }
+                    else
+                    {
+                        package.ParseRUNFilePackageFiles(this, fileCount, log, 1, stressPeriod);
+                    }
                 }
                 catch (Exception ex)
                 {
                     if (stressPeriod != null)
                     {
-                        log.AddWarning(packageKey, runfilename, "Could not parse packagefiles for package " + packageKey + " for stressperiod " + stressPeriod.ToString() + ": " + ExceptionHandler.GetExceptionChainString(ex), 1);
+                        log.AddWarning(packageKey, runfilename, "Could not parse packagefiles for package " + packageKey + " for stress period " + stressPeriod.ToString() + ": " + ExceptionHandler.GetExceptionChainString(ex), 1);
                     }
                     else
                     {
@@ -944,11 +1002,11 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
 
             if (unknownPackageCountDictionary[packageKey] <= MaxUnknownPackageCount)
             {
-                log.AddWarning(RunfileCategoryString, runfilename, "Unknown package " + packageKey + stressPeriodString + " in line " + GetCurrentLinenumber() + ", skipping " + fileCount + " lines.", 1);
+                log.AddWarning(RUNFileCategoryString, runfilename, "Unknown package " + packageKey + stressPeriodString + " in line " + GetCurrentLinenumber() + ", skipping " + fileCount + " lines.", 1);
             }
             else if (unknownPackageCountDictionary[packageKey] == MaxUnknownPackageCount + 1)
             {
-                log.AddWarning(RunfileCategoryString, runfilename, "More than " + MaxUnknownPackageCount + " times found unknown " + packageKey + "-package, further references to missing " + packageKey + "-package are not logged");
+                log.AddWarning(RUNFileCategoryString, runfilename, "More than " + MaxUnknownPackageCount + " times found unknown " + packageKey + "-package, further references to missing " + packageKey + "-package are not logged");
             }
             for (int i = 1; i <= fileCount; i++)
             {
@@ -977,7 +1035,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                 if (wholeLine == null)
                 {
                     // finished reading file
-                    log.AddError(RunfileCategoryString, runfilename, "Unexpected end of file, expected '" + iMODValidatorSettingsManager.Settings.RunfileTimestepsHeader + "'");
+                    log.AddError(RUNFileCategoryString, runfilename, "Unexpected end of file, expected '" + iMODValidatorSettingsManager.Settings.RunfileTimestepsHeader + "'");
                     return;
                 }
 
@@ -986,41 +1044,42 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                     throw new ToolException("Unexpected text, expected '" + iMODValidatorSettingsManager.Settings.RunfileTimestepsHeader + "'");
                 }
 
-                // Now start reading packages: TS
+                // Now start reading transient packages, each block should be started with stress period definition
 
-                // KPER,DELT,SNAME,ISAVE
+                // Read KPER,DELT,SNAME,ISAVE
                 wholeLine = RemoveWhitespace(ReadLine().Trim());
                 lineParts = wholeLine.Split(new char[] { ',' });
                 int KPER = int.Parse(lineParts[0]);
                 float DELT = float.Parse(lineParts[1], englishCultureInfo);
                 string SNAME = lineParts[2].Trim();
                 int ISAVE = int.Parse(lineParts[3]);
-                if ((DELT > 0) && !SNAME.ToLower().Equals("steady-state"))
+                if ((DELT > 0) && !SNAME.ToUpper().Equals(StressPeriod.SteadyStateSNAME))
                 {
                     if (!DELT.Equals(1f))
                     {
-                        log.AddWarning(RunfileCategoryString, runfilename, "Currently iMODValidator only works for DELT=1: Timestep string in errorfiles will not be correct!");
+                        log.AddWarning(RUNFileCategoryString, runfilename, "Currently iMODValidator only works for DELT=1: Timestep string in errorfiles will not be correct!");
                     }
 
                     // Check timestep date for transient runs (DELT > 0)
-                    long tmpResult;
-                    if ((SNAME.Length != 8) || !long.TryParse(SNAME, out tmpResult))
+                    if ((SNAME.Length != 8) || !long.TryParse(SNAME, out long tmpResult))
                     {
-                        log.AddError(RunfileCategoryString, runfilename, "Unexpected SNAME parameter for stressperiod " + KPER + " in line " + GetCurrentLinenumber() + ": " + SNAME, 1);
+                        log.AddError(RUNFileCategoryString, runfilename, "Unexpected SNAME parameter for stress period " + KPER + " in line " + GetCurrentLinenumber() + ": " + SNAME, 1);
                     }
                 }
                 else
                 {
                     // when DELT=0 or SNAME is "steady-state", a steady-state modelrun is specified, no special action needed, except ensuring KPER=0
                     KPER = 0;
-                    model.AddSnameKperPair(SNAME, KPER);
                 }
 
-                StressPeriod firstStressPeriod = new StressPeriod(KPER, DELT, SNAME, ISAVE);
-                if (model.SDATE == 0)
+                DateTime? date = null;
+                if (!SNAME.ToUpper().Equals(StressPeriod.SteadyStateSNAME))
                 {
-                    model.StartDate = firstStressPeriod.DateTime;
+                    date = ParseSNAMEDate(SNAME);
                 }
+                StressPeriod firstStressPeriod = new StressPeriod(KPER, DELT, SNAME, date, ISAVE);
+
+                model.StartDate = date;
 
                 ReadPackages(log, firstStressPeriod, maxKPER);
             }
@@ -1064,5 +1123,6 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             }
             return packageKey;
         }
+
     }
 }

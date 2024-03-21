@@ -268,21 +268,29 @@ namespace Sweco.SIF.iMODValidator.Checks
             try
             {
                 log.AddInfo("Checking HEAD-files ...");
-                string headPath = Path.Combine(model.ModelresultsPath, "head");
-                if (!Directory.Exists(headPath))
+                if (model.ModelresultsPath == null)
                 {
-                    log.AddWarning(HEADPackage.DefaultKey, null, "HEAD outputfolder not found: " + headPath, 1);
-                    return;
+                    log.AddWarning(BDGFLFPackage.DefaultKey, null, "Model RESULTS-path is not defined, check is skipped", 1);
                 }
+                else
+                {
+                    string headPath = Path.Combine(model.ModelresultsPath, "head");
+                    if (!Directory.Exists(headPath))
+                    {
+                        log.AddWarning(HEADPackage.DefaultKey, null, "HEAD RESULTS-path not found: " + headPath, 1);
+                        return;
+                    }
 
-                settings.LogSettings(log, 1);
-                RunHEADCheck1(model, resultHandler, log);
+                    settings.LogSettings(log, 1);
+                    RunHEADCheck1(model, resultHandler, log);
+                }
             }
             catch (Exception ex)
             {
                 throw new Exception("Unexpected error in " + this.Name, ex);
             }
         }
+
         /// <summary>
         /// Checks range and outliers for HEAD-files
         /// </summary>
@@ -353,12 +361,9 @@ namespace Sweco.SIF.iMODValidator.Checks
                 int ilay = IMODUtils.GetLayerNumber(headFilename);
                 if ((ilay >= resultHandler.MinEntryNumber) && (ilay <= resultHandler.MaxEntryNumber))
                 {
-                    string stressPeriodString = IMODUtils.GetStressPeriodString(headFilename);
-                    if ((model.StartDate == null) && !isSteadyState)
-                    {
-                        model.SDATE = long.Parse(stressPeriodString);
-                    }
-                    int kper = model.GetKPER(stressPeriodString);
+                    string sname = IMODUtils.GetStressPeriodString(headFilename);
+                    StressPeriod stressPeriod = model.RetrieveStressPeriod(sname);
+                    int kper = stressPeriod.KPER;
 
                     if ((kper >= resultHandler.MinKPER) && (kper <= resultHandler.MaxKPER))
                     {
@@ -369,7 +374,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                         idfCellIterator.AddIDFFile(headIDFFile);
 
                         // Create warning IDFfile for head-file
-                        CheckWarningLayer headWarningLayer = CreateWarningLayer(resultHandler, headPackage, null, kper, ilay, idfCellIterator.XStepsize, warningLegend);
+                        CheckWarningLayer headWarningLayer = CreateWarningLayer(resultHandler, headPackage, null, stressPeriod, ilay, idfCellIterator.XStepsize, warningLegend);
                         headWarningLayer.AddSourceFile(headIDFFile);
 
                         float headOutlierRangeLowerValue = float.NaN;

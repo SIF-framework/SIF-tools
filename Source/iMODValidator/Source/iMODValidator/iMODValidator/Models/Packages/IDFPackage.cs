@@ -58,12 +58,12 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
                 idfFile = idfPackageFile.IDFFile;
                 if (isEvaluated && (idfFile != null))
                 {
-                    if (!idfPackageFile.imp.Equals(0) || !idfPackageFile.fct.Equals(1.0))
+                    if (!idfPackageFile.IMP.Equals(0) || !idfPackageFile.FCT.Equals(1.0))
                     {
                         // Evaluate fct and imp values 
                         IDFFile evaluatedIDFFile = idfFile.CopyIDF(idfFile.Filename); // should another filename be used?
-                        evaluatedIDFFile.Multiply(idfPackageFile.fct);
-                        evaluatedIDFFile.Add(idfPackageFile.imp);
+                        evaluatedIDFFile.Multiply(idfPackageFile.FCT);
+                        evaluatedIDFFile.Add(idfPackageFile.IMP);
                         idfFile = evaluatedIDFFile;
                     }
                 }

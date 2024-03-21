@@ -183,6 +183,7 @@
     <Compile Include="Models\Packages\OLFPackage.cs" />
     <Compile Include="Models\Packages\Package.cs" />
     <Compile Include="Models\Packages\PackageManager.cs" />
+    <Compile Include="Models\Packages\PCGPackage.cs" />
     <Compile Include="Models\Packages\PSTPackage.cs" />
     <Compile Include="Models\Packages\RCHPackage.cs" />
     <Compile Include="Models\Packages\RIVPackage.cs" />
@@ -192,10 +193,19 @@
     <Compile Include="Models\Packages\TOPPackage.cs" />
     <Compile Include="Models\Packages\VCWPackage.cs" />
     <Compile Include="Models\Packages\WELPackage.cs" />
-    <Compile Include="Models\Runfiles\Runfile.cs" />
-    <Compile Include="Models\Runfiles\V5Runfile.cs" />
+    <Compile Include="Models\Runfiles\PRJFile.cs" />
+    <Compile Include="Models\Runfiles\RUNFile.cs" />
+    <Compile Include="Models\Runfiles\RUNFileFactory.cs" />
+    <Compile Include="Models\Runfiles\V5PRJFile.cs" />
+    <Compile Include="Models\Runfiles\V5RUNFile.cs" />
     <Compile Include="Models\StressPeriod.cs" />
     <Compile Include="Models\SubModel.cs" />
+    <Compile Include="Results\ComparatorResultSheet.cs" />
+    <Compile Include="Comparator.cs" />
+    <Compile Include="Results\ComparatorResult.cs" />
+    <Compile Include="Results\ComparatorResultHandler.cs" />
+    <Compile Include="Results\ComparatorResultLayer.cs" />
+    <Compile Include="Results\ComparatorLayerStatistics.cs" />
     <Compile Include="Results\LayerStatistics.cs" />
     <Compile Include="Results\Result.cs" />
     <Compile Include="Results\ResultHandler.cs" />
@@ -240,6 +250,7 @@
       <SubType>Designer</SubType>
     </EmbeddedResource>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>REM Ensure Libraries folder exists

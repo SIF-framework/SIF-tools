@@ -36,10 +36,15 @@ namespace Sweco.SIF.iMODValidator
     /// </summary>
     public class SIFToolSettings : SIFToolSettingsBase
     {
-        public string RunFilename { get; set; }
+        public string RUNFilename { get; set; }
+        public string RUNFilename2 { get; set; }
+
         public string OutputPath { get; set; }
         public string SettingsFilename { get; set; }
-        public bool PreventIMODStart { get; set; }
+        public bool PreventExternalAppStart { get; set; }
+
+        public bool IsValidated { get; set; }
+        public bool IsCompared { get; set; }
 
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
@@ -47,10 +52,13 @@ namespace Sweco.SIF.iMODValidator
         public SIFToolSettings(string[] args) : base(args)
         {
             // Set default values for settings
-            RunFilename = null;
+            RUNFilename = null;
             OutputPath = null;
             SettingsFilename = null;
-            PreventIMODStart = false;
+            PreventExternalAppStart = false;
+
+            IsValidated = false;
+            IsCompared = false;
         }
 
         /// <summary>
@@ -59,11 +67,13 @@ namespace Sweco.SIF.iMODValidator
         /// </summary>
         protected override void DefineToolSyntax()
         {
-            AddToolParameterDescription("runfile", "iMOD RUN-file with references to files to check", "C:\\Test\\Input", 1);
+            AddToolParameterDescription("runfile", "iMOD RUN/PRJ-file with references to files to check", "C:\\Test\\Input", 1);
             AddToolParameterDescription("outPath", "Path to write results", "C:\\Test\\Output", 1);
             AddToolOptionDescription("s", "specify XML-file to retrieve iMODValidator settings from", "/s:Test\\Input\\iMODValidator.xml", "Settings are retrieved from: {0}", new string[] { "s1" }, null, null, new int[] { 0, 1 });
-            AddToolOptionDescription("i", "prevent starting of iMOD (settings are overruled)", "/i", "Starting of iMOD is prevented", null, null, null, 1);
-            AddToolUsageOptionPostRemark("When run without arguments the iMODValidator user interface version is started");
+            AddToolOptionDescription("i", "prevent starting of iMOD and Excel (settings are overruled)", "/i", "Starting of iMOD/Excel is prevented", null, null, null, 1);
+            AddToolOptionDescription("c", "Compare model defined by runfile parameter with model defined by second RUN/PRJ-file r2", "/c:Test\\Input\\Model2.RUN", "Model is compared with RUN/PRJ-file: {0}", new string[] { "r2" }, null, null, 1);
+            AddToolOptionDescription("v", "validate model defined by runfile parameter (default action)", "/v", "Model defined by runfile is validated", null, null, null, 1);
+            AddToolUsageFinalRemark("When run without arguments, the iMODValidator user interface version is started");
         }
 
         /// <summary>
@@ -80,7 +90,7 @@ namespace Sweco.SIF.iMODValidator
             else if (parameters.Length == 2)
             {
                 // Parse syntax 1:
-                RunFilename = parameters[0];
+                RUNFilename = parameters[0];
                 OutputPath = parameters[1];
                 groupIndex = 1;
             }
@@ -112,7 +122,24 @@ namespace Sweco.SIF.iMODValidator
             }
             else if (optionName.ToLower().Equals("i"))
             {
-                PreventIMODStart = true;
+                PreventExternalAppStart = true;
+            }
+            else if (optionName.ToLower().Equals("c"))
+            {
+                IsCompared = true;
+                if (hasOptionParameters)
+                {
+                    RUNFilename = optionParametersString;
+                    RUNFilename2 = optionParametersString;
+                }
+                else
+                {
+                    throw new ToolException("RUN/PRJ-filename expected for option '" + optionName + "'");
+                }
+            }
+            else if (optionName.ToLower().Equals("v"))
+            {
+                IsValidated = true;
             }
             else
             {
@@ -132,12 +159,20 @@ namespace Sweco.SIF.iMODValidator
             base.CheckSettings();
 
             // Retrieve full paths and check existancex
-            if (RunFilename != null)
+            if (RUNFilename != null)
             {
-                RunFilename = ExpandPathArgument(RunFilename);
-                if (!File.Exists(RunFilename))
+                RUNFilename = ExpandPathArgument(RUNFilename);
+                if (!File.Exists(RUNFilename))
                 {
-                    throw new ToolException("RUN-file does not exist: " + RunFilename);
+                    throw new ToolException("RUN/PRJ-file does not exist: " + RUNFilename);
+                }
+            }
+            if (RUNFilename2 != null)
+            {
+                RUNFilename2 = ExpandPathArgument(RUNFilename2);
+                if (!File.Exists(RUNFilename2))
+                {
+                    throw new ToolException("RUN/PRJ-file for option 'c' does not exist: " + RUNFilename2);
                 }
             }
 
@@ -146,7 +181,11 @@ namespace Sweco.SIF.iMODValidator
                 OutputPath = ExpandPathArgument(OutputPath);
             }
 
-            // Check tool parameters
+            // Check tool option values
+            if (!IsCompared)
+            {
+                IsValidated = true;
+            }
         }
     }
 }

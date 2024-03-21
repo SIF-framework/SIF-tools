@@ -23,6 +23,7 @@ using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD.IDF;
 using Sweco.SIF.iMOD.IPF;
 using Sweco.SIF.iMOD.Legends;
+using Sweco.SIF.iMODValidator.Models;
 using Sweco.SIF.iMODValidator.Models.Packages;
 using Sweco.SIF.iMODValidator.Results;
 using Sweco.SIF.iMODValidator.Settings;
@@ -57,21 +58,20 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
         /// <param name="check"></param>
         /// <param name="package"></param>
         /// <param name="subString">extra substring to add after package name to (file)name of ResultLayer, use null to ignore</param>
-        /// <param name="kper"></param>
+        /// <param name="stressPeriod"></param>
         /// <param name="ilay"></param>
-        /// <param name="startDate"></param>
         /// <param name="extent"></param>
         /// <param name="cellsize"></param>
         /// <param name="noDataValue"></param>
         /// <param name="outputPath"></param>
         /// <param name="legend"></param>
         /// <param name="useSparseGrid"></param>
-        public CheckResultLayer(Check check, Package package, string subString, int kper, int ilay, DateTime? startDate, Extent extent, float cellsize, float noDataValue, string outputPath, Legend legend, bool useSparseGrid = false)
-            : base(check.Name, package?.Key, subString, kper, ilay, startDate, extent, cellsize, noDataValue, outputPath, legend, useSparseGrid)
+        public CheckResultLayer(Check check, Package package, string subString, StressPeriod stressPeriod, int ilay, Extent extent, float cellsize, float noDataValue, string outputPath, Legend legend, bool useSparseGrid = false)
+            : base(check.Name, package?.Key, subString, stressPeriod, ilay, extent, cellsize, noDataValue, outputPath, legend, useSparseGrid)
         {
             this.check = check;
             this.package = package;
-            this.startDate = startDate;
+            this.StressPeriod = stressPeriod;
             description = CreateLayerDescription((package != null) ? package.Key : "Missing package", ilay);
             processDescription = this.Description;
 
@@ -90,15 +90,14 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
         /// <param name="id"></param>
         /// <param name="id2"></param>
         /// <param name="subString"></param>
-        /// <param name="kper"></param>
+        /// <param name="stressPeriod"></param>
         /// <param name="ilay"></param>
-        /// <param name="StartDate"></param>
         /// <param name="columnNames"></param>
         /// <param name="textFileColumnIndex"></param>
         /// <param name="outputPath"></param>
         /// <param name="legend"></param>
-        public CheckResultLayer(string id, string id2, string subString, int kper, int ilay, DateTime? StartDate, List<string> columnNames, int textFileColumnIndex, string outputPath, Legend legend = null)
-            : base(id, id2, subString, kper, ilay, StartDate, outputPath)
+        public CheckResultLayer(string id, string id2, string subString, StressPeriod stressPeriod, int ilay, List<string> columnNames, int textFileColumnIndex, string outputPath, Legend legend = null)
+            : base(id, id2, subString, stressPeriod, ilay, outputPath)
         {
             InitializeIPF(columnNames, textFileColumnIndex, legend);
         }
@@ -108,20 +107,19 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
         /// </summary>
         /// <param name="check"></param>
         /// <param name="package"></param>
-        /// <param name="kper"></param>
+        /// <param name="stressPeriod"></param>
         /// <param name="ilay"></param>
-        /// <param name="startDate"></param>
         /// <param name="columnNames"></param>
         /// <param name="textFileColumnIndex"></param>
         /// <param name="valueColumnIndex"></param>
         /// <param name="outputPath"></param>
         /// <param name="legend"></param>
-        public CheckResultLayer(Check check, Package package, string subString, int kper, int ilay, DateTime? startDate, string outputPath, Legend legend = null)
-            : this(check.Name, package?.Key, subString, kper, ilay, startDate, new List<string>() { "X", "Y", "Value", "Message" }, -1, outputPath, legend)
+        public CheckResultLayer(Check check, Package package, string subString, StressPeriod stressPeriod, int ilay, string outputPath, Legend legend = null)
+            : this(check.Name, package?.Key, subString, stressPeriod, ilay, new List<string>() { "X", "Y", "Value", "Message" }, -1, outputPath, legend)
         {
             this.check = check;
             this.package = package;
-            this.startDate = startDate;
+            this.StressPeriod = stressPeriod;
             description = CreateLayerDescription((package != null) ? package.Key : "Missing package", ilay);
             processDescription = this.Description;
 

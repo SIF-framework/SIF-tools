@@ -36,9 +36,6 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
     /// </summary>
     public abstract class PackageFile : IEquatable<PackageFile>
     {
-        public int ilay;
-        public float fct;
-        public float imp;
         protected string fname;
         public virtual string FName
         {
@@ -52,8 +49,12 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
                 }
             }
         }
-        public StressPeriod stressPeriod;
-        public Package package;
+
+        public Package Package { get; set; }
+        public int ILAY { get; set; }
+        public float FCT { get; set; }
+        public float IMP { get; set; }
+        public StressPeriod StressPeriod { get; set; }
 
         /// <summary>
         /// The actual iMOD-file that is referenced by this PackageFile
@@ -69,12 +70,12 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
 
         public PackageFile(Package package, string fname, int ilay, float fct, float imp, StressPeriod stressPeriod = null)
         {
-            this.package = package;
-            this.ilay = ilay;
-            this.fct = fct;
-            this.imp = imp;
+            this.Package = package;
+            this.ILAY = ilay;
+            this.FCT = fct;
+            this.IMP = imp;
             this.FName = fname;
-            this.stressPeriod = stressPeriod;
+            this.StressPeriod = stressPeriod;
         }
 
         public abstract bool Exists();
@@ -95,7 +96,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
 
         /// <summary>
         /// Checks if packagefile definition is equal (apart from filename directory)
-        /// I.e. object equalility or equal ilay and equal stressperiod, result in true
+        /// I.e. object equalility or equal ilay and equal stress period, result in true
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
@@ -112,11 +113,11 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
                     // Check that packagefile definition is equal (apart from filename directory)
 
                     // First check ilay
-                    if (other.ilay.Equals(this.ilay))
+                    if (other.ILAY.Equals(this.ILAY))
                     {
-                        // Now check stressperiod (which can be null)
-                        return (((other.stressPeriod == null) && (this.stressPeriod == null))
-                            || ((other.stressPeriod != null) && (this.stressPeriod != null) && other.stressPeriod.Equals(this.stressPeriod)));
+                        // Now check stress period (which can be null)
+                        return (((other.StressPeriod == null) && (this.StressPeriod == null))
+                            || ((other.StressPeriod != null) && (this.StressPeriod != null) && other.StressPeriod.Equals(this.StressPeriod)));
                     }
                     else
                     {
@@ -135,7 +136,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
             if (IsCorresponding(other))
             {
                 // Now check value-related properties
-                if ((other.fct.Equals(this.fct)) && (other.imp.Equals(this.imp)))
+                if ((other.FCT.Equals(this.FCT)) && (other.IMP.Equals(this.IMP)))
                 {
                     if (other.FName.ToLower().Equals(this.FName.ToLower()))
                     {
@@ -169,7 +170,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
 
         /// <summary>
         /// Checks if a packagefile exists with equal filename and definition (apart from directory).
-        /// This method checks for object equalility or equal filename, ilay and equal stressperiod.
+        /// This method checks for object equalility or equal filename, ilay and equal stress period.
         /// </summary>
         /// <param name="packageFiles"></param>
         /// <returns></returns>
@@ -180,7 +181,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
 
         /// <summary>
         /// Retrieves first packagefile with equal filename and definition (apart from directory)
-        /// This method checks for object equalility or equal filename, ilay and equal stressperiod
+        /// This method checks for object equalility or equal filename, ilay and equal stress period
         /// </summary>
         /// <param name="packageFiles"></param>
         /// <returns></returns>
@@ -199,7 +200,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
 
         /// <summary>
         /// Checks if a packagefile exists with equal definition (apart from filename and directory).
-        /// This method checks for object equalility or equal ilay and equal stressperiod.
+        /// This method checks for object equalility or equal ilay and equal stress period.
         /// </summary>
         /// <param name="packageFiles"></param>
         /// <returns></returns>
@@ -210,7 +211,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
 
         /// <summary>
         /// Retrieves first packagefile with equal definition (apart from filename and directory)
-        /// This method checks for object equalility or equal ilay and equal stressperiod
+        /// This method checks for object equalility or equal ilay and equal stress period
         /// </summary>
         /// <param name="packageFiles"></param>
         /// <returns></returns>
@@ -225,5 +226,8 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
             }
             return null;
         }
+
+        public abstract PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string comparisonOutputFoldername, bool isNodataCompared, Log log, int indentLevel = 0);
+        public abstract PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string comparisonOutputFoldername, Extent extent, bool isNodataCompared, Log log, int indentLevel = 0);
     }
 }

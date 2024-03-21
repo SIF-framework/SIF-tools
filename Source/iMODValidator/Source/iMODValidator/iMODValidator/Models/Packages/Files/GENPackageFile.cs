@@ -46,7 +46,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
                 {
                     if (File.Exists(FName))
                     {
-                        ReadFile(true, null, 0, package.Model.GetExtent());
+                        ReadFile(true, null, 0, Package.Model.GetExtent());
                     }
                     else
                     {
@@ -82,16 +82,6 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
         {
         }
 
-        public override void ReadFile(bool useLazyLoading = false, Log log = null, int logIndentLevel = 0, Extent extent = null)
-        {
-            if (log != null)
-            {
-                log.AddMessage(LogLevel.Trace, "Reading GEN-file " + FName + " ...", logIndentLevel);
-            }
-            
-            genfile = GENFile.ReadFile(FName);
-        }
-
         public override bool Exists()
         {
             return File.Exists(FName);
@@ -111,16 +101,26 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
 
         public override PackageFile Copy(string copiedFilename)
         {
-            GENPackageFile copiedGENPackageFile = new GENPackageFile(this.package, this.FName, this.ilay, this.fct, this.imp, this.stressPeriod);
+            GENPackageFile copiedGENPackageFile = new GENPackageFile(this.Package, this.FName, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
             copiedGENPackageFile.genfile = genfile.CopyGEN(copiedFilename);
             return copiedGENPackageFile;
         }
 
         public override PackageFile Clip(Extent extent)
         {
-            GENPackageFile clippedGENPackageFile = new GENPackageFile(this.package, this.FName, this.ilay, this.fct, this.imp, this.stressPeriod);
+            GENPackageFile clippedGENPackageFile = new GENPackageFile(this.Package, this.FName, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
             clippedGENPackageFile.genfile = genfile; // TODO implement .Clip(extent);
             return clippedGENPackageFile;
+        }
+
+        public override void ReadFile(bool useLazyLoading = false, Log log = null, int logIndentLevel = 0, Extent extent = null)
+        {
+            if (log != null)
+            {
+                log.AddMessage(LogLevel.Trace, "Reading GEN-file " + FName + " ...", logIndentLevel);
+            }
+
+            genfile = GENFile.ReadFile(FName);
         }
 
         public override void WriteFile(Metadata metadata = null, Log log = null, int logIndentLevel = 0)
@@ -134,6 +134,38 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
             metadata.IMODFilename = FName;
             metadata.Type = "GEN";
             return metadata;
+        }
+
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, bool isNoDataCompared, Log log, int indentLevel = 0)
+        {
+            return CreateDifferenceFile(comparedPackageFile, useLazyLoading, OutputFoldername, null, isNoDataCompared, log, indentLevel);
+        }
+
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, Extent extent, bool isNoDataCompared, Log log, int indentLevel = 0)
+        {
+            if (!this.Exists())
+            {
+                log.AddInfo("Difference cannot be created, input file doesn't exist: " + this.fname, indentLevel);
+                return null;
+            }
+            if (!comparedPackageFile.Exists())
+            {
+                log.AddInfo("Difference cannot be created, input file doesn't exist: " + comparedPackageFile.FName, indentLevel);
+                return null;
+            }
+
+            if (comparedPackageFile is GENPackageFile)
+            {
+                GENPackageFile diffGENPackageFile = new GENPackageFile(this.Package, this.FName, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
+                diffGENPackageFile.GENFile = genfile.CreateDifferenceFile(((GENPackageFile)comparedPackageFile).GENFile, OutputFoldername, isNoDataCompared, extent);
+                diffGENPackageFile.GENFile.UseLazyLoading = useLazyLoading;
+                return diffGENPackageFile;
+            }
+            else
+            {
+                log.AddWarning("Source type is " + this.GetType().Name + ", compared type is " + comparedPackageFile.GetType().Name + ", files cannot be compared ", indentLevel);
+                return null;
+            }
         }
     }
 }

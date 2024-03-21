@@ -64,19 +64,52 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
 
     public class CAPPackage : Package
     {
+        public const string ExtraFilesSubString = "EXTRA FILES";
+        public List<string> ExtraFilenames { get; protected set; }
 
         public static string DefaultKey
         {
             get { return "CAP"; }
         }
 
-        public CAPPackage(string packageKey)
-            : base(packageKey)
+        public override int MaxPartCount
+        {
+            get
+            {
+                return 22;   // CAP-package has 22 files per entry
+            }
+        }
+
+        /// <summary>
+        /// Abbreviations for each of the individual parts/files of this package
+        /// </summary>
+        protected static string[] partAbbreviations = null;
+        public override string[] PartAbbreviations
+        {
+            get
+            {
+                if (partAbbreviations == null)
+                {
+                    partAbbreviations = new string[MaxPartCount];
+                    for (int i = 0; i < MaxPartCount; i++)
+                    {
+                        partAbbreviations[i] = GetCAPEntryCode(i).ToString();
+                    }
+                }
+
+                return partAbbreviations;
+            }
+        }
+
+        public CAPPackage(string packageKey) : base(packageKey)
         {
             alternativeKeys.AddRange(new string[] { "CAPSIM" });
         }
 
-        public List<string> ExtraFilenames { get; protected set; }
+        public override Package CreateInstance()
+        {
+            return new CAPPackage(key);
+        }
 
         public static int GetEntryIdx(CAPEntryCode capEntryCode, string extension = ".run", IMODVersion iMODversion = IMODVersion.v5)
         {
@@ -162,7 +195,69 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
                 case CAPEntryCode.PDRes:
                     return 24;
                 default:
-                    throw new Exception("CAP-package entry code: " + capEntryCode + " does not exist for iMODversion v5 runfile");
+                    throw new Exception("CAP-package entry code: " + capEntryCode + " does not exist for iMODversion v5 RUN-file");
+            }
+        }
+
+        public static CAPEntryCode GetCAPEntryCode(int capEntryIdx)
+        {
+            switch (capEntryIdx)
+            {
+                case 0:
+                    return CAPEntryCode.BND;
+                case 1:
+                    return CAPEntryCode.LUSE;
+                case 2:
+                    return CAPEntryCode.RTZ;
+                case 3:
+                    return CAPEntryCode.SFU;
+                case 4:
+                    return CAPEntryCode.MET;
+                case 5:
+                    return CAPEntryCode.SEV;
+                case 6:
+                    return CAPEntryCode.ARR;
+                    // return CAPEntryCode.ART;
+                case 7:
+                    // return CAPEntryCode.ARL1;
+                    // return CAPEntryCode.ARL2;
+                    return CAPEntryCode.ARC;
+                case 8:
+                    return CAPEntryCode.WTA;
+                case 9:
+                    return CAPEntryCode.UBA;
+                case 10:
+                    return CAPEntryCode.PDU;
+                case 11:
+                    return CAPEntryCode.PDR;
+                case 12:
+                    return CAPEntryCode.OFU;
+                case 13:
+                    return CAPEntryCode.OFR;
+                case 14:
+                    return CAPEntryCode.ONU;
+                case 15:
+                    return CAPEntryCode.ONR;
+                case 16:
+                    return CAPEntryCode.QIU;
+                case 17:
+                    return CAPEntryCode.QIR;
+                case 18:
+                    return CAPEntryCode.PWT;
+                case 19:
+                    return CAPEntryCode.SMF;
+                case 20:
+                    return CAPEntryCode.CFC;
+                case 21:
+                    return CAPEntryCode.PLN;
+                case 22:
+                    return CAPEntryCode.SLO;
+                case 23:
+                    return CAPEntryCode.PDLev;
+                case 24:
+                    return CAPEntryCode.PDRes;
+                default:
+                    throw new Exception("Undefined CAP-package entry index: " + capEntryIdx + " for iMODversion v5 RUN-file");
             }
         }
 
@@ -178,7 +273,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
             throw new Exception("Extra filename: " + subString + " is not found in CAP-package within runfile");
         }
 
-        public override void ParseRunfilePackageFiles(Runfile runfile, int entryCount, Log log, StressPeriod sp = null)
+        public override void ParseRUNFilePackageFiles(RUNFile runfile, int entryCount, Log log, int logIndentLevel, StressPeriod sp = null)
         {
             string wholeLine;
             string[] lineParts;
@@ -202,23 +297,62 @@ namespace Sweco.SIF.iMODValidator.Models.Packages
                     {
                         if (lineParts.Length != 3)
                         {
-                            log.AddError(Key, model.Runfilename, "Unexpected parameter count in " + Key + "-package for input file assignment: " + wholeLine);
+                            log.AddError(Key, model.RUNFilename, "Unexpected parameter count in " + Key + "-package for input file assignment: " + wholeLine, logIndentLevel);
                         }
                         else
                         {
                             // simply add the file to the package (and model), also add non-existent file to keep order for adding the same
                             string fname = lineParts[2].Replace("\"", "").Replace("'", "");
-                            AddFile(1, float.Parse(lineParts[0], englishCultureInfo), float.Parse(lineParts[1], englishCultureInfo), fname, entryCount);
-                            log.AddMessage(LogLevel.Trace, "Added file " + entryIdx + " to package " + Key + ": " + fname, 1);
+                            AddFile(1, float.Parse(lineParts[0], englishCultureInfo), float.Parse(lineParts[1], englishCultureInfo), fname, 1);
+                            log.AddMessage(LogLevel.Trace, "Added file " + entryIdx + " to package " + Key + ": " + fname, logIndentLevel);
                         }
                     }
                 }
             }
         }
 
-        public override Package CreateInstance()
+        /// <summary>
+        /// Read/parse entries in PRJ-file this package for specified stress period.
+        /// Note: after finishing, first line from the next package is not yet read.
+        /// </summary>
+        /// <param name="prjFile"></param>
+        /// <param name="kper"></param>
+        /// <param name="NSUB"></param>
+        /// <param name="NSYSTEM"></param>
+        /// <param name="maxKPER"></param>
+        /// <param name="stressPeriod"></param>
+        /// <param name="log"></param>
+        /// <param name="logIndentLevel"></param>
+        protected override void ParsePRJFilePackageStressPeriodFiles(PRJFile prjFile, int NSUB, int NSYSTEM, int maxKPER, StressPeriod stressPeriod, Log log, int logIndentLevel)
         {
-            return new CAPPackage(key);
+            base.ParsePRJFilePackageStressPeriodFiles(prjFile, NSUB, NSYSTEM, maxKPER, stressPeriod, log, logIndentLevel);
+
+            ExtraFilenames = new List<string>();
+            string wholeLine = prjFile.PeekLine();
+            if (!wholeLine.Contains(ExtraFilesSubString))
+            {
+                log.AddError("Missing 'NFILES'," + ExtraFilesSubString + "'-line in " + Key + "-package", logIndentLevel);
+                return;
+            }
+
+            wholeLine = prjFile.RemoveWhitespace(prjFile.ReadLine().Trim());
+            int commentIdx = wholeLine.IndexOf("###");
+            wholeLine = (commentIdx > 0) ? wholeLine.Substring(0, commentIdx) : wholeLine;
+            string[] lineParts = prjFile.Split(wholeLine, new char[] { ',' });
+            if (lineParts.Length != 2)
+            {
+                log.AddError("Invalid 'NFILES'," + ExtraFilesSubString + "'-line in " + Key + "-package", logIndentLevel);
+                return;
+            }
+
+            int extraFileCount = int.Parse(lineParts[0]);
+            for (int fileIdx = 0; fileIdx < extraFileCount; fileIdx++)
+            {
+                wholeLine = prjFile.RemoveWhitespace(prjFile.ReadLine().Trim());
+                // add the single file to the package(and model) with dummy ilay, period, etc.
+                string fname = wholeLine.Replace("\"", string.Empty).Replace("'", string.Empty);
+                ExtraFilenames.Add(fname);
+            }
         }
     }
 }

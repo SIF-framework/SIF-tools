@@ -173,7 +173,7 @@ namespace Sweco.SIF.iMODValidator.Results
         public ResultHandler(Model model, float resultNoDataValue, Extent checkExtent, string creator)
         {
             this.model = model;
-            this.baseModelFilename = model.Runfilename;
+            this.baseModelFilename = model.RUNFilename;
             this.startDate = model.StartDate;
             this.outputPath = model.ToolOutputPath;
             this.noDataValue = resultNoDataValue;
@@ -208,8 +208,8 @@ namespace Sweco.SIF.iMODValidator.Results
             this.extraMapFiles = new List<IMODFile>();
             this.resultlayersDictionary = new Dictionary<string, List<ResultLayer>>();
             this.summaryLayerDictionary = new Dictionary<string, SummaryResultLayer>();
-            //            this.statisticsDictionary = new Dictionary<string, Statistics>();
-            // Ensure Check layers in the following order, to have results reported in this order
+
+            // Ensure Check layers are added in the following order, to have results reported in this order
             this.resultlayersDictionary.Add(CheckError.TYPENAME, new List<ResultLayer>());
             this.resultlayersDictionary.Add(CheckWarning.TYPENAME, new List<ResultLayer>());
             this.resultlayersDictionary.Add(CheckDetail.TYPENAME, new List<ResultLayer>());
@@ -334,29 +334,12 @@ namespace Sweco.SIF.iMODValidator.Results
             return new string[] { CheckWarning.TYPENAME, CheckError.TYPENAME };
         }
 
-        protected ResultLayer GetResultLayer(string resultType, string id, string id2, int ilay, int kper)
-        {
-            if (resultlayersDictionary.ContainsKey(resultType))
-            {
-                foreach (ResultLayer resultLayer in resultlayersDictionary[resultType])
-                {
-                    if ((resultLayer.Id == null) || resultLayer.Id.Equals(id))
-                    {
-                        if (resultLayer.Id2.Equals(id2) && (resultLayer.ILay == ilay) && (resultLayer.KPER == kper))
-                        {
-                            return resultLayer;
-                        }
-                    }
-                }
-            }
-            return null;
-        }
-
         /// <summary>
-        /// Ensures that the given layer is stored in the resultlayers dictionary
+        /// Ensures that the given layer is stored in the resultlayers dictionary.
+        /// Note: it is not checked if the layer is already present
         /// </summary>
         /// <param name="resultLayer"></param>
-        protected void EnsureAddedLayer(ResultLayer resultLayer)
+        public void EnsureAddedLayer(ResultLayer resultLayer)
         {
             // Ensure a list-object has been made for this resultType
             if (!resultlayersDictionary.ContainsKey(resultLayer.ResultType))
@@ -378,7 +361,7 @@ namespace Sweco.SIF.iMODValidator.Results
                 {
                     cellSize = summaryMinCellsize;
                 }
-                SummaryResultLayer summaryLayer = new SummaryResultLayer(resultLayer.KPER, resultLayer.ILay, startDate, extent, cellSize, noDataValue, outputPath);
+                SummaryResultLayer summaryLayer = new SummaryResultLayer(resultLayer.StressPeriod, resultLayer.ILay, extent, cellSize, noDataValue, outputPath);
                 summaryLayer.ResultFile.Filename = Path.Combine(outputPath, Path.Combine(outputPath, "summary"), "summary_" + resultLayer.ResultType.ToLower() + "s" + ".IDF");
                 summaryLayerDictionary.Add(resultLayer.ResultType, summaryLayer);
             }
@@ -484,8 +467,11 @@ namespace Sweco.SIF.iMODValidator.Results
                 // Don't show details at summarylevel, skip Detail-resultTypes
                 if (selectedResultTypes.Contains(resultType))
                 {
-                    foreach (ResultLayer resultLayer in resultlayersDictionary[resultType])
+                    List<ResultLayer> resultLayers = resultlayersDictionary[resultType];
+                    for (int layerIdx = 0; layerIdx < resultLayers.Count; layerIdx++)
                     {
+                        ResultLayer resultLayer = resultLayers[layerIdx];
+
                         if ((resultLayer != null) && resultLayer.HasResults())
                         {
                             string filename = null;
@@ -499,7 +485,7 @@ namespace Sweco.SIF.iMODValidator.Results
                             }
 
                             // Create statistics-object for this layer
-                            LayerStatistics layerStatistics = CreateLayerStatistics(resultLayer, Model.GetStressPeriodString(startDate, resultLayer.KPER));
+                            LayerStatistics layerStatistics = CreateLayerStatistics(resultLayer, (resultLayer.StressPeriod != null) ? resultLayer.StressPeriod.SNAME : StressPeriod.SteadyStateSNAME);
                             if (summaryResultTable.ContainsLayerStatistic(layerStatistics))
                             {
                                 // Use existing layerstatistics if statistics for this layer are already available
@@ -666,7 +652,7 @@ namespace Sweco.SIF.iMODValidator.Results
                 }
                 else
                 {
-                    log.AddWarning("IMF-File", overlay.Filename, "Overlay GEN-file not found and skipped:" + overlay.Filename);
+                    log.AddWarning("IMF-File", overlay.Filename, "Overlay GEN-file not found and skipped: " + overlay.Filename);
                 }
             }
 

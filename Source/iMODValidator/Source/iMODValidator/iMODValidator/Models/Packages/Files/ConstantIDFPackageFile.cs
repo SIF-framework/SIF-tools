@@ -52,10 +52,10 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
         {
             this.ConstantValue = constantValue;
             this.idffile = new ConstantIDFFile(constantValue);
-            if (package.Model != null)
-            {
-                this.idffile = this.idffile.ClipIDF(package.Model.GetExtent());
-            }
+            //if (package.Model != null)
+            //{
+            //    this.idffile = this.idffile.ClipIDF(package.Model.GetExtent());
+            //}
             if (stressPeriod == null)
             {
                 this.idffile.Metadata = new Metadata("Constant file for " + package.Key + ", layer " + (ilay + 1));
@@ -68,13 +68,13 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
 
         public override PackageFile Copy(string copiedFilename)
         {
-            IDFPackageFile copiedIDFPackageFile = new ConstantIDFPackageFile(this.package, ConstantValue, this.ilay, this.fct, this.imp, this.stressPeriod);
+            IDFPackageFile copiedIDFPackageFile = new ConstantIDFPackageFile(this.Package, ConstantValue, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
             return copiedIDFPackageFile;
         }
 
         public override PackageFile Clip(Extent extent)
         {
-            ConstantIDFPackageFile clippedIDFPackageFile = new ConstantIDFPackageFile(this.package, this.ConstantValue, this.ilay, this.fct, this.imp, this.stressPeriod);
+            ConstantIDFPackageFile clippedIDFPackageFile = new ConstantIDFPackageFile(this.Package, this.ConstantValue, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
             clippedIDFPackageFile.idffile = idffile.ClipIDF(extent);
             return clippedIDFPackageFile;
         }

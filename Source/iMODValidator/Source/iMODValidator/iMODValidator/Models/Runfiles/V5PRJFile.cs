@@ -28,12 +28,11 @@ using System.Threading.Tasks;
 namespace Sweco.SIF.iMODValidator.Models.Runfiles
 {
     /// <summary>
-    ///  Currently V5.x is the only supported RUN-file version, so it's implementation equals the RUNFile base class implementation
+    ///  Currently V5.x is the only supported PRJ-file version, so it's implementation equals the PRJFile base class implementation
     /// </summary>
-    public class V5RUNFile : RUNFile
+    public class V5PRJFile : PRJFile
     {
-        public V5RUNFile(string runfilename)
-            : base(runfilename)
+        public V5PRJFile(string runfilename) : base(runfilename)
         {
         }
     }

@@ -45,7 +45,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
                 {
                     if (File.Exists(FName))
                     {
-                        ReadFile(true, null, 0, package.Model.GetExtent());
+                        ReadFile(true, null, 0, Package.Model.GetExtent());
                     }
                     else
                     {
@@ -81,6 +81,11 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
         {
         }
 
+        public override bool Exists()
+        {
+            return File.Exists(FName);
+        }
+
         public override void ReadFile(bool useLazyLoading = false, Log log = null, int logIndentLevel = 0, Extent extent = null)
         {
             if (log != null)
@@ -91,9 +96,17 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
             ipfFile = IPFFile.ReadFile(FName, useLazyLoading, log, logIndentLevel);
         }
 
-        public override bool Exists()
+        public override void WriteFile(Metadata metadata = null, Log log = null, int logIndentLevel = 0)
         {
-            return File.Exists(FName);
+            ipfFile.WriteFile(metadata);
+        }
+
+        public override Metadata CreateMetadata(Model model)
+        {
+            Metadata metadata = model.CreateMetadata();
+            metadata.IMODFilename = FName;
+            metadata.Type = "IPF";
+            return metadata;
         }
 
         public override void ReleaseMemory(bool isMemoryCollected = true)
@@ -110,29 +123,48 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
 
         public override PackageFile Copy(string copiedFilename)
         {
-            IPFPackageFile copiedIPFPackageFile = new IPFPackageFile(this.package, this.FName, this.ilay, this.fct, this.imp, this.stressPeriod);
+            IPFPackageFile copiedIPFPackageFile = new IPFPackageFile(this.Package, this.FName, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
             copiedIPFPackageFile.ipfFile = IPFFile.CopyIPF(copiedFilename);
             return copiedIPFPackageFile;
         }
 
         public override PackageFile Clip(Extent extent)
         {
-            IPFPackageFile clippedIPFPackageFile = new IPFPackageFile(this.package, this.FName, this.ilay, this.fct, this.imp, this.stressPeriod);
+            IPFPackageFile clippedIPFPackageFile = new IPFPackageFile(this.Package, this.FName, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
             clippedIPFPackageFile.ipfFile = IPFFile.ClipIPF(extent);
             return clippedIPFPackageFile;
         }
 
-        public override void WriteFile(Metadata metadata = null, Log log = null, int logIndentLevel = 0)
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, bool isNoDataCompared, Log log, int indentLevel = 0)
         {
-            ipfFile.WriteFile(metadata);
+            return CreateDifferenceFile(comparedPackageFile, useLazyLoading, OutputFoldername, null, isNoDataCompared, log, indentLevel);
         }
 
-        public override Metadata CreateMetadata(Model model)
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, Extent extent, bool isNoDataCompared, Log log, int indentLevel = 0)
         {
-            Metadata metadata = model.CreateMetadata();
-            metadata.IMODFilename = FName;
-            metadata.Type = "IPF";
-            return metadata;
+            if (!this.Exists())
+            {
+                log.AddInfo("Difference cannot be created, input file doesn't exist: " + this.fname, indentLevel);
+                return null;
+            }
+            if (!comparedPackageFile.Exists())
+            {
+                log.AddInfo("Difference cannot be created, input file doesn't exist: " + comparedPackageFile.FName, indentLevel);
+                return null;
+            }
+
+            if (comparedPackageFile is IPFPackageFile)
+            {
+                IPFPackageFile diffIPFPackageFile = new IPFPackageFile(this.Package, this.FName, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
+                diffIPFPackageFile.IPFFile = ipfFile.CreateDifferenceFile(((IPFPackageFile)comparedPackageFile).IPFFile, OutputFoldername, isNoDataCompared, extent);
+                diffIPFPackageFile.IPFFile.UseLazyLoading = useLazyLoading;
+                return diffIPFPackageFile;
+            }
+            else
+            {
+                log.AddWarning("Source type is " + this.GetType().Name + ", compared type is " + comparedPackageFile.GetType().Name + ", files cannot be compared ", indentLevel);
+                return null;
+            }
         }
     }
 }

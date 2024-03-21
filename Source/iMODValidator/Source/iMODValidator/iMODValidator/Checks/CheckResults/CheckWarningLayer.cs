@@ -24,6 +24,7 @@ using Sweco.SIF.iMOD.IDF;
 using Sweco.SIF.iMOD.IPF;
 using Sweco.SIF.iMOD.Legends;
 using Sweco.SIF.iMODPlus.IDF;
+using Sweco.SIF.iMODValidator.Models;
 using Sweco.SIF.iMODValidator.Models.Packages;
 using Sweco.SIF.iMODValidator.Results;
 using System;
@@ -46,17 +47,16 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
         /// <param name="check"></param>
         /// <param name="package"></param>
         /// <param name="subString"></param>
-        /// <param name="kper"></param>
+        /// <param name="stressPeriod"></param>
         /// <param name="ilay"></param>
-        /// <param name="startDate"></param>
         /// <param name="extent"></param>
         /// <param name="cellsize"></param>
         /// <param name="noDataValue"></param>
         /// <param name="outputPath"></param>
         /// <param name="legend"></param>
         /// <param name="useSparseGrid"></param>
-        public CheckWarningLayer(Check check, Package package, string subString, int kper, int ilay, DateTime? startDate, Extent extent, float cellsize, float noDataValue, string outputPath, Legend legend, bool useSparseGrid = false)
-            : base(check, package, subString, kper, ilay, startDate, extent, cellsize, noDataValue, outputPath, legend, useSparseGrid)
+        public CheckWarningLayer(Check check, Package package, string subString, StressPeriod stressPeriod, int ilay, Extent extent, float cellsize, float noDataValue, string outputPath, Legend legend, bool useSparseGrid = false)
+            : base(check, package, subString, stressPeriod, ilay, extent, cellsize, noDataValue, outputPath, legend, useSparseGrid)
         {
         }
 
@@ -66,16 +66,15 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
         /// <param name="check"></param>
         /// <param name="package"></param>
         /// <param name="subString"></param>
-        /// <param name="kper"></param>
+        /// <param name="stressPeriod"></param>
         /// <param name="ilay"></param>
-        /// <param name="startDate"></param>
         /// <param name="columnNames"></param>
         /// <param name="textFileColumnIndex"></param>
         /// <param name="valueColumnIndex"></param>
         /// <param name="outputPath"></param>
         /// <param name="legend"></param>
-        public CheckWarningLayer(Check check, Package package, string subString, int kper, int ilay, DateTime? startDate, string outputPath, Legend legend = null)
-            : base(check, package, subString, kper, ilay, startDate, outputPath, legend)
+        public CheckWarningLayer(Check check, Package package, string subString, StressPeriod stressPeriod, int ilay, string outputPath, Legend legend = null)
+            : base(check, package, subString, stressPeriod, ilay, outputPath, legend)
         {
         }
 
@@ -95,14 +94,14 @@ namespace Sweco.SIF.iMODValidator.Checks.CheckResults
             if (resultFile is IDFFile)
             {
                 IDFFile idfFile = (IDFFile)resultFile;
-                resultLayer = new CheckWarningLayer(check, package, substring, kper, ilay, startDate, idfFile.Extent, idfFile.XCellsize, idfFile.NoDataValue, outputPath, Legend, idfFile is SparseIDFFile);
+                resultLayer = new CheckWarningLayer(check, package, substring, StressPeriod, ilay, idfFile.Extent, idfFile.XCellsize, idfFile.NoDataValue, outputPath, Legend, idfFile is SparseIDFFile);
                 resultLayer.AddSourceFiles(sourceFiles);
                 return resultLayer;
             }
             else if (resultFile is IPFFile)
             {
                 IPFFile ipfFile = (IPFFile)resultFile;
-                resultLayer = new CheckWarningLayer(check, package, substring, kper, ilay, startDate, outputPath, Legend);
+                resultLayer = new CheckWarningLayer(check, package, substring, StressPeriod, ilay, outputPath, Legend);
                 resultLayer.AddSourceFiles(sourceFiles);
                 return resultLayer;
             }

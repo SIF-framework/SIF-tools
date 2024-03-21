@@ -19,22 +19,30 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with iMODValidator. If not, see <https://www.gnu.org/licenses/>.
+using Sweco.SIF.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Sweco.SIF.iMODValidator.Models.Runfiles
 {
-    /// <summary>
-    ///  Currently V5.x is the only supported RUN-file version, so it's implementation equals the RUNFile base class implementation
-    /// </summary>
-    public class V5RUNFile : RUNFile
+    public class RUNFileFactory
     {
-        public V5RUNFile(string runfilename)
-            : base(runfilename)
+        internal static RUNFile CreateRUNFileObject(string filename)
         {
+            string extension = Path.GetExtension(filename).ToLower();
+            switch (extension)
+            {
+                case ".run":
+                    return new V5RUNFile(filename);
+                case ".prj":
+                    return new V5PRJFile(filename);
+                default:
+                    throw new ToolException("Unknown iMOD-model projectfile type, currently only RUN- and PRJ-files (.RUN and .PRJ) are supported: " + filename);
+            }
         }
     }
 }

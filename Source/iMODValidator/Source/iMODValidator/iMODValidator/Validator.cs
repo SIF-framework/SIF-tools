@@ -77,6 +77,8 @@ namespace Sweco.SIF.iMODValidator
         public string OutputPath { get; set; }
         public string RUNFilename { get; set; }
         public bool IsModelValidated { get; set; }
+        public bool IsModelCompared { get; set; }
+        public string ComparedRUNFilename { get; set; }
         public SurfaceLevelMethod SurfaceLevelMethod { get; set; }
         public string SurfaceLevelFilename { get; set; }
         public float LevelErrorMargin { get; set; }
@@ -180,7 +182,7 @@ namespace Sweco.SIF.iMODValidator
                         while ((minKPER <= fullMaxKPER) && (minKPER <= Model.NPER))
                         {
                             // Calculate end timestep for this run
-                            DateTime currentStartDate = Model.GetStressPeriodDate((DateTime)Model.StartDate, minKPER);
+                            DateTime currentStartDate = Model.CalculateDate((DateTime)Model.StartDate, minKPER - 1);
                             DateTime currentEndDate = new DateTime(currentStartDate.Year + 1, 1, 1).Subtract(new TimeSpan(1, 0, 0, 0));
                             maxKPER = minKPER + (currentEndDate - currentStartDate).Days;
                             if (maxKPER > fullMaxKPER)
@@ -197,11 +199,12 @@ namespace Sweco.SIF.iMODValidator
                                 {
                                     Directory.CreateDirectory(OutputPath);
                                 }
-                                OutputFilenameSubString = "_" + currentStartDate.Year.ToString(); // +((outputFilenameSubString == null) ? string.Empty : outputFilenameSubString);
+                                OutputFilenameSubString = "_" + currentStartDate.Year.ToString();
                             }
 
                             // Start run                                
-                            Log.AddInfo("Splitted validation run for year " + currentStartDate.Year.ToString() + ", timesteps " + minKPER + " - " + maxKPER);
+                            Log.AddInfo();
+                            Log.AddInfo("Split validation run for year " + currentStartDate.Year.ToString() + ", timesteps " + minKPER + " - " + maxKPER);
                             ValidateModel(Model);
 
                             // Write current intermediate logfile 
@@ -215,6 +218,13 @@ namespace Sweco.SIF.iMODValidator
                     {
                         ValidateModel(Model);
                     }
+                }
+
+                // Start model comparison if requested
+                if (IsModelCompared && (ComparedRUNFilename != null))
+                {
+                    CheckManager.Instance.CheckForAbort();
+                    CompareModel(Model, ComparedRUNFilename, Log);
                 }
             }
             catch (ToolException ex)
@@ -277,7 +287,7 @@ namespace Sweco.SIF.iMODValidator
             {
                 log.AddInfo("Surfacelevel filename: " + SurfaceLevelFilename);
             }
-            log.AddInfo("Level-error margin: " + LevelErrorMargin + "m");
+            log.AddInfo("Level-error margin: " + LevelErrorMargin.ToString(SIFTool.EnglishCultureInfo) + "m");
             log.AddInfo("Checked timesteps: " + minKPER + " - " + maxKPER);
             log.AddInfo("Split validationrun option: " + SplitValidationrunOption.ToString());
             log.AddInfo("Checked layers: " + MinILAY + " - " + MaxILAY);
@@ -294,7 +304,7 @@ namespace Sweco.SIF.iMODValidator
 
         protected Model ReadModel()
         {
-            Runfile runfile = new V5Runfile(RUNFilename);
+            RUNFile runfile = RUNFileFactory.CreateRUNFileObject(RUNFilename);
             Model model = runfile.ReadModel(Log, maxKPER);
             model.ToolOutputPath = OutputPath;
 
@@ -324,6 +334,10 @@ namespace Sweco.SIF.iMODValidator
             model.SurfaceLevelFilename = RetrieveSurfaceLevelFilename(SurfaceLevelMethod, model, Log);
         }
 
+        /// <summary>
+        /// Start model validation for specified model
+        /// </summary>
+        /// <param name="model"></param>
         protected virtual void ValidateModel(Model model)
         {
             Log.AddInfo(string.Empty);
@@ -385,6 +399,47 @@ namespace Sweco.SIF.iMODValidator
             }
         }
 
+        /// <summary>
+        /// Start model comparison for specified model and specified other model's RUN-file
+        /// </summary>
+        /// <param name="model"></param>
+        /// <param name="comparedRunfilename"></param>
+        /// <param name="log"></param>
+        protected void CompareModel(Model model, string comparedRunfilename, Log log)
+        {
+            if (!File.Exists(comparedRunfilename))
+            {
+                throw new Exception("Specified compared runfile doesn't exist: " + comparedRunfilename);
+            }
+
+            log.AddInfo();
+            log.AddInfo("Starting comparison ...");
+            RUNFile comparedRunfile = RUNFileFactory.CreateRUNFileObject(comparedRunfilename);
+            Model comparedModel = comparedRunfile.ReadModel(log);
+            ModelComparerResultHandler resultHandler = new ModelComparerResultHandler(model, comparedModel, NoDataValue, Extent, ToolName + "-tool" + ((ToolVersion != null) ? (", " + ToolVersion) : string.Empty));
+            SetResultHandlerSettings(resultHandler);
+            ModelComparator modelComparer = new ModelComparator();
+
+            // Create output name
+            string commonString = CommonUtils.GetCommonLeftSubstringParts(Path.GetFileNameWithoutExtension(model.RUNFilename), Path.GetFileNameWithoutExtension(comparedModel.RUNFilename), "_", true);
+            string modelRunfileString = !commonString.Equals(string.Empty) ? Path.GetFileNameWithoutExtension(model.RUNFilename).Replace(commonString, string.Empty) : Path.GetFileNameWithoutExtension(model.RUNFilename);
+            string comparedRunfileString = !commonString.Equals(string.Empty) ? Path.GetFileNameWithoutExtension(comparedModel.RUNFilename).Replace(commonString, string.Empty) : Path.GetFileNameWithoutExtension(comparedModel.RUNFilename);
+            string comparisonFilesSubdirName = "diff_" + modelRunfileString + "-" + comparedRunfileString;
+
+            CheckManager.Instance.CheckForAbort();
+            modelComparer.Run(model, comparedModel, resultHandler, comparisonFilesSubdirName, log);
+
+            if (iMODValidatorSettingsManager.Settings.UseLazyLoading)
+            {
+                comparedModel.ReleaseAllPackageMemory(log);
+            }
+
+            string imfFilename = "ModelComparison";
+            imfFilename += "_" + comparisonFilesSubdirName;
+            imfFilename += ".IMF";
+
+            resultHandler.WriteResults(imfFilename, "ComparisonStats", "No differences found.", IsRelativePathIMFAdded, IsIMODOpened, IsResultSheetOpened, log);
+        }
 
         /// <summary>
         /// Sets userdefined options for resulthandler: MaxKPER, LevelErrorMargin, MinEntryNumber, UseSparseGrids, SummaryMinCellSize
@@ -507,7 +562,7 @@ namespace Sweco.SIF.iMODValidator
                     {
                         if (areWarningsShown)
                         {
-                            log.AddWarning("Surfacelevel", model.Runfilename, "OLF-package or file not defined, no surface elevationn available for use as surfacelevel.");
+                            log.AddWarning("Surfacelevel", model.RUNFilename, "OLF-package or file not defined, no surface elevationn available for use as surfacelevel.");
                         }
                     }
                     break;

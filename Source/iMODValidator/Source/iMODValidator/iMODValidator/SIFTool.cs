@@ -192,15 +192,19 @@ namespace Sweco.SIF.iMODValidator
             validator.ToolName = ToolName;
             validator.ToolVersion = ToolVersion + ", " + CopyrightNotice;
             validator.NoDataValue = iMODValidatorSettingsManager.Settings.DefaultNoDataValue;
-            validator.RUNFilename = settings.RunFilename;
+            validator.RUNFilename = settings.RUNFilename;
             validator.OutputPath = settings.OutputPath;
-            validator.IsModelValidated = true;
+
+            validator.IsModelValidated = settings.IsValidated;
+            validator.IsModelCompared = settings.IsCompared;
+            validator.ComparedRUNFilename = settings.RUNFilename2;
 
             // Load settings
             validator.LoadSettings(settings.SettingsFilename);
 
             // Apply overrides
-            validator.IsIMODOpened = validator.IsIMODOpened && !settings.PreventIMODStart;
+            validator.IsIMODOpened = validator.IsIMODOpened && !settings.PreventExternalAppStart;
+            validator.IsResultSheetOpened = validator.IsIMODOpened && !settings.PreventExternalAppStart;
 
             // Load check settings
             foreach (Check check in CheckManager.Instance.Checks)

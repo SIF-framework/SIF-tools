@@ -78,7 +78,7 @@ namespace Sweco.SIF.iMODValidator.Checks
         private string maxAvgDischargeToCheckWell;
         private float outlierMethodMultiplier;
         private float changeOutlierMethodMultiplier;
-        private string clusterIDColumnIndex;
+        private string clusterIDColumnNumber;
         private int minClusterSize;
         private float maxClusterDistance;
         private CheckLevelEnum checkLevel;
@@ -544,16 +544,16 @@ namespace Sweco.SIF.iMODValidator.Checks
         [Category("Cluster-properties"), Description("Maximum average discharge (m3/d) for cluster wells. Note: pumped water has a negative discharge!"), PropertyOrder(55)]
         public float MaxClusterDischarge { get; set; }
 
-        [Category("Cluster-properties"), Description("Optional (zero-based) column index in WEL IPF-file for cluster-ID"), PropertyOrder(56)]
-        public string ClusterIDColumnIndex
+        [Category("Cluster-properties"), Description("Optional (one-based) column number in WEL IPF-file for cluster-ID"), PropertyOrder(56)]
+        public string ClusterIDColumnNumber
         {
-            get { return clusterIDColumnIndex; }
+            get { return clusterIDColumnNumber; }
             set
             {
                 try
                 {
                     int idx = int.Parse(value);
-                    clusterIDColumnIndex = value;
+                    clusterIDColumnNumber = value;
                 }
                 catch (Exception)
                 {
@@ -614,7 +614,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                         minClusterSize = 5;
                         maxClusterDistance = 300;
                         MaxClusterDischarge = -10;
-                        clusterIDColumnIndex = string.Empty;
+                        clusterIDColumnNumber = string.Empty;
                         break;
                     case CheckLevelEnum.Medium:
                         MinAvgDischarge = string.Empty;
@@ -650,7 +650,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                         minClusterSize = 5;
                         maxClusterDistance = 300;
                         MaxClusterDischarge = -10;
-                        clusterIDColumnIndex = string.Empty;
+                        clusterIDColumnNumber = string.Empty;
                         break;
                     case CheckLevelEnum.ManyResults:
                         MinAvgDischarge = string.Empty;
@@ -685,7 +685,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                         minClusterSize = 5;
                         maxClusterDistance = 300;
                         MaxClusterDischarge = -10;
-                        clusterIDColumnIndex = string.Empty;
+                        clusterIDColumnNumber = string.Empty;
                         break;
                     case CheckLevelEnum.Custom:
                         // leave as it is (just to make clear that settings are specified by user
@@ -711,7 +711,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             IsCheckLevelWarningDisabled = true;
             CheckLevel = CheckLevelEnum.FewResults;
             IsCheckLevelWarningDisabled = false;
-            clusterIDColumnIndex = string.Empty;
+            clusterIDColumnNumber = string.Empty;
             minLayerFilterFraction = (0.01f).ToString(SIFTool.EnglishCultureInfo);
         }
 
@@ -758,7 +758,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             log.AddInfo("Minimum clustersize: " + minClusterSize.ToString(), logIndentLevel);
             log.AddInfo("Maximum clusterdischarge: " + MaxClusterDischarge.ToString(), logIndentLevel);
             log.AddInfo("Maximum clusterdistance: " + maxClusterDistance.ToString(), logIndentLevel);
-            log.AddInfo("Column index of cluster-ID: " + clusterIDColumnIndex.ToString(), logIndentLevel);
+            log.AddInfo("Column number of cluster-ID: " + clusterIDColumnNumber.ToString(), logIndentLevel);
         }
     }
 
@@ -799,9 +799,8 @@ namespace Sweco.SIF.iMODValidator.Checks
                 log.AddInfo("Checking WEL-package ...");
 
                 Package welPackage = model.GetPackage(WELPackage.DefaultKey);
-                if ((welPackage == null) || !welPackage.IsActive)
+                if (!IsPackageActive(welPackage, WELPackage.DefaultKey, log, 1))
                 {
-                    log.AddWarning(this.Name, model.Runfilename, "WEL-package is not active. " + this.Name + " is skipped.", 1);
                     return;
                 }
 
@@ -974,13 +973,15 @@ namespace Sweco.SIF.iMODValidator.Checks
             {
                 if (welPackage.GetEntryCount(kper) > 0)
                 {
+                    StressPeriod stressPeriod = model.RetrieveStressPeriod(kper);
+
                     if (model.NPER > 1)
                     {
-                        log.AddInfo("Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + " ...", 1);
+                        log.AddInfo("Checking stress period " + kper + " " + model.RetrieveSNAME(kper) + " ...", 1);
                     }
                     else
                     {
-                        log.AddInfo("Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + " ...", 1);
+                        log.AddInfo("Checking stress period " + kper + " " + model.RetrieveSNAME(kper) + " ...", 1);
                     }
 
                     if (!isWarnedForZeroLayer)
@@ -988,7 +989,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                         List<IMODFile> zeroLayerPackageFiles = welPackage.GetIMODFiles(0, 0, kper);
                         if ((zeroLayerPackageFiles != null) && (zeroLayerPackageFiles.Count() > 0))
                         {
-                            log.AddWarning(welPackage.Key, model.Runfilename, "Currently layer 0 is not fully supported and some checks are skipped", 1);
+                            log.AddWarning(welPackage.Key, model.RUNFilename, "Currently layer 0 is not fully supported and some checks are skipped", 1);
                             isWarnedForZeroLayer = true;
                         }
                     }
@@ -997,7 +998,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                     for (int entryIdx = resultHandler.MinEntryNumber - 1; (entryIdx < welPackage.GetEntryCount(kper)) && (entryIdx < resultHandler.MaxEntryNumber); entryIdx++)
                     {
                         IPFPackageFile welPackageFile = (IPFPackageFile) welPackage.GetPackageFile(entryIdx, 0, kper);
-                        int ilay = welPackageFile.ilay;
+                        int ilay = welPackageFile.ILAY;
 
                         CheckManager.Instance.CheckForAbort();
                         if ((welPackageFile != null) && !checkedWELFiles.ContainsKey(welPackageFile.FName))
@@ -1031,594 +1032,596 @@ namespace Sweco.SIF.iMODValidator.Checks
 
                             // Create error IPFfiles for current layer
                             // CheckErrorLayer welErrorLayer = CreateErrorLayer(resultHandler, welPackage, kper, ilay, errorLegend);
-                            CheckErrorLayer welErrorLayer = CreateErrorLayer(resultHandler, welPackage, "SYS" + (entryIdx + 1), kper, ilay, errorLegend);
+                            CheckErrorLayer welErrorLayer = CreateErrorLayer(resultHandler, welPackage, "SYS" + (entryIdx + 1), stressPeriod, ilay, errorLegend);
                             welErrorLayer.AddSourceFiles(sourceFiles);
 
                             // Create warning IDFfiles for current layer
-                            CheckWarningLayer welWarningLayer = CreateWarningLayer(resultHandler, welPackage, "SYS" + (entryIdx + 1), kper, ilay, warningLegend);
+                            CheckWarningLayer welWarningLayer = CreateWarningLayer(resultHandler, welPackage, "SYS" + (entryIdx + 1), stressPeriod, ilay, warningLegend);
                             welWarningLayer.AddSourceFiles(sourceFiles);
 
                             // Create IPF-File to store details
-                            CheckDetailLayer welDetailLayer = CreateDetailLayer(resultHandler, welPackage, "SYS" + (entryIdx + 1), kper, ilay);
+                            CheckDetailLayer welDetailLayer = CreateDetailLayer(resultHandler, welPackage, "SYS" + (entryIdx + 1), stressPeriod, ilay);
 
                             // Process all WEL-files in the current modellayer for the current period
                             long prevErrorCount = 0;
                             long prevWarningCount = 0;
                             IPFFile welIPFFile = (IPFFile)welPackageFile.IMODFile;
-                            welIPFFile.Log = log;
-                            welIPFFile.LogIndentLevel = 2;
-
-                            // Retrieve and log column indices
-                            if (checkedWELFiles.ContainsKey(welIPFFile.Filename))
+                            if (welIPFFile != null)
                             {
-                                int checkedILay = checkedWELFiles[welIPFFile.Filename];
-                                if (checkedILay.Equals(ilay))
+                                welIPFFile.Log = log;
+                                welIPFFile.LogIndentLevel = 2;
+
+                                // Retrieve and log column indices
+                                if (checkedWELFiles.ContainsKey(welIPFFile.Filename))
                                 {
-                                    // File has been checked before with this ilay, don't check again
+                                    int checkedILay = checkedWELFiles[welIPFFile.Filename];
+                                    if (checkedILay.Equals(ilay))
+                                    {
+                                        // File has been checked before with this ilay, don't check again
+                                    }
+                                    else
+                                    {
+                                        // File has been checked before with another ilay
+                                        log.AddError(welPackage.Key, welIPFFile.Filename, "WEL-file for ilay " + ilay + " has been assigned before to another ilay (" + checkedILay + "), skipped: " + welIPFFile.Filename, 2);
+                                    }
                                 }
                                 else
                                 {
-                                    // File has been checked before with another ilay
-                                    log.AddError(welPackage.Key, welIPFFile.Filename, "WEL-file for ilay " + ilay + " has been assigned before to another ilay (" + checkedILay + "), skipped: " + welIPFFile.Filename, 2);
-                                }
-                            }
-                            else
-                            {
-                                checkedWELFiles.Add(welIPFFile.Filename, ilay);
+                                    checkedWELFiles.Add(welIPFFile.Filename, ilay);
 
-                                int ipfDischargeColIdx = FindIPFColIdx(settings.IPFDischargeCol, welIPFFile);
-                                if (ipfDischargeColIdx >= 0)
-                                {
-                                    log.AddInfo("Discharge in IPF has column index " + ipfDischargeColIdx + " and column name " + welIPFFile.ColumnNames[ipfDischargeColIdx], 2);
-                                }
-                                else
-                                {
-                                    log.AddWarning(welPackage.Key, welIPFFile.Filename, "Discharge column in IPF not found for specified column names: " + settings.IPFDischargeCol, 2);
-                                }
-                                int ipfZ1ColIdx = FindIPFColIdx(settings.IPFZ1Col, welIPFFile);
-                                int ipfZ2ColIdx = FindIPFColIdx(settings.IPFZ2Col, welIPFFile);
-                                if (((ipfZ1ColIdx >= 0) && (ipfZ1ColIdx < welIPFFile.ColumnCount)) && ((ipfZ2ColIdx >= 0) && (ipfZ2ColIdx < welIPFFile.ColumnCount)))
-                                {
-                                    log.AddInfo("IPF columnindex for z1/z2: " + ipfZ1ColIdx + ", " + ipfZ2ColIdx
-                                        + "; column names: '" + welIPFFile.ColumnNames[ipfZ1ColIdx] + "', '" + welIPFFile.ColumnNames[ipfZ2ColIdx] + "'", 2);
-                                }
-                                else if ((ipfZ1ColIdx >= 0) && (ipfZ1ColIdx < welIPFFile.ColumnCount))
-                                {
-                                    log.AddInfo("IPF columnindex z1 (top): " + ipfZ1ColIdx
-                                        + "; column name: '" + welIPFFile.ColumnNames[ipfZ1ColIdx] + "'", 2);
-                                    log.AddWarning(welPackage.Key, welIPFFile.Filename, "IPF column not found for filter level z2 (bot) with specified column name: " + settings.IPFZ2Col, 2);
-                                }
-                                else if ((ipfZ2ColIdx >= 0) && (ipfZ2ColIdx < welIPFFile.ColumnCount))
-                                {
-                                    log.AddInfo("IPF columnindex for z2 (bot): " + ipfZ2ColIdx
-                                        + "; column name: '" + welIPFFile.ColumnNames[ipfZ2ColIdx] + "'", 2);
-                                    log.AddWarning(welPackage.Key, welIPFFile.Filename, "IPF column not found for filter level z1 (top) with specified column name: " + settings.IPFZ1Col, 2);
-                                }
-                                else
-                                {
-                                    log.AddWarning(welPackage.Key, welIPFFile.Filename, "IPF columns not found for filter levels z1 (top) and z2 (bot) with specified column names: " + settings.IPFZ1Col + ", " + settings.IPFZ2Col, 2);
-                                }
-                                int valueColIdx = ipfDischargeColIdx;
-                                welIPFFile.IsCommaCorrectedInTimeseries = settings.AllowTimeseriesComma;
-                                int ipfFractionColIdx = welIPFFile.FindColumnIndex(settings.WELFractionColumNameOrIdx);
-                                //                                Statistics kDqRatioStats = new Statistics();
+                                    int ipfDischargeColIdx = FindIPFColIdx(settings.IPFDischargeCol, welIPFFile);
+                                    if (ipfDischargeColIdx >= 0)
+                                    {
+                                        log.AddInfo("Discharge in IPF has column index " + ipfDischargeColIdx + " and column name " + welIPFFile.ColumnNames[ipfDischargeColIdx], 2);
+                                    }
+                                    else
+                                    {
+                                        log.AddWarning(welPackage.Key, welIPFFile.Filename, "Discharge column in IPF not found for specified column names: " + settings.IPFDischargeCol, 2);
+                                    }
+                                    int ipfZ1ColIdx = FindIPFColIdx(settings.IPFZ1Col, welIPFFile);
+                                    int ipfZ2ColIdx = FindIPFColIdx(settings.IPFZ2Col, welIPFFile);
+                                    if (((ipfZ1ColIdx >= 0) && (ipfZ1ColIdx < welIPFFile.ColumnCount)) && ((ipfZ2ColIdx >= 0) && (ipfZ2ColIdx < welIPFFile.ColumnCount)))
+                                    {
+                                        log.AddInfo("IPF columnindex for z1/z2: " + ipfZ1ColIdx + ", " + ipfZ2ColIdx
+                                            + "; column names: '" + welIPFFile.ColumnNames[ipfZ1ColIdx] + "', '" + welIPFFile.ColumnNames[ipfZ2ColIdx] + "'", 2);
+                                    }
+                                    else if ((ipfZ1ColIdx >= 0) && (ipfZ1ColIdx < welIPFFile.ColumnCount))
+                                    {
+                                        log.AddInfo("IPF columnindex z1 (top): " + ipfZ1ColIdx
+                                            + "; column name: '" + welIPFFile.ColumnNames[ipfZ1ColIdx] + "'", 2);
+                                        log.AddWarning(welPackage.Key, welIPFFile.Filename, "IPF column not found for filter level z2 (bot) with specified column name: " + settings.IPFZ2Col, 2);
+                                    }
+                                    else if ((ipfZ2ColIdx >= 0) && (ipfZ2ColIdx < welIPFFile.ColumnCount))
+                                    {
+                                        log.AddInfo("IPF columnindex for z2 (bot): " + ipfZ2ColIdx
+                                            + "; column name: '" + welIPFFile.ColumnNames[ipfZ2ColIdx] + "'", 2);
+                                        log.AddWarning(welPackage.Key, welIPFFile.Filename, "IPF column not found for filter level z1 (top) with specified column name: " + settings.IPFZ1Col, 2);
+                                    }
+                                    else
+                                    {
+                                        log.AddWarning(welPackage.Key, welIPFFile.Filename, "IPF columns not found for filter levels z1 (top) and z2 (bot) with specified column names: " + settings.IPFZ1Col + ", " + settings.IPFZ2Col, 2);
+                                    }
+                                    int valueColIdx = ipfDischargeColIdx;
+                                    welIPFFile.IsCommaCorrectedInTimeseries = settings.AllowTimeseriesComma;
+                                    int ipfFractionColIdx = welIPFFile.FindColumnIndex(settings.WELFractionColumNameOrIdx);
+                                    //                                Statistics kDqRatioStats = new Statistics();
 
-                                // Check textfileColIdx if it is defined
-                                if ((welIPFFile.AssociatedFileColIdx >= 0) && (welIPFFile.AssociatedFileColIdx != ipfDischargeColIdx) && (ipfDischargeColIdx > 1))
-                                {
-                                    log.AddWarning(welPackage.Key, welIPFFile.Filename, "Unexpected TextFileColumnNumber (" + (welIPFFile.AssociatedFileColIdx + 1) + ") instead of " + (ipfDischargeColIdx + 1) + ", as defined in validator settings) for: " + welIPFFile.Filename, 2);
-                                    log.AddInfo("Using TextFileColumnIndex " + ipfDischargeColIdx + ", as defined in validator settings", 3);
-                                    // Force points to be loaded now, otherwise columnindex will be reset again
-                                    List<IPFPoint> pointList = welIPFFile.Points;
-                                    welIPFFile.AssociatedFileColIdx = ipfDischargeColIdx;
-                                }
+                                    // Check textfileColIdx if it is defined
+                                    if ((welIPFFile.AssociatedFileColIdx >= 0) && (welIPFFile.AssociatedFileColIdx != ipfDischargeColIdx) && (ipfDischargeColIdx > 1))
+                                    {
+                                        log.AddWarning(welPackage.Key, welIPFFile.Filename, "Unexpected TextFileColumnNumber (" + (welIPFFile.AssociatedFileColIdx + 1) + ") instead of " + (ipfDischargeColIdx + 1) + ", as defined in validator settings) for: " + welIPFFile.Filename, 2);
+                                        log.AddInfo("Using TextFileColumnIndex " + ipfDischargeColIdx + ", as defined in validator settings", 3);
+                                        // Force points to be loaded now, otherwise columnindex will be reset again
+                                        List<IPFPoint> pointList = welIPFFile.Points;
+                                        welIPFFile.AssociatedFileColIdx = ipfDischargeColIdx;
+                                    }
 
-                                // Retrieve all timeseries of current IPF-file
-                                log.AddInfo("Reading timeseries for WEL-file: " + Path.GetFileName(welIPFFile.Filename) + " ...", 2);
-                                foreach (IPFPoint ipfPoint in welIPFFile.Points)
-                                {
-                                    if (ipfPoint.IsContainedBy(resultHandler.Extent) && ipfPoint.HasTimeseries())
+                                    // Retrieve all timeseries of current IPF-file
+                                    log.AddInfo("Reading timeseries for WEL-file: " + Path.GetFileName(welIPFFile.Filename) + " ...", 2);
+                                    foreach (IPFPoint ipfPoint in welIPFFile.Points)
+                                    {
+                                        if (ipfPoint.IsContainedBy(resultHandler.Extent) && ipfPoint.HasTimeseries())
+                                        {
+                                            try
+                                            {
+                                                if (ipfPoint.HasTimeseries())
+                                                {
+                                                    ipfPoint.LoadTimeseries();
+                                                }
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                if (resultHandler.Extent.Contains(ipfPoint.X, ipfPoint.Y))
+                                                {
+                                                    resultHandler.AddCheckResult(welErrorLayer, (float)ipfPoint.X, (float)ipfPoint.Y, InvalidTimeseriesFileError);
+                                                    resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(InvalidTimeseriesFileError, welIPFFile,
+                                                        "Error in timeseries", ex.GetBaseException().Message, (ipfDischargeColIdx > 0) ? ipfPoint.ColumnValues[ipfDischargeColIdx] : float.NaN.ToString()));
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    Dictionary<IPFPoint, IPFCluster> clusterDictionary = new Dictionary<IPFPoint, IPFCluster>();
+                                    if (isClusterChecked)
+                                    {
+                                        // Find clusters of wells
+                                        log.AddInfo("Checking for clusters in WEL-file: " + Path.GetFileName(welIPFFile.Filename) + " ...", 2);
+                                        List<IPFPoint> selectedPoints = new List<IPFPoint>();
+                                        foreach (IPFPoint point in welIPFFile.Points)
+                                        {
+                                            if (resultHandler.Extent.Contains(point.X, point.Y))
+                                            {
+                                                selectedPoints.Add(point.CopyIPFPoint());
+                                            }
+                                        }
+                                        List<IPFCluster> clusters = FindClustersByDistance(welIPFFile, selectedPoints, settings.MaxClusterDistance, settings.MaxClusterDischarge, settings.MinClusterSize, 2000f, ipfDischargeColIdx);
+                                        if (!settings.ClusterIDColumnNumber.Equals(string.Empty))
+                                        {
+                                            int clusterIdColIdx = int.Parse(settings.ClusterIDColumnNumber) - 1;
+                                            List<IPFPoint> remainingClusterPoints = CopyExcluding(welIPFFile.Points, IPFCluster.ClustersToPoints(clusters));
+                                            clusters.AddRange(FindClustersById(welIPFFile, remainingClusterPoints, clusterIdColIdx, settings.MaxClusterDischarge, 5, ipfDischargeColIdx));
+                                        }
+
+                                        // Store clusters in dictionary
+                                        if ((clusters != null) && (clusters.Count() > 0))
+                                        {
+                                            log.AddInfo("WEL-clusters: " + clusters.Count(), 3);
+
+                                            // Calculate total discharge per cluster
+                                            for (int clusterIdx = 0; clusterIdx < clusters.Count(); clusterIdx++)
+                                            {
+                                                IPFCluster cluster = clusters[clusterIdx];
+                                                cluster.ID = Path.GetFileNameWithoutExtension(welIPFFile.Filename) + "_cluster" + (clusterIdx + 1);
+                                                if (cluster.HasTimeseries())
+                                                {
+                                                    cluster.CalculateTimeseries(ipfDischargeColIdx);
+                                                }
+                                                else
+                                                {
+                                                    cluster.CalculateAverage(ipfDischargeColIdx);
+                                                }
+
+                                                foreach (IPFPoint point in cluster.Points)
+                                                {
+                                                    if (clusterDictionary.ContainsKey(point))
+                                                    {
+                                                        log.AddWarning(welPackage.Key, cluster.IPFFile.Filename, "Point in more than one cluster is skipped: " + point.ToString() + ". May be caused by multiple wellpoints at same xy-coordinates.", 3);
+                                                        // throw new Exception("Point in more than one cluster: " + point.ToString());
+                                                    }
+                                                    else
+                                                    {
+                                                        clusterDictionary.Add(point, cluster);
+                                                    }
+                                                }
+                                            }
+
+                                            // Write IPF-file with cluster points, including total timeseries to tool output folder
+                                            string clusterpointsFilename = FileUtils.AddFilePostFix(Path.Combine(FileUtils.EnsureFolderExists(GetIMODFilesPath(model), Name), Path.GetFileName(welIPFFile.Filename)), "_clusterpoints");
+                                            IPFFile clusterpointsIPFFile = welIPFFile.CopyIPF(clusterpointsFilename);
+                                            clusterpointsIPFFile.ResetValues();
+                                            clusterpointsIPFFile.AddPoints(IPFCluster.ClustersToPoints(clusters));
+                                            if (clusterpointsIPFFile.PointCount > 0)
+                                            {
+                                                clusterpointsIPFFile.Legend = clusterpointsIPFFile.CreateLegend("WEL-clusters L" + ilay, Color.DarkBlue);
+                                                clusterpointsIPFFile.WriteFile(false);
+                                                resultHandler.AddExtraMapFile(clusterpointsIPFFile);
+                                            }
+
+                                            // Add IPFfile to all clusters
+                                            foreach (IPFCluster cluster in clusters)
+                                            {
+                                                cluster.IPFFile = clusterpointsIPFFile;
+                                            }
+                                        }
+                                    }
+
+                                    // Process all wells for the current WEL-file
+                                    log.AddInfo("Checking " + welIPFFile.PointCount + " locations in WEL-file: " + Path.GetFileName(welIPFFile.Filename) + " ...", 2);
+                                    List<IPFPoint> clusterDischargeWellSelection = new List<IPFPoint>();
+                                    int checkedWellCount = 0;
+                                    int extentWellCount = 0;
+                                    foreach (IPFPoint ipfPoint in welIPFFile.Points)
                                     {
                                         try
                                         {
-                                            if (ipfPoint.HasTimeseries())
-                                            {
-                                                ipfPoint.LoadTimeseries();
-                                            }
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            if (resultHandler.Extent.Contains(ipfPoint.X, ipfPoint.Y))
-                                            {
-                                                resultHandler.AddCheckResult(welErrorLayer, (float)ipfPoint.X, (float)ipfPoint.Y, InvalidTimeseriesFileError);
-                                                resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(InvalidTimeseriesFileError, welIPFFile,
-                                                    "Error in timeseries", ex.GetBaseException().Message, (ipfDischargeColIdx > 0) ? ipfPoint.ColumnValues[ipfDischargeColIdx] : float.NaN.ToString()));
-                                            }
-                                        }
-                                    }
-                                }
+                                            float x = (float)ipfPoint.X;
+                                            float y = (float)ipfPoint.Y;
 
-                                Dictionary<IPFPoint, IPFCluster> clusterDictionary = new Dictionary<IPFPoint, IPFCluster>();
-                                if (isClusterChecked)
-                                {
-                                    // Find clusters of wells
-                                    log.AddInfo("Checking for clusters in WEL-file: " + Path.GetFileName(welIPFFile.Filename) + " ...", 2);
-                                    List<IPFPoint> selectedPoints = new List<IPFPoint>();
-                                    foreach (IPFPoint point in welIPFFile.Points)
-                                    {
-                                        if (resultHandler.Extent.Contains(point.X, point.Y))
-                                        {
-                                            selectedPoints.Add(point.CopyIPFPoint());
-                                        }
-                                    }
-                                    List<IPFCluster> clusters = FindClustersByDistance(welIPFFile, selectedPoints, settings.MaxClusterDistance, settings.MaxClusterDischarge, settings.MinClusterSize, 2000f, ipfDischargeColIdx);
-                                    if (!settings.ClusterIDColumnIndex.Equals(string.Empty))
-                                    {
-                                        int clusterIdColIdx = int.Parse(settings.ClusterIDColumnIndex);
-                                        List<IPFPoint> remainingClusterPoints = CopyExcluding(welIPFFile.Points, IPFCluster.ClustersToPoints(clusters));
-                                        clusters.AddRange(FindClustersById(welIPFFile, remainingClusterPoints, clusterIdColIdx, settings.MaxClusterDischarge, 5, ipfDischargeColIdx));
-                                    }
-
-                                    // Store clusters in dictionary
-                                    if ((clusters != null) && (clusters.Count() > 0))
-                                    {
-                                        log.AddInfo("WEL-clusters: " + clusters.Count(), 3);
-
-                                        // Calculate total discharge per cluster
-                                        for (int clusterIdx = 0; clusterIdx < clusters.Count(); clusterIdx++)
-                                        {
-                                            IPFCluster cluster = clusters[clusterIdx];
-                                            cluster.ID = Path.GetFileNameWithoutExtension(welIPFFile.Filename) + "_cluster" + (clusterIdx + 1);
-                                            if (cluster.HasTimeseries())
+                                            if (x.Equals(y))
                                             {
-                                                cluster.CalculateTimeseries(ipfDischargeColIdx);
-                                            }
-                                            else
-                                            {
-                                                cluster.CalculateAverage(ipfDischargeColIdx);
+                                                // Add log warning as well because ipfpoint is likely outside range and can easily be missed
+                                                log.AddWarning(welPackage.Key, welIPFFile.Filename, "XY-coordinates are equal for x/y: " + x + "," + y);
+                                                resultHandler.AddCheckResult(welWarningLayer, x, y, XYEqualWarning);
+                                                resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(XYEqualWarning, welIPFFile,
+                                                    "XY-coordinates equal: " + x.ToString("F0", EnglishCultureInfo) + " = " + y.ToString("F0", EnglishCultureInfo)));
                                             }
 
-                                            foreach (IPFPoint point in cluster.Points)
+                                            // Check if location inside modelling area
+                                            if (ipfPoint.IsContainedBy(resultHandler.Extent))
                                             {
-                                                if (clusterDictionary.ContainsKey(point))
+                                                extentWellCount++;
+
+                                                ///////////////////////////////////
+                                                // Retrieve well-characteristics //
+                                                ///////////////////////////////////
+
+                                                // Retrieve well-discharge data
+                                                Sweco.SIF.iMOD.Timeseries wellTimeseries = null;            // data specific for individual well
+                                                float wellAvgDischargeValue = float.NaN;
+                                                float wellMinDischargeValue = float.NaN;
+                                                float wellMaxDischargeValue = float.NaN;
+
+                                                IPFCluster cluster = null;                                  // cluster data 
+                                                float clusterX = x;
+                                                float clusterY = y;
+
+                                                Sweco.SIF.iMOD.Timeseries timeseries = null;                // data specific for cluster or (if not present) for individual well
+                                                Sweco.SIF.iMOD.Timeseries modelperiodTimeseries = null;
+                                                int avgDischargePeriod = -1;                                // number of days of period within which some discharge is actually present
+                                                float avgDischargeValue = float.NaN;
+                                                float minDischargeValue = float.NaN;
+                                                float maxDischargeValue = float.NaN;
+
+                                                // Retrieve individual well-discharge data
+                                                if (!ipfPoint.HasAssociatedFile())
                                                 {
-                                                    log.AddWarning(welPackage.Key, cluster.IPFFile.Filename, "Point in more than one cluster is skipped: " + point.ToString() + ". May be caused by multiple wellpoints at same xy-coordinates.", 3);
-                                                    // throw new Exception("Point in more than one cluster: " + point.ToString());
-                                                }
-                                                else
-                                                {
-                                                    clusterDictionary.Add(point, cluster);
-                                                }
-                                            }
-                                        }
-
-                                        // Write clusterfile, including total timeseries to tool output folder
-                                        string clusterFilename = FileUtils.AddFilePostFix(Path.Combine(FileUtils.EnsureFolderExists(GetIMODFilesPath(model), Name), Path.GetFileName(welIPFFile.Filename)), "_clusters");
-                                        IPFFile ipfClusterFile = welIPFFile.CopyIPF(clusterFilename);
-                                        ipfClusterFile.ResetValues();
-                                        ipfClusterFile.AddPoints(IPFCluster.ClustersToPoints(clusters));
-                                        if (ipfClusterFile.PointCount > 0)
-                                        {
-                                            ipfClusterFile.Legend = ipfClusterFile.CreateLegend("WEL-clusters L" + ilay, Color.DarkBlue);
-                                            ipfClusterFile.WriteFile(false);
-                                            resultHandler.AddExtraMapFile(ipfClusterFile);
-                                        }
-
-                                        // Add IPFfile to all clusters
-                                        foreach (IPFCluster cluster in clusters)
-                                        {
-                                            cluster.IPFFile = ipfClusterFile;
-                                        }
-                                    }
-                                }
-
-                                // Process all wells for the current WEL-file
-                                log.AddInfo("Checking " + welIPFFile.PointCount + " locations in WEL-file: " + Path.GetFileName(welIPFFile.Filename) + " ...", 2);
-                                List<IPFPoint> clusterDischargeWellSelection = new List<IPFPoint>();
-                                int checkedWellCount = 0;
-                                int extentWellCount = 0;
-                                foreach (IPFPoint ipfPoint in welIPFFile.Points)
-                                {
-                                    try
-                                    {
-                                        float x = (float)ipfPoint.X;
-                                        float y = (float)ipfPoint.Y;
-
-                                        if (x.Equals(y))
-                                        {
-                                            // Add log warning as well because ipfpoint is likely outside range and can easily be missed
-                                            log.AddWarning(welPackage.Key, welIPFFile.Filename, "XY-coordinates are equal for x/y: " + x + "," + y);
-                                            resultHandler.AddCheckResult(welWarningLayer, x, y, XYEqualWarning);
-                                            resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(XYEqualWarning, welIPFFile,
-                                                "XY-coordinates equal: " + x.ToString("F0", EnglishCultureInfo) + " = " + y.ToString("F0", EnglishCultureInfo)));
-                                        }
-
-                                        // Check if location inside modelling area
-                                        if (ipfPoint.IsContainedBy(resultHandler.Extent))
-                                        {
-                                            extentWellCount++;
-
-                                            ///////////////////////////////////
-                                            // Retrieve well-characteristics //
-                                            ///////////////////////////////////
-
-                                            // Retrieve well-discharge data
-                                            Sweco.SIF.iMOD.Timeseries wellTimeseries = null;            // data specific for individual well
-                                            float wellAvgDischargeValue = float.NaN;
-                                            float wellMinDischargeValue = float.NaN;
-                                            float wellMaxDischargeValue = float.NaN;
-
-                                            IPFCluster cluster = null;                                  // cluster data 
-                                            float clusterX = x;
-                                            float clusterY = y;
-
-                                            Sweco.SIF.iMOD.Timeseries timeseries = null;                // data specific for cluster or (if not present) for individual well
-                                            Sweco.SIF.iMOD.Timeseries modelperiodTimeseries = null;
-                                            int avgDischargePeriod = -1;                                // number of days of period within which some discharge is actually present
-                                            float avgDischargeValue = float.NaN;
-                                            float minDischargeValue = float.NaN;
-                                            float maxDischargeValue = float.NaN;
-
-                                            // Retrieve individual well-discharge data
-                                            if (!ipfPoint.HasAssociatedFile())
-                                            {
-                                                if (ipfPoint.HasFloatValue(ipfDischargeColIdx))
-                                                {
-                                                    // Use floating point value if present
-                                                    wellAvgDischargeValue = ipfPoint.GetFloatValue(ipfDischargeColIdx);
-                                                    avgDischargeValue = wellAvgDischargeValue;
-                                                }
-                                                else
-                                                {
-                                                    // Timeseriesfile does not exist
-                                                    resultHandler.AddCheckResult(welErrorLayer, x, y, MissingTimeseriesError);
-                                                    resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(MissingTimeseriesError, welIPFFile,
-                                                        ipfPoint.ColumnValues[ipfPoint.IPFFile.AssociatedFileColIdx]));
-                                                }
-                                            }
-                                            else
-                                            {
-                                                try
-                                                {
-                                                    wellTimeseries = ipfPoint.Timeseries;
-                                                    timeseries = wellTimeseries;
-                                                    modelperiodTimeseries = wellTimeseries.InterpolateTimeseries(modelStartDate, modelEndDate);
-
-                                                    // Calculate average over modelperiod (including zero values) with interpolated values to ensure each value has proper weight 
-                                                    Sweco.SIF.iMOD.Timeseries wellDischargeperiodTimeseries = modelperiodTimeseries.Select(float.NaN, 0.001f);
-
-                                                    // Get number of days of period within which some discharge is actually present
-                                                    avgDischargePeriod = (wellDischargeperiodTimeseries.Timestamps.Count() > 0) ? wellDischargeperiodTimeseries.Timestamps[wellDischargeperiodTimeseries.Timestamps.Count() - 1].Subtract(wellDischargeperiodTimeseries.Timestamps[0]).Days : 0;
-
-                                                    Statistics.Statistics dischargeStats = new Statistics.Statistics(modelperiodTimeseries.Values);
-                                                    dischargeStats.ComputeBasicStatistics(true, true, false);
-                                                    wellAvgDischargeValue = dischargeStats.Mean;
-                                                    wellMinDischargeValue = dischargeStats.Min;
-                                                    wellMaxDischargeValue = dischargeStats.Max;
-                                                    if (wellAvgDischargeValue.Equals(float.NaN))
+                                                    if (ipfPoint.HasFloatValue(ipfDischargeColIdx))
                                                     {
-                                                        wellAvgDischargeValue = 0;
-                                                        wellMinDischargeValue = 0;
-                                                        wellMaxDischargeValue = 0;
+                                                        // Use floating point value if present
+                                                        wellAvgDischargeValue = ipfPoint.GetFloatValue(ipfDischargeColIdx);
+                                                        avgDischargeValue = wellAvgDischargeValue;
                                                     }
-                                                    avgDischargeValue = wellAvgDischargeValue;
-                                                    minDischargeValue = wellMinDischargeValue;
-                                                    maxDischargeValue = wellMaxDischargeValue;
-
-                                                }
-                                                catch (Exception)
-                                                {
-                                                    // timeseries file could not be loaded
-                                                    resultHandler.AddCheckResult(welErrorLayer, x, y, InvalidTimeseriesFileError);
-                                                    resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(InvalidTimeseriesFileError, welIPFFile,
-                                                        ipfPoint.ColumnValues[ipfPoint.IPFFile.AssociatedFileColIdx]));
-                                                }
-                                            }
-
-                                            // Check if point is part of cluster
-                                            if (isClusterChecked && clusterDictionary.TryGetValue(ipfPoint, out cluster))
-                                            {
-                                                try
-                                                {
-                                                    IPFPoint clusterPoint = cluster.ToPoint(ipfPoint.IPFFile, ipfPoint, ipfDischargeColIdx);
-                                                    clusterX = (float)clusterPoint.X;
-                                                    clusterY = (float)clusterPoint.Y;
-
-                                                    if (clusterPoint.HasAssociatedFile())
+                                                    else
                                                     {
-                                                        timeseries = clusterPoint.Timeseries;
+                                                        // Timeseriesfile does not exist
+                                                        resultHandler.AddCheckResult(welErrorLayer, x, y, MissingTimeseriesError);
+                                                        resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(MissingTimeseriesError, welIPFFile,
+                                                            ipfPoint.ColumnValues[ipfPoint.IPFFile.AssociatedFileColIdx]));
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    try
+                                                    {
+                                                        wellTimeseries = ipfPoint.Timeseries;
+                                                        timeseries = wellTimeseries;
+                                                        modelperiodTimeseries = wellTimeseries.InterpolateTimeseries(modelStartDate, modelEndDate);
 
-                                                        // In this case actually calculate the real clusterstatistics that can be different from the individual well statistics
-                                                        modelperiodTimeseries = timeseries.InterpolateTimeseries(modelStartDate, modelEndDate);
-                                                        Sweco.SIF.iMOD.Timeseries clusterDischargeperiodTimeseries = modelperiodTimeseries.Select(float.NaN, 0.001f);
-                                                        avgDischargePeriod = (clusterDischargeperiodTimeseries.Timestamps.Count() > 0) ? clusterDischargeperiodTimeseries.Timestamps[clusterDischargeperiodTimeseries.Timestamps.Count() - 1].Subtract(clusterDischargeperiodTimeseries.Timestamps[0]).Days : 0;
+                                                        // Calculate average over modelperiod (including zero values) with interpolated values to ensure each value has proper weight 
+                                                        Sweco.SIF.iMOD.Timeseries wellDischargeperiodTimeseries = modelperiodTimeseries.Select(float.NaN, 0.001f);
+
+                                                        // Get number of days of period within which some discharge is actually present
+                                                        avgDischargePeriod = (wellDischargeperiodTimeseries.Timestamps.Count() > 0) ? wellDischargeperiodTimeseries.Timestamps[wellDischargeperiodTimeseries.Timestamps.Count() - 1].Subtract(wellDischargeperiodTimeseries.Timestamps[0]).Days : 0;
+
                                                         Statistics.Statistics dischargeStats = new Statistics.Statistics(modelperiodTimeseries.Values);
                                                         dischargeStats.ComputeBasicStatistics(true, true, false);
-                                                        avgDischargeValue = dischargeStats.Mean;
-                                                        minDischargeValue = dischargeStats.Min;
-                                                        maxDischargeValue = dischargeStats.Max;
-                                                        if (avgDischargeValue.Equals(float.NaN))
+                                                        wellAvgDischargeValue = dischargeStats.Mean;
+                                                        wellMinDischargeValue = dischargeStats.Min;
+                                                        wellMaxDischargeValue = dischargeStats.Max;
+                                                        if (wellAvgDischargeValue.Equals(float.NaN))
                                                         {
-                                                            avgDischargeValue = 0;
-                                                            minDischargeValue = 0;
-                                                            maxDischargeValue = 0;
+                                                            wellAvgDischargeValue = 0;
+                                                            wellMinDischargeValue = 0;
+                                                            wellMaxDischargeValue = 0;
                                                         }
+                                                        avgDischargeValue = wellAvgDischargeValue;
+                                                        minDischargeValue = wellMinDischargeValue;
+                                                        maxDischargeValue = wellMaxDischargeValue;
 
-                                                        // Only check cluster timeseries for first point of cluster (to avoid double results)
-                                                        if (!cluster.Points[0].Equals(ipfPoint))
+                                                    }
+                                                    catch (Exception)
+                                                    {
+                                                        // timeseries file could not be loaded
+                                                        resultHandler.AddCheckResult(welErrorLayer, x, y, InvalidTimeseriesFileError);
+                                                        resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(InvalidTimeseriesFileError, welIPFFile,
+                                                            ipfPoint.ColumnValues[ipfPoint.IPFFile.AssociatedFileColIdx]));
+                                                    }
+                                                }
+
+                                                // Check if point is part of cluster
+                                                if (isClusterChecked && clusterDictionary.TryGetValue(ipfPoint, out cluster))
+                                                {
+                                                    try
+                                                    {
+                                                        IPFPoint clusterPoint = cluster.ToPoint(ipfPoint.IPFFile, ipfPoint, ipfDischargeColIdx);
+                                                        clusterX = (float)clusterPoint.X;
+                                                        clusterY = (float)clusterPoint.Y;
+
+                                                        if (clusterPoint.HasAssociatedFile())
                                                         {
-                                                            timeseries = null;
+                                                            timeseries = clusterPoint.Timeseries;
+
+                                                            // In this case actually calculate the real clusterstatistics that can be different from the individual well statistics
+                                                            modelperiodTimeseries = timeseries.InterpolateTimeseries(modelStartDate, modelEndDate);
+                                                            Sweco.SIF.iMOD.Timeseries clusterDischargeperiodTimeseries = modelperiodTimeseries.Select(float.NaN, 0.001f);
+                                                            avgDischargePeriod = (clusterDischargeperiodTimeseries.Timestamps.Count() > 0) ? clusterDischargeperiodTimeseries.Timestamps[clusterDischargeperiodTimeseries.Timestamps.Count() - 1].Subtract(clusterDischargeperiodTimeseries.Timestamps[0]).Days : 0;
+                                                            Statistics.Statistics dischargeStats = new Statistics.Statistics(modelperiodTimeseries.Values);
+                                                            dischargeStats.ComputeBasicStatistics(true, true, false);
+                                                            avgDischargeValue = dischargeStats.Mean;
+                                                            minDischargeValue = dischargeStats.Min;
+                                                            maxDischargeValue = dischargeStats.Max;
+                                                            if (avgDischargeValue.Equals(float.NaN))
+                                                            {
+                                                                avgDischargeValue = 0;
+                                                                minDischargeValue = 0;
+                                                                maxDischargeValue = 0;
+                                                            }
+
+                                                            // Only check cluster timeseries for first point of cluster (to avoid double results)
+                                                            if (!cluster.Points[0].Equals(ipfPoint))
+                                                            {
+                                                                timeseries = null;
+                                                            }
                                                         }
                                                     }
-                                                }
-                                                catch (Exception)
-                                                {
-                                                    // Timeseriesfiles cannot be read correctly
-                                                    resultHandler.AddCheckResult(welErrorLayer, x, y, MissingTimeseriesError);
-                                                    resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(MissingTimeseriesError, welIPFFile,
-                                                        ipfPoint.ColumnValues[ipfPoint.IPFFile.AssociatedFileColIdx]));
-                                                }
-                                            }
-
-                                            //////////////////////////////////////////////////////////////////////
-                                            // Check if average discharge is within range to check well/cluster //
-                                            //////////////////////////////////////////////////////////////////////
-                                            if (!(avgDischargeValue < minDischargeWellChecked) && !(avgDischargeValue > maxDischargeWellChecked))
-                                            {
-                                                checkedWellCount++;
-
-                                                // Retrieve check settings for current location
-                                                float minDischarge = (minDischargeSettingIDFFile != null) ? minDischargeSettingIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float maxDischarge = (maxDischargeSettingIDFFile != null) ? maxDischargeSettingIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float minKDValue = (minKDSettingIDFFile != null) ? minKDSettingIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float minCValue = (minCSettingIDFFile != null) ? minCSettingIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float minKHValue = (minKHSettingIDFFile != null) ? minKHSettingIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float minKDQRatio = (minKDQRatioSettingIDFFile != null) ? minKDQRatioSettingIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float cityMaxDischarge = (cityMaxDischargeIDFFile != null) ? cityMaxDischargeIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-
-                                                // Retrieve kD/kH/Top/Bot-values for current location
-                                                float upperTopValue = (upperTopIDFFile != null) ? upperTopIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float upperBotValue = (upperBotIDFFile != null) ? upperBotIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float topValue = (topIDFFile != null) ? topIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float botValue = (botIDFFile != null) ? botIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float lowerTopValue = (lowerTopIDFFile != null) ? lowerTopIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float lowerBotValue = (lowerBotIDFFile != null) ? lowerBotIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float upperKDValue = (upperkDIDFFile != null) ? upperkDIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float upperKHValue = (upperKHIDFFile != null) ? upperKHIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float kdValue = (kdIDFFile != null) ? kdIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float khValue = (khIDFFile != null) ? khIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float lowerKDValue = (lowerKDIDFFile != null) ? lowerKDIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float lowerKHValue = (lowerKHIDFFile != null) ? lowerKHIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float upperCValue = (upperCIDFFile != null) ? upperCIDFFile.GetNaNBasedValue(x, y) : 0;
-                                                float upperKVValue = (upperKVIDFFile != null) ? upperKVIDFFile.GetNaNBasedValue(x, y) : 0;
-                                                float cValue = (cIDFFile != null) ? cIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float kvValue = (kvIDFFile != null) ? kvIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float topL1Value = (topL1IDFFile != null) ? topL1IDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                float botLNValue = (botLNIDFFile != null) ? botLNIDFFile.GetNaNBasedValue(x, y) : float.NaN;
-                                                // float totalKDValue = RetrieveTotalKDValue(x, y, ilay, kdwPackage, khvPackage, vcwPackage, topPackage, botPackage);
-
-                                                // If no kD-values are defined, calculate kD-values from kh-value. And vice versa.
-                                                if (upperKDValue.Equals(float.NaN) && !upperKHValue.Equals(float.NaN))
-                                                {
-                                                    upperKDValue = (!(upperTopValue.Equals(float.NaN) || upperBotValue.Equals(float.NaN))) ? upperKHValue * (upperTopValue - upperBotValue) : 0;
-                                                }
-                                                if (kdValue.Equals(float.NaN) && !khValue.Equals(float.NaN))
-                                                {
-                                                    kdValue = (!(topValue.Equals(float.NaN) || botValue.Equals(float.NaN))) ? khValue * (topValue - botValue) : 0;
-                                                    if (calcKDIDFFile == null)
+                                                    catch (Exception)
                                                     {
-                                                        calcKDIDFFile = khIDFFile.CopyIDF(Path.Combine(Path.Combine(GetIMODFilesPath(model), this.Name), "KDcalc_L" + ilay.ToString() + ".IDF"));
-                                                        calcKDIDFFile.ResetValues();
+                                                        // Timeseriesfiles cannot be read correctly
+                                                        resultHandler.AddCheckResult(welErrorLayer, x, y, MissingTimeseriesError);
+                                                        resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(MissingTimeseriesError, welIPFFile,
+                                                            ipfPoint.ColumnValues[ipfPoint.IPFFile.AssociatedFileColIdx]));
                                                     }
-                                                    calcKDIDFFile.SetValue(x, y, kdValue);
-                                                }
-                                                else if (khValue.Equals(float.NaN) && !kdValue.Equals(float.NaN))
-                                                {
-                                                    khValue = ((!(topValue.Equals(float.NaN) || botValue.Equals(float.NaN))) && ((topValue - botValue) > 0)) ? (kdValue / (topValue - botValue)) : 0;
-                                                }
-                                                if (lowerKDValue.Equals(float.NaN) && !lowerKHValue.Equals(float.NaN))
-                                                {
-                                                    lowerKDValue = (!(lowerTopValue.Equals(float.NaN) || lowerBotValue.Equals(float.NaN))) ? lowerKHValue * (lowerTopValue - lowerBotValue) : 0;
                                                 }
 
-                                                // If no C-values are defined, calculate C-values from kv-value. And vice versa.
-                                                if (upperCValue.Equals(float.NaN) && !upperKVValue.Equals(float.NaN))
+                                                //////////////////////////////////////////////////////////////////////
+                                                // Check if average discharge is within range to check well/cluster //
+                                                //////////////////////////////////////////////////////////////////////
+                                                if (!(avgDischargeValue < minDischargeWellChecked) && !(avgDischargeValue > maxDischargeWellChecked))
                                                 {
-                                                    upperCValue = ((!(upperBotValue.Equals(float.NaN) || topValue.Equals(float.NaN))) && (upperKVValue > 0)) ? (upperBotValue - topValue) / upperKVValue : 0;
-                                                }
-                                                if (cValue.Equals(float.NaN) && !kvValue.Equals(float.NaN))
-                                                {
-                                                    cValue = ((!(botValue.Equals(float.NaN) || lowerTopValue.Equals(float.NaN))) && (kvValue > 0)) ? (botValue - lowerTopValue) / kvValue : 0;
-                                                    if (calcCIDFFile == null)
+                                                    checkedWellCount++;
+
+                                                    // Retrieve check settings for current location
+                                                    float minDischarge = (minDischargeSettingIDFFile != null) ? minDischargeSettingIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float maxDischarge = (maxDischargeSettingIDFFile != null) ? maxDischargeSettingIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float minKDValue = (minKDSettingIDFFile != null) ? minKDSettingIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float minCValue = (minCSettingIDFFile != null) ? minCSettingIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float minKHValue = (minKHSettingIDFFile != null) ? minKHSettingIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float minKDQRatio = (minKDQRatioSettingIDFFile != null) ? minKDQRatioSettingIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float cityMaxDischarge = (cityMaxDischargeIDFFile != null) ? cityMaxDischargeIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+
+                                                    // Retrieve kD/kH/Top/Bot-values for current location
+                                                    float upperTopValue = (upperTopIDFFile != null) ? upperTopIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float upperBotValue = (upperBotIDFFile != null) ? upperBotIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float topValue = (topIDFFile != null) ? topIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float botValue = (botIDFFile != null) ? botIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float lowerTopValue = (lowerTopIDFFile != null) ? lowerTopIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float lowerBotValue = (lowerBotIDFFile != null) ? lowerBotIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float upperKDValue = (upperkDIDFFile != null) ? upperkDIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float upperKHValue = (upperKHIDFFile != null) ? upperKHIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float kdValue = (kdIDFFile != null) ? kdIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float khValue = (khIDFFile != null) ? khIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float lowerKDValue = (lowerKDIDFFile != null) ? lowerKDIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float lowerKHValue = (lowerKHIDFFile != null) ? lowerKHIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float upperCValue = (upperCIDFFile != null) ? upperCIDFFile.GetNaNBasedValue(x, y) : 0;
+                                                    float upperKVValue = (upperKVIDFFile != null) ? upperKVIDFFile.GetNaNBasedValue(x, y) : 0;
+                                                    float cValue = (cIDFFile != null) ? cIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float kvValue = (kvIDFFile != null) ? kvIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float topL1Value = (topL1IDFFile != null) ? topL1IDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    float botLNValue = (botLNIDFFile != null) ? botLNIDFFile.GetNaNBasedValue(x, y) : float.NaN;
+                                                    // float totalKDValue = RetrieveTotalKDValue(x, y, ilay, kdwPackage, khvPackage, vcwPackage, topPackage, botPackage);
+
+                                                    // If no kD-values are defined, calculate kD-values from kh-value. And vice versa.
+                                                    if (upperKDValue.Equals(float.NaN) && !upperKHValue.Equals(float.NaN))
                                                     {
-                                                        calcCIDFFile = kvIDFFile.CopyIDF(Path.Combine(Path.Combine(GetIMODFilesPath(model), this.Name), "Ccalc_L" + ilay.ToString() + ".IDF"));
-                                                        calcCIDFFile.ResetValues();
+                                                        upperKDValue = (!(upperTopValue.Equals(float.NaN) || upperBotValue.Equals(float.NaN))) ? upperKHValue * (upperTopValue - upperBotValue) : 0;
                                                     }
-                                                    calcCIDFFile.SetValue(x, y, cValue);
-                                                }
+                                                    if (kdValue.Equals(float.NaN) && !khValue.Equals(float.NaN))
+                                                    {
+                                                        kdValue = (!(topValue.Equals(float.NaN) || botValue.Equals(float.NaN))) ? khValue * (topValue - botValue) : 0;
+                                                        if (calcKDIDFFile == null)
+                                                        {
+                                                            calcKDIDFFile = khIDFFile.CopyIDF(Path.Combine(Path.Combine(GetIMODFilesPath(model), this.Name), "KDcalc_L" + ilay.ToString() + ".IDF"));
+                                                            calcKDIDFFile.ResetValues();
+                                                        }
+                                                        calcKDIDFFile.SetValue(x, y, kdValue);
+                                                    }
+                                                    else if (khValue.Equals(float.NaN) && !kdValue.Equals(float.NaN))
+                                                    {
+                                                        khValue = ((!(topValue.Equals(float.NaN) || botValue.Equals(float.NaN))) && ((topValue - botValue) > 0)) ? (kdValue / (topValue - botValue)) : 0;
+                                                    }
+                                                    if (lowerKDValue.Equals(float.NaN) && !lowerKHValue.Equals(float.NaN))
+                                                    {
+                                                        lowerKDValue = (!(lowerTopValue.Equals(float.NaN) || lowerBotValue.Equals(float.NaN))) ? lowerKHValue * (lowerTopValue - lowerBotValue) : 0;
+                                                    }
 
-                                                // Retrieve filter-characteristics
-                                                bool isFilterLengthDefined = false;
-                                                float filterlength = float.NaN;
-                                                float welIPFFraction = ((ipfFractionColIdx >= 0) && (ipfPoint.HasFloatValue(ipfFractionColIdx))) ? ipfPoint.GetFloatValue(ipfFractionColIdx) : float.NaN;
-                                                float z1 = (ipfPoint.HasFloatValue(ipfZ1ColIdx)) ? ipfPoint.GetFloatValue(ipfZ1ColIdx) : float.NaN;   // (optional) top of well filter
-                                                float z2 = (ipfPoint.HasFloatValue(ipfZ2ColIdx)) ? ipfPoint.GetFloatValue(ipfZ2ColIdx) : float.NaN;   // (optional) bottom of well filter
-                                                if (z1.Equals(noDataFilterLevelValue))
-                                                {
-                                                    z1 = z2;
-                                                }
-                                                if (z2.Equals(noDataFilterLevelValue))
-                                                {
-                                                    z2 = z1;
+                                                    // If no C-values are defined, calculate C-values from kv-value. And vice versa.
+                                                    if (upperCValue.Equals(float.NaN) && !upperKVValue.Equals(float.NaN))
+                                                    {
+                                                        upperCValue = ((!(upperBotValue.Equals(float.NaN) || topValue.Equals(float.NaN))) && (upperKVValue > 0)) ? (upperBotValue - topValue) / upperKVValue : 0;
+                                                    }
+                                                    if (cValue.Equals(float.NaN) && !kvValue.Equals(float.NaN))
+                                                    {
+                                                        cValue = ((!(botValue.Equals(float.NaN) || lowerTopValue.Equals(float.NaN))) && (kvValue > 0)) ? (botValue - lowerTopValue) / kvValue : 0;
+                                                        if (calcCIDFFile == null)
+                                                        {
+                                                            calcCIDFFile = kvIDFFile.CopyIDF(Path.Combine(Path.Combine(GetIMODFilesPath(model), this.Name), "Ccalc_L" + ilay.ToString() + ".IDF"));
+                                                            calcCIDFFile.ResetValues();
+                                                        }
+                                                        calcCIDFFile.SetValue(x, y, cValue);
+                                                    }
+
+                                                    // Retrieve filter-characteristics
+                                                    bool isFilterLengthDefined = false;
+                                                    float filterlength = float.NaN;
+                                                    float welIPFFraction = ((ipfFractionColIdx >= 0) && (ipfPoint.HasFloatValue(ipfFractionColIdx))) ? ipfPoint.GetFloatValue(ipfFractionColIdx) : float.NaN;
+                                                    float z1 = (ipfPoint.HasFloatValue(ipfZ1ColIdx)) ? ipfPoint.GetFloatValue(ipfZ1ColIdx) : float.NaN;   // (optional) top of well filter
+                                                    float z2 = (ipfPoint.HasFloatValue(ipfZ2ColIdx)) ? ipfPoint.GetFloatValue(ipfZ2ColIdx) : float.NaN;   // (optional) bottom of well filter
                                                     if (z1.Equals(noDataFilterLevelValue))
                                                     {
-                                                        z1 = float.NaN;
-                                                        z2 = float.NaN;
+                                                        z1 = z2;
                                                     }
-                                                }
-
-                                                //////////////////////
-                                                // Do actual checks //
-                                                //////////////////////
-
-                                                ///////////////////////////////////////////////////////
-                                                // 2. Check filter position in aquifer               //
-                                                ///////////////////////////////////////////////////////
-
-                                                // Check that either z1, z2 or both are defined
-                                                if (z1.Equals(float.NaN) && z1.Equals(float.NaN))
-                                                {
-                                                    resultHandler.AddCheckResult(welErrorLayer, x, y, InvalidFilterLevelError);
-                                                    resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(InvalidFilterLevelError, welIPFFile,
-                                                        "Invalid filter top-levels z1 (" + z1.ToString(EnglishCultureInfo) + ") and z2 (" +  z2.ToString(englishCultureInfo) + ")"));
-                                                }
-                                                else if (z1.Equals(float.NaN))
-                                                {
-                                                    resultHandler.AddCheckResult(welErrorLayer, x, y, InvalidFilterLevelError);
-                                                    resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(InvalidFilterLevelError, welIPFFile,
-                                                        "Invalid filter top-level z1:" + z1.ToString(EnglishCultureInfo)));
-                                                }
-                                                else if (z2.Equals(float.NaN))
-                                                {
-                                                    resultHandler.AddCheckResult(welErrorLayer, x, y, InvalidFilterLevelError);
-                                                    resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(InvalidFilterLevelError, welIPFFile,
-                                                        "Invalid filter bottom-level z2:" + z2.ToString(EnglishCultureInfo)));
-                                                }
-                                                else if (z1 < z2) // filter top-level is below bot-level 
-                                                {
-                                                    resultHandler.AddCheckResult(welErrorLayer, x, y, NegativeFilterLengthError);
-                                                    resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(NegativeFilterLengthError, welIPFFile,
-                                                        "Filter bottom (z2) is above top (z1): " + z2.ToString(englishCultureInfo) + ">" + z1.ToString(englishCultureInfo)));
-                                                }
-                                                else if (z1.Equals(z2))
-                                                {
-                                                    resultHandler.AddCheckResult(welWarningLayer, x, y, FilterLevelsEqualWarning);
-                                                    resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(FilterLevelsEqualWarning, welIPFFile,
-                                                        "Filter bottom (z2) equal to top (z1): " + z2.ToString(englishCultureInfo) + "=" + z1.ToString(englishCultureInfo)));
-                                                }
-                                                else
-                                                {
-                                                    // Filterlevels are defined (z1 and z2 columns are present in IPF-file) and filter length is positive (> 0)
-                                                    filterlength = z1 - z2;
-                                                    isFilterLengthDefined = (filterlength > 0.1f);
-                                                    if ((filterlength < minFilterLength) || (filterlength > maxFilterLength))
+                                                    if (z2.Equals(noDataFilterLevelValue))
                                                     {
-                                                        resultHandler.AddCheckResult(welWarningLayer, x, y, FilterLengthRangeWarning);
-                                                        resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(FilterLengthRangeWarning, welIPFFile,
-                                                            "Filter length (" + filterlength.ToString(englishCultureInfo) + ") outside defined range [" + minFilterLength + "," + maxFilterLength + "]"));
-                                                    }
-
-                                                    // Check that top and bottom values of aquifer are defined, if ilay=0, top/bot value are NaN and checks are skipped
-                                                    if (!topValue.Equals(float.NaN) && !botValue.Equals(float.NaN))
-                                                    {
-                                                        // Determine filter position relative to modellayer
-                                                        if ((z1 > upperBotValue) && (z2 < lowerTopValue))
+                                                        z2 = z1;
+                                                        if (z1.Equals(noDataFilterLevelValue))
                                                         {
-                                                            // Filter is above AND below this modellayer, so filter position is correct
+                                                            z1 = float.NaN;
+                                                            z2 = float.NaN;
                                                         }
-                                                        else
+                                                    }
+
+                                                    //////////////////////
+                                                    // Do actual checks //
+                                                    //////////////////////
+
+                                                    ///////////////////////////////////////////////////////
+                                                    // 2. Check filter position in aquifer               //
+                                                    ///////////////////////////////////////////////////////
+
+                                                    // Check that either z1, z2 or both are defined
+                                                    if (z1.Equals(float.NaN) && z1.Equals(float.NaN))
+                                                    {
+                                                        resultHandler.AddCheckResult(welErrorLayer, x, y, InvalidFilterLevelError);
+                                                        resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(InvalidFilterLevelError, welIPFFile,
+                                                            "Invalid filter top-levels z1 (" + z1.ToString(EnglishCultureInfo) + ") and z2 (" + z2.ToString(englishCultureInfo) + ")"));
+                                                    }
+                                                    else if (z1.Equals(float.NaN))
+                                                    {
+                                                        resultHandler.AddCheckResult(welErrorLayer, x, y, InvalidFilterLevelError);
+                                                        resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(InvalidFilterLevelError, welIPFFile,
+                                                            "Invalid filter top-level z1:" + z1.ToString(EnglishCultureInfo)));
+                                                    }
+                                                    else if (z2.Equals(float.NaN))
+                                                    {
+                                                        resultHandler.AddCheckResult(welErrorLayer, x, y, InvalidFilterLevelError);
+                                                        resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(InvalidFilterLevelError, welIPFFile,
+                                                            "Invalid filter bottom-level z2:" + z2.ToString(EnglishCultureInfo)));
+                                                    }
+                                                    else if (z1 < z2) // filter top-level is below bot-level 
+                                                    {
+                                                        resultHandler.AddCheckResult(welErrorLayer, x, y, NegativeFilterLengthError);
+                                                        resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(NegativeFilterLengthError, welIPFFile,
+                                                            "Filter bottom (z2) is above top (z1): " + z2.ToString(englishCultureInfo) + ">" + z1.ToString(englishCultureInfo)));
+                                                    }
+                                                    else if (z1.Equals(z2))
+                                                    {
+                                                        resultHandler.AddCheckResult(welWarningLayer, x, y, FilterLevelsEqualWarning);
+                                                        resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(FilterLevelsEqualWarning, welIPFFile,
+                                                            "Filter bottom (z2) equal to top (z1): " + z2.ToString(englishCultureInfo) + "=" + z1.ToString(englishCultureInfo)));
+                                                    }
+                                                    else
+                                                    {
+                                                        // Filterlevels are defined (z1 and z2 columns are present in IPF-file) and filter length is positive (> 0)
+                                                        filterlength = z1 - z2;
+                                                        isFilterLengthDefined = (filterlength > 0.1f);
+                                                        if ((filterlength < minFilterLength) || (filterlength > maxFilterLength))
                                                         {
-                                                            // filter does not fully occupy modellayer
+                                                            resultHandler.AddCheckResult(welWarningLayer, x, y, FilterLengthRangeWarning);
+                                                            resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(FilterLengthRangeWarning, welIPFFile,
+                                                                "Filter length (" + filterlength.ToString(englishCultureInfo) + ") outside defined range [" + minFilterLength + "," + maxFilterLength + "]"));
+                                                        }
 
-                                                            if (isFilterInAquitardChecked && (z1 <= botValue) && (z2 >= lowerTopValue))
+                                                        // Check that top and bottom values of aquifer are defined, if ilay=0, top/bot value are NaN and checks are skipped
+                                                        if (!topValue.Equals(float.NaN) && !botValue.Equals(float.NaN))
+                                                        {
+                                                            // Determine filter position relative to modellayer
+                                                            if ((z1 > upperBotValue) && (z2 < lowerTopValue))
                                                             {
-                                                                // Filter is completely in aquitard of this modellayer
-                                                                resultHandler.AddCheckResult(welWarningLayer, x, y, FilterInAquitardWarning);
-                                                                CheckDetail checkDetail = new CheckDetail(FilterInAquitardWarning, welIPFFile,
-                                                                    "(z1 <= BOT) and (z2 >= lowerTOP)",
-                                                                    "z1=" + z1.ToString("F2", SIFTool.EnglishCultureInfo) + ", z2=" + z2.ToString("F2", SIFTool.EnglishCultureInfo) + ", BOT=" + botValue.ToString("F2", SIFTool.EnglishCultureInfo) + ", lowerTOP=" + lowerTopValue.ToString("F2", SIFTool.EnglishCultureInfo));
-                                                                checkDetail.AddFilename(GetAssociatedFilename(ipfPoint));
-                                                                resultHandler.AddCheckDetail(welDetailLayer, x, y, checkDetail);
+                                                                // Filter is above AND below this modellayer, so filter position is correct
                                                             }
-                                                            else if (z2 > topValue)
+                                                            else
                                                             {
-                                                                // Filter is completely above this modellayer
-                                                                ReportFilterNotInLayerError(resultHandler, welErrorLayer, welDetailLayer, welIPFFile, ipfPoint, FilterNotInLayerError,
-                                                                    z1, z2, topValue, botValue, upperBotValue, lowerTopValue, isFilterInAquitardChecked, isFilterNotInLayerKDChecked,
-                                                                    upperKDValue, kdValue, lowerKDValue, minKDValue,
-                                                                    "z2 > TOP", "z2=" + z2.ToString("F2", SIFTool.EnglishCultureInfo) + ", TOP=" + topValue.ToString("F2", SIFTool.EnglishCultureInfo));
-                                                            }
-                                                            else if (z1 < lowerTopValue)
-                                                            {
-                                                                // Filter is completely below lower aquitard
-                                                                ReportFilterNotInLayerError(resultHandler, welErrorLayer, welDetailLayer, welIPFFile, ipfPoint, FilterNotInLayerError,
-                                                                    z1, z2, topValue, botValue, upperBotValue, lowerTopValue, isFilterInAquitardChecked, isFilterNotInLayerKDChecked,
-                                                                    upperKDValue, kdValue, lowerKDValue, minKDValue,
-                                                                    "z1 < lowerTOP", "z1=" + z1.ToString("F2", SIFTool.EnglishCultureInfo) + ", lowerTOP=" + lowerTopValue.ToString("F2", SIFTool.EnglishCultureInfo));
-                                                            }
-                                                            else if (isFilterLengthDefined)
-                                                            {
-                                                                // Determine fraction of length (include part in aquitard below aquifer in same modellayer)
-                                                                float aquiferFilterTop = (z1 > topValue) ? topValue : z1;
-                                                                float aquiferFilterBot = (z2 < botValue) ? botValue : z2;           // Only include part in aquifer in same modellayer
-                                                                float layerFilterBot = (z2 < lowerTopValue) ? lowerTopValue : z2;   // Also include part in aquitard below aquifer in same modellayer
-                                                                float aquiferFilterLength = (aquiferFilterTop - aquiferFilterBot) > 0 ? (aquiferFilterTop - aquiferFilterBot) : 0;
-                                                                float layerFilterLength = (aquiferFilterTop - layerFilterBot) > 0 ? (aquiferFilterTop - layerFilterBot) : 0;
-                                                                float aquiferFilterLengthFraction = (filterlength.Equals(0f)) ? 0 : aquiferFilterLength / filterlength;
-                                                                float layerFilterLengthFraction = (filterlength.Equals(0f)) ? 0 : layerFilterLength / filterlength;
-                                                                float layerThickness = topValue - lowerTopValue;
-                                                                float layerThicknessFraction = (layerThickness > 0) ? (layerFilterLength / layerThickness) : float.NaN;
+                                                                // filter does not fully occupy modellayer
 
-                                                                //if ((layerThicknessFraction < minLayerThicknessFraction) && (aquiferFilterLengthFraction < 0.5f))
-                                                                //{
-                                                                //    // Fraction of filter in modellayer is less than specified minimum modellayer thickness fraction (aquifer plus aquitard)
-                                                                //    // Only report this error if there is less than half of the filter in the aquifer of this modellayer
-                                                                //    // Note: these checks come from an older iMOD-version and the way that WEL-filter were assigned to modellayers in MIPWA
-                                                                //    ReportFilterNotInLayerError(resultHandler, welErrorLayer, welDetailLayer, welIPFFile, x, y, FilterNotInLayerError,
-                                                                //        z1, z2, topValue, botValue, upperBotValue, lowerTopValue, isFilterInAquitardChecked, isFilterNotInLayerKDChecked,
-                                                                //        upperKDValue, kdValue, lowerKDValue, minKDValue,
-                                                                //        "(layThFr < minLayThFr) and (aqFiltLenFr < 0.5)",
-                                                                //        "layThFr=" + layerThicknessFraction.ToString("F2", SIFTool.EnglishCultureInfo) + ", minLayThFr=" + minLayerThicknessFraction.ToString("F2", SIFTool.EnglishCultureInfo) + ", aqFiltLenFr=" + aquiferFilterLengthFraction.ToString("F2", SIFTool.EnglishCultureInfo));
-                                                                //}
-                                                                //else if (welIPFFraction > 0.5)
-                                                                //{
-                                                                //    // For now only report if a large fraction of the filter is assigned to this layer
-                                                                //    if ((layerFilterLengthFraction < minLayerFilterLengthFraction) && (layerFilterLength < 0.5f))
-                                                                //    {
-                                                                //        // Fraction of filterlength in this modellayer (aquifer plus aquitard) is too small 
-                                                                //        ReportFilterNotInLayerError(resultHandler, welErrorLayer, welDetailLayer, welIPFFile, x, y, FilterNotInLayerError,
-                                                                //            z1, z2, topValue, botValue, upperBotValue, lowerTopValue, isFilterInAquitardChecked, isFilterNotInLayerKDChecked,
-                                                                //            upperKDValue, kdValue, lowerKDValue, minKDValue,
-                                                                //            "(layFltLenFr < minLayFltLenFr) and (layFltLenFr < 0.5)",
-                                                                //            "layFltLenFr=" + layerFilterLengthFraction.ToString("F2", SIFTool.EnglishCultureInfo) + ", minLayFltLenFr=" + minLayerFilterLengthFraction.ToString("F2", SIFTool.EnglishCultureInfo) + ", layFltLenFr=" + layerFilterLengthFraction.ToString("F2", SIFTool.EnglishCultureInfo));
-                                                                //    }
-                                                                //    else if ((aquiferFilterLengthFraction < minAquiferFilterLengthFraction) && (aquiferFilterLength < 0.5f))
-                                                                //    {
-                                                                //        // Fraction of filterlength in this aquifer is small/none, but a relatively large part is in the aquitard above or below. 
+                                                                if (isFilterInAquitardChecked && (z1 <= botValue) && (z2 >= lowerTopValue))
+                                                                {
+                                                                    // Filter is completely in aquitard of this modellayer
+                                                                    resultHandler.AddCheckResult(welWarningLayer, x, y, FilterInAquitardWarning);
+                                                                    CheckDetail checkDetail = new CheckDetail(FilterInAquitardWarning, welIPFFile,
+                                                                        "(z1 <= BOT) and (z2 >= lowerTOP)",
+                                                                        "z1=" + z1.ToString("F2", SIFTool.EnglishCultureInfo) + ", z2=" + z2.ToString("F2", SIFTool.EnglishCultureInfo) + ", BOT=" + botValue.ToString("F2", SIFTool.EnglishCultureInfo) + ", lowerTOP=" + lowerTopValue.ToString("F2", SIFTool.EnglishCultureInfo));
+                                                                    checkDetail.AddFilename(GetAssociatedFilename(ipfPoint));
+                                                                    resultHandler.AddCheckDetail(welDetailLayer, x, y, checkDetail);
+                                                                }
+                                                                else if (z2 > topValue)
+                                                                {
+                                                                    // Filter is completely above this modellayer
+                                                                    ReportFilterNotInLayerError(resultHandler, welErrorLayer, welDetailLayer, welIPFFile, ipfPoint, FilterNotInLayerError,
+                                                                        z1, z2, topValue, botValue, upperBotValue, lowerTopValue, isFilterInAquitardChecked, isFilterNotInLayerKDChecked,
+                                                                        upperKDValue, kdValue, lowerKDValue, minKDValue,
+                                                                        "z2 > TOP", "z2=" + z2.ToString("F2", SIFTool.EnglishCultureInfo) + ", TOP=" + topValue.ToString("F2", SIFTool.EnglishCultureInfo));
+                                                                }
+                                                                else if (z1 < lowerTopValue)
+                                                                {
+                                                                    // Filter is completely below lower aquitard
+                                                                    ReportFilterNotInLayerError(resultHandler, welErrorLayer, welDetailLayer, welIPFFile, ipfPoint, FilterNotInLayerError,
+                                                                        z1, z2, topValue, botValue, upperBotValue, lowerTopValue, isFilterInAquitardChecked, isFilterNotInLayerKDChecked,
+                                                                        upperKDValue, kdValue, lowerKDValue, minKDValue,
+                                                                        "z1 < lowerTOP", "z1=" + z1.ToString("F2", SIFTool.EnglishCultureInfo) + ", lowerTOP=" + lowerTopValue.ToString("F2", SIFTool.EnglishCultureInfo));
+                                                                }
+                                                                else if (isFilterLengthDefined)
+                                                                {
+                                                                    // Determine fraction of length (include part in aquitard below aquifer in same modellayer)
+                                                                    float aquiferFilterTop = (z1 > topValue) ? topValue : z1;
+                                                                    float aquiferFilterBot = (z2 < botValue) ? botValue : z2;           // Only include part in aquifer in same modellayer
+                                                                    float layerFilterBot = (z2 < lowerTopValue) ? lowerTopValue : z2;   // Also include part in aquitard below aquifer in same modellayer
+                                                                    float aquiferFilterLength = (aquiferFilterTop - aquiferFilterBot) > 0 ? (aquiferFilterTop - aquiferFilterBot) : 0;
+                                                                    float layerFilterLength = (aquiferFilterTop - layerFilterBot) > 0 ? (aquiferFilterTop - layerFilterBot) : 0;
+                                                                    float aquiferFilterLengthFraction = (filterlength.Equals(0f)) ? 0 : aquiferFilterLength / filterlength;
+                                                                    float layerFilterLengthFraction = (filterlength.Equals(0f)) ? 0 : layerFilterLength / filterlength;
+                                                                    float layerThickness = topValue - lowerTopValue;
+                                                                    float layerThicknessFraction = (layerThickness > 0) ? (layerFilterLength / layerThickness) : float.NaN;
 
-                                                                //        // Check that the remaining filterpart in next aquifer (above or below) is not even smaller
-                                                                //        if (z1 > upperBotValue)
-                                                                //        {
-                                                                //            // remaining part of filter is in aquifer above or higher, check if it's more than in this aquifer
-                                                                //            float remainingPartFraction = (z1 - upperBotValue) / filterlength;
-                                                                //            if ((remainingPartFraction > aquiferFilterLengthFraction) && (kdValue < upperKDValue))
-                                                                //            {
-                                                                //                // Avoid reporting an error if there is no aquitard above with thickness > 0
-                                                                //                //                                                                                if (!((upperBotValue - topValue) <= 0))
-                                                                //                {
-                                                                //                    resultHandler.AddCheckResult(welErrorLayer, x, y, FilterNotInLayerError);
-                                                                //                    resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(FilterNotInLayerError, welIPFFile,
-                                                                //                        "(partFr > aqFiltLenFr) and (KD < upperKD)",
-                                                                //                        "partFr=" + remainingPartFraction.ToString("F2", SIFTool.EnglishCultureInfo) + ", aqFiltLenFr=" + aquiferFilterLengthFraction.ToString("F2", SIFTool.EnglishCultureInfo) + ", KD=" + kdValue.ToString("F2", SIFTool.EnglishCultureInfo) + ", upperKD=" + upperKDValue.ToString("F2", SIFTool.EnglishCultureInfo)));
-                                                                //                }
-                                                                //            }
-                                                                //        }
-                                                                //        else if (z2 < lowerTopValue)
-                                                                //        {
-                                                                //            // remaining part of filter is in aquifer below or lower, check if it's more than in this aquifer
-                                                                //            float remainingPartFraction = (lowerTopValue - z2) / filterlength;
-                                                                //            if ((remainingPartFraction > aquiferFilterLengthFraction) && (kdValue < lowerKDValue))
-                                                                //            {
-                                                                //                // Avoid reporting an error if there is no aquitard below with thickness > 0
-                                                                //                //   if (!((botValue - lowerTopValue) <= 0))
-                                                                //                {
-                                                                //                    resultHandler.AddCheckResult(welErrorLayer, x, y, FilterNotInLayerError);
-                                                                //                    resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(FilterNotInLayerError, welIPFFile,
-                                                                //                        "RemainingFiltFr>aqFiltLenFr AND kDi<KDi+1", remainingPartFraction.ToString("F3", SIFTool.EnglishCultureInfo) + "<" + aquiferFilterLengthFraction.ToString("F3", SIFTool.EnglishCultureInfo) + "kDi=" + kdValue.ToString("F1", SIFTool.EnglishCultureInfo) + ", kDi+1=" + lowerKDValue.ToString("F1", SIFTool.EnglishCultureInfo)));
-                                                                //                }
-                                                                //            }
-                                                                //        }
-                                                                //    }
+                                                                    //if ((layerThicknessFraction < minLayerThicknessFraction) && (aquiferFilterLengthFraction < 0.5f))
+                                                                    //{
+                                                                    //    // Fraction of filter in modellayer is less than specified minimum modellayer thickness fraction (aquifer plus aquitard)
+                                                                    //    // Only report this error if there is less than half of the filter in the aquifer of this modellayer
+                                                                    //    // Note: these checks come from an older iMOD-version and the way that WEL-filter were assigned to modellayers in MIPWA
+                                                                    //    ReportFilterNotInLayerError(resultHandler, welErrorLayer, welDetailLayer, welIPFFile, x, y, FilterNotInLayerError,
+                                                                    //        z1, z2, topValue, botValue, upperBotValue, lowerTopValue, isFilterInAquitardChecked, isFilterNotInLayerKDChecked,
+                                                                    //        upperKDValue, kdValue, lowerKDValue, minKDValue,
+                                                                    //        "(layThFr < minLayThFr) and (aqFiltLenFr < 0.5)",
+                                                                    //        "layThFr=" + layerThicknessFraction.ToString("F2", SIFTool.EnglishCultureInfo) + ", minLayThFr=" + minLayerThicknessFraction.ToString("F2", SIFTool.EnglishCultureInfo) + ", aqFiltLenFr=" + aquiferFilterLengthFraction.ToString("F2", SIFTool.EnglishCultureInfo));
+                                                                    //}
+                                                                    //else if (welIPFFraction > 0.5)
+                                                                    //{
+                                                                    //    // For now only report if a large fraction of the filter is assigned to this layer
+                                                                    //    if ((layerFilterLengthFraction < minLayerFilterLengthFraction) && (layerFilterLength < 0.5f))
+                                                                    //    {
+                                                                    //        // Fraction of filterlength in this modellayer (aquifer plus aquitard) is too small 
+                                                                    //        ReportFilterNotInLayerError(resultHandler, welErrorLayer, welDetailLayer, welIPFFile, x, y, FilterNotInLayerError,
+                                                                    //            z1, z2, topValue, botValue, upperBotValue, lowerTopValue, isFilterInAquitardChecked, isFilterNotInLayerKDChecked,
+                                                                    //            upperKDValue, kdValue, lowerKDValue, minKDValue,
+                                                                    //            "(layFltLenFr < minLayFltLenFr) and (layFltLenFr < 0.5)",
+                                                                    //            "layFltLenFr=" + layerFilterLengthFraction.ToString("F2", SIFTool.EnglishCultureInfo) + ", minLayFltLenFr=" + minLayerFilterLengthFraction.ToString("F2", SIFTool.EnglishCultureInfo) + ", layFltLenFr=" + layerFilterLengthFraction.ToString("F2", SIFTool.EnglishCultureInfo));
+                                                                    //    }
+                                                                    //    else if ((aquiferFilterLengthFraction < minAquiferFilterLengthFraction) && (aquiferFilterLength < 0.5f))
+                                                                    //    {
+                                                                    //        // Fraction of filterlength in this aquifer is small/none, but a relatively large part is in the aquitard above or below. 
+
+                                                                    //        // Check that the remaining filterpart in next aquifer (above or below) is not even smaller
+                                                                    //        if (z1 > upperBotValue)
+                                                                    //        {
+                                                                    //            // remaining part of filter is in aquifer above or higher, check if it's more than in this aquifer
+                                                                    //            float remainingPartFraction = (z1 - upperBotValue) / filterlength;
+                                                                    //            if ((remainingPartFraction > aquiferFilterLengthFraction) && (kdValue < upperKDValue))
+                                                                    //            {
+                                                                    //                // Avoid reporting an error if there is no aquitard above with thickness > 0
+                                                                    //                //                                                                                if (!((upperBotValue - topValue) <= 0))
+                                                                    //                {
+                                                                    //                    resultHandler.AddCheckResult(welErrorLayer, x, y, FilterNotInLayerError);
+                                                                    //                    resultHandler.AddCheckDetail(welDetailLayer, x, y, new CheckDetail(FilterNotInLayerError, welIPFFile,
+                                                                    //                        "(partFr > aqFiltLenFr) and (KD < upperKD)",
+                                                                    //                        "partFr=" + remainingPartFraction.ToString("F2", SIFTool.EnglishCultureInfo) + ", aqFiltLenFr=" + aquiferFilterLengthFraction.ToString("F2", SIFTool.EnglishCultureInfo) + ", KD=" + kdValue.ToString("F2", SIFTool.EnglishCultureInfo) + ", upperKD=" + upperKDValue.ToString("F2", SIFTool.EnglishCultureInfo)));
+                                                                    //                }
+                                                                    //            }
+                                                                    //        }
+                                                                    //        else if (z2 < lowerTopValue)
+                                                                    //        {
+                                                                    //            // remaining part of filter is in aquifer below or lower, check if it's more than in this aquifer
+                                                                    //            float remainingPartFraction = (lowerTopValue - z2) / filterlength;
+                                                                    //            if ((remainingPartFraction > aquiferFilterLengthFraction) && (kdValue < lowerKDValue))
+                                                                    //            {
+                                                                    //                // Avoid reporting an error if there is no aquitard below with thickness > 0
+                                                                    //                //   if (!((botValue - lowerTopValue) <= 0))
+                                                                    //                {
+                                                                    //                    resultHandler.AddCheckResult(welErrorLayer, x, y, FilterNotInLayerError);
+                                                                    //                    resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(FilterNotInLayerError, welIPFFile,
+                                                                    //                        "RemainingFiltFr>aqFiltLenFr AND kDi<KDi+1", remainingPartFraction.ToString("F3", SIFTool.EnglishCultureInfo) + "<" + aquiferFilterLengthFraction.ToString("F3", SIFTool.EnglishCultureInfo) + "kDi=" + kdValue.ToString("F1", SIFTool.EnglishCultureInfo) + ", kDi+1=" + lowerKDValue.ToString("F1", SIFTool.EnglishCultureInfo)));
+                                                                    //                }
+                                                                    //            }
+                                                                    //        }
+                                                                    //    }
                                                                     //// If filter is (partly) above surfacelevel give warning
                                                                     //else if (upperBotValue.Equals(float.NaN) && ((z1 - topValue) > (0.5 * filterlength)))
                                                                     //{
@@ -1634,350 +1637,388 @@ namespace Sweco.SIF.iMODValidator.Checks
                                                                     //        resultHandler.AddCheckResult(welWarningLayer, x, y, FilterFractionWarning);
                                                                     //    }
                                                                     //}
-                                                                //}
-                                                                // When filter is more than half of the filter length above surfacelevel give warning
-                                                                if (upperBotValue.Equals(float.NaN) && ((z1 - topValue) > (0.5 * filterlength)))
+                                                                    //}
+                                                                    // When filter is more than half of the filter length above surfacelevel give warning
+                                                                    if (upperBotValue.Equals(float.NaN) && ((z1 - topValue) > (0.5 * filterlength)))
+                                                                    {
+                                                                        resultHandler.AddCheckResult(welWarningLayer, x, y, FilterAboveSurfaceLevelWarning);
+                                                                        resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(FilterAboveSurfaceLevelWarning, welIPFFile,
+                                                                            "(z1-TOP)>0.5*filterlength", "z1=" + z1.ToString("F2", SIFTool.EnglishCultureInfo) + ", TOP=" + topValue.ToString("F2", SIFTool.EnglishCultureInfo) + ", filterlength=" + filterlength.ToString("F2", SIFTool.EnglishCultureInfo)));
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                        else if (!topL1Value.Equals(float.NaN) && (z2 > topL1Value))
+                                                        {
+                                                            // Filter is completely above model highest TOP-layer
+                                                            ReportFilterNotInLayerError(resultHandler, welErrorLayer, welDetailLayer, welIPFFile, ipfPoint, FilterNotInLayerError,
+                                                                z1, z2, topValue, botValue, upperBotValue, lowerTopValue, isFilterInAquitardChecked, isFilterNotInLayerKDChecked,
+                                                                upperKDValue, kdValue, lowerKDValue, minKDValue,
+                                                                "z2 > TOP_L1", "z2=" + z2.ToString("F2", SIFTool.EnglishCultureInfo) + ", TOP_L1=" + topL1Value.ToString("F2", SIFTool.EnglishCultureInfo));
+                                                        }
+                                                        else if (!botLNValue.Equals(float.NaN) && (z1 < botLNValue) && settings.IsFilterInAquitardChecked)
+                                                        {
+                                                            // Filter is completely below model lowest BOT-layer
+                                                            ReportFilterNotInLayerError(resultHandler, welErrorLayer, welDetailLayer, welIPFFile, ipfPoint, FilterNotInLayerError,
+                                                                z1, z2, topValue, botValue, upperBotValue, lowerTopValue, isFilterInAquitardChecked, isFilterNotInLayerKDChecked,
+                                                                upperKDValue, kdValue, lowerKDValue, minKDValue,
+                                                                "z1 < BOT_" + model.NLAY, "z1=" + z1.ToString("F2", SIFTool.EnglishCultureInfo) + ", BOT_L" + model.NLAY + "=" + botLNValue.ToString("F2", SIFTool.EnglishCultureInfo));
+                                                        }
+                                                    }
+
+                                                    ///////////////////////////////////////////////////////
+                                                    // 3. check if filter is in too small aquifer        //
+                                                    ///////////////////////////////////////////////////////
+                                                    if (!kdValue.Equals(float.NaN))
+                                                    {
+                                                        // Check if aquifer is enclosed by aquitards that cannot be ignored (C > 50)
+                                                        if (!((upperCValue < minCValue) || (cValue < minCValue)))
+                                                        {
+                                                            if (!wellAvgDischargeValue.Equals(0f))
+                                                            {
+                                                                float kDqRatio = -1.0f * (kdValue / wellAvgDischargeValue);
+                                                                //                                                        kDqRatioStats.AddValue(kDqRatio);
+
+                                                                if (!minKDQRatio.Equals(float.NaN) && (kDqRatio < minKDQRatio))
                                                                 {
-                                                                    resultHandler.AddCheckResult(welWarningLayer, x, y, FilterAboveSurfaceLevelWarning);
-                                                                    resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(FilterAboveSurfaceLevelWarning, welIPFFile,
-                                                                        "(z1-TOP)>0.5*filterlength", "z1=" + z1.ToString("F2", SIFTool.EnglishCultureInfo) + ", TOP=" + topValue.ToString("F2", SIFTool.EnglishCultureInfo) + ", filterlength=" + filterlength.ToString("F2", SIFTool.EnglishCultureInfo)));
+
+                                                                    resultHandler.AddCheckResult(welWarningLayer, x, y, SmallAquiferWarning);
+                                                                    resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(SmallAquiferWarning, welIPFFile,
+                                                                        "kDq-ratio " + kDqRatio.ToString("F2", SIFTool.EnglishCultureInfo) + " < " + minKDQRatio, "kD=" + kdValue.ToString("F1", SIFTool.EnglishCultureInfo) + ", q_avg=" + wellAvgDischargeValue));
+                                                                }
+                                                                else if (!minKHValue.Equals(float.NaN) && (khValue < minKHValue))
+                                                                {
+                                                                    resultHandler.AddCheckResult(welWarningLayer, x, y, SmallAquiferWarning);
+                                                                    welWarningLayer.AddSourceFile(khIDFFile);
+                                                                    resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(SmallAquiferWarning, welIPFFile,
+                                                                        "kh " + khValue.ToString("F5") + " < " + minKHValue, null));
+                                                                }
+                                                                else if (!minKDValue.Equals(float.NaN) && (kdValue < minKDValue))
+                                                                {
+                                                                    resultHandler.AddCheckResult(welWarningLayer, x, y, SmallAquiferWarning);
+                                                                    resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(SmallAquiferWarning, welIPFFile,
+                                                                        "kD " + kdValue.ToString("F2", SIFTool.EnglishCultureInfo) + " < " + minKDValue, null));
                                                                 }
                                                             }
                                                         }
                                                     }
-                                                    else if (!topL1Value.Equals(float.NaN) && (z2 > topL1Value))
-                                                    {
-                                                        // Filter is completely above model highest TOP-layer
-                                                        ReportFilterNotInLayerError(resultHandler, welErrorLayer, welDetailLayer, welIPFFile, ipfPoint, FilterNotInLayerError,
-                                                            z1, z2, topValue, botValue, upperBotValue, lowerTopValue, isFilterInAquitardChecked, isFilterNotInLayerKDChecked,
-                                                            upperKDValue, kdValue, lowerKDValue, minKDValue,
-                                                            "z2 > TOP_L1", "z2=" + z2.ToString("F2", SIFTool.EnglishCultureInfo) + ", TOP_L1=" + topL1Value.ToString("F2", SIFTool.EnglishCultureInfo));
-                                                    }
-                                                    else if (!botLNValue.Equals(float.NaN) && (z1 < botLNValue) && settings.IsFilterInAquitardChecked)
-                                                    {
-                                                        // Filter is completely below model lowest BOT-layer
-                                                        ReportFilterNotInLayerError(resultHandler, welErrorLayer, welDetailLayer, welIPFFile, ipfPoint, FilterNotInLayerError,
-                                                            z1, z2, topValue, botValue, upperBotValue, lowerTopValue, isFilterInAquitardChecked, isFilterNotInLayerKDChecked,
-                                                            upperKDValue, kdValue, lowerKDValue, minKDValue,
-                                                            "z1 < BOT_" + model.NLAY, "z1=" + z1.ToString("F2", SIFTool.EnglishCultureInfo) + ", BOT_L" + model.NLAY + "=" + botLNValue.ToString("F2", SIFTool.EnglishCultureInfo));
-                                                    }
-                                                }
 
-                                                ///////////////////////////////////////////////////////
-                                                // 3. check if filter is in too small aquifer        //
-                                                ///////////////////////////////////////////////////////
-                                                if (!kdValue.Equals(float.NaN))
-                                                {
-                                                    // Check if aquifer is enclosed by aquitards that cannot be ignored (C > 50)
-                                                    if (!((upperCValue < minCValue) || (cValue < minCValue)))
+                                                    //////////////////////////////////////
+                                                    // 4. Check Absolute extreme values //
+                                                    //////////////////////////////////////
+                                                    if ((wellAvgDischargeValue < minDischarge) || (wellAvgDischargeValue > maxDischarge))
                                                     {
-                                                        if (!wellAvgDischargeValue.Equals(0f))
+                                                        resultHandler.AddCheckResult(welWarningLayer, x, y, DischargeRangeWarning);
+                                                        resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(DischargeRangeWarning, welIPFFile,
+                                                            "q_avg<q_minavg OR q_avg>q_maxavg", "q_avg=" + wellAvgDischargeValue.ToString("F2", SIFTool.EnglishCultureInfo) + ", q_min" + minDischarge.ToString("F2", SIFTool.EnglishCultureInfo) + ", q_max" + maxDischarge.ToString("F2", SIFTool.EnglishCultureInfo)));
+                                                    }
+
+                                                    /////////////////////////////////////////////////////
+                                                    // 5. Check Individual timeseries: invalid dates   //
+                                                    /////////////////////////////////////////////////////
+                                                    if (wellTimeseries != null)
+                                                    {
+                                                        if (wellTimeseries.RetrieveNoDataCount() > 0)
                                                         {
-                                                            float kDqRatio = -1.0f * (kdValue / wellAvgDischargeValue);
-                                                            //                                                        kDqRatioStats.AddValue(kDqRatio);
-
-                                                            if (!minKDQRatio.Equals(float.NaN) && (kDqRatio < minKDQRatio))
-                                                            {
-
-                                                                resultHandler.AddCheckResult(welWarningLayer, x, y, SmallAquiferWarning);
-                                                                resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(SmallAquiferWarning, welIPFFile,
-                                                                    "kDq-ratio " + kDqRatio.ToString("F2", SIFTool.EnglishCultureInfo) + " < " + minKDQRatio, "kD=" + kdValue.ToString("F1", SIFTool.EnglishCultureInfo) + ", q_avg=" + wellAvgDischargeValue));
-                                                            }
-                                                            else if (!minKHValue.Equals(float.NaN) && (khValue < minKHValue))
-                                                            {
-                                                                resultHandler.AddCheckResult(welWarningLayer, x, y, SmallAquiferWarning);
-                                                                welWarningLayer.AddSourceFile(khIDFFile);
-                                                                resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(SmallAquiferWarning, welIPFFile,
-                                                                    "kh " + khValue.ToString("F5") + " < " + minKHValue, null));
-                                                            }
-                                                            else if (!minKDValue.Equals(float.NaN) && (kdValue < minKDValue))
-                                                            {
-                                                                resultHandler.AddCheckResult(welWarningLayer, x, y, SmallAquiferWarning);
-                                                                resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(SmallAquiferWarning, welIPFFile,
-                                                                    "kD " + kdValue.ToString("F2", SIFTool.EnglishCultureInfo) + " < " + minKDValue, null));
-                                                            }
+                                                            resultHandler.AddCheckResult(welErrorLayer, x, y, InvalidTimeseriesDateError);
+                                                            resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(InvalidTimeseriesFileError, welIPFFile,
+                                                                wellTimeseries.NoDataValues.Count() + " invalid dates in timeseriesfile", "see " + wellTimeseries.NoDataValues[0],
+                                                                ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx]));
                                                         }
-                                                    }
-                                                }
-
-                                                //////////////////////////////////////
-                                                // 4. Check Absolute extreme values //
-                                                //////////////////////////////////////
-                                                if ((wellAvgDischargeValue < minDischarge) || (wellAvgDischargeValue > maxDischarge))
-                                                {
-                                                    resultHandler.AddCheckResult(welWarningLayer, x, y, DischargeRangeWarning);
-                                                    resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(DischargeRangeWarning, welIPFFile,
-                                                        "q_avg<q_minavg OR q_avg>q_maxavg", "q_avg=" + wellAvgDischargeValue.ToString("F2", SIFTool.EnglishCultureInfo) + ", q_min" + minDischarge.ToString("F2", SIFTool.EnglishCultureInfo) + ", q_max" + maxDischarge.ToString("F2", SIFTool.EnglishCultureInfo)));
-                                                }
-
-                                                /////////////////////////////////////////////////////
-                                                // 5. Check Individual timeseries: invalid dates   //
-                                                /////////////////////////////////////////////////////
-                                                if (wellTimeseries != null)
-                                                {
-                                                    if (wellTimeseries.RetrieveNoDataCount() > 0)
-                                                    {
-                                                        resultHandler.AddCheckResult(welErrorLayer, x, y, InvalidTimeseriesDateError);
-                                                        resultHandler.AddCheckDetail(welDetailLayer, (float)ipfPoint.X, (float)ipfPoint.Y, new CheckDetail(InvalidTimeseriesFileError, welIPFFile,
-                                                            wellTimeseries.NoDataValues.Count() + " invalid dates in timeseriesfile", "see " + wellTimeseries.NoDataValues[0],
-                                                            ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx]));
-                                                    }
-                                                    wellTimeseries = null;
-                                                }
-
-                                                /////////////////////////////////////////////////////////////
-                                                // 6. Check Individual/Cluster timeseries: Outliers        //
-                                                /////////////////////////////////////////////////////////////
-
-                                                // Do checks that apply to the clustertimeseries if the well is part of a cluster, 
-                                                // otherwise the clustertimeseries==ipftimeseries and the individual well is checked
-                                                if (timeseries != null)
-                                                {
-                                                    if (settings.IsOutlierChecked)
-                                                    {
-                                                        // Compute outlier statistics for total IPF-timeseries (which might be from a cluster), excluding zeroes
-                                                        Statistics.Statistics clusterTimeseriesDischargeStats = new Statistics.Statistics(timeseries.Values);
-                                                        clusterTimeseriesDischargeStats.AddSkippedValue(0);
-                                                        clusterTimeseriesDischargeStats.ComputeOutlierStatistics(settings.OutlierMethod, settings.OutlierMethodBaseRange, settings.OutlierMethodMultiplier, true, false);
-                                                        float outlierRangeLowerValue = clusterTimeseriesDischargeStats.OutlierRangeLowerValue;
-                                                        float outlierRangeUpperValue = clusterTimeseriesDischargeStats.OutlierRangeUpperValue;
-
-                                                        // Apply correction for wells (in case of a small IQR around relative extreme Q1/Q3 values)
-                                                        outlierRangeLowerValue = Math.Min(outlierRangeLowerValue, clusterTimeseriesDischargeStats.Q1 * ((clusterTimeseriesDischargeStats.Q1 >= 0) ? 0.5f : 2f));
-                                                        outlierRangeUpperValue = Math.Max(outlierRangeUpperValue, clusterTimeseriesDischargeStats.Q3 * ((clusterTimeseriesDischargeStats.Q3 >= 0) ? 2.0f : 0.5f));
-
-                                                        // Check for outliers and/or invalid values, but avoid outliers close to zero since these can be caused by turning off pumps slowly
-                                                        if ((avgDischargeValue < 0) && (minDischargeValue < outlierRangeLowerValue))
-                                                        {
-                                                            if (resultHandler.Extent.Contains(clusterX, clusterY))
-                                                            {
-                                                                resultHandler.AddCheckResult(welWarningLayer, clusterX, clusterY, DischargeOutlierWarning);
-                                                            }
-                                                            string tsFilename = (cluster != null) ? FileUtils.AddFilePostFix(ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx], "_cluster", 50) : ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx];
-                                                            resultHandler.AddCheckDetail(welDetailLayer, clusterX, clusterY, new CheckDetail(DischargeOutlierWarning, welIPFFile,
-                                                                "Min discharge (" + minDischargeValue.ToString("F1", englishCultureInfo) + ") < outlierrange (" + outlierRangeLowerValue.ToString("F1", englishCultureInfo) + "); Assoc.File: " + Path.GetFileName(ipfPoint.ColumnValues[ipfPoint.IPFFile.AssociatedFileColIdx]) + "." + ipfPoint.IPFFile.AssociatedFileExtension, null,
-                                                                tsFilename, timeseries));
-                                                        }
-                                                        else if ((avgDischargeValue > 0) && (maxDischargeValue > outlierRangeUpperValue))
-                                                        {
-                                                            if (resultHandler.Extent.Contains(clusterX, clusterY))
-                                                            {
-                                                                resultHandler.AddCheckResult(welWarningLayer, clusterX, clusterY, DischargeOutlierWarning);
-                                                            }
-                                                            string tsFilename = (cluster != null) ? FileUtils.AddFilePostFix(ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx], "_cluster", 50) : ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx];
-                                                            resultHandler.AddCheckDetail(welDetailLayer, clusterX, clusterY, new CheckDetail(DischargeOutlierWarning, welIPFFile,
-                                                                "Max discharge (" + maxDischargeValue.ToString("F1", englishCultureInfo) + ") > outlierrange (" + outlierRangeUpperValue.ToString("F1", englishCultureInfo) + ")", null,
-                                                                tsFilename, timeseries));
-                                                        }
+                                                        wellTimeseries = null;
                                                     }
 
-                                                    // Check min/max discharge in modelperiod for exceeding defined min/max average discharge.
-                                                    float minmaxAbsMax = Math.Max(Math.Abs(minDischargeValue), Math.Abs(maxDischargeValue));
-                                                    float minmaxMargin = minmaxAbsMax * (tsMinMaxPercentage / 100.0f);
-                                                    if (minDischargeValue < (minDischarge - minmaxMargin))
-                                                    {
-                                                        if (resultHandler.Extent.Contains(clusterX, clusterY))
-                                                        {
-                                                            resultHandler.AddCheckResult(welWarningLayer, clusterX, clusterY, DischargeRangeWarning);
-                                                        }
-                                                        string tsFilename = (cluster != null) ? FileUtils.AddFilePostFix(ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx], "_cluster", 50) : ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx];
-                                                        resultHandler.AddCheckDetail(welDetailLayer, clusterX, clusterY, new CheckDetail(DischargeRangeWarning, welIPFFile,
-                                                            "Extreme min. discharge in timeseries (" + minDischargeValue.ToString("F1", englishCultureInfo) + ")", null,
-                                                            tsFilename, timeseries));
-                                                    }
-                                                    else if (maxDischargeValue > (maxDischarge + minmaxMargin))
-                                                    {
-                                                        if (resultHandler.Extent.Contains(clusterX, clusterY))
-                                                        {
-                                                            resultHandler.AddCheckResult(welWarningLayer, clusterX, clusterY, DischargeRangeWarning);
-                                                        }
-                                                        resultHandler.AddCheckDetail(welDetailLayer, clusterX, clusterY, new CheckDetail(DischargeRangeWarning, welIPFFile,
-                                                            "Extreme max. discharge in timeseries (" + maxDischargeValue.ToString("F1", englishCultureInfo) + ")", null,
-                                                            FileUtils.AddFilePostFix(ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx], "_details", 50), timeseries));
-                                                    }
+                                                    /////////////////////////////////////////////////////////////
+                                                    // 6. Check Individual/Cluster timeseries: Outliers        //
+                                                    /////////////////////////////////////////////////////////////
 
-                                                    if (settings.IsOutlierChecked)
+                                                    // Do checks that apply to the clustertimeseries if the well is part of a cluster, 
+                                                    // otherwise the clustertimeseries==ipftimeseries and the individual well is checked
+                                                    if (timeseries != null)
                                                     {
-                                                        // Only check for outliers in change of discharge if the measurement frequency timeseries is high enough (here <= montly)
-                                                        if (modelperiodTimeseries.GetMaxFrequency() <= 31)
+                                                        if (settings.IsOutlierChecked)
                                                         {
-                                                            //check for outliers in change of discharge 
-                                                            modelperiodTimeseries.Remove(0f);
+                                                            // Compute outlier statistics for total IPF-timeseries (which might be from a cluster), excluding zeroes
+                                                            Statistics.Statistics clusterTimeseriesDischargeStats = new Statistics.Statistics(timeseries.Values);
+                                                            clusterTimeseriesDischargeStats.AddSkippedValue(0);
+                                                            clusterTimeseriesDischargeStats.ComputeOutlierStatistics(settings.OutlierMethod, settings.OutlierMethodBaseRange, settings.OutlierMethodMultiplier, true, false);
+                                                            float outlierRangeLowerValue = clusterTimeseriesDischargeStats.OutlierRangeLowerValue;
+                                                            float outlierRangeUpperValue = clusterTimeseriesDischargeStats.OutlierRangeUpperValue;
 
-                                                            Sweco.SIF.iMOD.Timeseries changeTimeseries = modelperiodTimeseries.Select(modelStartDate, modelEndDate, -1);
-                                                            changeTimeseries.Remove(0f);
-                                                            changeTimeseries.Abs();
-                                                            Statistics.Statistics changeStats = new Statistics.Statistics(changeTimeseries.Values);
-                                                            changeStats.ComputeOutlierStatistics(settings.OutlierMethod, settings.OutlierMethodBaseRange, settings.ChangeOutlierMethodMultiplier, true, false);
-                                                            if (changeStats.Max > changeStats.OutlierRangeUpperValue)
+                                                            // Apply correction for wells (in case of a small IQR around relative extreme Q1/Q3 values)
+                                                            outlierRangeLowerValue = Math.Min(outlierRangeLowerValue, clusterTimeseriesDischargeStats.Q1 * ((clusterTimeseriesDischargeStats.Q1 >= 0) ? 0.5f : 2f));
+                                                            outlierRangeUpperValue = Math.Max(outlierRangeUpperValue, clusterTimeseriesDischargeStats.Q3 * ((clusterTimeseriesDischargeStats.Q3 >= 0) ? 2.0f : 0.5f));
+
+                                                            // Check for outliers and/or invalid values, but avoid outliers close to zero since these can be caused by turning off pumps slowly
+                                                            if ((avgDischargeValue < 0) && (minDischargeValue < outlierRangeLowerValue))
                                                             {
                                                                 if (resultHandler.Extent.Contains(clusterX, clusterY))
                                                                 {
-                                                                    resultHandler.AddCheckResult(welWarningLayer, clusterX, clusterY, DischargeChangeWarning);
+                                                                    resultHandler.AddCheckResult(welWarningLayer, clusterX, clusterY, DischargeOutlierWarning);
                                                                 }
                                                                 string tsFilename = (cluster != null) ? FileUtils.AddFilePostFix(ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx], "_cluster", 50) : ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx];
-
-                                                                resultHandler.AddCheckDetail(welDetailLayer, clusterX, clusterY,
-                                                                    new CheckDetail(DischargeChangeWarning, welIPFFile,
-                                                                    "Change in discharge (" + changeStats.Max.ToString() + ") above outlierrange (" + changeStats.OutlierRangeUpperValue + ")",
-                                                                    null, tsFilename, timeseries));
+                                                                resultHandler.AddCheckDetail(welDetailLayer, clusterX, clusterY, new CheckDetail(DischargeOutlierWarning, welIPFFile,
+                                                                    "Min discharge (" + minDischargeValue.ToString("F1", englishCultureInfo) + ") < outlierrange (" + outlierRangeLowerValue.ToString("F1", englishCultureInfo) + "); Assoc.File: " + Path.GetFileName(ipfPoint.ColumnValues[ipfPoint.IPFFile.AssociatedFileColIdx]) + "." + ipfPoint.IPFFile.AssociatedFileExtension, null,
+                                                                    tsFilename, timeseries));
                                                             }
-
+                                                            else if ((avgDischargeValue > 0) && (maxDischargeValue > outlierRangeUpperValue))
+                                                            {
+                                                                if (resultHandler.Extent.Contains(clusterX, clusterY))
+                                                                {
+                                                                    resultHandler.AddCheckResult(welWarningLayer, clusterX, clusterY, DischargeOutlierWarning);
+                                                                }
+                                                                string tsFilename = (cluster != null) ? FileUtils.AddFilePostFix(ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx], "_cluster", 50) : ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx];
+                                                                resultHandler.AddCheckDetail(welDetailLayer, clusterX, clusterY, new CheckDetail(DischargeOutlierWarning, welIPFFile,
+                                                                    "Max discharge (" + maxDischargeValue.ToString("F1", englishCultureInfo) + ") > outlierrange (" + outlierRangeUpperValue.ToString("F1", englishCultureInfo) + ")", null,
+                                                                    tsFilename, timeseries));
+                                                            }
                                                         }
+
+                                                        // Check min/max discharge in modelperiod for exceeding defined min/max average discharge.
+                                                        float minmaxAbsMax = Math.Max(Math.Abs(minDischargeValue), Math.Abs(maxDischargeValue));
+                                                        float minmaxMargin = minmaxAbsMax * (tsMinMaxPercentage / 100.0f);
+                                                        if (minDischargeValue < (minDischarge - minmaxMargin))
+                                                        {
+                                                            if (resultHandler.Extent.Contains(clusterX, clusterY))
+                                                            {
+                                                                resultHandler.AddCheckResult(welWarningLayer, clusterX, clusterY, DischargeRangeWarning);
+                                                            }
+                                                            string tsFilename = (cluster != null) ? FileUtils.AddFilePostFix(ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx], "_cluster", 50) : ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx];
+                                                            resultHandler.AddCheckDetail(welDetailLayer, clusterX, clusterY, new CheckDetail(DischargeRangeWarning, welIPFFile,
+                                                                "Extreme min. discharge in timeseries (" + minDischargeValue.ToString("F1", englishCultureInfo) + ")", null,
+                                                                tsFilename, timeseries));
+                                                        }
+                                                        else if (maxDischargeValue > (maxDischarge + minmaxMargin))
+                                                        {
+                                                            if (resultHandler.Extent.Contains(clusterX, clusterY))
+                                                            {
+                                                                resultHandler.AddCheckResult(welWarningLayer, clusterX, clusterY, DischargeRangeWarning);
+                                                            }
+                                                            resultHandler.AddCheckDetail(welDetailLayer, clusterX, clusterY, new CheckDetail(DischargeRangeWarning, welIPFFile,
+                                                                "Extreme max. discharge in timeseries (" + maxDischargeValue.ToString("F1", englishCultureInfo) + ")", null,
+                                                                FileUtils.AddFilePostFix(ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx], "_details", 50), timeseries));
+                                                        }
+
+                                                        if (settings.IsOutlierChecked)
+                                                        {
+                                                            // Only check for outliers in change of discharge if the measurement frequency timeseries is high enough (here <= montly)
+                                                            if (modelperiodTimeseries.GetMaxFrequency() <= 31)
+                                                            {
+                                                                //check for outliers in change of discharge 
+                                                                modelperiodTimeseries.Remove(0f);
+
+                                                                Sweco.SIF.iMOD.Timeseries changeTimeseries = modelperiodTimeseries.Select(modelStartDate, modelEndDate, -1);
+                                                                changeTimeseries.Remove(0f);
+                                                                changeTimeseries.Abs();
+                                                                Statistics.Statistics changeStats = new Statistics.Statistics(changeTimeseries.Values);
+                                                                changeStats.ComputeOutlierStatistics(settings.OutlierMethod, settings.OutlierMethodBaseRange, settings.ChangeOutlierMethodMultiplier, true, false);
+                                                                if (changeStats.Max > changeStats.OutlierRangeUpperValue)
+                                                                {
+                                                                    if (resultHandler.Extent.Contains(clusterX, clusterY))
+                                                                    {
+                                                                        resultHandler.AddCheckResult(welWarningLayer, clusterX, clusterY, DischargeChangeWarning);
+                                                                    }
+                                                                    string tsFilename = (cluster != null) ? FileUtils.AddFilePostFix(ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx], "_cluster", 50) : ipfPoint.ColumnValues[welIPFFile.AssociatedFileColIdx];
+
+                                                                    resultHandler.AddCheckDetail(welDetailLayer, clusterX, clusterY,
+                                                                        new CheckDetail(DischargeChangeWarning, welIPFFile,
+                                                                        "Change in discharge (" + changeStats.Max.ToString() + ") above outlierrange (" + changeStats.OutlierRangeUpperValue + ")",
+                                                                        null, tsFilename, timeseries));
+                                                                }
+
+                                                            }
+                                                        }
+
+                                                        modelperiodTimeseries = null;
                                                     }
 
-                                                    modelperiodTimeseries = null;
-                                                }
+                                                    ///////////////////////////////////////////////////////
+                                                    // 7. Check other things: city, zero discharge       //
+                                                    ///////////////////////////////////////////////////////
 
-                                                ///////////////////////////////////////////////////////
-                                                // 7. Check other things: city, zero discharge       //
-                                                ///////////////////////////////////////////////////////
-
-                                                // Check if discharge is zero (if not already checked for a maxdischarge < 0)
-                                                if (!(maxDischarge < 0) && wellAvgDischargeValue.Equals(0f))
-                                                {
-                                                    resultHandler.AddCheckResult(welWarningLayer, x, y, ZeroDischargeWarning);
-                                                }
-
-                                                // Check if a large well or well cluster is not near a city (check for minimum discharge period (or -1 for constant discharge values)
-                                                if ((avgDischargeValue <= cityMaxDischarge) && ((avgDischargePeriod > 275) || (avgDischargePeriod.Equals(-1))))
-                                                {
-                                                    if (cityIDFFile != null)
+                                                    // Check if discharge is zero (if not already checked for a maxdischarge < 0)
+                                                    if (!(maxDischarge < 0) && wellAvgDischargeValue.Equals(0f))
                                                     {
-                                                        // Check xy-coordinates of each individual well, not the cluster
-                                                        if (!cityIDFFile.GetValue(x, y).Equals(cityIDFFile.NoDataValue))
+                                                        resultHandler.AddCheckResult(welWarningLayer, x, y, ZeroDischargeWarning);
+                                                    }
+
+                                                    // Check if a large well or well cluster is not near a city (check for minimum discharge period (or -1 for constant discharge values)
+                                                    if ((avgDischargeValue <= cityMaxDischarge) && ((avgDischargePeriod > 275) || (avgDischargePeriod.Equals(-1))))
+                                                    {
+                                                        if (cityIDFFile != null)
                                                         {
-                                                            resultHandler.AddCheckResult(welWarningLayer, x, y, FilterInCityWarning);
-                                                            resultHandler.AddCheckDetail(welDetailLayer, clusterX, clusterY, new CheckDetail(FilterInCityWarning, welIPFFile,
-                                                                "Large well (" + avgDischargeValue.ToString("F1", englishCultureInfo) + ") in citybuffer", null, null, timeseries));
+                                                            // Check xy-coordinates of each individual well, not the cluster
+                                                            if (!cityIDFFile.GetValue(x, y).Equals(cityIDFFile.NoDataValue))
+                                                            {
+                                                                resultHandler.AddCheckResult(welWarningLayer, x, y, FilterInCityWarning);
+                                                                resultHandler.AddCheckDetail(welDetailLayer, clusterX, clusterY, new CheckDetail(FilterInCityWarning, welIPFFile,
+                                                                    "Large well (" + avgDischargeValue.ToString("F1", englishCultureInfo) + ") in citybuffer", null, null, timeseries));
+                                                            }
                                                         }
                                                     }
                                                 }
                                             }
                                         }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        throw new Exception("Could not process well " + ipfPoint.ToString() + " at zero-based index " + welIPFFile.IndexOf(ipfPoint) + " in IPF-file: " + welIPFFile.Filename, ex);
-                                    }
-                                }
-
-                                if (isClusterChecked)
-                                {
-                                    // Now add clusterlocations and timeseries to detail IPF
-                                    foreach (IPFCluster cluster in clusterDictionary.Values)
-                                    {
-                                        // Add cluster to detailfile if this or another messagepoint not yet present at the same location
-                                        IPFPoint clusterPoint = cluster.ToPoint(((IPFFile)welDetailLayer.ResultFile), cluster.Points[0], ipfDischargeColIdx);
-                                        if (!(((IPFFile)welDetailLayer.ResultFile).IndexOf(clusterPoint) >= 0))
+                                        catch (Exception ex)
                                         {
-                                            if (clusterPoint.HasTimeseries())
+                                            throw new Exception("Could not process well " + ipfPoint.ToString() + " at zero-based index " + welIPFFile.IndexOf(ipfPoint) + " in IPF-file: " + welIPFFile.Filename, ex);
+                                        }
+                                    }
+
+                                    if (isClusterChecked)
+                                    {
+                                        // Create seperate IPF-file with cluster centerpoints, including total timeseries
+                                        string clusterFilename = FileUtils.AddFilePostFix(Path.Combine(FileUtils.EnsureFolderExists(GetIMODFilesPath(model), Name), Path.GetFileName(welIPFFile.Filename)), "_clusters");
+                                        IPFFile clusterIPFFile = new IPFFile();
+                                        clusterIPFFile.Filename = clusterFilename;
+                                        clusterIPFFile.AddColumns(new List<string>() { "X", "Y", "Discharge", "ClusterID", "Name", "SourceIPF", "Remark", "TSref" });
+                                        clusterIPFFile.AssociatedFileColIdx = 7;
+
+                                        int clusterIDColNr;
+                                        if (!int.TryParse(settings.ClusterIDColumnNumber, out clusterIDColNr))
+                                        {
+                                            clusterIDColNr = 0;
+                                        }
+
+                                        // Add clusterlocations and timeseries
+                                        foreach (IPFCluster cluster in clusterDictionary.Values)
+                                        {
+
+                                            // Add cluster to IPF-file if this or another messagepoint not yet present at the same location
+                                            IPFPoint clusterPoint = cluster.ToPoint(clusterIPFFile, cluster.Points[0], ipfDischargeColIdx);
+                                            clusterPoint.ColumnValues[3] = cluster.ID;
+
+                                            if (clusterIDColNr > 0)
                                             {
-                                                string tsFilename = cluster.ID;
-                                                resultHandler.AddCheckDetail(welDetailLayer, (float)clusterPoint.X, (float)clusterPoint.Y, new CheckDetail("Cluster: " + cluster.ID, cluster.IPFFile,
-                                                    "Centerpoint of cluster, summed timeseries", null, tsFilename, clusterPoint.Timeseries));
+                                                clusterPoint.ColumnValues[4] = cluster.Points[0].ColumnValues[clusterIDColNr - 1];
+                                            }
+                                            else if (cluster.Points[0].HasTimeseriesDefined())
+                                            {
+                                                string tsFilename = cluster.Points[0].ColumnValues[cluster.Points[0].IPFFile.AssociatedFileColIdx];
+                                                clusterPoint.ColumnValues[4] = Path.GetFileName(tsFilename);
                                             }
                                             else
                                             {
-                                                resultHandler.AddCheckDetail(welDetailLayer, (float)clusterPoint.X, (float)clusterPoint.Y, new CheckDetail("Cluster: " + cluster.ID, cluster.IPFFile,
-                                                    "Centerpoint of cluster, summed average: " + GetAverageValue(clusterPoint, valueColIdx).ToString("F3", englishCultureInfo), null, GetAverageValue(clusterPoint, valueColIdx)));
+                                                clusterPoint.ColumnValues[4] = null;
                                             }
+                                            clusterPoint.ColumnValues[5] = Path.GetFileName(cluster.IPFFile.Filename);
+
+                                            if (clusterPoint.HasTimeseries())
+                                            {
+                                                clusterPoint.ColumnValues[6] = Path.GetFileName("summed timeseries");
+                                                clusterPoint.ColumnValues[7] = "tsref-todo";
+                                            }
+                                            else
+                                            {
+                                                float average = GetAverageValue(clusterPoint, valueColIdx);
+                                                clusterPoint.ColumnValues[6] = Path.GetFileName("No timeseries found, summed average: " + average.ToString("F3", englishCultureInfo));
+                                                clusterPoint.ColumnValues[7] = null;
+                                            }
+
+                                            clusterIPFFile.AddPoint(clusterPoint);
                                         }
+
+                                        if (clusterIPFFile.PointCount > 0)
+                                        {
+                                            clusterIPFFile.Legend = clusterIPFFile.CreateLegend("WEL-clusters", Color.DarkRed);
+                                            clusterIPFFile.WriteFile(false);
+                                            resultHandler.AddExtraMapFile(clusterIPFFile);
+                                        }
+                                    }
+
+                                    //  // Report kDqRatio-statistics
+                                    //  kDqRatioStats.ComputeStatistics(OutlierMethodEnum.IQR, OutlierBaseRangeEnum.Pct75_25, 3.95f);
+                                    //  log.AddInfo("kDqRatio-statistics for this entry: N: " + kDqRatioStats.Count + ", Median: " + kDqRatioStats.Median + ", IQR: " + kDqRatioStats.IQR + ", Q1: " + kDqRatioStats.Q1 + ", Q3: " + kDqRatioStats.Q3 + ", min: " + kDqRatioStats.Min + ", max: " + kDqRatioStats.Max + ", mean: " + kDqRatioStats.Mean + ", SD: " + kDqRatioStats.SD, 2);
+                                    long welErrorCount = welErrorLayer.ResultCount - prevErrorCount;
+                                    long welWarningCount = welWarningLayer.ResultCount - prevWarningCount;
+                                    if (welErrorCount > 0)
+                                    {
+                                        log.AddInfo("Wells in extent: " + extentWellCount + ", wells checked: " + checkedWellCount + ", errors: " + welErrorCount + ", warnings: " + welWarningCount, 3);
+                                    }
+                                    else if (welWarningCount > 0)
+                                    {
+                                        log.AddInfo("Wells in extent: " + extentWellCount + ", wells checked: " + checkedWellCount + ", warnings: " + welWarningCount, 3);
+                                    }
+                                    else
+                                    {
+                                        log.AddInfo("Wells in extent: " + extentWellCount + ", no issues found", 3);
+                                    }
+                                    prevErrorCount = welErrorLayer.ResultCount;
+                                    prevWarningCount = welWarningLayer.ResultCount;
+                                }
+
+                                // If created, write calculated kD- and C-file
+                                if (calcKDIDFFile != null)
+                                {
+                                    calcKDIDFFile.WriteFile(model.CreateMetadata("kD, calculated by iMODValidator: kD = (top-bot)*kh", ((topIDFFile != null) ? Path.GetFileName(topIDFFile.Filename) + ";" : "") + ((botIDFFile != null) ? Path.GetFileName(botIDFFile.Filename) + ";" : "") + Path.GetFileName(khIDFFile.Filename)));
+                                }
+                                if (calcCIDFFile != null)
+                                {
+                                    calcCIDFFile.WriteFile(model.CreateMetadata("C, calculated by iMODValidator: c = (top-bot)/kv (currently kva is ignored for " + this.Name, ((topIDFFile != null) ? Path.GetFileName(topIDFFile.Filename) + ";" : "") + ((botIDFFile != null) ? Path.GetFileName(botIDFFile.Filename) + ";" : "") + Path.GetFileName(kvIDFFile.Filename)));
+                                }
+
+                                // Write errorfiles and add files to error handler
+                                if (welErrorLayer.HasResults())
+                                {
+                                    welErrorLayer.CompressLegend(CombinedResultLabel);
+                                    try
+                                    {
+                                        welErrorLayer.WriteResultFile(log);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        log.AddWarning("Could not write warning layer: " + ex.InnerException.Message + "\r\n" + ex.StackTrace);
+                                    }
+                                    resultHandler.AddExtraMapFiles(welErrorLayer.SourceFiles);
+                                    if (calcKDIDFFile != null)
+                                    {
+                                        resultHandler.AddExtraMapFile(calcKDIDFFile);
+                                    }
+                                    if (calcCIDFFile != null)
+                                    {
+                                        resultHandler.AddExtraMapFile(calcCIDFFile);
                                     }
                                 }
 
-                                //                                // Report kDqRatio-statistics
-                                //                                kDqRatioStats.ComputeStatistics(OutlierMethodEnum.IQR, OutlierBaseRangeEnum.Pct75_25, 3.95f);
-                                //                                log.AddInfo("kDqRatio-statistics for this entry: N: " + kDqRatioStats.Count + ", Median: " + kDqRatioStats.Median + ", IQR: " + kDqRatioStats.IQR + ", Q1: " + kDqRatioStats.Q1 + ", Q3: " + kDqRatioStats.Q3 + ", min: " + kDqRatioStats.Min + ", max: " + kDqRatioStats.Max + ", mean: " + kDqRatioStats.Mean + ", SD: " + kDqRatioStats.SD, 2);
-                                long welErrorCount = welErrorLayer.ResultCount - prevErrorCount;
-                                long welWarningCount = welWarningLayer.ResultCount - prevWarningCount;
-                                if (welErrorCount > 0)
+                                // Write warningfiles
+                                if (welWarningLayer.HasResults())
                                 {
-                                    log.AddInfo("Wells in extent: " + extentWellCount + ", wells checked: " + checkedWellCount + ", errors: " + welErrorCount + ", warnings: " + welWarningCount, 3);
+                                    welWarningLayer.CompressLegend(CombinedResultLabel);
+                                    try
+                                    {
+                                        welWarningLayer.WriteResultFile(log);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        log.AddWarning("Could not write warning layer: " + ex.InnerException.Message + "\r\n" + ex.StackTrace);
+                                    }
+                                    resultHandler.AddExtraMapFiles(welWarningLayer.SourceFiles);
+                                    if (calcKDIDFFile != null)
+                                    {
+                                        resultHandler.AddExtraMapFile(calcKDIDFFile);
+                                    }
+                                    if (calcCIDFFile != null)
+                                    {
+                                        resultHandler.AddExtraMapFile(calcCIDFFile);
+                                    }
                                 }
-                                else if (welWarningCount > 0)
-                                {
-                                    log.AddInfo("Wells in extent: " + extentWellCount + ", wells checked: " + checkedWellCount + ", warnings: " + welWarningCount, 3);
-                                }
-                                else
-                                {
-                                    log.AddInfo("Wells in extent: " + extentWellCount + ", no issues found", 3);
-                                }
-                                prevErrorCount = welErrorLayer.ResultCount;
-                                prevWarningCount = welWarningLayer.ResultCount;
-                            }
 
-                            // If created, write calculated kD- and C-file
-                            if (calcKDIDFFile != null)
-                            {
-                                calcKDIDFFile.WriteFile(model.CreateMetadata("kD, calculated by iMODValidator: kD = (top-bot)*kh", ((topIDFFile != null) ? Path.GetFileName(topIDFFile.Filename) + ";" : "") + ((botIDFFile != null) ? Path.GetFileName(botIDFFile.Filename) + ";" : "") + Path.GetFileName(khIDFFile.Filename)));
-                            }
-                            if (calcCIDFFile != null)
-                            {
-                                calcCIDFFile.WriteFile(model.CreateMetadata("C, calculated by iMODValidator: c = (top-bot)/kv (currently kva is ignored for " + this.Name, ((topIDFFile != null) ? Path.GetFileName(topIDFFile.Filename) + ";" : "") + ((botIDFFile != null) ? Path.GetFileName(botIDFFile.Filename) + ";" : "") + Path.GetFileName(kvIDFFile.Filename)));
-                            }
+                                // Write IPF-details for results
+                                if (welDetailLayer.HasResults())
+                                {
+                                    try
+                                    {
+                                        welDetailLayer.WriteResultFile(log);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        log.AddWarning("Could not write detail layer: " + ex.Message + "\r\n" + ex.StackTrace);
+                                    }
+                                }
 
-                            // Write errorfiles and add files to error handler
-                            if (welErrorLayer.HasResults())
-                            {
-                                welErrorLayer.CompressLegend(CombinedResultLabel);
-                                try
-                                {
-                                    welErrorLayer.WriteResultFile(log);
-                                }
-                                catch (Exception ex)
-                                {
-                                    log.AddWarning("Could not write warning layer: " + ex.InnerException.Message + "\r\n" + ex.StackTrace);
-                                }
-                                resultHandler.AddExtraMapFiles(welErrorLayer.SourceFiles);
-                                if (calcKDIDFFile != null)
-                                {
-                                    resultHandler.AddExtraMapFile(calcKDIDFFile);
-                                }
-                                if (calcCIDFFile != null)
-                                {
-                                    resultHandler.AddExtraMapFile(calcCIDFFile);
-                                }
+                                welErrorLayer.ReleaseMemory(false);
+                                welWarningLayer.ReleaseMemory(true);
                             }
-
-                            // Write warningfiles
-                            if (welWarningLayer.HasResults())
-                            {
-                                welWarningLayer.CompressLegend(CombinedResultLabel);
-                                try
-                                {
-                                    welWarningLayer.WriteResultFile(log);
-                                }
-                                catch (Exception ex)
-                                {
-                                    log.AddWarning("Could not write warning layer: " + ex.InnerException.Message + "\r\n" + ex.StackTrace);
-                                }
-                                resultHandler.AddExtraMapFiles(welWarningLayer.SourceFiles);
-                                if (calcKDIDFFile != null)
-                                {
-                                    resultHandler.AddExtraMapFile(calcKDIDFFile);
-                                }
-                                if (calcCIDFFile != null)
-                                {
-                                    resultHandler.AddExtraMapFile(calcCIDFFile);
-                                }
-                            }
-
-                            // Write IPF-details for results
-                            if (welDetailLayer.HasResults())
-                            {
-                                try
-                                {
-                                    welDetailLayer.WriteResultFile(log);
-                                }
-                                catch (Exception ex)
-                                {
-                                    log.AddWarning("Could not write detail layer: " + ex.Message + "\r\n" + ex.StackTrace);
-                                }
-                            }
-
-                            welErrorLayer.ReleaseMemory(false);
-                            welWarningLayer.ReleaseMemory(true);
                         }
                     }
                 }
@@ -2392,7 +2433,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             {
                 Metadata metadata = new Metadata();
                 metadata.Version = "1.0";
-                metadata.Modelversion = model.Runfilename;
+                metadata.Modelversion = model.RUNFilename;
                 metadata.Source = luseIDFFile.Filename;
                 metadata.Producer = "iMODValidator";
                 metadata.ProcessDescription = "Generated by iMODValidator: select LUSE-citycodes (" + settings.LUSECityCodes + ", upscale (most occurring, " + blocksize + "), downscale (block), buffer";

@@ -96,25 +96,11 @@ namespace Sweco.SIF.iMODValidator.Results
             set { ilay = value; }
         }
 
-        protected int kper;
         /// <summary>
-        /// Refers to timestep for layer in model. Note: KPER 0 is used for steady-state models, KPER 1 refers to first timestep in transient models. 
+        /// Stressperiod (timestep) for layer in model. 
+        /// Note: for steady-state models KPER 0 is used and DateTime will be null
         /// </summary>
-        public int KPER
-        {
-            get { return kper; }
-            set { kper = value; }
-        }
-
-        protected DateTime? startDate;
-        /// <summary>
-        /// Model startdate (or null for steady-state)
-        /// </summary>
-        public DateTime? StartDate
-        {
-            get { return startDate; }
-            set { startDate = value; }
-        }
+        public StressPeriod StressPeriod { get; set; }
 
         protected IMODFile resultFile;
         public IMODFile ResultFile
@@ -227,15 +213,15 @@ namespace Sweco.SIF.iMODValidator.Results
         /// </summary>
         protected ResultLayer()
         {
-            Initialize(null, null, null, 1, 0, null, string.Empty);
+            Initialize(null, null, null, new StressPeriod(), 0, string.Empty);
         }
 
         /// <summary>
         /// General constructor, for inheritance
         /// </summary>
-        protected ResultLayer(string id, string id2, string subString, int kper, int ilay, DateTime? startDate, string outputPath)
+        protected ResultLayer(string id, string id2, string subString, StressPeriod stressPeriod, int ilay, string outputPath)
         {
-            Initialize(id, id2, subString, kper, ilay, startDate, outputPath);
+            Initialize(id, id2, subString, stressPeriod, ilay, outputPath);
         }
 
         /// <summary>
@@ -244,17 +230,16 @@ namespace Sweco.SIF.iMODValidator.Results
         /// <param name="id"></param>
         /// <param name="id2"></param>
         /// <param name="subString">extra substring to add after package name to (file)name of ResultLayer, use null to ignore</param>
-        /// <param name="kper"></param>
+        /// <param name="stressPeriod"></param>
         /// <param name="ilay"></param>
-        /// <param name="startDate"></param>
         /// <param name="extent"></param>
         /// <param name="cellsize"></param>
         /// <param name="noDataValue"></param>
         /// <param name="outputPath"></param>
         /// <param name="legend"></param>
         /// <param name="useSparseGrid"></param>
-        public ResultLayer(string id, string id2, string subString, int kper, int ilay, DateTime? startDate, Extent extent, float cellsize, float noDataValue, string outputPath, Legend legend = null, bool useSparseGrid = false)
-            : this(id, id2, subString, kper, ilay, startDate, outputPath)
+        public ResultLayer(string id, string id2, string subString, StressPeriod stressPeriod, int ilay, Extent extent, float cellsize, float noDataValue, string outputPath, Legend legend = null, bool useSparseGrid = false)
+            : this(id, id2, subString, stressPeriod, ilay, outputPath)
         {
             InitializeIDF(extent, cellsize, noDataValue, legend, useSparseGrid);
         }
@@ -265,18 +250,16 @@ namespace Sweco.SIF.iMODValidator.Results
         /// <param name="id"></param>
         /// <param name="id2"></param>
         /// <param name="subString">extra substring to add after package name to (file)name of ResultLayer, use null to ignore</param>
-        /// <param name="kper"></param>
+        /// <param name="stressPeriod"></param>
         /// <param name="ilay"></param>
-        /// <param name="startDate"></param>
         /// <param name="outputPath"></param>
-        private void Initialize(string id, string id2, string subString, int kper, int ilay, DateTime? startDate, string outputPath)
+        private void Initialize(string id, string id2, string subString, StressPeriod stressPeriod, int ilay, string outputPath)
         {
             this.id = id;
             this.id2 = id2;
             this.substring = subString;
-            this.kper = kper;
+            this.StressPeriod = stressPeriod;
             this.ilay = ilay;
-            this.startDate = startDate;
             this.outputPath = outputPath;
             this.messageDictionary = new SortedDictionary<string, long>();
             this.sourceFiles = new List<IMODFile>();
@@ -461,10 +444,10 @@ namespace Sweco.SIF.iMODValidator.Results
                 throw new Exception("ResultLayer.CreateResultFilename cannot be called before ResultFile is defined.");
             }
 
-            string kperString = string.Empty;
-            if ((kper > 0) && (startDate != null))
+            string stressperiodString = string.Empty;
+            if (StressPeriod != null)
             {
-                kperString = "_" + Model.GetStressPeriodString(startDate, kper);
+                stressperiodString = "_" + StressPeriod.SNAME;
             }
 
             string resultFilePath = outputPath;
@@ -473,7 +456,7 @@ namespace Sweco.SIF.iMODValidator.Results
                 resultFilePath = FileUtils.EnsureFolderExists(outputPath, Id);
             }
 
-            string filename = ResultType.ToLower() + "s" + kperString + "." + ResultFile.Extension;
+            string filename = ResultType.ToLower() + "s" + stressperiodString + "." + ResultFile.Extension;
             if (ilay > 0)
             {
                 filename = "L" + ilay + "_" + filename;
@@ -547,14 +530,14 @@ namespace Sweco.SIF.iMODValidator.Results
 
         public override string ToString()
         {
-            return "(" + this.Id2 + "," + this.Id + "," + this.ResultType.ToString() + ",Ilay=" + this.ILay + ",KPER=" + this.kper + ")";
+            return "(" + this.Id2 + "," + this.Id + "," + this.ResultType.ToString() + ",Ilay=" + this.ILay + ",KPER=" + ((StressPeriod != null) ? StressPeriod.KPER : 0) + ")";
         }
 
         public bool Equals(ResultLayer other)
         {
             return ((this.ResultFile != null) && (other.ResultFile != null)
-                        && (Path.GetFileName(this.ResultFile.Filename).ToUpper().Equals(Path.GetFileName(other.ResultFile.Filename).ToUpper())))
-                   && this.kper.Equals(other.kper) && this.Id.Equals(other.Id) && this.id2.Equals(other.id2) && (this.ilay == other.ilay) && (this.KPER.Equals(other.KPER));
+                   && (Path.GetFileName(this.ResultFile.Filename).ToUpper().Equals(Path.GetFileName(other.ResultFile.Filename).ToUpper())))
+                   && (((this.StressPeriod == null) && (other.StressPeriod == null)) || this.StressPeriod.Equals(other.StressPeriod)) && this.Id.Equals(other.Id) && this.id2.Equals(other.id2) && (this.ilay == other.ilay);
         }
 
 

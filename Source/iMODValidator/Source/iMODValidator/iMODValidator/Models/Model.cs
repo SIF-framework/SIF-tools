@@ -38,23 +38,58 @@ namespace Sweco.SIF.iMODValidator.Models
     /// </summary>
     public class Model
     {
-        private int mxnlay;
-        private int nlay;
-        private int nper;
-        private long sdate;
-        private int iconchk;
-        private int iipf;
         public DateTime? StartDate;
-        private string toolOutputPath;
-        private Dictionary<string, int> kperDictionary;
+
+        /// <summary>
+        /// List will all available stressperiods for this model
+        /// </summary>
+        public List<StressPeriod> StressPeriods { get; set; }
+
+        /// <summary>
+        /// Dictionary with SNAME-StressPeriod pairs
+        /// </summary>
+        private Dictionary<string, StressPeriod> snameDictionary;
+        /// <summary>
+        /// Dictionary with KPER-StressPeriod pairs
+        /// </summary>
+        private Dictionary<int, StressPeriod> kperDictionary;
+        /// <summary>
+        /// Dictionary with date-StressPeriod pairs
+        /// </summary>
+        private Dictionary<DateTime, StressPeriod> dateDictionary;
+
+        /// <summary>
+        /// First free KPER-value to use for next SNAME in dictionary. KPER's are used in definition of stressperiods in RUN-file and to store stress periode SNAME-strings in an array
+        /// </summary>
+        private int nextKPER;
+
+        /// <summary>
+        /// Dictionary with all currently defined periods for this model, which maps the name of the period to the corresponding start and end date
+        /// </summary>
+        Dictionary<string, DateTime?> periodDictionary;
 
         /// <summary>
         /// The outputpath from the runfile that the model results are written to
         /// </summary>
         public string ModelresultsPath { get; set; }
-        public string Runfilename { get; set; }
+        public string RUNFilename { get; set; }
         public List<Package> Packages { get; set; }
         public SubModel[] Submodels { get; set; }
+
+        public int NLAY { get; set; }
+        public int MXNLAY { get; set; }
+        public int NPER { get; set; }
+
+        /// <summary>
+        /// Specify ISAVEENDDATE=1 to save each ﬁle with a time stamp equal to the end of the corresponding stress period (and/or time step). 
+        /// By default ISAVEENDDATE=0 and the time stamp will be equal to the start date of each stress period (and/or time step). 
+        /// Note This keyword was obsolete since v3.0 and had a different purposes at that time. Be careful whenever a runﬁle is used that was compatible for v3.0 or older.
+        /// </summary>
+        public int ISAVEENDDATE { get; set; }
+
+        public int ICONCHK { get; set; }
+        public int IIPF { get; set; }
+
         public int NSCL { get; set; }
         public int IFTEST { get; set; }
         public int NMULT { get; set; }
@@ -67,43 +102,9 @@ namespace Sweco.SIF.iMODValidator.Models
         public float MINC { get; set; }
         public string BNDFILE { get; set; }
         public string SurfaceLevelFilename { get; set; }
-        public int NLAY
-        {
-            get { return nlay; }
-            set
-            {
-                if (value <= 0)
-                {
-                    throw new Exception("Invalid NLAY value");
-                }
-                nlay = value;
-            }
-        }
-        public int MXNLAY
-        {
-            get { return mxnlay; }
-            set
-            {
-                if (value <= 0)
-                {
-                    throw new Exception("Invalid MXNLAY value");
-                }
-                mxnlay = value;
-            }
-        }
-        public int NPER
-        {
-            get { return nper; }
-            set
-            {
-                if (value <= 0)
-                {
-                    throw new Exception("Invalid NPER value");
-                }
-                nper = value;
-            }
-        }
-        public long SDATE
+
+        private long sdate;
+        public long SDATE_deprecated
         {
             get { return sdate; }
             set
@@ -130,63 +131,203 @@ namespace Sweco.SIF.iMODValidator.Models
                 }
             }
         }
-        public int ICONCHK
+
+        /// <summary>
+        /// Path that tool can write it's output to
+        /// </summary>
+        public string ToolOutputPath { get; set; }
+
+        public Model()
         {
-            get { return iconchk; }
-            set
-            {
-                if ((value == 0) || (value == 1))
-                {
-                    iconchk = value;
-                }
-                else
-                {
-                    throw new Exception("Invalid ICONCHK value");
-                }
-            }
+            Packages = new List<Package>();
+            nextKPER = 1;
+            snameDictionary = new Dictionary<string, StressPeriod>();
+            kperDictionary = new Dictionary<int, StressPeriod>();
+            dateDictionary = new Dictionary<DateTime, StressPeriod>();
+            periodDictionary = new Dictionary<string, DateTime?>();
+            StressPeriods = new List<StressPeriod>();
         }
-        public int IIPF
+
+        /// <summary>
+        /// Retrieve (and increase) next free KPER
+        /// </summary>
+        /// <returns></returns>
+        public int RetrieveNextKPER()
         {
-            get { return iipf; }
-            set
+            // return next free KPER-value
+            int kper = nextKPER;
+            nextKPER++;
+            return kper;
+        }
+
+        public bool HasSNAME(string SNAME)
+        {
+            return snameDictionary.ContainsKey(SNAME);
+        }
+
+        public bool HasKPER(int KPER)
+        {
+            return kperDictionary.ContainsKey(KPER);
+        }
+
+        public bool HasDate(DateTime date)
+        {
+            return dateDictionary.ContainsKey(date);
+        }
+
+        /// <summary>
+        /// Add specified stress period to model
+        /// </summary>
+        /// <param name="stressPeriod"></param>
+        public void AddStressPeriod(StressPeriod stressPeriod)
+        {
+            if (stressPeriod != null)
             {
-                if (value <= 1)
+                StressPeriods.Add(stressPeriod);
+                snameDictionary.Add(stressPeriod.SNAME, stressPeriod);
+                kperDictionary.Add(stressPeriod.KPER, stressPeriod);
+                if (stressPeriod.DateTime != null)
                 {
-                    iipf = value;
-                }
-                else
-                {
-                    throw new Exception("Invalid IIPF value");
+                    dateDictionary.Add((DateTime)stressPeriod.DateTime, stressPeriod);
                 }
             }
         }
 
         /// <summary>
-        /// Path that tool can write it's output to
+        /// Find StressPeriod object for specified SNAME or return null if not found
         /// </summary>
-        public string ToolOutputPath
+        /// <param name="SNAME"></param>
+        /// <returns>StressPeriod object or null if not found</returns>
+        public StressPeriod RetrieveStressPeriod(string SNAME)
         {
-            get { return toolOutputPath; }
-            set
+            if (snameDictionary.ContainsKey(SNAME))
             {
-                toolOutputPath = value;
-                //if (!Directory.Exists(Path.GetDirectoryName(toolOutputPath)))
-                //{
-                //    Directory.CreateDirectory(Path.GetDirectoryName(toolOutputPath));
-                //}
+                return snameDictionary[SNAME];
+            }
+            else if (SNAME.ToUpper().Equals(StressPeriod.SteadyStateSNAME))
+            {
+                return StressPeriod.SteadyState;
+            }
+            else
+            {
+                return null;
             }
         }
 
-        public Model()
+        /// <summary>
+        /// Find StressPeriod object for specified KPER or return null if not found
+        /// </summary>
+        /// <param name="KPER"></param>
+        /// <returns>StressPeriod object or null if not found</returns>
+        public StressPeriod RetrieveStressPeriod(int KPER)
         {
-            Packages = new List<Package>();
-            kperDictionary = new Dictionary<string, int>();
+            if (KPER == 0)
+            {
+                return StressPeriod.SteadyState;
+            }
+            else
+            {
+                if (kperDictionary.ContainsKey(KPER))
+                {
+                    return kperDictionary[KPER];
+                }
+                else
+                {
+                    return null;
+                }
+            }
         }
 
-        public void AddSnameKperPair(string SNAME, int kper)
+        /// <summary>
+        /// Find StressPeriod object for specified datetime or return null if not found
+        /// </summary>
+        /// <param name="datetime"></param>
+        /// <returns>StressPeriod object or null if not found</returns>
+        public StressPeriod RetrieveStressPeriod(DateTime datetime)
         {
-            kperDictionary.Add(SNAME, kper);
+            if (dateDictionary.ContainsKey(datetime))
+            {
+                return dateDictionary[datetime];
+            }
+            else
+            {
+                return null;
+            }
         }
+
+        /// <summary>
+        /// Find StressPeriod object for specified datetime or return null if not found
+        /// </summary>
+        /// <param name="datetime"></param>
+        /// <returns>StressPeriod object or null if not found</returns>
+        public StressPeriod RetrieveStressPeriod(DateTime? datetime)
+        {
+            if (datetime != null)
+            {
+                if (dateDictionary.ContainsKey((DateTime)datetime))
+                {
+                    return dateDictionary[(DateTime)datetime];
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                return StressPeriod.SteadyState;
+            }
+        }
+
+        /// <summary>
+        /// Find KPER for specified SNAME or return -1 if not found
+        /// </summary>
+        /// <param name="SNAME"></param>
+        /// <returns>KPER-value or -1 if not found</returns>
+        public int RetrieveKPER(string SNAME)
+        {
+            if (SNAME != null)
+            {
+                if (snameDictionary.ContainsKey(SNAME))
+                {
+                    return snameDictionary[SNAME].KPER;
+                }
+                else if (SNAME.ToUpper().Equals(StressPeriod.SteadyStateSNAME))
+                {
+                    return 0;
+                }
+                else
+                {
+                    return -1;
+                }
+            }
+            else
+            {
+                return -1;
+            }
+        }
+
+        /// <summary>
+        /// Retrieve SNAME for specified KPER or return null if not found
+        /// </summary>
+        /// <param name="KPER"></param>
+        /// <returns></returns>
+        public string RetrieveSNAME(int KPER)
+        {
+            if (kperDictionary.ContainsKey(KPER))
+            {
+                return kperDictionary[KPER].SNAME;
+            }
+            else if (KPER == 0)
+            {
+                return StressPeriod.SteadyStateSNAME;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
 
         public void AddPackage(Package package)
         {
@@ -299,6 +440,49 @@ namespace Sweco.SIF.iMODValidator.Models
             }
 
             return maxcsize;
+        }
+
+        /// <summary>
+        /// returns maximum layer number of all packages
+        /// </summary>
+        /// <returns>maximum layer or -1 if no package files are found</returns>
+        public int GetMaxLayer()
+        {
+            int maxlayer = -1;
+            if (Packages != null)
+            {
+                for (int packageIdx = 0; packageIdx < Packages.Count; packageIdx++)
+                {
+                    Package package = Packages[packageIdx];
+                    int maxPackageLayer = package.GetMaxLayer();
+                    if (maxPackageLayer > maxlayer)
+                    {
+                        maxlayer = maxPackageLayer;
+                    }
+                }
+            }
+
+            return maxlayer;
+        }
+
+        /// <summary>
+        /// returns maximum KPER of all packages
+        /// </summary>
+        /// <returns>maximum KPER or -1 if no package files are found</returns>
+        public int GetMaxKPER()
+        {
+            int maxKPER = -1;
+            for (int packageIdx = 0; packageIdx < Packages.Count; packageIdx++)
+            {
+                Package package = Packages[packageIdx];
+                int maxPackageKPER = package.GetMaxKPER();
+                if (maxPackageKPER > maxKPER)
+                {
+                    maxKPER = maxPackageKPER;
+                }
+            }
+
+            return maxKPER;
         }
 
         /// <summary>
@@ -486,70 +670,32 @@ namespace Sweco.SIF.iMODValidator.Models
             }
         }
 
-        public static DateTime GetStressPeriodDate(DateTime startDate, int kper)
+        public static DateTime CalculateDate(DateTime startDate, int days)
         {
-            return ((DateTime)startDate).Add(new TimeSpan(kper - 1, 0, 0, 0));
+            return ((DateTime)startDate).Add(new TimeSpan(days, 0, 0, 0));
         }
 
-        public static string GetStressPeriodString(DateTime? startDate, int kper)
+        /// <summary>
+        /// Create SNAME string from specified date and format
+        /// </summary>
+        /// <param name="dateTime"></param>
+        /// <param name="format"></param>
+        /// <returns></returns>
+        public static string CreateSNAME(DateTime? startDate, string format = "yyyyMMdd")
         {
-            if ((kper > 0) && (startDate != null))
-            {
-                return ((DateTime)startDate).Add(new TimeSpan(kper - 1, 0, 0, 0)).ToString("yyyyMMdd");
-            }
-            else
-            {
-                return "steady-state";
-            }
+            return ((DateTime)startDate).ToString(format);
         }
 
-        public int GetKPER(string stressPeriodString)
+        /// <summary>
+        /// Create SNAME string from startdate and number of days
+        /// </summary>
+        /// <param name="startDate"></param>
+        /// <param name="days"></param>
+        /// <param name="format"></param>
+        /// <returns></returns>
+        public static string CreateSNAME(DateTime? startDate, int days, string format = "yyyyMMdd")
         {
-            int stressPeriodInt;
-            if (!int.TryParse(stressPeriodString, out stressPeriodInt))
-            {
-                if (stressPeriodString.ToLower().Equals("steady-state"))
-                {
-                    return 0;
-                }
-                else
-                {
-                    throw new Exception("Unknown stressperiodstring: " + stressPeriodString);
-                }
-            }
-
-            if (StartDate != null)
-            {
-                try
-                {
-                    if (stressPeriodString.Length != 8)
-                    {
-                        throw new Exception("Stressperiodstring has not format yyyymmmdd: " + stressPeriodString);
-                    }
-                    int year = int.Parse(stressPeriodString.Substring(0, 4));
-                    int month = int.Parse(stressPeriodString.Substring(4, 2));
-                    int day = int.Parse(stressPeriodString.Substring(6, 2));
-                    DateTime date = new DateTime(year, month, day);
-                    DateTime sdate = (DateTime)StartDate;
-                    TimeSpan ts = date.Subtract(sdate);
-                    return ts.Days + 1;
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception("Could not parse date for string " + stressPeriodString, ex);
-                }
-            }
-            else
-            {
-                if (kperDictionary.ContainsKey(stressPeriodString))
-                {
-                    return kperDictionary[stressPeriodString];
-                }
-                else
-                {
-                    throw new Exception("Model startdate is not defined and could not find " + stressPeriodString + " in runfile. KPER could not be found.");
-                }
-            }
+            return ((DateTime)startDate).Add(new TimeSpan(days - 1, 0, 0, 0)).ToString(format);
         }
 
         public Metadata CreateMetadata()
@@ -560,7 +706,7 @@ namespace Sweco.SIF.iMODValidator.Models
         public Metadata CreateMetadata(string description, string source = null)
         {
             Metadata metadata = CreateDefaultMetadata();
-            metadata.Modelversion = this.Runfilename;
+            metadata.Modelversion = this.RUNFilename;
             if (description != null)
             {
                 metadata.Description = description;
@@ -619,5 +765,43 @@ namespace Sweco.SIF.iMODValidator.Models
             return surfacelevelIDFFile;
         }
 
+        public void AddPeriod(string period)
+        {
+            if (!periodDictionary.ContainsKey(period))
+            {
+                // Add period without definition
+                periodDictionary.Add(period, null);
+            }
+        }
+
+        public bool HasPeriod(string period)
+        {
+            return (periodDictionary.ContainsKey(period));
+        }
+
+        public List<string> RetrieveUndefinedPeriods()
+        {
+            List<string> periods = new List<string>();
+            foreach (string period in periodDictionary.Keys)
+            {
+                if (periodDictionary[period] == null)
+                {
+                    periods.Add(period);
+                }
+            }
+
+            return periods;
+        }
+
+        /// <summary>
+        /// Add definition for period. If period is not present yet, it is added
+        /// </summary>
+        /// <param name="period"></param>
+        /// <param name="date"></param>
+        public void AddPeriodDefinition(string period, DateTime date)
+        {
+            AddPeriod(period);
+            periodDictionary[period] = date;
+        }
     }
 }

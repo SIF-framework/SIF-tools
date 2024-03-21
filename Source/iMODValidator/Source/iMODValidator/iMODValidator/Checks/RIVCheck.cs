@@ -276,9 +276,8 @@ namespace Sweco.SIF.iMODValidator.Checks
                 log.AddInfo("Checking RIV-package ...");
 
                 IDFPackage rivPackage = (IDFPackage)model.GetPackage(RIVPackage.DefaultKey);
-                if ((rivPackage == null) || !rivPackage.IsActive)
+                if (!IsPackageActive(rivPackage, RIVPackage.DefaultKey, log, 1))
                 {
-                    log.AddWarning(this.Name, model.Runfilename, "RIV-package is not active. " + this.Name + " is skipped.", 1);
                     return;
                 }
 
@@ -293,9 +292,6 @@ namespace Sweco.SIF.iMODValidator.Checks
 
         protected virtual void RunRIVCheck1(Model model, CheckResultHandler resultHandler, Log log)
         {
-            //long usedMemory = GC.GetTotalMemory(true) / 1000000;
-            //log.AddInfo(LogLevel.Debug, "Allocated memory for RIV-check at codepoint 0 " + usedMemory + "Mb");
-
             // Retrieve RIV-package
             IDFPackage rivPackage = (IDFPackage)model.GetPackage(RIVPackage.DefaultKey);
 
@@ -322,7 +318,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                         IDFPackage drnPackage = (IDFPackage)model.GetPackage(DRNPackage.DefaultKey);
                         if ((drnPackage == null) || !drnPackage.IsActive)
                         {
-                            log.AddWarning(this.Name, model.Runfilename, "DRN-package is not active. " + this.Name + " is skipped.", 2);
+                            log.AddWarning(this.Name, model.RUNFilename, "DRN-package is not active. " + this.Name + " is skipped.", 2);
                             return;
                         }
 
@@ -330,7 +326,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                     }
                     else if (model.IsSteadyStateModel())
                     {
-                        log.AddWarning(rivPackage.Key, model.Runfilename, "No OLF-file defined for this model, OLF-checks are skipped ...", 2);
+                        log.AddWarning(rivPackage.Key, model.RUNFilename, "No OLF-file defined for this model, OLF-checks are skipped ...", 2);
                     }
                 }
             }
@@ -349,11 +345,11 @@ namespace Sweco.SIF.iMODValidator.Checks
             log.AddInfo("Checking RIV-files ... ", 1);
             for (int kper = resultHandler.MinKPER; (kper <= model.NPER) && (kper <= resultHandler.MaxKPER); kper++)
             {
-                CheckRIVPackage(rivPackage, kper, model, resultHandler, surfacelevelIDFFile, surfacelevelUpscaler, olfIDFFile, olfUpscaler, levelErrorMargin, isSurfaceLevelNoDataWarningShown, log);
+                CheckRIVPackage(rivPackage, kper, model, resultHandler, surfacelevelIDFFile, surfacelevelUpscaler, olfIDFFile, olfUpscaler, levelErrorMargin, isSurfaceLevelNoDataWarningShown, log, 1);
             }
 
             ISGPackage isgPackage = (ISGPackage)model.GetPackage(ISGPackage.DefaultKey);
-            if ((settings.IsISGConverted) && (isgPackage != null))
+            if ((settings.IsISGConverted) && (isgPackage != null) && ISGRIVConverter.HasISGPackageEntries(isgPackage, model, resultHandler))
             {
                 log.AddInfo("Converting ISG-files to RIV-files and applying RIV-check", 1);
                 IDFPackage isgRIVPackage = ISGRIVConverter.ConvertISGtoRIVPackage(isgPackage, "ISGRIV", model, resultHandler, log, 2);
@@ -365,7 +361,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                 resultHandler.MaxEntryNumber = 999;
                 for (int kper = resultHandler.MinKPER; (kper <= model.NPER) && (kper <= resultHandler.MaxKPER); kper++)
                 {
-                    CheckRIVPackage(isgRIVPackage, kper, model, resultHandler, surfacelevelIDFFile, surfacelevelUpscaler, olfIDFFile, olfUpscaler, levelErrorMargin, isSurfaceLevelNoDataWarningShown, log, isgPackage);
+                    CheckRIVPackage(isgRIVPackage, kper, model, resultHandler, surfacelevelIDFFile, surfacelevelUpscaler, olfIDFFile, olfUpscaler, levelErrorMargin, isSurfaceLevelNoDataWarningShown, log, 1, isgPackage);
                 }
                 resultHandler.MinEntryNumber = orgMinEntryNumber;
                 resultHandler.MaxEntryNumber = orgMaxEntryNumber;
@@ -379,17 +375,19 @@ namespace Sweco.SIF.iMODValidator.Checks
             }
         }
 
-        private void CheckRIVPackage(IDFPackage rivPackage, int kper, Model model, CheckResultHandler resultHandler, IDFFile surfacelevelIDFFile, IDFUpscaler surfacelevelUpscaler, IDFFile olfIDFFile, IDFUpscaler olfUpscaler, float levelErrorMargin, bool isSurfaceLevelNoDataWarningShown, Log log, ISGPackage isgPackage = null)
+        private void CheckRIVPackage(IDFPackage rivPackage, int kper, Model model, CheckResultHandler resultHandler, IDFFile surfacelevelIDFFile, IDFUpscaler surfacelevelUpscaler, IDFFile olfIDFFile, IDFUpscaler olfUpscaler, float levelErrorMargin, bool isSurfaceLevelNoDataWarningShown, Log log, int logIndentLevel, ISGPackage isgPackage = null)
         {
+            StressPeriod stressPeriod = model.RetrieveStressPeriod(kper);
+
             if (rivPackage.GetEntryCount(kper) > 0)
             {
                 if (model.NPER > 1)
                 {
-                    log.AddInfo("Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + " ...", 1);
+                    log.AddInfo("Checking stress period " + kper + " " + model.RetrieveSNAME(kper) + " ...", logIndentLevel);
                 }
                 else
                 {
-                    log.AddInfo("Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + " ...", 1);
+                    log.AddInfo("Checking stress period " + kper + " " + model.RetrieveSNAME(kper) + " ...", logIndentLevel);
                 }
 
                 // Process all specified modellayers within the current period
@@ -397,7 +395,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                 bool hasInconsistentRIVFiles = false;
                 for (int entryIdx = resultHandler.MinEntryNumber - 1; (entryIdx < resultHandler.MaxEntryNumber) && (entryIdx < rivPackage.GetEntryCount(kper)); entryIdx++)
                 {
-                    log.AddInfo("Checking entry " + (entryIdx + 1) + " with " + Name + " ...", 1);
+                    log.AddInfo("Checking entry " + (entryIdx + 1) + " with " + Name + " ...", logIndentLevel);
 
                     // Retrieve IDF files for current layer
                     IDFPackageFile rivConductancePackageIDFFile = rivPackage.GetIDFPackageFile(entryIdx, RIVPackage.ConductancePartIdx, kper);
@@ -408,7 +406,7 @@ namespace Sweco.SIF.iMODValidator.Checks
 
                     if ((rivConductanceIDFFile == null) || (rivStageIDFFile == null) || (rivBottomIDFFile == null) || (rivInfFactorIDFFile == null))
                     {
-                        log.AddWarning("One or more RIV-files are missing, RIV-check is skipped", 2);
+                        log.AddWarning("One or more RIV-files are missing, RIV-check is skipped", logIndentLevel + 1);
                     }
                     else
                     {
@@ -417,28 +415,28 @@ namespace Sweco.SIF.iMODValidator.Checks
                         int constantFileCount = IDFUtils.GetConstantIDFFileCount(checkFileList);
                         if (rivPackage.IsFileListPresent(checkFileList, resultHandler.MinKPER, kper))
                         {
-                            log.AddInfo("files have been checked already", 2);
+                            log.AddInfo("files have been checked already", logIndentLevel + 1);
                         }
                         else
                         {
-                            int ilay = rivConductancePackageIDFFile.ilay;
+                            int ilay = rivConductancePackageIDFFile.ILAY;
 
                             // Retrieve a surfacelevelfile with the same or coarser resolution than the DRN-file(s)
                             IDFFile scaledSurfacelevelIDFFile = surfacelevelUpscaler.RetrieveIDFFile(rivStageIDFFile.XCellsize);
                             IDFFile scaledOLFIDFFile = olfUpscaler.RetrieveIDFFile(rivStageIDFFile.XCellsize);
 
                             // Retrieve setting-values
-                            IDFFile minConductanceRatioForLevelChecksSettingIDFFile = settings.GetIDFFile(settings.MinConductanceRatioForLevelChecks, log, 1);
-                            IDFFile stageMinSettingIDFFile = settings.GetIDFFile(settings.StageMinLevel, log, 1);
-                            IDFFile stageMaxSettingIDFFile = settings.GetIDFFile(settings.StageMaxLevel, log, 1);
-                            IDFFile stageMinBelowSurfaceSettingIDFFile = settings.GetIDFFile(settings.StageMinBelowSurfaceDistance, log, 1);
-                            IDFFile stageMaxBelowSurfaceSettingIDFFile = settings.GetIDFFile(settings.StageMaxBelowSurfaceDistance, log, 1);
-                            IDFFile bottomMinBelowStageSettingIDFFile = settings.GetIDFFile(settings.BottomMinBelowStageDistance, log, 1);
-                            IDFFile bottomMaxBelowStageSettingIDFFile = settings.GetIDFFile(settings.BottomMaxBelowStageDistance, log, 1);
-                            IDFFile hydraulicResistanceMinSettingIDFFile = settings.GetIDFFile(settings.HydraulicResistanceMinValue, log, 1);
-                            IDFFile hydraulicResistanceMaxSettingIDFFile = settings.GetIDFFile(settings.HydraulicResistanceMaxValue, log, 1);
-                            IDFFile infFactorMinSettingIDFFile = settings.GetIDFFile(settings.InfFactorMinValue, log, 1);
-                            IDFFile infFactorMaxSettingIDFFile = settings.GetIDFFile(settings.InfFactorMaxValue, log, 1);
+                            IDFFile minConductanceRatioForLevelChecksSettingIDFFile = settings.GetIDFFile(settings.MinConductanceRatioForLevelChecks, log, logIndentLevel + 1);
+                            IDFFile stageMinSettingIDFFile = settings.GetIDFFile(settings.StageMinLevel, log, logIndentLevel + 1);
+                            IDFFile stageMaxSettingIDFFile = settings.GetIDFFile(settings.StageMaxLevel, log, logIndentLevel + 1);
+                            IDFFile stageMinBelowSurfaceSettingIDFFile = settings.GetIDFFile(settings.StageMinBelowSurfaceDistance, log, logIndentLevel + 1);
+                            IDFFile stageMaxBelowSurfaceSettingIDFFile = settings.GetIDFFile(settings.StageMaxBelowSurfaceDistance, log, logIndentLevel + 1);
+                            IDFFile bottomMinBelowStageSettingIDFFile = settings.GetIDFFile(settings.BottomMinBelowStageDistance, log, logIndentLevel + 1);
+                            IDFFile bottomMaxBelowStageSettingIDFFile = settings.GetIDFFile(settings.BottomMaxBelowStageDistance, log, logIndentLevel + 1);
+                            IDFFile hydraulicResistanceMinSettingIDFFile = settings.GetIDFFile(settings.HydraulicResistanceMinValue, log, logIndentLevel + 1);
+                            IDFFile hydraulicResistanceMaxSettingIDFFile = settings.GetIDFFile(settings.HydraulicResistanceMaxValue, log, logIndentLevel + 1);
+                            IDFFile infFactorMinSettingIDFFile = settings.GetIDFFile(settings.InfFactorMinValue, log, logIndentLevel + 1);
+                            IDFFile infFactorMaxSettingIDFFile = settings.GetIDFFile(settings.InfFactorMaxValue, log, logIndentLevel + 1);
 
                             IDFCellIterator idfCellIterator = new IDFCellIterator(resultHandler.Extent);
                             idfCellIterator.AddIDFFile(rivStageIDFFile);
@@ -447,7 +445,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                             idfCellIterator.AddIDFFile(rivInfFactorIDFFile);
 
                             // Check that ANI-files have equal extent
-                            idfCellIterator.CheckExtent(log, 2);
+                            idfCellIterator.CheckExtent(log, logIndentLevel + 1, LogLevel.Debug);
                             if (idfCellIterator.IsEmptyExtent())
                             {
                                 return;
@@ -469,11 +467,11 @@ namespace Sweco.SIF.iMODValidator.Checks
                             idfCellIterator.AddIDFFile(infFactorMaxSettingIDFFile);
 
                             // Create error IDFfiles for current layer
-                            CheckErrorLayer rivErrorLayer = CreateErrorLayer(resultHandler, rivPackage, "SYS" + (entryIdx + 1), kper, entryIdx + 1, idfCellIterator.XStepsize, errorLegend);
+                            CheckErrorLayer rivErrorLayer = CreateErrorLayer(resultHandler, rivPackage, "SYS" + (entryIdx + 1), stressPeriod, entryIdx + 1, idfCellIterator.XStepsize, errorLegend);
                             rivErrorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
 
                             // Create warning IDFfiles for current layer
-                            CheckWarningLayer rivWarningLayer = CreateWarningLayer(resultHandler, rivPackage, "SYS" + (entryIdx + 1), kper, entryIdx + 1, idfCellIterator.XStepsize, warningLegend);
+                            CheckWarningLayer rivWarningLayer = CreateWarningLayer(resultHandler, rivPackage, "SYS" + (entryIdx + 1), stressPeriod, entryIdx + 1, idfCellIterator.XStepsize, warningLegend);
                             rivWarningLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
 
                             float cellSurface = rivConductanceIDFFile.XCellsize * rivConductanceIDFFile.YCellsize;
@@ -515,7 +513,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                                     }
                                     else if (!isSurfaceLevelNoDataWarningShown)
                                     {
-                                        log.AddWarning(this.Name, null, "Surfacelevel has NoData-value for one or more RIV-cells, RIV-surfacelevel check skipped in these cases", 2);
+                                        log.AddWarning(this.Name, null, "Surfacelevel has NoData-value for one or more RIV-cells, RIV-surfacelevel check skipped in these cases", logIndentLevel + 1);
                                         isSurfaceLevelNoDataWarningShown = true;
                                     }
                                 }

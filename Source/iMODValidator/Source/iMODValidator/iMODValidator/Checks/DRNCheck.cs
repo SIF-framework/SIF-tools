@@ -181,9 +181,8 @@ namespace Sweco.SIF.iMODValidator.Checks
         {
             // Retrieve DRN-package
             IDFPackage drnPackage = (IDFPackage)model.GetPackage(DRNPackage.DefaultKey);
-            if ((drnPackage == null) || !drnPackage.IsActive)
+            if (!IsPackageActive(drnPackage, DRNPackage.DefaultKey, log, 1))
             {
-                log.AddWarning(this.Name, model.Runfilename, "DRN-package is not active. " + this.Name + " is skipped.", 1);
                 return;
             }
 
@@ -209,7 +208,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                     }
                     else
                     {
-                        log.AddWarning(drnPackage.Key, model.Runfilename, "No OLF-file defined for this model, OLF-checks are skipped ...", 2);
+                        log.AddWarning(drnPackage.Key, model.RUNFilename, "No OLF-file defined for this model, OLF-checks are skipped ...", 2);
                     }
                 }
             }
@@ -230,6 +229,8 @@ namespace Sweco.SIF.iMODValidator.Checks
             {
                 if ((kper >= resultHandler.MinKPER) && (kper <= resultHandler.MaxKPER))
                 {
+                    StressPeriod stressPeriod = model.RetrieveStressPeriod(kper);
+
                     int drnFirstLayerIdx = 0;
                     if (useDRNL1OLF)
                     {
@@ -245,7 +246,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                         IDFFile drnLevelIDFFile = drnPackage.GetIDFFile(drnEntryIdx, DRNPackage.LevelPartIdx, kper);
                         if ((drnConductanceIDFFile == null) || (drnLevelIDFFile == null))
                         {
-                            log.AddError(drnPackage.Key, model.Runfilename, "One or more DRN-files are missing, DRN-check is skipped");
+                            log.AddError(drnPackage.Key, model.RUNFilename, "One or more DRN-files are missing, DRN-check is skipped");
                         }
                         else
                         {
@@ -267,7 +268,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                                 idfCellIterator.AddIDFFile(drnLevelIDFFile);
 
                                 // Check that DRN-files have equal extent
-                                idfCellIterator.CheckExtent(log, 2);
+                                idfCellIterator.CheckExtent(log, 2, LogLevel.Debug);
                                 if (idfCellIterator.IsEmptyExtent())
                                 {
                                     log.AddInfo("Check extent of DRN-files and/or surface level file", 2);
@@ -279,11 +280,11 @@ namespace Sweco.SIF.iMODValidator.Checks
                                     idfCellIterator.AddIDFFile(scaledOLFIDFFile);
 
                                     // Create error IDFfiles for current layer
-                                    CheckErrorLayer drnErrorLayer = CreateErrorLayer(resultHandler, drnPackage, "SYS" + (drnEntryIdx + 1), kper, drnEntryIdx + 1, idfCellIterator.XStepsize, errorLegend);
+                                    CheckErrorLayer drnErrorLayer = CreateErrorLayer(resultHandler, drnPackage, "SYS" + (drnEntryIdx + 1), stressPeriod, drnEntryIdx + 1, idfCellIterator.XStepsize, errorLegend);
                                     drnErrorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
 
                                     // Create warning IDFfiles for current layer
-                                    CheckWarningLayer drnWarningLayer = CreateWarningLayer(resultHandler, drnPackage, "SYS" + (drnEntryIdx + 1), kper, drnEntryIdx + 1, idfCellIterator.XStepsize, warningLegend);
+                                    CheckWarningLayer drnWarningLayer = CreateWarningLayer(resultHandler, drnPackage, "SYS" + (drnEntryIdx + 1), stressPeriod, drnEntryIdx + 1, idfCellIterator.XStepsize, warningLegend);
                                     drnWarningLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
 
                                     // Iterate through cells

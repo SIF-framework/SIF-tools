@@ -154,9 +154,8 @@ namespace Sweco.SIF.iMODValidator.Checks
                 log.AddInfo("Checking " + Abbreviation + "-package ...");
 
                 Package isgPackage = model.GetPackage(ISGPackage.DefaultKey);
-                if ((isgPackage == null) || !isgPackage.IsActive)
+                if (!IsPackageActive(isgPackage, ISGPackage.DefaultKey, log, 1))
                 {
-                    log.AddWarning(this.Name, model.Runfilename, "ISG-package is not active. " + this.Name + " is skipped.", 1);
                     return;
                 }
 
@@ -181,11 +180,11 @@ namespace Sweco.SIF.iMODValidator.Checks
                 {
                     if (model.NPER > 1)
                     {
-                        log.AddInfo("Converting stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + " to RIV-files ...", logIndentLevel);
+                        log.AddInfo("Converting stress period " + kper + " " + model.RetrieveSNAME(kper) + " to RIV-files ...", logIndentLevel);
                     }
                     else
                     {
-                        log.AddMessage(LogLevel.Trace, "Converting stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + " to RIV-files ...", logIndentLevel);
+                        log.AddMessage(LogLevel.Trace, "Converting stress period " + kper + " " + model.RetrieveSNAME(kper) + " to RIV-files ...", logIndentLevel);
                     }
 
                     DateTime? modelStartDate = null;
@@ -204,12 +203,12 @@ namespace Sweco.SIF.iMODValidator.Checks
                         ISGPackageFile isgPackageFile = (ISGPackageFile)isgPackage.GetPackageFile(entryIdx, 0, kper);
                         if (isgPackageFile != null)
                         {
-                            if (isgPackageFile.ilay == 0)
+                            if (isgPackageFile.ILAY == 0)
                             {
-                                isgPackageFile.ilay = 1;
+                                isgPackageFile.ILAY = 1;
                             }
 
-                            int ilay = isgPackageFile.ilay;
+                            int ilay = isgPackageFile.ILAY;
                             ISGFile isgFile = (ISGFile)isgPackageFile.IMODFile;
                             if (isgFile != null)
                             {
@@ -227,16 +226,18 @@ namespace Sweco.SIF.iMODValidator.Checks
                                     }
                                     else
                                     {
-                                        // Retrieve label of current stress period
-                                        string sdate = Model.GetStressPeriodString(model.StartDate, kper);
-                                        if (isgPackageFile.stressPeriod != null)
+                                        // Retrieve date of current stress period
+                                        StressPeriod stressPeriod = model.RetrieveStressPeriod(kper);
+                                        if (isgPackageFile.StressPeriod != null)
                                         {
-                                            // use defined stressperiod from runfile
-                                            sdate = isgPackageFile.stressPeriod.SNAME;
+                                            // use defined stress period from ISG-file
+                                            stressPeriod = isgPackageFile.StressPeriod;
                                         }
+                                        DateTime sdate = stressPeriod.DateTime.Value;
+                                        string SNAME = stressPeriod.SNAME;
 
-                                        log.AddInfo("Converting ISG-file " + Path.GetFileName(isgFile.Filename) + " for stressperiod " + sdate + " ...", logIndentLevel + 2);
-                                        string resultPath = FileUtils.EnsureFolderExists(Path.Combine(Path.Combine(Path.Combine(resultHandler.OutputPath, "ISG-grids"), sdate), Path.GetFileName(isgFile.Filename)));
+                                        log.AddInfo("Converting ISG-file " + Path.GetFileName(isgFile.Filename) + " for stress period " + sdate + " ...", logIndentLevel + 2);
+                                        string resultPath = FileUtils.EnsureFolderExists(Path.Combine(Path.Combine(Path.Combine(resultHandler.OutputPath, "ISG-grids"), SNAME), Path.GetFileName(isgFile.Filename)));
                                         ConvertToRIV(isgPackageFile, resultPath, true, sdate, sdate, resultHandler.Extent, rivPackage, entryCount, log, logIndentLevel + 2);
                                     }
                                 }
@@ -275,17 +276,24 @@ namespace Sweco.SIF.iMODValidator.Checks
         /// <param name="entryCount"></param>
         /// <param name="log"></param>
         /// <param name="logIndentLevel"></param>
-        protected void ConvertToRIV(ISGPackageFile isgPackageFile, string resultPath, bool usePeriod, string sdate, string edate, Extent extent, Package package, int entryCount, Log log, int logIndentLevel = 0)
+        protected void ConvertToRIV(ISGPackageFile isgPackageFile, string resultPath, bool usePeriod, DateTime? sdate, DateTime? edate, Extent extent, Package package, int entryCount, Log log, int logIndentLevel = 0)
         {
             ISGFile isgFile = isgPackageFile.ISGFile;
             string batchFilename = Path.Combine(resultPath, Path.GetFileNameWithoutExtension(isgFile.Filename) + "-conversion" + ".INI");
             FileUtils.EnsureFolderExists(batchFilename);
-            string postFix = "_" + Path.GetFileNameWithoutExtension(isgFile.Filename) + sdate;
+
+            StressPeriod startStressPeriod = package.Model.RetrieveStressPeriod(sdate);
+            StressPeriod endStressPeriod = package.Model.RetrieveStressPeriod(edate);
+            string postFix = "_" + Path.GetFileNameWithoutExtension(isgFile.Filename) + ((startStressPeriod != null) ? startStressPeriod.SNAME : string.Empty);
 
             if (extent == null)
             {
                 extent = package.Model.GetExtent();
             }
+
+            string sdateString = sdate.Value.ToString("yyyyMMdd");
+            string edateString = edate.Value.ToString("yyyyMMdd");
+            string periodString = sdateString + "-" + edateString;
 
             StreamWriter sw = null;
             try
@@ -300,8 +308,8 @@ namespace Sweco.SIF.iMODValidator.Checks
                 if (usePeriod)
                 {
                     sw.WriteLine("IPERIOD=2");
-                    sw.WriteLine("SDATE=" + sdate);
-                    sw.WriteLine("EDATE=" + edate);
+                    sw.WriteLine("SDATE=" + sdateString);
+                    sw.WriteLine("EDATE=" + edateString);
                 }
                 else
                 {
@@ -327,11 +335,11 @@ namespace Sweco.SIF.iMODValidator.Checks
             int exitCode = IMODTool.StartBatchFunction(batchFilename, log, logIndentLevel, 0); // wait until finished
             if (exitCode == 0)
             {
-                int entryIdx = package.GetEntryCount(isgPackageFile.stressPeriod.KPER);
+                int entryIdx = package.GetEntryCount(isgPackageFile.StressPeriod.KPER);
                 for (int partIdx = 0; partIdx < package.MaxPartCount; partIdx++)
                 {
                     string partFilename = Path.Combine(resultPath, package.PartAbbreviations[partIdx] + postFix + ".IDF");
-                    package.AddFile(isgPackageFile.ilay, isgPackageFile.fct, isgPackageFile.imp, partFilename, entryIdx, partIdx, isgPackageFile.stressPeriod);
+                    package.AddFile(isgPackageFile.ILAY, isgPackageFile.FCT, isgPackageFile.IMP, partFilename, entryIdx, partIdx, isgPackageFile.StressPeriod);
                 }
             }
             else
@@ -403,13 +411,14 @@ namespace Sweco.SIF.iMODValidator.Checks
             {
                 if (isgPackage.GetEntryCount(kper) > 0)
                 {
+                    StressPeriod stressPeriod = model.RetrieveStressPeriod(kper);
                     if (model.NPER > 1)
                     {
-                        log.AddInfo("Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + "...", 1);
+                        log.AddInfo("Checking stress period " + kper + " " + stressPeriod.SNAME + "...", 1);
                     }
                     else
                     {
-                        log.AddInfo("Checking stressperiod " + kper + " " + Model.GetStressPeriodString(model.StartDate, kper) + "...", 1);
+                        log.AddInfo("Checking stress period " + kper + " " + stressPeriod.SNAME + "...", 1);
                     }
 
                     DateTime? modelStartDate = null;
@@ -424,7 +433,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                     for (int entryIdx = resultHandler.MinEntryNumber - 1; (entryIdx < isgPackage.GetEntryCount(kper)) && (entryIdx < resultHandler.MaxEntryNumber); entryIdx++)
                     {
                         PackageFile isgPackageFile = isgPackage.GetPackageFile(entryIdx, 0, kper);
-                        int ilay = (isgPackageFile != null) ? isgPackageFile.ilay : -1;
+                        int ilay = (isgPackageFile != null) ? isgPackageFile.ILAY : -1;
 
                         ISGFile isgFile = (ISGFile)isgPackageFile.IMODFile;
                         // Ensure file exists 
@@ -455,7 +464,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                                 List<IMODFile> sourceFiles = new List<IMODFile> { isgFile };
 
                                 // Create warning IDFfiles for current entry
-                                CheckWarningLayer isgWarningLayer = CreateWarningLayer(resultHandler, isgPackage, "SYS" + (entryIdx + 1), kper, entryIdx + 1, settings.ResultCellSize, warningLegend);
+                                CheckWarningLayer isgWarningLayer = CreateWarningLayer(resultHandler, isgPackage, "SYS" + (entryIdx + 1), stressPeriod, entryIdx + 1, settings.ResultCellSize, warningLegend);
                                 isgWarningLayer.AddSourceFiles(sourceFiles);
 
                                 // Create temporary IDF-files for storing possible warnings
@@ -468,7 +477,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                                 // isgDetailsIPFFile.Filename = Path.Combine(Path.GetDirectoryName(isgWarningLayer.ResultFile.Filename), Path.GetFileNameWithoutExtension(isgWarningLayer.ResultFile.Filename) + ".IPF");
                                 IPFLegend ipfDetailLegend = IPFLegend.CreateLegend("ISGDetailLegend", "iMODValidator warnings for: " + isgFile.Filename + "Supect winter levels", Color.DarkOrange);
                                 ipfDetailLegend.SelectedLabelColumns = new List<int>() { 6, 7 };
-                                CheckDetailLayer isgDetailLayer = CreateDetailLayer(resultHandler, isgPackage, "SYS" + (entryIdx + 1), kper, entryIdx + 1, ipfDetailLegend);
+                                CheckDetailLayer isgDetailLayer = CreateDetailLayer(resultHandler, isgPackage, "SYS" + (entryIdx + 1), stressPeriod, entryIdx + 1, ipfDetailLegend);
 
                                 // Create temporary IPFPoint-list for storing details about possible warnings: columns contain: "Warningmessage", "SegmentID", "CalculationpointID"
                                 List<IPFPoint> tmpDetailPoints = new List<IPFPoint>();

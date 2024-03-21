@@ -314,22 +314,22 @@ namespace Sweco.SIF.iMODValidator.Checks
             // Check used packages
             if ((topPackage == null) || !topPackage.IsActive)
             {
-                log.AddWarning(this.Name, model.Runfilename, "TOP-package is not active. " + this.Name + " is skipped.", 1);
+                log.AddWarning(this.Name, model.RUNFilename, "TOP-package is not active. " + this.Name + " is skipped.", 1);
                 return;
             }
             if ((botPackage == null) || !topPackage.IsActive)
             {
-                log.AddWarning(this.Name, model.Runfilename, "BOT-package is not active. " + this.Name + " is skipped.", 1);
+                log.AddWarning(this.Name, model.RUNFilename, "BOT-package is not active. " + this.Name + " is skipped.", 1);
                 return;
             }
             if ((kvvPackage == null) || !kvvPackage.IsActive)
             {
-                log.AddWarning(this.Name, model.Runfilename, "KVV-package is not active. " + this.Name + " is skipped.", 1);
+                log.AddWarning(this.Name, model.RUNFilename, "KVV-package is not active. " + this.Name + " is skipped.", 1);
                 return;
             }
             if ((khvPackage == null) || !khvPackage.IsActive)
             {
-                log.AddWarning(this.Name, model.Runfilename, "KHV-package is not active. " + this.Name + " is skipped.", 1);
+                log.AddWarning(this.Name, model.RUNFilename, "KHV-package is not active. " + this.Name + " is skipped.", 1);
                 return;
             }
 
@@ -354,7 +354,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             for (int entryIdx = resultHandler.MinEntryNumber - 1; (entryIdx < topPackage.GetEntryCount()) && (entryIdx < resultHandler.MaxEntryNumber); entryIdx++)
             {
                 log.AddInfo("Checking entry " + (entryIdx + 1) + " with " + Name + " ...", 1);
-                int ilay = (khvPackage.GetPackageFile(entryIdx) != null) ? khvPackage.GetPackageFile(entryIdx).ilay : -1;
+                int ilay = (khvPackage.GetPackageFile(entryIdx) != null) ? khvPackage.GetPackageFile(entryIdx).ILAY : -1;
 
                 log.AddInfo("Checking ilay " + (ilay) + " ...", 1);
 
@@ -443,38 +443,38 @@ namespace Sweco.SIF.iMODValidator.Checks
                 idfCellIterator.AddIDFFile(dummyKVAValueIDFFile);
                 idfCellIterator.AddIDFFile(minKVVSettingIDFFile);
                 idfCellIterator.AddIDFFile(maxKVVSettingIDFFile);
-                idfCellIterator.CheckExtent(log, 2, LogLevel.Warning);
+                idfCellIterator.CheckExtent(log, 2, LogLevel.Debug);
 
                 // Create error IDFfiles for current layer
-                CheckErrorLayer khvErrorLayer = CreateErrorLayer(resultHandler, khvPackage, null, 1, entryIdx + 1, idfCellIterator.XStepsize, khvErrorLegend);
+                CheckErrorLayer khvErrorLayer = CreateErrorLayer(resultHandler, khvPackage, null, StressPeriod.SteadyState, entryIdx + 1, idfCellIterator.XStepsize, khvErrorLegend);
                 khvErrorLayer.AddSourceFile(khvIDFFile);
 
                 CheckErrorLayer kvvErrorLayer = null;
                 if (kvvIDFFile != null)
                 {
-                    kvvErrorLayer = CreateErrorLayer(resultHandler, kvvPackage, null, 1, entryIdx + 1, idfCellIterator.XStepsize, kvvErrorLegend);
+                    kvvErrorLayer = CreateErrorLayer(resultHandler, kvvPackage, null, StressPeriod.SteadyState, entryIdx + 1, idfCellIterator.XStepsize, kvvErrorLegend);
                     kvvErrorLayer.AddSourceFile(kvvIDFFile);
                 }
 
                 CheckErrorLayer kvaErrorLayer = null;
                 if (kvaIDFFile != null)
                 {
-                    kvaErrorLayer = CreateErrorLayer(resultHandler, kvaPackage, null, 1, entryIdx + 1, idfCellIterator.XStepsize, kvaErrorLegend);
+                    kvaErrorLayer = CreateErrorLayer(resultHandler, kvaPackage, null, StressPeriod.SteadyState, entryIdx + 1, idfCellIterator.XStepsize, kvaErrorLegend);
                     kvaErrorLayer.AddSourceFile(kvaIDFFile);
                 }
 
                 // Create warning IDFfiles for current layer
-                CheckWarningLayer khvWarningLayer = CreateWarningLayer(resultHandler, khvPackage, null, 0, entryIdx + 1, idfCellIterator.XStepsize, khvWarningLegend);
+                CheckWarningLayer khvWarningLayer = CreateWarningLayer(resultHandler, khvPackage, null, StressPeriod.SteadyState, entryIdx + 1, idfCellIterator.XStepsize, khvWarningLegend);
                 khvWarningLayer.AddSourceFile(khvIDFFile);
 
                 CheckWarningLayer kvvWarningLayer = null;
                 if (kvvIDFFile != null)
                 {
-                    kvvWarningLayer = CreateWarningLayer(resultHandler, kvvPackage, null, 0, entryIdx + 1, idfCellIterator.XStepsize, kvvWarningLegend);
+                    kvvWarningLayer = CreateWarningLayer(resultHandler, kvvPackage, null, StressPeriod.SteadyState, entryIdx + 1, idfCellIterator.XStepsize, kvvWarningLegend);
                     kvvWarningLayer.AddSourceFile(kvvIDFFile);
                 }
 
-                CheckWarningLayer kvaWarningLayer = CreateWarningLayer(resultHandler, kvaPackage, null, 0, entryIdx + 1, idfCellIterator.XStepsize, kvaWarningLegend);
+                CheckWarningLayer kvaWarningLayer = CreateWarningLayer(resultHandler, kvaPackage, null, StressPeriod.SteadyState, entryIdx + 1, idfCellIterator.XStepsize, kvaWarningLegend);
                 kvaWarningLayer.AddSourceFile(kvaIDFFile);
 
                 // Iterate through cells

@@ -275,13 +275,19 @@ namespace Sweco.SIF.iMODValidator.Checks
 
         public override void Run(Model model, CheckResultHandler resultHandler, Log log)
         {
-            log.AddInfo("Checking VCW- and KDW-packages ...");
-
             IDFPackage kdwPackage = (IDFPackage)model.GetPackage(KDWPackage.DefaultKey);
             IDFPackage vcwPackage = (IDFPackage)model.GetPackage(VCWPackage.DefaultKey);
-            if ((vcwPackage == null) || !vcwPackage.IsActive || (kdwPackage == null) || !kdwPackage.IsActive)
+            if ((vcwPackage == null) && (kdwPackage == null))
             {
-                log.AddWarning(this.Name, model.Runfilename, "VCW- and/or KDW-packages are not active. " + this.Name + " is skipped.", 1);
+                // When both VCW- and KDW-package are not present in RUN-file, skip whole check silently
+                return;
+            }
+
+            log.AddInfo("Checking VCW- and KDW-packages ...");
+
+            if (((vcwPackage != null) && !vcwPackage.IsActive) || ((kdwPackage != null) && !kdwPackage.IsActive))
+            {
+                log.AddWarning(this.Name, model.RUNFilename, "VCW- and/or KDW-packages are not active. " + this.Name + " is skipped.", 1);
                 return;
             }
 
@@ -299,12 +305,12 @@ namespace Sweco.SIF.iMODValidator.Checks
 
             if ((topPackage == null) || !topPackage.IsActive || (botPackage == null) || !botPackage.IsActive)
             {
-                log.AddWarning(this.Name, model.Runfilename, "TOP- and/or BOT-package is not active. TOP-BOT part of check is skipped.", 1);
+                log.AddWarning(this.Name, model.RUNFilename, "TOP- and/or BOT-package is not active. TOP-BOT part of check is skipped.", 1);
                 topPackage = null;
                 botPackage = null;
                 if (settings.IsKValueChecked)
                 {
-                    log.AddWarning(this.Name, model.Runfilename, "TOP/BOT-package is not active. Check for k-values is skipped.", 1);
+                    log.AddWarning(this.Name, model.RUNFilename, "TOP/BOT-package is not active. Check for k-values is skipped.", 1);
                     settings.IsKValueChecked = false;
                 }
             }
@@ -396,7 +402,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                 idfCellIterator.AddIDFFile(kdIDFFile);
                 idfCellIterator.AddIDFFile(cIDFFile);
                 idfCellIterator.AddIDFFile(lowerTopIDFFile);
-                idfCellIterator.CheckExtent(log, 2, LogLevel.Warning);
+                idfCellIterator.CheckExtent(log, 2, LogLevel.Debug);
 
                 idfCellIterator.AddIDFFile(minKHSettingIDFFile);
                 idfCellIterator.AddIDFFile(maxKHSettingIDFFile);
@@ -407,24 +413,24 @@ namespace Sweco.SIF.iMODValidator.Checks
                 idfCellIterator.AddIDFFile(minKVTotErrorValueIDFFile);
 
                 // Create error IDFfiles for current layer
-                CheckErrorLayer kdErrorLayer = CreateErrorLayer(resultHandler, kdwPackage, null, 1, entryIdx + 1, idfCellIterator.XStepsize, kdErrorLegend);
+                CheckErrorLayer kdErrorLayer = CreateErrorLayer(resultHandler, kdwPackage, null, StressPeriod.SteadyState, entryIdx + 1, idfCellIterator.XStepsize, kdErrorLegend);
                 kdErrorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
 
                 CheckErrorLayer cErrorLayer = null;
                 if (cIDFFile != null)
                 {
-                    cErrorLayer = CreateErrorLayer(resultHandler, vcwPackage, null, 1, entryIdx + 1, idfCellIterator.XStepsize, cErrorLegend);
+                    cErrorLayer = CreateErrorLayer(resultHandler, vcwPackage, null, StressPeriod.SteadyState, entryIdx + 1, idfCellIterator.XStepsize, cErrorLegend);
                     cErrorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
                 }
 
                 // Create warning IDFfiles for current layer
-                CheckWarningLayer kdWarningLayer = CreateWarningLayer(resultHandler, kdwPackage, null, 0, entryIdx + 1, idfCellIterator.XStepsize, khWarningLegend);
+                CheckWarningLayer kdWarningLayer = CreateWarningLayer(resultHandler, kdwPackage, null, StressPeriod.SteadyState, entryIdx + 1, idfCellIterator.XStepsize, khWarningLegend);
                 kdWarningLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
 
                 CheckWarningLayer cWarningLayer = null;
                 if (cIDFFile != null)
                 {
-                    cWarningLayer = CreateWarningLayer(resultHandler, vcwPackage, null, 0, entryIdx + 1, idfCellIterator.XStepsize, kvWarningLegend);
+                    cWarningLayer = CreateWarningLayer(resultHandler, vcwPackage, null, StressPeriod.SteadyState, entryIdx + 1, idfCellIterator.XStepsize, kvWarningLegend);
                     cErrorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
                 }
 

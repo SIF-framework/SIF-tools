@@ -135,9 +135,8 @@ namespace Sweco.SIF.iMODValidator.Checks
                 log.AddInfo("Checking STO-package ...");
 
                 IDFPackage stoPackage = (IDFPackage)model.GetPackage(STOPackage.DefaultKey);
-                if ((stoPackage == null) || !stoPackage.IsActive)
+                if (!IsPackageActive(stoPackage, STOPackage.DefaultKey, log, 1))
                 {
-                    log.AddWarning(this.Name, model.Runfilename, "STO-package is not active. " + this.Name + " is skipped.", 1);
                     return;
                 }
 
@@ -166,7 +165,7 @@ namespace Sweco.SIF.iMODValidator.Checks
             bool hasBOTPackage = model.HasActivePackage(BOTPackage.DefaultKey);
             if (!hasTOPPackage || !hasBOTPackage)
             {
-                log.AddWarning(this.Name, model.Runfilename, "Missing TOP- and/or BOT-package, STO-check is skipped", 1);
+                log.AddWarning(this.Name, model.RUNFilename, "Missing TOP- and/or BOT-package, STO-check is skipped", 1);
                 return;
             }
 
@@ -225,7 +224,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                     idfCellIterator.AddIDFFile(botIDFFile);
 
                     // Check that STO-files have equal extent
-                    idfCellIterator.CheckExtent(log, 2, LogLevel.Warning);
+                    idfCellIterator.CheckExtent(log, 2, LogLevel.Debug);
                     if (idfCellIterator.IsEmptyExtent())
                     {
                         return;
@@ -233,11 +232,11 @@ namespace Sweco.SIF.iMODValidator.Checks
                     else
                     {
                         // Create error IDFfiles for current layer
-                        CheckErrorLayer stoErrorLayer = CreateErrorLayer(resultHandler, stoPackage, null, kper, entryIdx + 1, idfCellIterator.XStepsize, errorLegend);
+                        CheckErrorLayer stoErrorLayer = CreateErrorLayer(resultHandler, stoPackage, null, StressPeriod.SteadyState, entryIdx + 1, idfCellIterator.XStepsize, errorLegend);
                         stoErrorLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
 
                         // Create warning IDFfiles for current layer
-                        CheckWarningLayer stoWarningLayer = CreateWarningLayer(resultHandler, stoPackage, null, kper, entryIdx + 1, idfCellIterator.XStepsize, warningLegend);
+                        CheckWarningLayer stoWarningLayer = CreateWarningLayer(resultHandler, stoPackage, null, StressPeriod.SteadyState, entryIdx + 1, idfCellIterator.XStepsize, warningLegend);
                         stoWarningLayer.AddSourceFiles(idfCellIterator.GetIDFFiles());
 
                         // Iterate through cells

@@ -89,6 +89,10 @@ namespace Sweco.SIF.iMODValidator.Forms
                 // Show first tab page, with output window, during run
                 tabControl1.SelectedTab = tabControl1.TabPages[0];
 
+                validator.IsModelValidated = isModelValidatedCheckBox.Checked;
+                validator.IsModelCompared = isModelComparedCheckBox.Checked;
+                validator.ComparedRUNFilename = comparedRUNFileTextBox.Text;
+
                 // Start validation
                 validator.Run();
             }
@@ -114,7 +118,7 @@ namespace Sweco.SIF.iMODValidator.Forms
                 Activate();
 
                 // try to log results
-                if ((validator != null) && (validator.OutputPath != null))
+                if ((validator != null) && (validator.OutputPath != null) && (log != null))
                 {
                     log.WriteLogFile();
                 }
@@ -382,7 +386,7 @@ namespace Sweco.SIF.iMODValidator.Forms
 
         protected virtual bool IsActionSelected()
         {
-            return isModelValidatedCheckBox.Checked;
+            return isModelValidatedCheckBox.Checked || isModelComparedCheckBox.Checked;
         }
 
         protected virtual bool RetrieveValidatorSettings(Validator validator)
@@ -406,15 +410,15 @@ namespace Sweco.SIF.iMODValidator.Forms
                 }
                 else
                 {
-                    runfileTextBox.Focus();
                     MessageBox.Show("Runfile doesn't exist, please specifiy an existing runfilename");
+                    runfileTextBox.Focus();
                     return false;
                 }
             }
             catch (Exception)
             {
-                runfileTextBox.Focus();
                 MessageBox.Show("Please enter a valid runfilename");
+                runfileTextBox.Focus();
                 return false;
             }
 
@@ -432,8 +436,8 @@ namespace Sweco.SIF.iMODValidator.Forms
 
             // Retrieve and check output settings
             validator.IsIMODOpened = openIMODCheckBox.Checked;
-
             validator.IsResultSheetOpened = openExcelCheckBox.Checked;
+
             // Retrieve and check extent settings
             if (customExtentRadioButton.Checked)
             {
@@ -450,9 +454,9 @@ namespace Sweco.SIF.iMODValidator.Forms
                 }
                 catch (Exception)
                 {
-                    MessageBox.Show("Invalid extent coordinate");
                     tabControl1.SelectTab(1);
                     llxTextBox.Focus();
+                    MessageBox.Show("Invalid extent coordinate");
                     return false;
                 }
                 validator.ExtentType = ExtentMethod.CustomExtent;
@@ -508,18 +512,18 @@ namespace Sweco.SIF.iMODValidator.Forms
             {
                 if (levelErrorMargin < 0)
                 {
-                    MessageBox.Show("Level error margin should be positive");
                     tabControl1.SelectTab(2);
                     levelErrorMarginTextBox.Focus();
+                    MessageBox.Show("Level error margin should be positive");
                     return false;
                 }
                 validator.LevelErrorMargin = levelErrorMargin;
             }
             else
             {
-                MessageBox.Show("Level error margin is incorrect");
                 tabControl1.SelectTab(2);
                 levelErrorMarginTextBox.Focus();
+                MessageBox.Show("Level error margin is incorrect");
                 return false;
             }
 
@@ -531,18 +535,18 @@ namespace Sweco.SIF.iMODValidator.Forms
                 {
                     if (firstTimeStep < 0)
                     {
-                        MessageBox.Show("Maximum timestep should be positive or zero");
                         tabControl1.SelectTab(2);
                         firstTimeStepTextBox.Focus();
+                        MessageBox.Show("Maximum timestep should be positive or zero");
                         return false;
                     }
                     validator.MinKPER = firstTimeStep;
                 }
                 else
                 {
-                    MessageBox.Show("Maximum timestep value is incorrect");
                     tabControl1.SelectTab(2);
                     firstTimeStepTextBox.Focus();
+                    MessageBox.Show("Maximum timestep value is incorrect");
                     return false;
                 }
             }
@@ -553,20 +557,24 @@ namespace Sweco.SIF.iMODValidator.Forms
                 {
                     if (maxTimeStep <= 0)
                     {
-                        MessageBox.Show("Maximum timestep should be positive (larger than 0)");
                         tabControl1.SelectTab(2);
                         maxTimeStepTextBox.Focus();
+                        MessageBox.Show("Maximum timestep should be positive (larger than 0)");
                         return false;
                     }
                     validator.MaxKPER = maxTimeStep;
                 }
                 else
                 {
-                    MessageBox.Show("Maximum timestep value is incorrect");
                     tabControl1.SelectTab(2);
                     maxTimeStepTextBox.Focus();
+                    MessageBox.Show("Maximum timestep value is incorrect");
                     return false;
                 }
+            }
+            else
+            {
+                // leave default value, see Validator constructor
             }
 
             try
@@ -575,9 +583,9 @@ namespace Sweco.SIF.iMODValidator.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show("SplitValidationrun option is incorrect:" + ex.GetBaseException().Message);
                 tabControl1.SelectTab(2);
                 splitValidationrunOptionComboBox.Focus();
+                MessageBox.Show("SplitValidationrun option is incorrect:" + ex.GetBaseException().Message);
                 return false;
             }
 
@@ -589,18 +597,18 @@ namespace Sweco.SIF.iMODValidator.Forms
                 {
                     if (minILAY < 1)
                     {
-                        MessageBox.Show("First layer number should be one or higher");
                         tabControl1.SelectTab(2);
                         firstLayerNumberTextBox.Focus();
+                        MessageBox.Show("First layer number should be one or higher");
                         return false;
                     }
                     validator.MinILAY = minILAY;
                 }
                 else
                 {
-                    MessageBox.Show("First layer number value is incorrect");
                     tabControl1.SelectTab(2);
                     firstLayerNumberTextBox.Focus();
+                    MessageBox.Show("First layer number value is incorrect");
                     return false;
                 }
             }
@@ -613,18 +621,18 @@ namespace Sweco.SIF.iMODValidator.Forms
                 {
                     if (maxILAY < minILAY)
                     {
-                        MessageBox.Show("Last layer number should be above or equal to first layer number");
                         tabControl1.SelectTab(2);
                         maxLayerNumberTextBox.Focus();
+                        MessageBox.Show("Last layer number should be above or equal to first layer number");
                         return false;
                     }
                     validator.MaxILAY = maxILAY;
                 }
                 else
                 {
-                    MessageBox.Show("Last layer number value is incorrect");
                     tabControl1.SelectTab(2);
                     maxLayerNumberTextBox.Focus();
+                    MessageBox.Show("Last layer number value is incorrect");
                     return false;
                 }
             }
@@ -641,18 +649,18 @@ namespace Sweco.SIF.iMODValidator.Forms
             {
                 if (summaryMinCellSize < 0)
                 {
-                    MessageBox.Show("Minimum summary-IDF cellsize should be positive");
                     tabControl1.SelectTab(2);
                     summaryMinCellSizeTextBox.Focus();
+                    MessageBox.Show("Minimum summary-IDF cellsize should be positive");
                     return false;
                 }
                 validator.SummaryMinCellsize = summaryMinCellSize;
             }
             else
             {
-                MessageBox.Show("Minimum summary-IDF cellsize is incorrect");
                 tabControl1.SelectTab(2);
                 summaryMinCellSizeTextBox.Focus();
+                MessageBox.Show("Minimum summary-IDF cellsize is incorrect");
                 return false;
             }
 
@@ -693,7 +701,7 @@ namespace Sweco.SIF.iMODValidator.Forms
                     // ignore
                 }
             }
-            fileDialog.Filter = "Runfiles (*.RUN)|*.RUN";
+            fileDialog.Filter = "All files (*.*)|*.*|PRJ-files (*.PRJ)|*.PRJ|RUN-files (*.RUN)|*.RUN";
             DialogResult result = fileDialog.ShowDialog();
             if (result == DialogResult.OK)
             {
@@ -771,16 +779,34 @@ namespace Sweco.SIF.iMODValidator.Forms
 
         private void customExtentRadioButton_CheckedChanged(object sender, EventArgs e)
         {
-            lllabel.Enabled = customExtentRadioButton.Checked;
-            urlabel.Enabled = customExtentRadioButton.Checked;
-            llxLabel.Enabled = customExtentRadioButton.Checked;
-            llyLabel.Enabled = customExtentRadioButton.Checked;
-            urxLabel.Enabled = customExtentRadioButton.Checked;
-            uryLabel.Enabled = customExtentRadioButton.Checked;
+            //lllabel.Enabled = customExtentRadioButton.Checked;
+            //urlabel.Enabled = customExtentRadioButton.Checked;
+            //llxLabel.Enabled = customExtentRadioButton.Checked;
+            //llyLabel.Enabled = customExtentRadioButton.Checked;
+            //urxLabel.Enabled = customExtentRadioButton.Checked;
+            //uryLabel.Enabled = customExtentRadioButton.Checked;
+            //llxTextBox.Enabled = customExtentRadioButton.Checked;
+            //llyTextBox.Enabled = customExtentRadioButton.Checked;
+            //urxTextBox.Enabled = customExtentRadioButton.Checked;
+            //uryTextBox.Enabled = customExtentRadioButton.Checked;
+
+            //lllabel.Enabled = customExtentRadioButton.Checked;
+            //urlabel.Enabled = customExtentRadioButton.Checked;
+            //llxLabel.Enabled = customExtentRadioButton.Checked;
+            //llyLabel.Enabled = customExtentRadioButton.Checked;
+            //urxLabel.Enabled = customExtentRadioButton.Checked;
+            //uryLabel.Enabled = customExtentRadioButton.Checked;
             llxTextBox.Enabled = customExtentRadioButton.Checked;
             llyTextBox.Enabled = customExtentRadioButton.Checked;
             urxTextBox.Enabled = customExtentRadioButton.Checked;
             uryTextBox.Enabled = customExtentRadioButton.Checked;
+
+            lllabel.ForeColor = customExtentRadioButton.Checked ? Color.White : Color.Gray;
+            urlabel.ForeColor = customExtentRadioButton.Checked ? Color.White : Color.Gray;
+            llxLabel.ForeColor = customExtentRadioButton.Checked ? Color.White : Color.Gray;
+            urxLabel.ForeColor = customExtentRadioButton.Checked ? Color.White : Color.Gray;
+            llyLabel.ForeColor = customExtentRadioButton.Checked ? Color.White : Color.Gray;
+            uryLabel.ForeColor = customExtentRadioButton.Checked ? Color.White : Color.Gray;
         }
 
         private void checkDataGridView_SelectionChanged(object sender, EventArgs e)
@@ -909,6 +935,57 @@ namespace Sweco.SIF.iMODValidator.Forms
             if (e.KeyChar.Equals((char)27)) // ESC-key
             {
                 AbortChecks();
+            }
+        }
+
+        private void isModelComparedCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            comparedRUNFileTextBox.Enabled = isModelComparedCheckBox.Checked;
+            comparedRUNFileButton.Enabled = isModelComparedCheckBox.Checked;
+        }
+
+        private void comparedRUNFileButton_Click(object sender, EventArgs e)
+        {
+            String filename = null;
+            FileDialog fileDialog = new OpenFileDialog();
+            fileDialog.Title = "Choose a runfile";
+            fileDialog.CheckFileExists = true;
+            if (comparedRUNFileTextBox.Text.Length > 0)
+            {
+                try
+                {
+                    fileDialog.InitialDirectory = Path.GetDirectoryName(comparedRUNFileTextBox.Text);
+                }
+                catch (Exception)
+                {
+                    // ignore
+                }
+            }
+            else
+            {
+                try
+                {
+                    if (File.Exists(iMODValidatorSettingsManager.Settings.DefaultInputRunfile))
+                    {
+                        fileDialog.InitialDirectory = Path.GetDirectoryName(iMODValidatorSettingsManager.Settings.DefaultInputRunfile);
+                    }
+                }
+                catch (Exception)
+                {
+                    // ignore
+                }
+            }
+            fileDialog.Filter = "All files (*.*)|*.*|PRJ-files (*.PRJ)|*.PRJ|RUN-files (*.RUN)|*.RUN";
+            DialogResult result = fileDialog.ShowDialog();
+            if (result == DialogResult.OK)
+            {
+                if (fileDialog.FileName != null)
+                {
+                    filename = fileDialog.FileName;
+                }
+                comparedRUNFileTextBox.Text = filename;
+                outputPathTextBox.Text = Path.GetDirectoryName(filename);
+                comparedRUNFileTextBox.Focus();
             }
         }
     }
