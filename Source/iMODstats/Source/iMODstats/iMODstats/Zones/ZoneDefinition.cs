@@ -25,7 +25,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Sweco.SIF.iMODstats
+namespace Sweco.SIF.iMODstats.Zones
 {
     /// <summary>
     /// Class for definition of processed zone
@@ -35,6 +35,22 @@ namespace Sweco.SIF.iMODstats
         public string ID;
         public string ZoneString;
         public List<int> Values { get; }
+
+        /// <summary>
+        /// Retrieve a floating point version of the zone Values
+        /// </summary>
+        public List<float> FloatValues
+        {
+            get
+            {
+                List<float> floatValues = new List<float>(Values.Count);
+                foreach (int value in Values)
+                {
+                    floatValues.Add((float)value);
+                }
+                return floatValues;
+            }
+        }
 
         /// <summary>
         /// Creates a ZoneDefinition object

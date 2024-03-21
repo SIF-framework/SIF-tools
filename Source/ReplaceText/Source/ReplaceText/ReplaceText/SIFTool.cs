@@ -365,7 +365,7 @@ namespace Sweco.SIF.ReplaceText
                                     matchCount++;
                                     return match.Result(settings.Text2);
                                 }
-                            });
+                            }, RegexOptions.Multiline | RegexOptions.Compiled);
                         }
                         else
                         {
@@ -401,7 +401,7 @@ namespace Sweco.SIF.ReplaceText
                                     matchCount++;
                                     return match.Result(settings.Text2);
                                 }
-                            }, (!settings.IsCaseSensitive ? RegexOptions.IgnoreCase : RegexOptions.None));
+                            }, (!settings.IsCaseSensitive ? RegexOptions.IgnoreCase | RegexOptions.Multiline | RegexOptions.Compiled : RegexOptions.Multiline | RegexOptions.Compiled));
                         }
                         else
                         {
