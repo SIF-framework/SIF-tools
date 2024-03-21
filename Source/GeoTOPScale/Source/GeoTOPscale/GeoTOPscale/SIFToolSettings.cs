@@ -121,7 +121,7 @@ namespace Sweco.SIF.GeoTOPscale
 
             AddToolParameterDescription("outPath", "Path to write results to", "C:\\Test\\Output");
 
-            AddToolOptionDescription("kvb", "Also write kv_bot grid, based on bottom flux; otherwise only kv_top is written.\n", "/kvb", "kv_bot is also written");
+            AddToolOptionDescription("kvb", "Also write kv_bot grid, based on bottom flux; otherwise only kv_top is written", "/kvb", "kv_bot is also written");
             AddToolOptionDescription("kvs", "Also Write kv-file as calculated by stack-method well", "/ks", "kv_stack is also written");
             AddToolOptionDescription("e", "Clip extent for processing input", "/e:158000,403000,163000,407000", "Clip extent (xll,yll,xur,yur): {0},{1},{2},{3}", new string[] { "xll", "yll", "xur", "yur" });
             AddToolOptionDescription("b", "Method for uppper/lower TOP/BOT-level from voxel model to TOP/BOT-IDFfile (default: 0)\n" +

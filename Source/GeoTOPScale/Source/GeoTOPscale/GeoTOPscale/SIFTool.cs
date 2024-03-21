@@ -30,6 +30,7 @@ using System.Threading.Tasks;
 using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD.ARR;
 using System.Globalization;
+using System.Windows.Forms;
 
 namespace Sweco.SIF.GeoTOPscale
 {
@@ -1093,6 +1094,14 @@ namespace Sweco.SIF.GeoTOPscale
             }
 
             // Read IDFFile
+            Log.AddInfo("Reading head and budget files ...");
+            // ToDo: for debug option
+            // for (int i = 1; i <= nlay; i++)
+            // {
+            // IDFFile head = IDFFile.ReadFile(modelOutputPath + "\\HEAD\\HEAD\\HEAD_STEADY-STATE_L" + i + ".IDF");
+            // headList.Add(head);
+            // }
+
             Log.AddInfo("Number of layers: " + nlay);
             int nlay_flux = nlay - 1;
             if (!settings.WriteKVbot)
@@ -1101,28 +1110,28 @@ namespace Sweco.SIF.GeoTOPscale
                 nlay = 1;
                 nlay_flux = 1;
             }
-            Log.AddInfo("Reading head and budget files ...");
-            // ToDo: for debug option
-            // for (int i = 1; i <= nlay; i++)
-            // {
-                // IDFFile head = IDFFile.ReadFile(modelOutputPath + "\\HEAD\\HEAD\\HEAD_STEADY-STATE_L" + i + ".IDF");
-                // headList.Add(head);
-            // }
             for (int i = 1; i <= nlay_flux; i++)
             {
                 string bdgFLFFilename = modelOutputPath + "\\BUDGET\\BDGFLF\\BDGFLF_STEADY-STATE_L" + i + ".IDF";
-                if (File.Exists(bdgFLFFilename))
+                if (!File.Exists(bdgFLFFilename))
                 {
-                    IDFFile flux = IDFFile.ReadFile(bdgFLFFilename);
-                    fluxList.Add(flux);
+                    Log.AddWarning("iMOD-batchfunction MF6TOIDF didn't finish. Missing IDF-file: '" + Path.GetFileName(bdgFLFFilename) + "'\n" 
+                        + "Check message window for options ...", 1);
+                    DialogResult dialogResult = MessageBox.Show("Fatal timeout occurred, iMOD-batchfunction MF6TOIDF didn't finish and not all budget files have been written.\n"
+                        + "Missing IDF-file: '" + Path.GetFileName(bdgFLFFilename) + "'\n"
+                        + "Try to run 'MF6-model\\run MF6TOIDF.bat' manually and press OK to search again.", "GeoTOPscale MF6TOIDF-issue", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1);
                 }
-                else
+
+                if (!File.Exists(bdgFLFFilename))
                 {
-                    throw new ToolException("Fatal timeout occurred, iMOD-batchfunction MF6TOIDF didn't finish and not all budget files have been written\n" 
-                        + "Missing IDF-file: " + Path.GetFileName(bdgFLFFilename) + "\n" 
+                    throw new ToolException("Fatal timeout occurred, iMOD-batchfunction MF6TOIDF didn't finish and not all budget files have been written\n"
+                        + "Missing IDF-file: " + Path.GetFileName(bdgFLFFilename) + "\n"
                         + ", check logfile for issues and/or increase timeout length");
                 }
 
+                IDFFile flux = IDFFile.ReadFile(bdgFLFFilename);
+                fluxList.Add(flux);
             }
 
             Log.AddInfo();
