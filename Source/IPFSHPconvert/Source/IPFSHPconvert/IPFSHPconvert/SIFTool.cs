@@ -355,6 +355,8 @@ namespace Sweco.SIF.IPFSHPconvert
                     string columnName = ipfFile.ColumnNames[colIdx];
                     string value = point.ColumnValues[colIdx];
 
+                    value = CorrectStringValue(value);
+
                     if (bool.TryParse(value, out bool boolValue))
                     {
                         // value is a boolean
@@ -454,6 +456,22 @@ namespace Sweco.SIF.IPFSHPconvert
                 }
             }
             return fieldDefinitions;
+        }
+
+        private static string CorrectStringValue(string value)
+        {
+            if (value.Equals("Infinity"))
+            {
+                // For infinity, try Inf which is string that is recognized as a floating point value
+                value = double.PositiveInfinity.ToString(EnglishCultureInfo);
+            }
+            else if (value.Equals("-Infinity"))
+            {
+                // For infinity, try Inf which is string that is recognized as a floating point value
+                value = double.NegativeInfinity.ToString(EnglishCultureInfo);
+            }
+
+            return value;
         }
 
         protected ReadOnlyCollection<PointD[]> GetShapeFilePointData(List<IPFPoint> ipfPoints)
