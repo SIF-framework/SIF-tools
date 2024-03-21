@@ -254,7 +254,8 @@ of the ISG-package are compared. For ISG-files, only the whole segments
 are currently compared. and for segments that one or more differences, a
 GEN-file with the whole segments is written.
 
-![](/Source/iMODValidator/Doc/media/image13.png)
+![](/Source/iMODValidator/Doc/media/image13.png){width="2.714583333333333in"
+height="1.5756944444444445in"}
 
 For the WEL-package, for each IPF-point it
 is indicated with a specific colour whether there has been a change in
