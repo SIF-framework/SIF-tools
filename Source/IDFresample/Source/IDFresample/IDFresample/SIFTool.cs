@@ -713,7 +713,7 @@ namespace Sweco.SIF.IDFresample
 
             if (isDebugMode)
             {
-                IDFFile resampleQueueIDFFile = ConvertToIDF(neighbourHashSet, resultIDFFile);
+                IDFFile resampleQueueIDFFile = IDFUtils.ConvertToIDF(neighbourHashSet, resultIDFFile, true);
                 if (resampleQueueIDFFile != null)
                 {
                     resampleQueueIDFFile.WriteFile(Path.Combine(Path.Combine(settings.OutputPath, "debug"), "ResampleQueue.IDF"));
@@ -752,10 +752,10 @@ namespace Sweco.SIF.IDFresample
                         {
                             HashSet<IDFCell> tmpHashSet = new HashSet<IDFCell>();
                             tmpHashSet.Add(idfCell);
-                            IDFFile resampledCellIDFFile = ConvertToIDF(tmpHashSet, resultIDFFile);
-                            IDFFile tmpResultValueCellsIDFFile = ConvertToIDF(tmpResultValueCells, resultIDFFile, false);
-                            IDFFile tmpResultCellsIDFFile = ConvertToIDF(tmpResultCells, resultIDFFile);
-                            IDFFile resampleQueueIDFFile = ConvertToIDF(neighbourHashSet, resultIDFFile);
+                            IDFFile resampledCellIDFFile = IDFUtils.ConvertToIDF(tmpHashSet, resultIDFFile, true);
+                            IDFFile tmpResultValueCellsIDFFile = IDFUtils.ConvertToIDF(tmpResultValueCells, resultIDFFile, false);
+                            IDFFile tmpResultCellsIDFFile = IDFUtils.ConvertToIDF(tmpResultCells, resultIDFFile, true);
+                            IDFFile resampleQueueIDFFile = IDFUtils.ConvertToIDF(neighbourHashSet, resultIDFFile, true);
                             try
                             {
                                 resampledCellIDFFile.WriteFile(Path.Combine(Path.Combine(settings.OutputPath, "debug"), "ResampledCell.IDF"));
@@ -822,7 +822,7 @@ namespace Sweco.SIF.IDFresample
                 {
                     resultIDFFile.WriteFile(Path.Combine(Path.Combine(settings.OutputPath, "debug"), "ResampledValues.IDF"));
 
-                    IDFFile resampleQueueIDFFile = ConvertToIDF(neighbourHashSet, resultIDFFile);
+                    IDFFile resampleQueueIDFFile = IDFUtils.ConvertToIDF(neighbourHashSet, resultIDFFile, true);
                     if (resampleQueueIDFFile != null)
                     {
                         resampleQueueIDFFile.WriteFile(Path.Combine(Path.Combine(settings.OutputPath, "debug"), "ResampleQueue.IDF"));
@@ -1096,10 +1096,10 @@ namespace Sweco.SIF.IDFresample
 
             if (isDebugMode)
             {
-                IDFFile queueIDFFile = ConvertToIDF(idfCellHashSet, valueIDFFile);
+                IDFFile queueIDFFile = IDFUtils.ConvertToIDF(idfCellHashSet, valueIDFFile, true);
                 queueIDFFile.WriteFile(Path.Combine(Path.Combine(settings.OutputPath, "debug"), "QueueIDFFile" + zoneValue + ".IDF"));
 
-                localZoneIDFFile = ConvertToIDF(localZoneIDFCells, valueIDFFile, minColIdx, minRowIdx, maxColIdx, maxRowIdx, true, float.NaN, 1f);
+                localZoneIDFFile = IDFUtils.ConvertToIDF(localZoneIDFCells, valueIDFFile, minColIdx, minRowIdx, maxColIdx, maxRowIdx, true, float.NaN, 1f);
                 localZoneIDFFile.WriteFile(Path.Combine(Path.Combine(settings.OutputPath, "debug"), "LocalZoneIDFFile" + zoneValue + ".IDF"));
             }
 
@@ -1113,16 +1113,16 @@ namespace Sweco.SIF.IDFresample
                 {
                     if (idfCellQueue.Count > 0)
                     {
-                        IDFFile queueIDFFile = ConvertToIDF(idfCellHashSet, zoneIDFFile);
+                        IDFFile queueIDFFile = IDFUtils.ConvertToIDF(idfCellHashSet, zoneIDFFile, true);
                         queueIDFFile.WriteFile(Path.Combine(Path.Combine(settings.OutputPath, "debug"), "QueueIDFFile" + zoneValue + ".IDF"));
                     }
 
                     List<IDFCell> visitedIDFCellList = new List<IDFCell>();
                     visitedIDFCellList.Add(visitedCell);
-                    IDFFile visitedCellIDFFile = ConvertToIDF(visitedIDFCellList, zoneIDFFile);
+                    IDFFile visitedCellIDFFile = IDFUtils.ConvertToIDF(visitedIDFCellList, zoneIDFFile, true);
                     visitedCellIDFFile.WriteFile(Path.Combine(Path.Combine(settings.OutputPath, "debug"), "VisitedCellIDFFile" + zoneValue + ".IDF"));
 
-                    IDFFile visitedCellsIDFFile = ConvertToIDF(visitedIDFCells, zoneIDFFile);
+                    IDFFile visitedCellsIDFFile = IDFUtils.ConvertToIDF(visitedIDFCells, zoneIDFFile, true);
                     visitedCellsIDFFile.WriteFile(Path.Combine(Path.Combine(settings.OutputPath, "debug"), "VisitedCellsIDFFile" + zoneValue + ".IDF"));
                 }
 
@@ -1131,11 +1131,11 @@ namespace Sweco.SIF.IDFresample
                     // Add cell to zone and update extent
                     localZoneIDFCells.Add(visitedCell);
 
-                    UpdateMinMaxIndices(ref minColIdx, ref minRowIdx, ref maxColIdx, ref maxRowIdx, visitedCell);
+                    IDFCell.UpdateMinMaxIndices(visitedCell, ref minColIdx, ref minRowIdx, ref maxColIdx, ref maxRowIdx);
 
                     if (isDebugMode)
                     {
-                        localZoneIDFFile = ConvertToIDF(localZoneIDFCells, valueIDFFile, minColIdx, minRowIdx, maxColIdx, maxRowIdx, true, float.NaN, 1f);
+                        localZoneIDFFile = IDFUtils.ConvertToIDF(localZoneIDFCells, valueIDFFile, minColIdx, minRowIdx, maxColIdx, maxRowIdx, true, float.NaN, 1f);
                         localZoneIDFFile.WriteFile(Path.Combine(Path.Combine(settings.OutputPath, "debug"), "LocalZoneIDFFile" + zoneValue + ".IDF"));
                     }
 
@@ -1144,126 +1144,18 @@ namespace Sweco.SIF.IDFresample
                 }
                 else
                 {
-                    UpdateMinMaxIndices(ref minColIdx, ref minRowIdx, ref maxColIdx, ref maxRowIdx, visitedCell);
+                    IDFCell.UpdateMinMaxIndices(visitedCell, ref minColIdx, ref minRowIdx, ref maxColIdx, ref maxRowIdx);
                     localZoneIDFCells.Add(visitedCell);
                 }
             }
 
             // Convert list of IDFCells to IDFFile
-            localZoneIDFFile = ConvertToIDF(localZoneIDFCells, valueIDFFile, minColIdx, minRowIdx, maxColIdx, maxRowIdx, true, searchedValue, replacedValue);
+            localZoneIDFFile = IDFUtils.ConvertToIDF(localZoneIDFCells, valueIDFFile, minColIdx, minRowIdx, maxColIdx, maxRowIdx, true, searchedValue, replacedValue);
             if (isDebugMode)
             {
                 localZoneIDFFile.WriteFile(Path.Combine(Path.Combine(settings.OutputPath, "debug"), "LocalZoneIDFFile" + zoneValue + ".IDF"));
             }
             return localZoneIDFFile;
-        }
-
-        /// <summary>
-        /// Convert HashSet with IDFCell objectsto IDFFile
-        /// </summary>
-        /// <param name="cellQueue"></param>
-        /// <param name="valueIDFFile"></param>
-        /// <param name="isReplaced">if true, value 1 is used for all cells; if false the IDFCell.Value is used if defined</param>
-        /// <returns></returns>
-        protected IDFFile ConvertToIDF(HashSet<IDFCell> cellQueue, IDFFile valueIDFFile, bool isReplaced = true)
-        {
-            List<IDFCell> cellList = cellQueue.ToList();
-            return ConvertToIDF(cellList, valueIDFFile, isReplaced);
-        }
-
-        /// <summary>
-        /// Convert List with IDFCell objects to IDFFile
-        /// </summary>
-        /// <param name="cellQueue"></param>
-        /// <param name="valueIDFFile"></param>
-        /// <param name="isReplaced">if true, value 1 is used for all cells; if false the IDFCell.Value is used if defined</param>
-        /// <returns></returns>
-        protected IDFFile ConvertToIDF(List<IDFCell> cellList, IDFFile valueIDFFile, bool isReplaced = true)
-        {
-            int minRowIdx = int.MaxValue;
-            int maxRowIdx = int.MinValue;
-            int minColIdx = int.MaxValue;
-            int maxColIdx = int.MinValue;
-            foreach (IDFCell idfCell in cellList)
-            {
-                UpdateMinMaxIndices(ref minColIdx, ref minRowIdx, ref maxColIdx, ref maxRowIdx, idfCell);
-            }
-
-            return ConvertToIDF(cellList, valueIDFFile, minColIdx, minRowIdx, maxColIdx, maxRowIdx, isReplaced, float.NaN, 1f);
-        }
-
-        protected void UpdateMinMaxIndices(ref int minColIdx, ref int minRowIdx, ref int maxColIdx, ref int maxRowIdx, IDFCell idfCell)
-        {
-            if (idfCell.RowIdx < minRowIdx)
-            {
-                minRowIdx = idfCell.RowIdx;
-            }
-            if (idfCell.RowIdx > maxRowIdx)
-            {
-                maxRowIdx = idfCell.RowIdx;
-            }
-            if (idfCell.ColIdx < minColIdx)
-            {
-                minColIdx = idfCell.ColIdx;
-            }
-            if (idfCell.ColIdx > maxColIdx)
-            {
-                maxColIdx = idfCell.ColIdx;
-            }
-        }
-
-        /// <summary>
-        /// Convert list of IDFcells to IDF-file with specified values and extent, based on specified valueIDFFile. If specified a specific value in valueIDFFile can be replaced by a replacement value.
-        /// </summary>
-        /// <param name="idfCells"></param>
-        /// <param name="valueIDFFile"></param>
-        /// <param name="minColIdx"></param>
-        /// <param name="minRowIdx"></param>
-        /// <param name="maxColIdx"></param>
-        /// <param name="maxRowIdx"></param>
-        /// <param name="isReplaced"></param>
-        /// <param name="searchedValue"></param>
-        /// <param name="replacedValue"></param>
-        /// <returns></returns>
-        protected IDFFile ConvertToIDF(List<IDFCell> idfCells, IDFFile valueIDFFile, int minColIdx, int minRowIdx, int maxColIdx, int maxRowIdx, bool isReplaced = false, float searchedValue = float.NaN, float replacedValue = float.NaN)
-        {
-            if (idfCells.Count == 0)
-            {
-                return null;
-            }
-
-            Extent extent = new Extent(valueIDFFile.GetX(minColIdx), valueIDFFile.GetY(maxRowIdx), valueIDFFile.GetX(maxColIdx), valueIDFFile.GetY(minRowIdx));
-            extent = extent.Snap(valueIDFFile.XCellsize, true);
-            IDFFile localValueIDFFile = new IDFFile(Path.GetFileName(valueIDFFile.Filename), extent, valueIDFFile.XCellsize, valueIDFFile.NoDataValue);
-            localValueIDFFile.ResetValues();
-            foreach (IDFCell idfCell in idfCells)
-            {
-                if ((idfCell.RowIdx > valueIDFFile.NRows) || (idfCell.ColIdx > valueIDFFile.NCols))
-                {
-                    throw new Exception("Specified maximum indices of idfCells (" + idfCell.RowIdx + "," + idfCell.ColIdx + ") don't match indices (" + valueIDFFile.NRows+ "," + valueIDFFile.NCols + ") of valueIDFFile: " + Path.GetFileName(valueIDFFile.Filename));
-                }
-
-                float x = valueIDFFile.GetX(idfCell.ColIdx);
-                float y = valueIDFFile.GetY(idfCell.RowIdx);
-                if (!isReplaced)
-                {
-                    // No replacement defined: use Value if defined, otherwise copy value from valueIDFFile
-                    localValueIDFFile.SetValue(x, y, idfCell.Value.Equals(float.NaN) ? valueIDFFile.values[idfCell.RowIdx][idfCell.ColIdx] : idfCell.Value);
-                }
-                else if (searchedValue.Equals(float.NaN))
-                { 
-                    // searchValue is not defined, replace all non-NoData cells in value IDF-file with replacedValue
-                    localValueIDFFile.SetValue(x, y, replacedValue);
-                }
-                else
-                {
-                    // searchValue and replaceValue defined: replace searchValue by replaceValue
-                    float value = valueIDFFile.values[idfCell.RowIdx][idfCell.ColIdx];
-                    localValueIDFFile.SetValue(x, y, value.Equals(searchedValue) ? replacedValue : value);
-                }
-            }
-
-            return localValueIDFFile;
         }
 
         protected void AddZoneNeighbours(IDFCell idfCell, IDFFile valueIDFFile, IDFFile zoneIDFFile, float zoneValue, Queue<IDFCell> idfCellQueue, HashSet<IDFCell> idfCellHashSet, HashSet<IDFCell> visitedCells, bool isDiagonallyProcessed = false)
