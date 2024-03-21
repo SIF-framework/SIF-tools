@@ -370,6 +370,20 @@ namespace Sweco.SIF.Common
                 basePath = basePath.ToLower();
             }
 
+            if (filename.StartsWith(basePath))
+            {
+                if (filename.StartsWith(FileUtils.EnsureTrailingSlash(basePath)))
+                {
+                    // The filename starts with the specified base path, simply remove base path
+                    return filename.Replace(FileUtils.EnsureTrailingSlash(basePath), string.Empty);
+                }
+                else
+                {
+                    // The filename starts with the specified base path, simply remove base path
+                    return filename.Replace(basePath, string.Empty);
+                }
+            }
+
             // Retrieve maximum first part of both paths that is equal
             slashIdx = -1;
             matchingPath = string.Empty;

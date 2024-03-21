@@ -750,7 +750,7 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Adds a string to the list of command-line arguments that will show help/info-text for this tool
+        /// Adds a string to the list of command-line arguments that will show help/info-text for this tool (e.g. 'info' or 'help')
         /// </summary>
         /// <param name="helpArgString"></param>
         protected void AddToolHelpArgString(string helpArgString)
@@ -759,8 +759,8 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Adds strings to the list of command-line arguments that will show help/info-text for this tool
-        /// /// </summary>
+        /// Adds strings to the list of command-line arguments that will show help/info-text for this tool (e.g. 'info' or 'help')
+        /// </summary>
         protected void AddToolHelpArgString(string[] helpArgStrings)
         {
             this.toolHelpArgStrings.AddRange(helpArgStrings);

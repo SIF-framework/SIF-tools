@@ -60,12 +60,24 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Writes list items to a comma seperated string
+        /// Converts list items to a single string with specified seperator
         /// </summary>
         /// <param name="list"></param>
         /// <param name="listSeperator"></param>
         /// <returns>empty string for empty or null list</returns>
         public static string ToString(List<string> list, string listSeperator = ",")
+        {
+            return ToString(list, listSeperator, false);
+        }
+
+        /// <summary>
+        /// Converts trimmed strings in list to a single string with specified seperator
+        /// </summary>
+        /// <param name="list"></param>
+        /// <param name="listSeperator">list seperator to add beteen strings</param>
+        /// <param name="isTrimmed">if true, strings in list are trimmed for whitespace</param>
+        /// <returns>empty string for empty or null list</returns>
+        public static string ToString(List<string> list, string listSeperator, bool isTrimmed)
         {
             string listString = string.Empty;
             if (list != null)
@@ -73,6 +85,10 @@ namespace Sweco.SIF.Common
                 for (int colIdx = 0; colIdx < list.Count; colIdx++)
                 {
                     listString += list[colIdx];
+                    if (isTrimmed)
+                    {
+                        listString = listString.Trim();
+                    }
                     if (colIdx < list.Count - 1)
                     {
                         listString += listSeperator;
@@ -83,7 +99,7 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Writes list items to a comma seperated string
+        /// Converts list items to a single string with specified seperator
         /// </summary>
         /// <param name="list"></param>
         /// <param name="format">format string, see ToString() help</param>
@@ -108,7 +124,7 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Writes list items to a comma seperated string
+        /// Converts list items to a single string with specified format and seperator
         /// </summary>
         /// <param name="list"></param>
         /// <param name="format">format string, see ToString() help</param>
@@ -133,7 +149,7 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Writes list items to a comma seperated string
+        /// Converts list items to a single string with specified format and seperator
         /// </summary>
         /// <param name="list"></param>
         /// <param name="formatProvider"></param>
@@ -150,7 +166,7 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Writes list items to a comma seperated string
+        /// Converts list items to a single string with specified seperator
         /// </summary>
         /// <param name="list"></param>
         /// <param name="listSeperator"></param>
@@ -430,6 +446,15 @@ namespace Sweco.SIF.Common
                         while ((charIdx < inputStringLength) && (inputString[charIdx] == listseperator))
                         {
                             charIdx++;
+                        }
+
+                        if (sb.Length == 0)
+                        {
+                            // No substring has yet been found, just whitespace listseperators, so now read string until next list seperator
+                            while ((charIdx < inputStringLength) && (inputString[charIdx] != listseperator))
+                            {
+                                sb.Append(inputString[charIdx++]);
+                            }
                         }
                     }
                 }

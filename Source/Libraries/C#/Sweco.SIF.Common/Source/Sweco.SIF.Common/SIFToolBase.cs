@@ -66,9 +66,14 @@ namespace Sweco.SIF.Common
         protected string ToolSuccessMessage { get; set; }
 
         /// <summary>
-        /// A short description of tool purpose, as shown in the tool header.
+        /// A short description of tool purpose, as shown in the tool header, after the tool version
         /// </summary>
         protected string ToolPurpose { get; set; }
+
+        /// <summary>
+        /// A more detailed description about the tool to show after the tool purpose and before the tool syntax, or null to skip
+        /// </summary>
+        protected string ToolDescription { get; set; }
 
         /// <summary>
         /// SIFLicense object for this SIF-tool
@@ -225,6 +230,7 @@ namespace Sweco.SIF.Common
         {
             WriteToolHeader();
             WriteToolPurpose();
+            WriteToolDescription();
             WriteToolSyntax();
         }
 
@@ -320,7 +326,7 @@ namespace Sweco.SIF.Common
             string authorString = null;
             if (this.Authors != null)
             {
-                authorString = CommonUtils.ToString(new List<string>(this.Authors)).Replace(",", ", ");
+                authorString = CommonUtils.ToString(new List<string>(this.Authors), ", ");
             }
 
             if (Assembly.GetEntryAssembly() != null)
@@ -356,14 +362,28 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Writes the defined line with the tool purpose to the log (if defined) or console
+        /// Writes the obligatory line defined via the ToolPurpose-property to the log (if defined) or console
         /// </summary>
         private void WriteToolPurpose()
         {
             if (ToolPurpose != null)
             {
-                // Write tool usage header info
                 Log.AddInfo(ToolPurpose);
+            }
+            else
+            {
+                throw new Exception("A ToolPurpose should be defined for all SIF-tools, use SIFTool.ToolPurpose-property to define a short, single line description");
+            }
+        }
+
+        /// <summary>
+        /// Writes the optional, more detailed ToolDescription-property to the log (if defined) or console
+        /// </summary>
+        private void WriteToolDescription()
+        {
+            if (ToolDescription != null)
+            {
+                Log.AddInfo(ToolDescription);
             }
         }
 
