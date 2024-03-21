@@ -382,7 +382,14 @@ namespace Sweco.SIF.iMOD.IPF
                 {
                     for (int i = 0; i < columnCount; i++)
                     {
-                        this.AddColumn(RemoveIPFLineComment(sr.ReadLine().Trim()));
+                        if (!sr.EndOfStream)
+                        {
+                            this.AddColumn(RemoveIPFLineComment(sr.ReadLine().Trim()));
+                        }
+                        else
+                        {
+                            throw new Exception("Unexpected end-of-file when reading " + columnCount + " column names in: " + Path.GetFileName(Filename));
+                        }
                     }
                 }
                 CheckColumnNames();
@@ -536,7 +543,7 @@ namespace Sweco.SIF.iMOD.IPF
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception("Unexpected error when reading IPF-line for point number " + (pointIdx + 1) + ": " + pointLine + "\n" + ex.GetBaseException().Message);
+                    throw new Exception("Unexpected error when reading IPF-line for point number " + (pointIdx + 1) + ": " + pointLine, ex);
                 }
 
                 if ((pointCount != -1) && (pointIdx != pointCount))
@@ -893,7 +900,7 @@ namespace Sweco.SIF.iMOD.IPF
         /// </summary>
         /// <param name="point"></param>
         /// <returns></returns>
-        private IPFPoint GetPoint(Point point)
+        public IPFPoint GetPoint(Point point)
         {
             int index = IndexOf(point);
             if (index >= 0)
@@ -1199,7 +1206,7 @@ namespace Sweco.SIF.iMOD.IPF
             {
                 if ((filename == null) || filename.Equals(string.Empty))
                 {
-                    throw new Exception("No filename specified for IDFFile.WriteFile()");
+                    throw new Exception("No filename specified for IPFFile.WriteFile()");
                 }
                 if (!Path.GetDirectoryName(filename).Equals(string.Empty) && !Directory.Exists(Path.GetDirectoryName(filename)))
                 {
@@ -1690,6 +1697,7 @@ namespace Sweco.SIF.iMOD.IPF
 
             IPFLegend ipfLegend = new IPFLegend(description);
             ipfLegend.AddClass(new RangeLegendClass(float.MinValue, float.MaxValue, Path.GetFileNameWithoutExtension(Filename), actualColor));
+            ipfLegend.Thickness = 2;
             return ipfLegend;
         }
 
@@ -2637,6 +2645,216 @@ namespace Sweco.SIF.iMOD.IPF
             }
 
             points.Sort(new IPFPointIDComparer(idColIdx));
+        }
+
+        /// <summary>
+        /// Create a new IPFFile object that represents the difference between specified other IPF-file and this IPF-file.
+        /// </summary>
+        /// <param name="otherIPFFile"></param>
+        /// <param name="outputPath"></param>
+        /// <param name="isNoDataCompared">if true, NoData-values are compared using the defined NoDataCalculationValues</param>
+        /// <param name="comparedExtent">the extent for which the difference should be calculated</param>
+        /// <returns>IPF-file with differences or an Exception if orher IMODFile is not an IPFFile objecty</returns>
+        public override IMODFile CreateDifferenceFile(IMODFile otherIPFFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        {
+            if (otherIPFFile is IPFFile)
+            {
+                return CreateDifferenceFile((IPFFile)otherIPFFile, outputPath, isNoDataCompared, comparedExtent);
+            }
+            else
+            {
+                throw new Exception("Difference between IPF and " + otherIPFFile.GetType().Name + " is not implemented");
+            }
+        }
+
+        /// <summary>
+        /// Create a new IPFFile object that represents the difference between specified other IPF-file and this IPF-file
+        /// </summary>
+        /// <param name="otherIPFFile"></param>
+        /// <param name="outputPath"></param>
+        /// <param name="isNoDataCompared"></param>
+        /// <param name="comparedExtent"></param>
+        /// <returns></returns>
+        public IPFFile CreateDifferenceFile(IPFFile otherIPFFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        {
+            string equalString = "equal";
+            string modifiedString = "modified";
+            string addedString = "added";
+            string deletedString = "deleted";
+            int equalCode = 0;
+            int modifiedCode = 1;
+            int addedCode = 2;
+            int deletedCode = 3;
+
+            if (otherIPFFile == null)
+            {
+                // When other file is missing, the result is a copy of this file
+                return CopyIPF(Path.Combine(outputPath, "DIFF_" + Path.GetFileNameWithoutExtension(Filename) + "-null" + Path.GetExtension(Filename)));
+            }
+
+            // Create empty difference file to start with
+            IPFFile diffIPFFile = new IPFFile();
+            string diffFilename = Path.Combine(outputPath, "DIFF_" + Path.GetFileNameWithoutExtension(Filename)
+                + "-" + Path.GetFileNameWithoutExtension(otherIPFFile.Filename) + Path.GetExtension(Filename));
+            diffIPFFile.Filename = diffFilename;
+            diffIPFFile.NoDataValue = this.NoDataValue;
+
+            List<string> ipf1EmptyColumnValues = new List<string>();
+            for (int colIdx1 = 2; colIdx1 < this.ColumnNames.Count; colIdx1++)
+            {
+                ipf1EmptyColumnValues.Add(string.Empty);
+            }
+
+            List<string> ipf2EmptyColumnValues = new List<string>();
+            for (int colIdx2 = 2; colIdx2 < otherIPFFile.ColumnNames.Count; colIdx2++)
+            {
+                ipf2EmptyColumnValues.Add(string.Empty);
+            }
+
+            // Start with columnnames of this IPF-file, add columns of other IPF-file, but skip first two columns x,y
+            List<string> diffColumnNames = CommonUtils.CopyStringList(this.ColumnNames);
+            string ipf2ColumnPrefix = "IPF2.";
+            for (int colIdx2 = 2; colIdx2 < otherIPFFile.ColumnNames.Count; colIdx2++)
+            {
+                string colName2 = otherIPFFile.ColumnNames[colIdx2];
+                diffColumnNames.Add(ipf2ColumnPrefix + colName2);
+            }
+            diffIPFFile.ColumnNames = diffColumnNames;
+
+            // If the objects are equal, there's no need to check the actual contents
+            if (object.Equals(this, otherIPFFile))
+            {
+                // return empty difference file
+                return diffIPFFile;
+            }
+
+            diffIPFFile.AddColumn("DIFFERENCE");
+            diffIPFFile.AddColumn("DIFFCODE");
+            diffIPFFile.AssociatedFileColIdx = AssociatedFileColIdx;
+            IPFLegend ipfLegend = (IPFLegend)diffIPFFile.CreateLegend("Difference");
+            ipfLegend.ClassList.Clear();
+            ipfLegend.Thickness = 2;
+            ipfLegend.AddClass(new ValueLegendClass(0, "Equal", System.Drawing.Color.FromArgb(215, 215, 215), "No difference"));
+            ipfLegend.AddClass(new ValueLegendClass(1, "Modified", System.Drawing.Color.FromArgb(255, 149, 43), "Some modified column values "));
+            ipfLegend.AddClass(new ValueLegendClass(2, "Added", System.Drawing.Color.FromArgb(0, 128, 255), "New point location"));
+            ipfLegend.AddClass(new ValueLegendClass(3, "Deleted", System.Drawing.Color.FromArgb(240, 0, 0), "Deleted point location"));
+            ipfLegend.ColumnNumber = diffIPFFile.ColumnCount;
+            diffIPFFile.Legend = ipfLegend;
+
+            IPFFile extentBaseIPFFile = this;
+            IPFFile extentOtherIPFFile = otherIPFFile;
+            if (comparedExtent != null)
+            {
+                extentBaseIPFFile = this.ClipIPF(comparedExtent);
+                extentOtherIPFFile = otherIPFFile.ClipIPF(comparedExtent);
+            }
+
+            // Now start comparing contents
+            foreach (IPFPoint ipfPoint in points)
+            {
+                // First check if point with equal XY-coordinates is present in other IPF-file
+                if (otherIPFFile.IndexOf((Point)ipfPoint) < 0)
+                {
+                    // point is missing in other IPF-file, copy data from first IPF-file (including xy) and leave other columns empty
+                    List<string> copiedStringList = CommonUtils.CopyStringList(ipfPoint.ColumnValues);
+                    copiedStringList.AddRange(CommonUtils.CopyStringList(ipf2EmptyColumnValues));
+                    copiedStringList.Add(addedString);
+                    copiedStringList.Add(addedCode.ToString());
+                    diffIPFFile.AddPoint(new IPFPoint(diffIPFFile, ipfPoint.Copy(), copiedStringList));
+                }
+                else
+                {
+                    // point is present in both IPFs, copy all values from both points and check contents
+                    List<string> baseColumnStrings = ipfPoint.ColumnValues;
+                    List<string> otherColumnStrings = otherIPFFile.GetPoint((Point)ipfPoint).ColumnValues;
+
+                    // Contents can be different, copy all column values
+                    List<string> columnValues = CommonUtils.CopyStringList(baseColumnStrings);
+                    for (int colIdx2 = 2; colIdx2 < otherIPFFile.ColumnCount; colIdx2++)
+                    {
+                        string colValue2 = otherColumnStrings[colIdx2];
+                        columnValues.Add(colValue2);
+                    }
+
+                    if (!baseColumnStrings.SequenceEqual<string>(otherColumnStrings))
+                    {
+                        // Contents are different
+                        columnValues.Add(modifiedString);
+                        columnValues.Add(modifiedCode.ToString());
+                        diffIPFFile.AddPoint(new IPFPoint(diffIPFFile, ipfPoint.Copy(), columnValues));
+                    }
+                    else
+                    {
+                        // Contents are equal
+                        columnValues.Add(equalString);
+                        columnValues.Add(equalCode.ToString());
+                    }
+                }
+            }
+
+            foreach (IPFPoint ipfPoint in otherIPFFile.Points)
+            {
+                // Check that point from other file is also present in this IPF-file
+                if (!points.Contains((Point)ipfPoint))
+                {
+                    // point is not existing in this IPF-file
+                    List<string> columnValues = new List<string>();
+                    columnValues.Add(ipfPoint.XString);
+                    columnValues.Add(ipfPoint.YString);
+                    columnValues.AddRange(CommonUtils.CopyStringList(ipf1EmptyColumnValues));
+                    for (int colIdx2 = 2; colIdx2 < otherIPFFile.ColumnCount; colIdx2++)
+                    {
+                        string colValue2 = ipfPoint.ColumnValues[colIdx2];
+                        columnValues.Add(colValue2);
+                    }
+                    columnValues.Add(deletedString);
+                    columnValues.Add(deletedCode.ToString());
+                    diffIPFFile.AddPoint(new IPFPoint(diffIPFFile, ipfPoint.Copy(), columnValues));
+                }
+            }
+
+            return diffIPFFile;
+        }
+
+        /// <summary>
+        /// Return a difference legend that corresponds with this kind of iMOD-file
+        /// </summary>
+        /// <returns></returns>
+        public Legend CreateDifferenceLegend()
+        {
+            return CreateLegend("Differences");
+        }
+
+        /// <summary>
+        /// Creates legend with one class with specified color
+        /// </summary>
+        /// <param name="color">default is orange</param>
+        /// <param name="isColorReversed">ignored</param>
+        /// <returns></returns>
+        public override Legend CreateDifferenceLegend(System.Drawing.Color? color = null, bool isColorReversed = false)
+        {
+            System.Drawing.Color actualColor = System.Drawing.Color.DarkOrange;
+            if (color != null)
+            {
+                actualColor = (System.Drawing.Color)color;
+            }
+            return CreateLegend("Differences", actualColor);
+        }
+
+        /// <summary>
+        /// Create factor difference legend
+        /// </summary>
+        /// <param name="noDifferenceColor">Color for nodifference-class, default is light gray</param>
+        /// <param name="isColorReversed">if true, legendcolors (red-green for neg-pos) are reversed to (green-red)</param>
+        /// <returns></returns>
+        public override Legend CreateDivisionLegend(System.Drawing.Color? noDifferenceColor = null, bool isColorReversed = false)
+        {
+            IPFLegend legend = new IPFLegend("FactorDifferences");
+
+            // Add fixed default classes with class ranges from 0.005 upto 50.0
+            legend.AddDivisionLegendClasses(noDifferenceColor, isColorReversed);
+
+            return legend;
         }
     }
 }

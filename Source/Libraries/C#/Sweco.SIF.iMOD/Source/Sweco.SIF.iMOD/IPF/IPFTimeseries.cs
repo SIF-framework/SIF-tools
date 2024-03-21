@@ -36,6 +36,11 @@ namespace Sweco.SIF.iMOD.IPF
     public class IPFTimeseries : Timeseries
     {
         /// <summary>
+        /// Number of decimals for floating point values when writing IPF-timeseries files, use -1 for all decimals
+        /// </summary>
+        public static int DecimalCount { get; set; } = -1;
+
+        /// <summary>
         /// Encoding used for writing timeseries file
         /// </summary>
         public static Encoding Encoding = Encoding.Default;
@@ -70,12 +75,12 @@ namespace Sweco.SIF.iMOD.IPF
         /// </summary>
         public List<float> InvalidValues
         {
-            get { return InvalidValueLists[0]; }
+            get { return InvalidValueColumns[0]; }
         }
         /// <summary>
-        /// The valuelists of all columns, for timestamps in input IPF-timeseries that have invalid chronologic order. These are set by while reading an IPF-timeseries file.
+        /// All value columns, for timestamps in input IPF-timeseries that have invalid chronologic order. These are set by while reading an IPF-timeseries file.
         /// </summary>
-        public List<List<float>> InvalidValueLists { get; private set; }
+        public List<List<float>> InvalidValueColumns { get; private set; }
 
         /// <summary>
         /// NoData-string of timestamp column. Note1: changing this value does NOT change the current NoData timestamps. Note2: timestamp/value-pairs with this value are removed when reading/writing and IPFTimeseries-file.
@@ -94,7 +99,7 @@ namespace Sweco.SIF.iMOD.IPF
         {
             InvalidTimestamps = null;
             ColumnNames = new List<string>();
-            InvalidValueLists = new List<List<float>>();
+            InvalidValueColumns = new List<List<float>>();
             TimestampNoDataString = DefaultNoDataValue.ToString();
             ITYPE = 0;
         }
@@ -111,43 +116,43 @@ namespace Sweco.SIF.iMOD.IPF
         {
             InvalidTimestamps = null;
             ColumnNames = new List<string>(new string[] { valueColumnName ?? "values" });
-            InvalidValueLists = new List<List<float>>();
+            InvalidValueColumns = new List<List<float>>();
             TimestampNoDataString = DefaultNoDataValue.ToString();
             ITYPE = 0;
         }
 
         /// <summary>
-        /// Create IPF-timeseries consisting of one list with timestamps and one or more lists with values
+        /// Create IPF-timeseries consisting of one list with timestamps and one or more columns/lists with values
         /// </summary>
         /// <param name="timestamps"></param>
-        /// <param name="valueLists"></param>
+        /// <param name="valueColumns"></param>
         /// <param name="columnNames">columnnames for the value columns, or 'values' with index when null was specified</param>
         /// <param name="noDataValues"></param>
-        public IPFTimeseries(List<DateTime> timestamps, List<List<float>> valueLists, List<string> columnNames = null, List<float> noDataValues = null)
-            : base(timestamps, valueLists, noDataValues)
+        public IPFTimeseries(List<DateTime> timestamps, List<List<float>> valueColumns, List<string> columnNames = null, List<float> noDataValues = null)
+            : base(timestamps, valueColumns, noDataValues)
         {
             if (columnNames != null)
             {
-                if (columnNames.Count == valueLists.Count)
+                if (columnNames.Count == valueColumns.Count)
                 {
                     this.ColumnNames = columnNames;
                 }
                 else
                 {
-                    throw new Exception("Number of specified columnnames (" + columnNames.Count + ") does not match number of valueColumns (" + valueLists.Count + ")");
+                    throw new Exception("Number of specified columnnames (" + columnNames.Count + ") does not match number of valueColumns (" + valueColumns.Count + ")");
                 }
             }
             else
             {
                 this.ColumnNames = new List<string>();
-                for (int colIdx = 0; colIdx < valueLists.Count; colIdx++)
+                for (int colIdx = 0; colIdx < valueColumns.Count; colIdx++)
                 {
                     this.ColumnNames.Add("values" + (colIdx + 1));
                 }
             }
 
             InvalidTimestamps = null;
-            InvalidValueLists = new List<List<float>>();
+            InvalidValueColumns = new List<List<float>>();
             TimestampNoDataString = DefaultNoDataValue.ToString();
             ITYPE = 0;
         }
@@ -176,7 +181,7 @@ namespace Sweco.SIF.iMOD.IPF
             this.Filename = ipfTSFilename;
 
             InvalidTimestamps = null;
-            InvalidValueLists = new List<List<float>>();
+            InvalidValueColumns = new List<List<float>>();
             TimestampNoDataString = DefaultNoDataValue.ToString();
             ITYPE = 0;
         }
@@ -300,11 +305,11 @@ namespace Sweco.SIF.iMOD.IPF
                 List<DateTime> timestamps = new List<DateTime>();
                 List<List<float>> valueColumns = new List<List<float>>();
                 List<DateTime> invalidTimestamps = new List<DateTime>();
-                List<List<float>> invalidValueLists = new List<List<float>>();
+                List<List<float>> invalidValueColumns = new List<List<float>>();
                 for (int colIdx = 1; colIdx < columnCount; colIdx++)
                 {
                     valueColumns.Add(new List<float>());
-                    invalidValueLists.Add(new List<float>());
+                    invalidValueColumns.Add(new List<float>());
                 }
                 int timestampIdx = 0;
                 while ((!sr.EndOfStream) && (timestampIdx < timestampCount))
@@ -352,12 +357,12 @@ namespace Sweco.SIF.iMOD.IPF
                             {
                                 if (IsInvalidDateIgnored)
                                 {
-                                    System.Console.WriteLine("Could not parse timestamp '" + timestampString + "' in line " + line, ex);
+                                    System.Console.WriteLine("Could not parse timestamp '" + timestampString + "' in line " + line);
                                     continue;
                                 }
                                 else
                                 {
-                                    throw new Exception("Could not parse timestamp '" + timestampString + "' in line " + line, ex);
+                                    throw new Exception("Could not parse timestamp '" + timestampString + "' in line '" + line + "':\n" + ex.GetBaseException());
                                 }
                             }
 
@@ -406,7 +411,7 @@ namespace Sweco.SIF.iMOD.IPF
                                 invalidTimestamps.Add(timestamp);
                                 for (int colIdx = 1; colIdx < columnCount; colIdx++)
                                 {
-                                    invalidValueLists[colIdx - 1].Add(columnValues[colIdx - 1]);
+                                    invalidValueColumns[colIdx - 1].Add(columnValues[colIdx - 1]);
                                 }
                             }
                             else
@@ -432,7 +437,7 @@ namespace Sweco.SIF.iMOD.IPF
                 ipfTimeseries.Timestamps = timestamps;
                 ipfTimeseries.ValueColumns = valueColumns;
                 ipfTimeseries.InvalidTimestamps = invalidTimestamps;
-                ipfTimeseries.InvalidValueLists = invalidValueLists;
+                ipfTimeseries.InvalidValueColumns = invalidValueColumns;
             }
             catch (Exception ex)
             {
@@ -507,32 +512,43 @@ namespace Sweco.SIF.iMOD.IPF
         /// Write timeseries, excluding invalid/NoData timestamps, to specified file
         /// </summary>
         /// <param name="filename"></param>
-        /// <param name="decimalCount">Number of decimals for non-NoData-values when writing timeseries file. Use -1 to keep all decimals</param>
+        /// <param name="decimalCount">Number of decimals for non-NoData-values when writing timeseries file. Use -1 to use IPFTimeseries.DecimalCount</param>
         public void WriteFile(string filename, int decimalCount = -1)
         {
             if ((Timestamps != null) && (Timestamps.Count() > 0))
             {
-                // Check that timestamp and valuelists have equal number of items
-                for (int valueListIdx = 0; valueListIdx < this.ValueColumns.Count; valueListIdx++)
+                if (decimalCount == -1)
                 {
-                    if ((ValueColumns[valueListIdx] == null) || (ValueColumns[valueListIdx].Count != Timestamps.Count))
+                    decimalCount = IPFTimeseries.DecimalCount;
+                }
+
+                // Check that timestamp and value columns have equal number of items
+                for (int valueColIdx = 0; valueColIdx < this.ValueColumns.Count; valueColIdx++)
+                {
+                    if ((ValueColumns[valueColIdx] == null) || (ValueColumns[valueColIdx].Count != Timestamps.Count))
                     {
-                        throw new Exception("Number of timestamps " + Timestamps.Count + ") doesn't match number of values (" + ((ValueColumns[valueListIdx] == null) ? "null" : ValueColumns[valueListIdx].Count.ToString()) + ") in valuelist index " + valueListIdx + " for timeseriesfile: " + Path.GetFileName(filename));
+                        throw new Exception("Number of timestamps " + Timestamps.Count + ") doesn't match number of values (" + ((ValueColumns[valueColIdx] == null) ? "null" : ValueColumns[valueColIdx].Count.ToString()) + ") in valuecolumn index " + valueColIdx + " for timeseriesfile: " + Path.GetFileName(filename));
                     }
                 }
                 // Check that other definitions for value columns have equal count
                 if ((NoDataValues.Count != ValueColumns.Count))
                 {
-                    throw new Exception("Number of NoData-values (" + NoDataValues.Count + ") doesn't match number of valueLists (" + ValueColumns.Count + ") for timeseriesfile: " + Path.GetFileName(filename));
+                    throw new Exception("Number of NoData-values (" + NoDataValues.Count + ") doesn't match number of valuecolumns (" + ValueColumns.Count + ") for timeseriesfile: " + Path.GetFileName(filename));
                 }
                 if ((ColumnNames.Count != ValueColumns.Count))
                 {
-                    throw new Exception("Number of column names (" + ColumnNames.Count + ") doesn't match number of valueLists (" + ValueColumns.Count + ") for timeseriesfile: " + Path.GetFileName(filename));
+                    throw new Exception("Number of column names (" + ColumnNames.Count + ") doesn't match number of valuecolumns (" + ValueColumns.Count + ") for timeseriesfile: " + Path.GetFileName(filename));
                 }
 
                 StreamWriter sw = null;
                 try
                 {
+                    string outputPath = Path.GetDirectoryName(filename);
+                    if ((outputPath != null) && !outputPath.Equals(string.Empty) && !Directory.Exists(outputPath))
+                    {
+                        Directory.CreateDirectory(outputPath);
+                    }
+
                     sw = new StreamWriter(filename, false, Encoding);
 
                     // Write first line with number of timestamps

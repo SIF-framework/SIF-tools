@@ -39,7 +39,7 @@ namespace Sweco.SIF.iMOD.IDF
         protected IDFFile idfFile;
 
         /// <summary>
-        /// Internal boolean to keep track of copied of the IDF-file
+        /// Internal boolean to keep track of copy of the IDF-file
         /// </summary>
         protected bool hasIDFFileCopy;
 
@@ -56,7 +56,7 @@ namespace Sweco.SIF.iMOD.IDF
         /// <summary>
         /// Fraction of not-skipped values over total number of values (note: NoData-values are always skipped)
         /// </summary>
-        public float NonSkippedFraction { get; set; }
+        public float NotSkippedFraction { get; set; }
 
         /// <summary>
         /// Create new IDFStatistics object for specified IDF-file
@@ -65,9 +65,9 @@ namespace Sweco.SIF.iMOD.IDF
         public IDFStatistics(IDFFile idfFile)
         {
             this.idfFile = idfFile;
-            this.values = CreateList(idfFile.Values, idfFile.NoDataValue);
+            this.values = CreateList(idfFile.NoDataValue);
             hasIDFFileCopy = false;
-            CalculateCellPercentages();
+            CalculateSkipFractions();
         }
 
         /// <summary>
@@ -82,9 +82,9 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 skippedValues.Add(idfFile.NoDataValue);
             }
-            this.values = CreateList(idfFile.Values, skippedValues);
+            this.values = CreateList(skippedValues);
             hasIDFFileCopy = false;
-            CalculateCellPercentages();
+            CalculateSkipFractions();
         }
 
         /// <summary>
@@ -97,8 +97,8 @@ namespace Sweco.SIF.iMOD.IDF
             IDFFile clippedIDFFile = idfFile.ClipIDF(extent);
             hasIDFFileCopy = true;
             this.idfFile = clippedIDFFile;
-            this.values = CreateList(idfFile.Values, clippedIDFFile.NoDataValue);
-            CalculateCellPercentages();
+            this.values = CreateList(clippedIDFFile.NoDataValue);
+            CalculateSkipFractions();
         }
 
         /// <summary>
@@ -116,9 +116,8 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 skippedValues.Add(outlierAreaHeadIDFFile.NoDataValue);
             }
-            this.values = CreateList(idfFile.Values, skippedValues);
-            CalculateCellPercentages();
-
+            this.values = CreateList(skippedValues);
+            CalculateSkipFractions();
         }
 
         /// <summary>
@@ -136,44 +135,49 @@ namespace Sweco.SIF.iMOD.IDF
         /// <summary>
         /// Calculate percentages and fractions for skipped values
         /// </summary>
-        private void CalculateCellPercentages()
+        private void CalculateSkipFractions()
         {
             totalCount = idfFile.NRows * idfFile.NCols;
             SkippedCount = TotalCount - Count;
             SkippedFraction = (float)SkippedCount / (float)TotalCount;
-            NonSkippedFraction = (float)Count / (float)TotalCount;
+            NotSkippedFraction = (float)Count / (float)TotalCount;
         }
 
         /// <summary>
-        /// Create a 1D-list from 2D-array in IDF-files
+        /// Create a 1D-list from 2D-array in defined IDF-file
         /// </summary>
         /// <param name="values"></param>
         /// <param name="skippedValues"></param>
         /// <returns></returns>
-        private List<float> CreateList(float[][] values, List<float> skippedValues = null)
+        private List<float> CreateList(List<float> skippedValues = null)
         {
+            if ((idfFile == null) ||  (idfFile.Values == null))
+            {
+                return new List<float>();
+            }
+
+            float[][] values = idfFile.Values;
+            List<float> floatList = floatList = new List<float>(values.Length * values[0].Length);
             if (skippedValues == null)
             {
-                List<float> floatList = new List<float>(values.Length * values[0].Length);
                 for (int i = 0; i < idfFile.NRows; i++)
                 {
                     for (int j = 0; j < idfFile.NCols; j++)
                     {
-                        floatList.Add(idfFile.values[i][j]);
+                        floatList.Add(values[i][j]);
                     }
                 }
                 return floatList;
             }
             else
             {
-                List<float> floatList = new List<float>(values.Length * values[0].Length);
                 for (int i = 0; i < idfFile.NRows; i++)
                 {
                     for (int j = 0; j < idfFile.NCols; j++)
                     {
                         if (!skippedValues.Contains(idfFile.values[i][j]))
                         {
-                            floatList.Add(idfFile.values[i][j]);
+                            floatList.Add(values[i][j]);
                         }
                     }
                 }
@@ -187,9 +191,15 @@ namespace Sweco.SIF.iMOD.IDF
         /// <param name="values"></param>
         /// <param name="skippedValue"></param>
         /// <returns></returns>
-        private List<float> CreateList(float[][] values, float skippedValue)
+        private List<float> CreateList(float skippedValue)
         {
-            List<float> floatList = new List<float>(values.Length * values[0].Length);
+            if ((idfFile == null) || (idfFile.Values == null))
+            {
+                return new List<float>();
+            }
+
+            float[][] values = idfFile.Values;
+            List<float> floatList = floatList = new List<float>(values.Length * values[0].Length);
             totalCount = idfFile.NRows * idfFile.NCols;
             for (int i = 0; i < idfFile.NRows; i++)
             {

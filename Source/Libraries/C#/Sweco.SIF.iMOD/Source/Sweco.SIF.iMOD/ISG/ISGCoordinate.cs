@@ -43,7 +43,7 @@ namespace Sweco.SIF.iMOD.ISG
 
         public bool IsContainedBy(Extent extent)
         {
-            return ((X >= extent.llx) && (Y >= extent.lly) && (X < extent.urx) && (Y < extent.ury));
+            return ((X >= extent.llx) && (Y >= extent.lly) && (X <= extent.urx) && (Y <= extent.ury));
         }
 
         public float DistanceTo(ISGCoordinate otherCoordinate)

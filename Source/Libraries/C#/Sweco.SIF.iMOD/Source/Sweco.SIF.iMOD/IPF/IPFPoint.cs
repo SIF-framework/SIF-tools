@@ -152,7 +152,7 @@ namespace Sweco.SIF.iMOD.IPF
         /// <returns></returns>
         public float GetFloatValue(int colIdx)
         {
-            if ((colIdx > 0) && (colIdx < columnValues.Count()))
+            if ((colIdx >= 0) && (colIdx < columnValues.Count))
             {
                 try
                 {

@@ -176,7 +176,7 @@ namespace Sweco.SIF.iMOD
         /// </summary>
         /// <param name="timestamps"></param>
         /// <param name="valueColumns"></param>
-        /// <param name="noDataValues">a list of noDataValues, or null to use float.NaN for all valueList</param>
+        /// <param name="noDataValues">a list of noDataValues, or null to use float.NaN for all value columns</param>
         public Timeseries(List<DateTime> timestamps, List<List<float>> valueColumns, List<float> noDataValues = null)
         {
             if ((valueColumns == null) || (valueColumns.Count == 0))
@@ -392,11 +392,11 @@ namespace Sweco.SIF.iMOD
             List<float> selectedNoDataValues = new List<float>();
             foreach (int selValueColIdx in selValueColIndices)
             {
-                List<float> valueList = ValueColumns[selValueColIdx];
+                List<float> valueColumn = ValueColumns[selValueColIdx];
                 float noDataValue = NoDataValues[selValueColIdx];
 
-                List<float> selectedValueList = valueList.GetRange(fromIdx, toIdx - fromIdx + 1);
-                selectedValueColumns.Add(selectedValueList);
+                List<float> selectedValueColumn = valueColumn.GetRange(fromIdx, toIdx - fromIdx + 1);
+                selectedValueColumns.Add(selectedValueColumn);
                 selectedNoDataValues.Add(noDataValue);
             }
 
@@ -404,115 +404,6 @@ namespace Sweco.SIF.iMOD
 
             return selectedTimeseries;
         }
-
-        ///// <summary>
-        ///// Selects values for specified column in specified period. When specified timestamps are not found, existing timestamps just before and after are selected as well.
-        ///// </summary>
-        ///// <param name="startTimestamp"></param>
-        ///// <param name="endTimestamp"></param>
-        ///// <param name="valueColIdx">zero-based column index</param>
-        ///// <returns></returns>
-        //public Timeseries Select(DateTime? startTimestamp = null, DateTime? endTimestamp = null, int valueColIdx = 0)
-        //{
-        //    if (valueColIdx >= ValueColumns.Count)
-        //    {
-        //        throw new Exception("No timeseries values defined for column index " + valueColIdx);
-        //    }
-
-        //    if (startTimestamp == null)
-        //    {
-        //        startTimestamp = timestamps[0];
-        //    }
-        //    if (endTimestamp == null)
-        //    {
-        //        endTimestamp = timestamps[timestamps.Count() - 1];
-        //    }
-
-        //    int fromIdx = -1;
-        //    int dateIdx = 0;
-        //    // find index for fromDate
-        //    while ((dateIdx < timestamps.Count()) && (fromIdx < 0))
-        //    {
-        //        if (timestamps[dateIdx].Equals(startTimestamp))
-        //        {
-        //            fromIdx = dateIdx;
-        //        }
-        //        else if (timestamps[dateIdx] > startTimestamp)
-        //        {
-        //            // Use previous date if not equal
-        //            fromIdx = dateIdx - 1;
-        //            if (fromIdx < 0)
-        //            {
-        //                fromIdx = 0;
-        //            }
-        //        }
-        //        dateIdx++;
-        //    }
-        //    if (fromIdx < 0)
-        //    {
-        //        List<DateTime> noDates = new List<DateTime>();
-        //        List<float> noValues = new List<float>();
-        //        Timeseries dummyTs = new Timeseries(noDates, noValues);
-        //        return dummyTs;
-        //    }
-
-        //    // find index for endTimestamp
-        //    int toIdx = -1;
-        //    while ((dateIdx < timestamps.Count()) && (toIdx < 0))
-        //    {
-        //        if (timestamps[dateIdx].Equals(endTimestamp))
-        //        {
-        //            toIdx = dateIdx;
-        //        }
-        //        else if (timestamps[dateIdx] > endTimestamp)
-        //        {
-        //            // Use previous date if not equal
-        //            toIdx = dateIdx - 1;
-        //            if (toIdx < 0)
-        //            {
-        //                toIdx = 0;
-        //            }
-        //        }
-        //        dateIdx++;
-        //    }
-        //    if (toIdx < 0)
-        //    {
-        //        toIdx = timestamps.Count() - 1;
-        //    }
-
-        //    List<int> selValueColIndices = new List<int>();
-        //    if (valueColIdx == -1)
-        //    {
-        //        for (int colIdx = 0; colIdx < this.ValueColumns.Count; colIdx++)
-        //        {
-        //            selValueColIndices.Add(colIdx);
-        //        }
-        //    }
-        //    else
-        //    {
-        //        selValueColIndices.Add(valueColIdx);
-        //    }
-
-        //    // Select dates;
-        //    List<DateTime> selectedDates = timestamps.GetRange(fromIdx, toIdx - fromIdx + 1);
-
-        //    // Select values for all specified value columns;
-        //    List<List<float>> selectedValueLists = new List<List<float>>();
-        //    List<float> selectedNoDataValues = new List<float>();
-        //    foreach (int selValueColIdx in selValueColIndices)
-        //    {
-        //        List<float> valueList = ValueColumns[selValueColIdx];
-        //        float noDataValue = NoDataValues[selValueColIdx];
-
-        //        List<float> selectedValueList = valueList.GetRange(fromIdx, toIdx - fromIdx + 1);
-        //        selectedValueLists.Add(selectedValueList);
-        //        selectedNoDataValues.Add(noDataValue);
-        //    }
-
-        //    Timeseries selectedTimeseries = new Timeseries(selectedDates, selectedValueLists, selectedNoDataValues);
-
-        //    return selectedTimeseries;
-        //}
 
         /// <summary>
         /// Select timestamp/value-pairs with value between specified min/max
@@ -788,8 +679,8 @@ namespace Sweco.SIF.iMOD
             }
 
             List<DateTime> dateList2 = ts2.Timestamps;
-            List<float> valueList1 = ValueColumns[valueColIdx1];
-            List<float> valueList2 = ts2.ValueColumns[valueColIdx2];
+            List<float> valueColumn1 = ValueColumns[valueColIdx1];
+            List<float> valueColumn2 = ts2.ValueColumns[valueColIdx2];
 
             List<DateTime> selectedDates = new List<DateTime>();
             List<float> selectedValues = new List<float>();
@@ -805,7 +696,7 @@ namespace Sweco.SIF.iMOD
                 {
                     date2 = dateList2[dateIdx2];
                 }
-                float value1 = valueList1[dateIdx1];
+                float value1 = valueColumn1[dateIdx1];
                 while (((date2 == null) || (date1 < date2)) && (dateIdx1 < Timestamps.Count))
                 {
                     selectedDates.Add(date1);
@@ -814,7 +705,7 @@ namespace Sweco.SIF.iMOD
                     if (dateIdx1 < Timestamps.Count)
                     {
                         date1 = Timestamps[dateIdx1];
-                        value1 = valueList1[dateIdx1];
+                        value1 = valueColumn1[dateIdx1];
                     }
                 }
                 while (((date2 != null) && (date2 < date1)) && (dateIdx2 < dateList2.Count))
@@ -828,7 +719,7 @@ namespace Sweco.SIF.iMOD
                 }
                 if ((date2 != null) && date1.Equals(date2))
                 {
-                    float value2 = valueList2[dateIdx2];
+                    float value2 = valueColumn2[dateIdx2];
                     if (Math.Abs(value2 - value1) > valueTolerance)
                     {
                         // Value at same date, but difference is larger than tolerance
@@ -870,8 +761,8 @@ namespace Sweco.SIF.iMOD
             }
 
             List<DateTime> dateList2 = ts2.Timestamps;
-            List<float> valueList1 = ValueColumns[valueColIdx1];
-            List<float> valueList2 = ts2.ValueColumns[valueColIdx2];
+            List<float> valueColumn1 = ValueColumns[valueColIdx1];
+            List<float> valueColumn2 = ts2.ValueColumns[valueColIdx2];
 
             List<DateTime> selectedDates = new List<DateTime>();
             List<float> selectedValues = new List<float>();
@@ -887,14 +778,14 @@ namespace Sweco.SIF.iMOD
                 {
                     date2 = dateList2[dateIdx2];
                 }
-                float value1 = valueList1[dateIdx1];
+                float value1 = valueColumn1[dateIdx1];
                 while (((date2 == null) || (date1 < date2)) && (dateIdx1 < Timestamps.Count))
                 {
                     dateIdx1++;
                     if (dateIdx1 < Timestamps.Count)
                     {
                         date1 = Timestamps[dateIdx1];
-                        value1 = valueList1[dateIdx1];
+                        value1 = valueColumn1[dateIdx1];
                     }
                 }
                 while (((date2 != null) && (date2 < date1)) && (dateIdx2 < dateList2.Count))
@@ -907,7 +798,7 @@ namespace Sweco.SIF.iMOD
                 }
                 if ((date2 != null) && date1.Equals(date2))
                 {
-                    float value2 = valueList2[dateIdx2];
+                    float value2 = valueColumn2[dateIdx2];
                     if (Math.Abs(value2 - value1) <= valueTolerance)
                     {
                         // Value at same date, but difference is smaller than tolerance
@@ -1193,7 +1084,7 @@ namespace Sweco.SIF.iMOD
                         {
                             for (int colIdx = 0; colIdx < this.ValueColumns.Count; colIdx++)
                             {
-                                selectedValueColumns[valueColIdx].Add(ValueColumns[valueColIdx][dateIdx1]);
+                                selectedValueColumns[colIdx].Add(ValueColumns[colIdx][dateIdx1]);
                             }
                         }
                     }
@@ -1222,7 +1113,7 @@ namespace Sweco.SIF.iMOD
                     {
                         for (int colIdx = 0; colIdx < this.ValueColumns.Count; colIdx++)
                         {
-                            selectedValueColumns[valueColIdx].Add(ValueColumns[valueColIdx][dateIdx1]);
+                            selectedValueColumns[colIdx].Add(ValueColumns[colIdx][dateIdx1]);
                         }
                     }
                     dateIdx1++;
@@ -1249,7 +1140,7 @@ namespace Sweco.SIF.iMOD
                     {
                         for (int colIdx = 0; colIdx < this.ValueColumns.Count; colIdx++)
                         {
-                            selectedValueColumns[valueColIdx].Add(ValueColumns[valueColIdx][dateIdx1]);
+                            selectedValueColumns[colIdx].Add(ValueColumns[colIdx][dateIdx1]);
                         }
                     }
                     dateIdx1++;
@@ -1513,7 +1404,6 @@ namespace Sweco.SIF.iMOD
                 newNoDataValues.Add(this.NoDataValues[colIdx]);
             }
 
-
             int timeStampIdx = 0;
             int newTimeStampIdx = 0;
             DateTime prevTimeStamp = DateTime.MinValue;
@@ -1748,9 +1638,9 @@ namespace Sweco.SIF.iMOD
             for (int dateIdx = 0; dateIdx < Timestamps.Count; dateIdx++)
             {
                 result += Timestamps[dateIdx].ToString("dd-MM-yyyy hh:mm:ss") + ": ";
-                for (int valueListIdx = 0; valueListIdx < ValueColumns.Count; valueListIdx++)
+                for (int valueColIdx = 0; valueColIdx < ValueColumns.Count; valueColIdx++)
                 {
-                    result += ValueColumns[valueListIdx][dateIdx].ToString(englishCultureInfo) + ((valueListIdx < (ValueColumns.Count - 1)) ? ", " : string.Empty);
+                    result += ValueColumns[valueColIdx][dateIdx].ToString(englishCultureInfo) + ((valueColIdx < (ValueColumns.Count - 1)) ? ", " : string.Empty);
                 }
                 result += "; \n";
             }

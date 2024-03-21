@@ -236,5 +236,27 @@ namespace Sweco.SIF.iMOD
         /// <param name="isContentComparisonForced">if true the actual contents are compared</param>
         /// <returns></returns>
         public abstract bool HasEqualContent(IMODFile otherIMODFile, Extent comparedExtent, bool isNoDataCompared, bool isContentComparisonForced = false);
+
+        /// <summary>
+        /// Create a new iMOD-file object that represents the difference between specified other iMOD-file and this iMOD-file
+        /// </summary>
+        /// <param name="otherIMODFile"></param>
+        /// <param name="outputPath"></param>
+        /// <param name="isNoDataCompared">if true, NoData-values are compared using the defined NoDataCalculationValues</param>
+        /// <param name="comparedExtent">the extent for which the difference should be calculated</param>
+        /// <returns></returns>
+        public abstract IMODFile CreateDifferenceFile(IMODFile otherIMODFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null);
+
+        /// <summary>
+        /// Return a legend with absolute difference that corresponds with this kind of iMOD-file
+        /// </summary>
+        /// <returns></returns>
+        public abstract Legend CreateDifferenceLegend(Color? noDifferenceColor = null, bool isColorReversed = false);
+
+        /// <summary>
+        /// Return a legend with relative (factor) difference that corresponds with this kind of iMOD-file
+        /// </summary>
+        /// <returns></returns>
+        public abstract Legend CreateDivisionLegend(Color? noDifferenceColor = null, bool isColorReversed = false);
     }
 }

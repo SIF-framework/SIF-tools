@@ -28,7 +28,7 @@ using System.Threading.Tasks;
 
 namespace Sweco.SIF.iMOD.ISG
 {
-    public class ISGSegment
+    public class ISGSegment : IEquatable<ISGSegment>
     {
         /// <summary>
         /// Name of the segment, use quotes to distinguish names with empty spaces
@@ -308,6 +308,50 @@ namespace Sweco.SIF.iMOD.ISG
                 segmentCopy.structures.Add(structures[structureIdx].Copy());
             }
             return segmentCopy;
+        }
+
+        /// <summary>
+        /// Checks if other segment is equal to this segment
+        /// </summary>
+        /// <param name="otherSegment"></param>
+        /// <returns></returns>
+        public bool Equals(ISGSegment otherSegment)
+        {
+            if (otherSegment == null)
+            {
+                return false;
+            }
+
+            if (!otherSegment.GetType().Equals(this.GetType()))
+            {
+                return false;
+            }
+
+            if (otherSegment.NSEG == NSEG)
+            {
+                for (int nodeIdx = 0; nodeIdx < NSEG; nodeIdx++)
+                {
+                    if (!nodes[nodeIdx].Equals(otherSegment.nodes[nodeIdx]))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            //if (otherSegment.calculationPoints.Count == calculationPoints.Count)
+            //{
+            //    for (int pointIdx = 0; pointIdx < calculationPoints.Count; pointIdx++)
+            //    {
+            //        if (!calculationPoints[pointIdx].Equals(otherSegment.calculationPoints[pointIdx]))
+            //        {
+            //            return false;
+            //        }
+            //    }
+            //    return true;
+            //}
+
+            return false;
         }
     }
 }

@@ -427,8 +427,8 @@ namespace Sweco.SIF.iMOD.Utils
         }
 
         /// <summary>
-        /// For each index in/ first list the value at the index position in the second list is retrieved, the resulting list is returned
-        /// No checks are done, an exception will be thrown of indices don't match value list
+        /// For each index in first, list the value at the index position in the second list is retrieved; the resulting list is returned.
+        /// No checks are done, an exception will be thrown of indices don't match value list.
         /// </summary>
         /// <param name="indices"></param>
         /// <param name="items"></param>

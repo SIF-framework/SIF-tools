@@ -21,6 +21,7 @@
 // along with Sweco.SIF.iMOD. If not, see <https://www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using Sweco.SIF.Common;
@@ -37,19 +38,41 @@ namespace Sweco.SIF.iMOD.IDF
     /// </summary>
     public enum UpscaleMethodEnum
     {
+        /// <summary>
+        /// Retrieve minimum of fine values inside coarse cell (excluding NoData)
+        /// </summary>
         Minimum,
+        /// <summary>
+        /// Retrieve arithmetic mean of fine values inside coarse cell (excluding NoData)
+        /// </summary>
         Mean,
+        /// <summary>
+        /// Retrieve mean of fine values inside coarse cell (excluding NoData)
+        /// </summary>
         Median,
+        /// <summary>
+        /// Retrieve maximum of fine values inside coarse cell (excluding NoData)
+        /// </summary>
         Maximum,
+        /// <summary>
+        /// Retrieve most occuring value fine value inside coarse cell (excluding NoData).
+        /// If several vales have same occurance, the most upperleft value is used.
+        /// </summary>
         MostOccurring,
         /// <summary>
-        /// Used for scaling boundary values (i.e. -1, 0, 1); equal to MostOccuring.
+        /// Used for scaling boundary values (i.e. -1, 0, 1): retrieves most occuring minus value above most occuring positive value.
+        /// When only zero and/or NoData-values are present, 0 is returned.
         /// </summary>
         Boundary,
         /// <summary>
-        /// Sum values of fine cells inside coarse cell
+        /// Sum values of fine cells inside coarse cell (excluding NoData)
         /// </summary>
-        Sum
+        Sum,
+        /// <summary>
+        /// Retrieve most occuring value fine value inside coarse cell including NoData.
+        /// If several vales have same occurance, the most upperleft value is used.
+        /// </summary>
+        MostOccurringNoData
     }
 
     /// <summary>
@@ -4816,7 +4839,7 @@ namespace Sweco.SIF.iMOD.IDF
             if (clipExtent.Contains(this.extent) && !isInvertedClip)
             {
                 // No need to clip; return this IDF-file
-                return this;
+                return this.CopyIDF(Filename);
             }
 
             // Snap clip extent to extent and cellsize of source IDF-file, ensure corrected clipExtent is not smaller than original clipExtent
@@ -5595,7 +5618,7 @@ namespace Sweco.SIF.iMOD.IDF
             if (idfFile != null)
             {
                 filename1 = "IDFFILE1.IDF";
-                if (idfFile.Filename != null)
+                if ((idfFile.Filename != null) && !idfFile.Filename.Equals(string.Empty))
                 {
                     filename1 = idfFile.Filename;
                 }
@@ -6368,7 +6391,7 @@ namespace Sweco.SIF.iMOD.IDF
             float mostOccurringValueCount = 0;
             foreach (float value in valueCountDictionary.Keys)
             {
-                if (valueCountDictionary[value] > mostOccurringValueCount)
+                if ((valueCountDictionary[value] > mostOccurringValueCount) || ((valueCountDictionary[value] == mostOccurringValueCount) && mostOccurringValue.Equals(this.NoDataValue)))
                 {
                     mostOccurringValue = value;
                     mostOccurringValueCount = valueCountDictionary[value];
@@ -6585,7 +6608,7 @@ namespace Sweco.SIF.iMOD.IDF
                 }
                 else
                 {
-                    // Only have file has some content, so unequal
+                    // Only one file has some content, so unequal
                     return false;
                 }
             }
@@ -6848,7 +6871,7 @@ namespace Sweco.SIF.iMOD.IDF
                             if ((fineRowIdx <= lastFineRowIdx) && (fineColIdx <= lastFineColIdx))
                             {
                                 float value = fineIDF.Values[fineRowIdx][fineColIdx];
-                                if (!value.Equals(fineIDF.NoDataValue) || upscaleMethod.Equals(UpscaleMethodEnum.MostOccurring))
+                                if (!value.Equals(fineIDF.NoDataValue) || upscaleMethod.Equals(UpscaleMethodEnum.MostOccurringNoData))
                                 {
                                     valueList.Add(value);
                                 }
@@ -6885,10 +6908,11 @@ namespace Sweco.SIF.iMOD.IDF
                                 coarseIDF.values[coarseRowIdx][coarseColIdx] = valueList[valueList.Count - 1];
                                 break;
                             case UpscaleMethodEnum.MostOccurring:
+                            case UpscaleMethodEnum.MostOccurringNoData:
                                 coarseIDF.values[coarseRowIdx][coarseColIdx] = GetMostOccurringValue(valueList);
                                 break;
                             case UpscaleMethodEnum.Boundary:
-                                coarseIDF.values[coarseRowIdx][coarseColIdx] = GetMostOccurringValue(valueList);
+                                coarseIDF.values[coarseRowIdx][coarseColIdx] = GetBoundaryValue(valueList);
                                 break;
                             default:
                                 throw new Exception("Unknown upscale method " + upscaleMethod.ToString());
@@ -7223,6 +7247,166 @@ namespace Sweco.SIF.iMOD.IDF
             }
 
             return outputIDFFile;
+        }
+
+        /// <summary>
+        /// Calculate otherIDFfile - this IDFFile within the extent
+        /// </summary>
+        /// <param name="otherIDFFile"></param>
+        /// <param name="outputPath"></param>
+        /// <param name="isNoDataCompared">if true the actual NoData-values are compared and may result in a difference</param>
+        /// <param name="comparedExtent"></param>
+        /// <returns></returns>
+        public override IMODFile CreateDifferenceFile(IMODFile otherIDFFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        {
+            if (otherIDFFile is IDFFile)
+            {
+                return CreateDifferenceFile((IDFFile)otherIDFFile, outputPath, isNoDataCompared, comparedExtent);
+            }
+            else
+            {
+                throw new Exception("Difference between IDF and " + otherIDFFile.GetType().Name + " is not implemented");
+            }
+        }
+
+        /// <summary>
+        /// Calculate otherIDFfile - this IDFFile, within the extent
+        /// </summary>
+        /// <param name="otherIDFFile"></param>
+        /// <param name="outputPath"></param>
+        /// <param name="isNoDataCompared">use actual NoData-value for comparison instead of defined NoDataCalculationValue</param>
+        /// <param name="isFactorDiffChecked">if false, no factor difference is calculated; if true substraction and factordiff are tried</param>
+        /// <param name="comparedExtent"></param>
+        /// <returns></returns>
+        public IDFFile CreateDifferenceFile(IDFFile otherIDFFile, string outputPath, bool isNoDataCompared, bool isFactorDiffChecked = true, Extent comparedExtent = null)
+        {
+            try
+            {
+                // If specified so, force comparison of cells with NoData, don't use NoDataCalculation-value, but save current value to restore later
+                float currentNoDataCalculationValue1 = this.NoDataCalculationValue;
+                float currentNoDataCalculationValue2 = otherIDFFile.NoDataCalculationValue;
+                if (!isNoDataCompared)
+                {
+                    // Force the noDataCalculaion values of both IDF-files to be equal, so it won't give a difference
+                    this.NoDataCalculationValue = 0;
+                    otherIDFFile.NoDataCalculationValue = 0;
+                }
+                else
+                {
+                    // use the NoData-value as the NoDataCalculation-value, so the actual value of NoData will be used in the comparison
+                    this.NoDataCalculationValue = this.NoDataValue;
+                    otherIDFFile.NoDataCalculationValue = otherIDFFile.NoDataValue;
+                }
+
+                // Actually compare IDF-files
+                IDFFile diffIDFFile = this - otherIDFFile;
+
+                bool isFactorDifference = false;
+                if (isFactorDiffChecked)
+                {
+                    IDFFile divIDFFile = this / otherIDFFile;
+
+                    int divUniqueValueCount = divIDFFile.RetrieveUniqueValues().Count;
+                    int diffUniqueValueCount = diffIDFFile.RetrieveUniqueValues().Count;
+                    // Assume not more than 500 zones are used in factor based modifications 
+                    if ((divUniqueValueCount < 500) && (divUniqueValueCount < diffUniqueValueCount))
+                    {
+                        // Use factor difference if this gives less unique differences
+                        diffIDFFile = divIDFFile;
+                        isFactorDifference = true;
+                    }
+                }
+
+                // Reset NoData-calculationvalues
+                this.NoDataCalculationValue = currentNoDataCalculationValue1;
+                otherIDFFile.NoDataCalculationValue = currentNoDataCalculationValue2;
+
+                IDFFile clippedDiffIDFFile = diffIDFFile.ClipIDF(comparedExtent);
+                if (isFactorDifference)
+                {
+                    clippedDiffIDFFile.Legend = clippedDiffIDFFile.CreateDivisionLegend(Color.FromArgb(240, 240, 240));
+                    clippedDiffIDFFile.Filename = FileUtils.GetUniqueFilename(Path.Combine(outputPath, "FACTOR_" + Path.GetFileNameWithoutExtension(Filename)) + ".IDF");
+                }
+                else
+                {
+                    clippedDiffIDFFile.Legend = clippedDiffIDFFile.CreateDifferenceLegend(Color.FromArgb(240, 240, 240));
+                    clippedDiffIDFFile.Filename = FileUtils.GetUniqueFilename(Path.Combine(outputPath, "DIFF_" + Path.GetFileNameWithoutExtension(Filename)) + ".IDF");
+                }
+
+                return clippedDiffIDFFile;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Could not create difference file", ex);
+            }
+        }
+
+        /// <summary>
+        /// Create default difference legend
+        /// </summary>
+        /// <returns></returns>
+        public Legend CreateDifferenceLegend()
+        {
+            IDFLegend legend = new IDFLegend("Differences");
+            legend.AddDifferenceLegendClasses();
+            return legend;
+        }
+
+        /// <summary>
+        /// Create default difference legend
+        /// </summary>
+        /// <param name="minValue"></param>
+        /// <param name="maxValue"></param>
+        /// <param name="noDifferenceColor">Color for nodifference-class, default is light gray</param>
+        /// <param name="isColorReversed"></param>
+        /// <returns></returns>
+        public Legend CreateDifferenceLegend(float minValue, float maxValue, Color? noDifferenceColor = null, bool isColorReversed = false)
+        {
+            IDFLegend legend = new IDFLegend("Differences");
+            legend.AddDifferenceLegendClasses(minValue, maxValue, noDifferenceColor, isColorReversed);
+            return legend;
+        }
+
+        /// <summary>
+        /// Create difference legend, based on min/max-values of IDF-file
+        /// </summary>
+        /// <param name="noDifferenceColor">Color for nodifference-class, default is light gray</param>
+        /// <param name="isColorReversed"></param>
+        /// <returns></returns>
+        public override Legend CreateDifferenceLegend(Color? noDifferenceColor = null, bool isColorReversed = false)
+        {
+            IDFLegend legend = new IDFLegend("Differences");
+            double max = Math.Max(Math.Abs(MinValue), Math.Abs(MaxValue));
+            if (double.IsInfinity(max))
+            {
+                max = double.MaxValue;
+            }
+            if (max > 2d)
+            {
+                legend.AddDifferenceLegendClasses(MinValue, MaxValue, noDifferenceColor, isColorReversed);
+            }
+            else
+            {
+                // Add fixed default classes with class ranges from 0.005 upto 50.0
+                legend.AddDifferenceLegendClasses(noDifferenceColor, isColorReversed);
+            }
+            return legend;
+        }
+
+        /// <summary>
+        /// Create factor difference legend
+        /// </summary>
+        /// <param name="noDifferenceColor">Color for nodifference-class, default is light gray</param>
+        /// <param name="isColorReversed"></param>
+        /// <returns></returns>
+        public override Legend CreateDivisionLegend(Color? noDifferenceColor = null, bool isColorReversed = false)
+        {
+            IDFLegend legend = new IDFLegend("FactorDifferences");
+
+            // Add fixed default classes with class ranges from 0.005 upto 50.0
+            legend.AddDivisionLegendClasses(noDifferenceColor, isColorReversed);
+
+            return legend;
         }
     }
 }

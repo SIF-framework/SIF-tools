@@ -140,5 +140,33 @@ namespace Sweco.SIF.iMOD.IDF
         {
             return "(" + RowIdx + "," + ColIdx + (Value.Equals(float.NaN) ? string.Empty : (":"  + Value.ToString())) + ")";
         }
+
+        /// <summary>
+        /// Update specified min/max indices with indices of an idfCell object
+        /// </summary>
+        /// <param name="idfCell">IDFCell object to retrieve indices from</param>
+        /// <param name="minColIdx"></param>
+        /// <param name="minRowIdx"></param>
+        /// <param name="maxColIdx"></param>
+        /// <param name="maxRowIdx"></param>
+        public static void UpdateMinMaxIndices(IDFCell idfCell, ref int minColIdx, ref int minRowIdx, ref int maxColIdx, ref int maxRowIdx)
+        {
+            if (idfCell.RowIdx < minRowIdx)
+            {
+                minRowIdx = idfCell.RowIdx;
+            }
+            if (idfCell.RowIdx > maxRowIdx)
+            {
+                maxRowIdx = idfCell.RowIdx;
+            }
+            if (idfCell.ColIdx < minColIdx)
+            {
+                minColIdx = idfCell.ColIdx;
+            }
+            if (idfCell.ColIdx > maxColIdx)
+            {
+                maxColIdx = idfCell.ColIdx;
+            }
+        }
     }
 }

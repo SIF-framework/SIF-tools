@@ -109,11 +109,13 @@
     <Compile Include="IMF\Map.cs" />
     <Compile Include="IMF\Overlay.cs" />
     <Compile Include="IMODFile.cs" />
+    <Compile Include="IMODFileFactory.cs" />
     <Compile Include="IPF\ConcaveHull.cs" />
     <Compile Include="IPF\IPFCluster.cs" />
     <Compile Include="IPF\IPFFile.cs" />
     <Compile Include="IPF\IPFLegend.cs" />
     <Compile Include="IPF\IPFPoint.cs" />
+    <Compile Include="IPF\IPFTSStatistics.cs" />
     <Compile Include="IPF\IPFTimeseries.cs" />
     <Compile Include="IPF\IPFUtils.cs" />
     <Compile Include="ISG\ISGCalculationPoint.cs" />

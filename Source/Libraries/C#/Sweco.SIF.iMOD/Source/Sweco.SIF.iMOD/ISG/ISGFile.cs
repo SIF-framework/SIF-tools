@@ -39,6 +39,14 @@ namespace Sweco.SIF.iMOD.ISG
     /// </summary>
     public class ISGFile : IMODFile, IEquatable<ISGFile>
     {
+        // ISG-files contain the following objects (according to iMOD-manual):
+        // - Segments:           lines that define the watercoarses. Each segment contains zero or more of the following:
+        // - Nodes:              points on a segment that define the XY-position and orientation of each segment. Each segment contains at least two nodes.
+        // - Calculation points: point on a segment that define attributes of a segment at that position: water level, bottom, resistance and infiltration factor
+        // - Structures:         Structures are the weirs on a segment where a (fixed) water level is maintained
+        // - Cross-sections:     Cross-sections are points on a segment where a cross-section is defined;
+        // - QWD relationships:  Q-Width-Depth relationships are points on a segment where the relation between the discharge and the width and depth of the water level is defined.
+
         public const float DistanceErrorMargin = 0.25f;
 
         /// <summary>
@@ -875,6 +883,10 @@ namespace Sweco.SIF.iMOD.ISG
             return clippedISGFile;
         }
 
+        /// <summary>
+        /// Add specified ISG-segment to this ISG-file
+        /// </summary>
+        /// <param name="isgSegment"></param>
         public void AddSegment(ISGSegment isgSegment)
         {
             // Check via Property if segments are existing
@@ -887,13 +899,28 @@ namespace Sweco.SIF.iMOD.ISG
         }
 
         /// <summary>
-        /// Currently not implemented
+        /// Add specified List of ISG-segments to this ISG-file
+        /// </summary>
+        /// <param name="isgSegments"></param>
+        public void AddSegments(List<ISGSegment> isgSegments)
+        {
+            // Check via Property if segments are existing
+            if (Segments == null)
+            {
+                // No Segments available, not in memory, not in file. Create empty list.
+                isgSegments = new List<ISGSegment>();
+            }
+            isgSegments.AddRange(isgSegments);
+        }
+
+        /// <summary>
+        /// Determine equality up to the level of the filename
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
         public virtual bool Equals(ISGFile other)
         {
-            throw new NotImplementedException();
+            return base.Equals(other);
         }
 
         /// <summary>
@@ -932,12 +959,12 @@ namespace Sweco.SIF.iMOD.ISG
         }
 
         /// <summary>
-        /// Currently not implemented
+        /// Retrieves number of segments in this ISGFile object
         /// </summary>
         /// <returns></returns>
         public override long RetrieveElementCount()
         {
-            throw new NotImplementedException();
+            return SegmentCount;
         }
 
         /// <summary>
@@ -970,7 +997,7 @@ namespace Sweco.SIF.iMOD.ISG
         }
 
         /// <summary>
-        /// Currently not implemented
+        /// Determine equality up to the level of the contents
         /// </summary>
         /// <param name="otherIMODFile"></param>
         /// <param name="comparedExtent"></param>
@@ -979,7 +1006,244 @@ namespace Sweco.SIF.iMOD.ISG
         /// <returns></returns>
         public override bool HasEqualContent(IMODFile otherIMODFile, Extent comparedExtent, bool isNoDataCompared, bool isContentComparisonForced = false)
         {
-            throw new NotImplementedException();
+            if (!(otherIMODFile is ISGFile))
+            {
+                return false;
+            }
+
+            ISGFile otherISGFile = (ISGFile)otherIMODFile;
+            if (!isContentComparisonForced && this.Equals(otherISGFile))
+            {
+                return true;
+            }
+
+            EnsureLoadedSegments();
+            otherISGFile.EnsureLoadedSegments();
+
+            // Determine comparison extent
+            if (!((this.extent != null) && (otherISGFile.Extent != null)))
+            {
+                // One or both files have a null extent
+                if ((this.extent == null) && (otherISGFile.Extent == null))
+                {
+                    // both files have no content, so equal...
+                    return true;
+                }
+                else
+                {
+                    // Only one file has some content, so unequal
+                    return false;
+                }
+            }
+            else
+            {
+                if (comparedExtent == null)
+                {
+                    if (!this.extent.Equals(otherISGFile.Extent))
+                    {
+                        // Both files have different extents so different content
+                        return false;
+                    }
+
+                    // Both files have equal extent, continue with actual comparison below
+                }
+                else
+                {
+                    // Clip both IDF-files to compared extent
+                    Extent comparedExtent1 = this.Extent.Clip(comparedExtent);
+                    Extent comparedExtent2 = otherISGFile.Extent.Clip(comparedExtent);
+                    if (!comparedExtent1.Equals(comparedExtent2))
+                    {
+                        // Both files differ in content, even within compared extent
+                        return false;
+                    }
+                    comparedExtent = comparedExtent1;
+
+                    if (!comparedExtent.IsValidExtent())
+                    {
+                        // The comparison extent has no overlap with the other extents, so within the comparison extent the files are actually equal
+                        return true;
+                    }
+
+                    // A valid comparison extent remains, continue with actual comparison
+                }
+            }
+
+            // Compare segments of both files
+            ISGFile diffISGFile = this.CreateDifferenceFile((ISGFile) otherIMODFile, string.Empty, false, comparedExtent);
+            return (diffISGFile == null);
+        }
+
+        /// <summary>
+        /// Create a new ISGFile object that represents the difference between specified other ISG-file and this ISG-file.
+        /// </summary>
+        /// <param name="otherISGFile"></param>
+        /// <param name="outputPath"></param>
+        /// <param name="isNoDataCompared"></param>
+        /// <param name="comparedExtent"></param>
+        /// <returns></returns>
+        public override IMODFile CreateDifferenceFile(IMODFile otherISGFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        {
+            if (otherISGFile is ISGFile)
+            {
+                return CreateDifferenceFile((ISGFile)otherISGFile, outputPath, isNoDataCompared, comparedExtent);
+            }
+            else
+            {
+                throw new Exception("Difference between ISG and " + otherISGFile.GetType().Name + " is not implemented");
+            }
+        }
+
+        /// <summary>
+        /// Create a new ISGFile object that represents the difference between specified other ISG-file and this ISG-file.
+        /// All different segments (deleted, different or added) are (completely) returned.
+        /// Note: currently only the segments are compared, not the underlying data. 
+        /// </summary>
+        /// <param name="otherISGFile"></param>
+        /// <param name="outputPath"></param>
+        /// <param name="isNoDataCompared"></param>
+        /// <param name="comparedExtent"></param>
+        /// <returns>ISG-file with different segment (without data), or null if ISG-files are equal</returns>
+        public ISGFile CreateDifferenceFile(ISGFile otherISGFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        {
+            // If the objects are equal, there's no need to check the actual contents
+            if (object.Equals(this, otherISGFile))
+            {
+                return null;
+            }
+
+            if (otherISGFile == null)
+            {
+                // When other file is missing, the result is a copy of this file
+                return CopyISG(Path.Combine(outputPath, "DIFF_" + Path.GetFileNameWithoutExtension(Filename) + "-null" + Path.GetExtension(Filename)));
+            }
+
+            string diffFilename = Path.Combine(outputPath, "DIFF_" + Path.GetFileNameWithoutExtension(Filename)
+                + "-" + Path.GetFileNameWithoutExtension(otherISGFile.Filename) + Path.GetExtension(Filename));
+            ISGFile diffISGFile = new ISGFile(diffFilename);
+
+            this.EnsureLoadedSegments();
+            otherISGFile.EnsureLoadedSegments();
+
+            Extent thisISGExtent = this.Extent;
+            Extent otherISGExtent = otherISGFile.Extent;
+            if (!thisISGExtent.Intersects(otherISGExtent))
+            {
+                // No overlap, return all segments
+                diffISGFile.AddSegments(segments);
+                diffISGFile.AddSegments(otherISGFile.segments);
+            }
+
+            HashSet<int> leftOverIndices2 = new HashSet<int>();
+            for (int segmentIdx2 = 0; segmentIdx2 < otherISGFile.segmentCount; segmentIdx2++)
+            {
+                leftOverIndices2.Add(segmentIdx2);
+            }
+
+            for (int segmentIdx1 = 0; segmentIdx1 < segmentCount; segmentIdx1++)
+            {
+                ISGSegment isgSegment1 = segments[segmentIdx1];
+                int segmentIdx2 = otherISGFile.RetrieveSegmentIndex(isgSegment1, leftOverIndices2);
+                if (segmentIdx2 >= 0)
+                {
+                    leftOverIndices2.Remove(segmentIdx2);
+                }
+                else
+                {
+                    diffISGFile.AddSegment(isgSegment1);
+                }
+            }
+
+            foreach (int segmentIdx2 in leftOverIndices2)
+            {
+                diffISGFile.AddSegment(otherISGFile.segments[segmentIdx2]);
+            }
+
+            return (diffISGFile.SegmentCount > 0) ? diffISGFile : null;
+        }
+
+        /// <summary>
+        /// Retrive index of specified segment or -1 if not found
+        /// </summary>
+        /// <param name="searchedSegment"></param>
+        /// <returns></returns>
+        private int RetrieveSegmentIndex(ISGSegment searchedSegment)
+        {
+            Extent searchedExtent = searchedSegment.GetExtent();
+
+            for (int segmentIdx = 0; segmentIdx < segmentCount; segmentIdx++)
+            {
+                ISGSegment isgSegment = segments[segmentIdx];
+                if (isgSegment.HasOverlap(searchedExtent))
+                {
+                    if (isgSegment.Equals(searchedSegment))
+                    {
+                        return segmentIdx;
+                    }
+                }
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// Retrieve index of specified segment or -1 if not found
+        /// </summary>
+        /// <param name="searchedSegment"></param>
+        /// <param name="checkedSegmentIndices">list of segment indices to check, to speed up search</param>
+        /// <returns></returns>
+        private int RetrieveSegmentIndex(ISGSegment searchedSegment, ICollection<int> checkedSegmentIndices)
+        {
+            Extent searchedExtent = searchedSegment.GetExtent();
+
+            foreach (int segmentIdx in checkedSegmentIndices)
+            {
+                ISGSegment isgSegment = segments[segmentIdx];
+                if (isgSegment.HasOverlap(searchedExtent))
+                {
+                    if (isgSegment.Equals(searchedSegment))
+                    {
+                        return segmentIdx;
+                    }
+                }
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// Return a difference legend that corresponds with this kind of iMOD-file
+        /// </summary>
+        /// <returns></returns>
+        public Legend CreateDifferenceLegend()
+        {
+            return CreateDifferenceLegend(null);
+        }
+
+        /// <summary>
+        /// Create legend with single color that is used for methods that need a difference legend
+        /// </summary>
+        /// <param name="color">single color to use for legend, default is orange</param>
+        /// <param name="isColorReversed">ignored</param>
+        /// <returns></returns>
+        public override Legend CreateDifferenceLegend(System.Drawing.Color? color = null, bool isColorReversed = false)
+        {
+            ISGLegend legend = new ISGLegend();
+            legend.Description = "ISG-file legend";
+            legend.Color = (color != null) ? (Color)color : Color.Orange;
+            legend.Thickness = 2;
+            return legend;
+        }
+
+        /// <summary>
+        /// Create legend with single color that is used for methods that need a factor difference legend
+        /// </summary>
+        /// <param name="color">single color to use for legend, default is orange</param>
+        /// <param name="isColorReversed">ignored</param>
+        /// <returns></returns>
+        public override Legend CreateDivisionLegend(System.Drawing.Color? color = null, bool isColorReversed = false)
+        {
+            return CreateDifferenceLegend(null);
         }
     }
 }

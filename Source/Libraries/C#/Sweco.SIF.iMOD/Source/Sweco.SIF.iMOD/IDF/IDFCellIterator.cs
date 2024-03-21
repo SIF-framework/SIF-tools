@@ -435,7 +435,7 @@ namespace Sweco.SIF.iMOD.IDF
         /// <param name="log">Log object to add result message to</param>
         /// <param name="indentLevel">indent level for message</param>
         /// <param name="logLevel">loglevel to show informative messages</param>
-        /// <param name="addedMessage"></param>
+        /// <param name="addedMessage">added message after default/automatic message</param>
         /// <returns>result message if a warning/error occurs, otherwise null</returns>
         public string CheckExtent(Log log = null, int indentLevel = 0, LogLevel logLevel = LogLevel.All, string addedMessage = null)
         {
@@ -466,14 +466,14 @@ namespace Sweco.SIF.iMOD.IDF
                     if (IsEqualExtent())
                     {
                         message = "IDF-files have equal extent: " + MinExtent.ToString();
-                        if ((log != null) && (logLevel <= LogLevel.Info))
+                        if (log != null)
                         {
                             if (addedMessage != null)
                             {
                                 message += addedMessage;
                             }
 
-                            log.AddInfo(message, indentLevel);
+                            log.AddMessage(logLevel, message, indentLevel);
                         }
                     }
                     else

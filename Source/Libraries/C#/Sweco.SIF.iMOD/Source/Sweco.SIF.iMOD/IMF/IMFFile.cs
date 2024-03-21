@@ -774,7 +774,7 @@ namespace Sweco.SIF.iMOD.IMF
             for (int i = 0; i < ipfLegend.ClassList.Count; i++)
             {
                 RangeLegendClass legendClass = ipfLegend.ClassList[i];
-                imfString += "RGB=" + CommonUtils.Color2Long(legendClass.Color).ToString().PadLeft(14) + "CLASS=" + legendClass.MinValue.ToString().Replace(",", ".").PadLeft(13) + "    LEGTXT= " + legendClass.Label.Replace("\"", string.Empty) + "\r\n";
+                imfString += "RGB=" + CommonUtils.Color2Long(legendClass.Color).ToString().PadLeft(14) + "CLASS=" + legendClass.MinValue.ToString().Replace(",", ".").PadLeft(15) + "  LEGTXT= " + legendClass.Label.Replace("\"", string.Empty) + "\r\n";
             }
             for (int i = 0; i < 7; i++)
             {
@@ -847,7 +847,7 @@ namespace Sweco.SIF.iMOD.IMF
             for (int i = 0; i < idfLegend.ClassList.Count; i++)
             {
                 RangeLegendClass legendClass = idfLegend.ClassList[i];
-                imfString += "RGB=" + CommonUtils.Color2Long(legendClass.Color).ToString().PadLeft(14) + "CLASS=" + legendClass.MinValue.ToString().Replace(",", ".").PadLeft(13) + "    LEGTXT= " + legendClass.Label.Replace("\"", string.Empty) + "\r\n";
+                imfString += "RGB=" + CommonUtils.Color2Long(legendClass.Color).ToString().PadLeft(14) + "CLASS=" + legendClass.MinValue.ToString().Replace(",", ".").PadLeft(15) + "  LEGTXT= " + legendClass.Label.Replace("\"", string.Empty) + "\r\n";
             }
             for (int i = 0; i < 7; i++)
             {

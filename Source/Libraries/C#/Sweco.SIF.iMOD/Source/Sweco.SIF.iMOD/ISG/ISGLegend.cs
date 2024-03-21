@@ -47,7 +47,7 @@ namespace Sweco.SIF.iMOD.ISG
         /// <summary>
         /// Create default ISG-legend: thickness is 1, color is light blue.
         /// </summary>
-        public ISGLegend(string genFilename)
+        public ISGLegend()
         {
             this.Thickness = 1;
             this.Color = Color.LightBlue;

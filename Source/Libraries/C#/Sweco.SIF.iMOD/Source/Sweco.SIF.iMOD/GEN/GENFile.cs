@@ -1163,6 +1163,16 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
+        /// Determine equality up to the level of the filename
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
+        public virtual bool Equals(GENFile other)
+        {
+            return base.Equals(other);
+        }
+
+        /// <summary>
         /// Determine equality up to the level of the contents
         /// </summary>
         /// <param name="otherIMODFile"></param>
@@ -1172,7 +1182,69 @@ namespace Sweco.SIF.iMOD.GEN
         /// <returns></returns>
         public override bool HasEqualContent(IMODFile otherIMODFile, Extent comparedExtent, bool isNoDataCompared, bool isContentComparisonForced = false)
         {
-            throw new NotImplementedException();
+            if (!(otherIMODFile is GENFile))
+            {
+                return false;
+            }
+
+            GENFile otherGENFile = (GENFile)otherIMODFile;
+            if (!isContentComparisonForced && this.Equals(otherGENFile))
+            {
+                return true;
+            }
+
+            // Determine comparison extent
+            if (!((this.extent != null) && (otherGENFile.Extent != null)))
+            {
+                // One or both files have a null extent
+                if ((this.extent == null) && (otherGENFile.Extent == null))
+                {
+                    // both files have no content, so they are considered equal
+                    return true;
+                }
+                else
+                {
+                    // Only one file has some content, so unequal
+                    return false;
+                }
+            }
+            else
+            {
+                if (comparedExtent == null)
+                {
+                    if (!this.extent.Equals(otherGENFile.Extent))
+                    {
+                        // Both files have different extents so different content
+                        return false;
+                    }
+
+                    // Both files have equal extent, continue with actual comparison below
+                }
+                else
+                {
+                    // Clip both IDF-files to compared extent
+                    Extent comparedExtent1 = this.Extent.Clip(comparedExtent);
+                    Extent comparedExtent2 = otherGENFile.Extent.Clip(comparedExtent);
+                    if (!comparedExtent1.Equals(comparedExtent2))
+                    {
+                        // Both files differ in content, even within compared extent
+                        return false;
+                    }
+                    comparedExtent = comparedExtent1;
+
+                    if (!comparedExtent.IsValidExtent())
+                    {
+                        // The comparison extent has no overlap with the other extents, so within the comparison extent the files are actually equal
+                        return true;
+                    }
+
+                    // A valid comparison extent remains, continue with actual comparison
+                }
+            }
+
+            // Compare segments of both files
+            GENFile diffGENFile = this.CreateDifferenceFile((GENFile)otherIMODFile, string.Empty, false, comparedExtent);
+            return (diffGENFile == null);
         }
 
         /// <summary>
@@ -1885,6 +1957,164 @@ namespace Sweco.SIF.iMOD.GEN
         {
             // Call extension method
             return point.FindNearestSegmentFeature(Features, tolerance, excludedFeatures, excludedPoints, preferredFeature, preferredFeatureTolerance);
+        }
+
+        /// <summary>
+        /// Create a new GENFile object that represents the difference between specified other GEN-file and this GEN-file.
+        /// </summary>
+        /// <param name="otherGENFile"></param>
+        /// <param name="outputPath"></param>
+        /// <param name="isNoDataCompared"></param>
+        /// <param name="comparedExtent"></param>
+        /// <returns></returns>
+        public override IMODFile CreateDifferenceFile(IMODFile otherGENFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        {
+            if (otherGENFile is GENFile)
+            {
+                return CreateDifferenceFile((GENFile)otherGENFile, outputPath, isNoDataCompared, comparedExtent);
+            }
+            else
+            {
+                throw new Exception("Difference between GEN and " + otherGENFile.GetType().Name + " is not implemented");
+            }
+        }
+
+        /// <summary>
+        /// Calculate difference between this GEN-file and another GEN-file. If different the whole feature is returned.
+        /// Note: DAT-file is currently not compared. 
+        /// </summary>
+        /// <param name="otherGENFile"></param>
+        /// <param name="outputPath"></param>
+        /// <param name="isNoDataCompared"></param>
+        /// <param name="comparedExtent"></param>
+        /// <returns>GEN-file with different features (without data), or null if GEN-files are equal</returns>
+        public GENFile CreateDifferenceFile(GENFile otherGENFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        {
+            // If the objects are equal, there's no need to check the actual contents
+            if (object.Equals(this, otherGENFile))
+            {
+                return null;
+            }
+
+            if (otherGENFile == null)
+            {
+                // When otherFile is missing, the result is a copy of this file
+                return CopyGEN(Path.Combine(outputPath, "DIFF_" + Path.GetFileNameWithoutExtension(Filename) + "-null" + Path.GetExtension(Filename)));
+            }
+
+            // Create empty difference file to start with
+            GENFile diffGENFile = new GENFile();
+            string diffFilename = Path.Combine(outputPath, "DIFF_" + Path.GetFileNameWithoutExtension(Filename) + "-"
+                + Path.GetFileNameWithoutExtension(otherGENFile.Filename) + Path.GetExtension(Filename));
+            diffGENFile.Filename = diffFilename;
+
+            // TODO
+            //            diffGENFile.AddColumn("DIFFERENCE");
+            //            diffGENFile.textFileColumnIdx = textFileColumnIdx;
+
+            GENFile clippedGENFile = this;
+            GENFile clippedOtherGENFile = otherGENFile;
+            if (comparedExtent != null)
+            {
+                clippedGENFile = this.ClipGEN(comparedExtent);
+                clippedOtherGENFile = otherGENFile.ClipGEN(comparedExtent);
+            }
+
+            Extent clippedISGExtent = clippedGENFile.Extent;
+            Extent clippedOtherISGExtent = clippedOtherGENFile.Extent;
+            if (!clippedISGExtent.Intersects(clippedOtherISGExtent))
+            {
+                // No overlap, return all GEN-features
+                diffGENFile.AddFeatures(clippedGENFile.Features);
+                diffGENFile.AddFeatures(clippedOtherGENFile.Features);
+            }
+
+            HashSet<int> leftOverIndices2 = new HashSet<int>();
+            for (int featureIdx2 = 0; featureIdx2 < otherGENFile.Features.Count; featureIdx2++)
+            {
+                leftOverIndices2.Add(featureIdx2);
+            }
+
+            for (int featureIdx1 = 0; featureIdx1 < Features.Count; featureIdx1++)
+            {
+                GENFeature genLine1 = Features[featureIdx1];
+                int featureIdx2 = otherGENFile.RetrieveFeatureIndex(genLine1, leftOverIndices2);
+                if (featureIdx2 >= 0)
+                {
+                    leftOverIndices2.Remove(featureIdx2);
+                }
+                else
+                {
+                    diffGENFile.AddFeature(genLine1);
+                }
+            }
+
+            foreach (int featureIdx2 in leftOverIndices2)
+            {
+                diffGENFile.AddFeature(clippedOtherGENFile.Features[featureIdx2]);
+            }
+
+            return (diffGENFile.Count > 0) ? diffGENFile : null;
+        }
+
+        /// <summary>
+        /// Retrieve index of specified feature or -1 if not found
+        /// </summary>
+        /// <param name="searchedLine"></param>
+        /// <param name="checkedIndices">list of indices to check, to speed up search</param>
+        /// <returns></returns>
+        public int RetrieveFeatureIndex(GENFeature searchedLine, HashSet<int> checkedIndices)
+        {
+            Extent searchedExtent = searchedLine.RetrieveExtent();
+
+            foreach (int featureIdx in checkedIndices)
+            {
+                GENFeature genFeature = Features[featureIdx];
+                if (genFeature.RetrieveExtent().Intersects(searchedExtent))
+                {
+                    if (genFeature.Equals(searchedLine))
+                    {
+                        return featureIdx;
+                    }
+                }
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// Return a difference legend that corresponds with this kind of iMOD-file
+        /// </summary>
+        /// <returns></returns>
+        public Legend CreateDifferenceLegend()
+        {
+            return CreateDifferenceLegend(null);
+        }
+
+        /// <summary>
+        /// Creates legend with one class with specified color
+        /// </summary>
+        /// <param name="color">single color to use for legend, default is orange</param>
+        /// <param name="isColorReversed">ignored</param>
+        /// <returns></returns>
+        public override Legend CreateDifferenceLegend(System.Drawing.Color? color = null, bool isColorReversed = false)
+        {
+            GENLegend legend = new GENLegend();
+            legend.Description = "GEN-file legend";
+            legend.Color = (color != null) ? (System.Drawing.Color)color : System.Drawing.Color.Orange;
+            legend.Thickness = 2;
+            return legend;
+        }
+
+        /// <summary>
+        /// Create factor difference legend
+        /// </summary>
+        /// <param name="color">single color to use for legend, default is orange</param>
+        /// <param name="isColorReversed">ignored</param>
+        /// <returns></returns>
+        public override Legend CreateDivisionLegend(System.Drawing.Color? color = null, bool isColorReversed = false)
+        {
+            return CreateDifferenceLegend(color);
         }
     }
 }

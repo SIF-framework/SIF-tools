@@ -25,6 +25,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Sweco.SIF.GIS;
+using Sweco.SIF.iMOD.GEN;
+using Sweco.SIF.iMOD.IDF;
 
 namespace Sweco.SIF.iMOD.IPF
 {
@@ -147,5 +149,309 @@ namespace Sweco.SIF.iMOD.IPF
 
             return newIPFFile;
         }
+
+        /// <summary>
+        /// Selects all IPF-points that are inside or outside the specified levels (depending on selectionmethod). 
+        /// </summary>
+        /// <param name="sourceIPFFile"></param>
+        /// <param name="topLevelIDFFile"></param>
+        /// <param name="botLevelIDFFile"></param>
+        /// <param name="selectPointMethod"></param>
+        /// <param name="srcPointIndices">optional (empty, non-null) list to store indices to selected points in source IPF-file</param>
+        /// <returns></returns>
+        public static IPFFile SelectPoints(IPFFile sourceIPFFile, IDFFile topLevelIDFFile, IDFFile botLevelIDFFile = null, SelectPointMethod selectPointMethod = SelectPointMethod.Inside, List<int> srcPointIndices = null)
+        {
+            float maxTopLevelValue = (topLevelIDFFile != null) ? topLevelIDFFile.MaxValue : float.NaN;
+            float minBotLevelValue = (botLevelIDFFile != null) ? botLevelIDFFile.MinValue : float.NaN;
+
+            if (srcPointIndices == null)
+            {
+                // When no list is specified, Create dummy list to speed up inner loop, actual list contents will not be returned as list is a value parameter
+                srcPointIndices = new List<int>();
+            }
+
+            IPFFile newIPFFile = new IPFFile();
+            newIPFFile.CopyProperties(sourceIPFFile);
+
+            List<IPFPoint> ipfPoints = sourceIPFFile.Points;
+            for (int pointIdx = 0; pointIdx < sourceIPFFile.PointCount; pointIdx++)
+            {
+                IPFPoint ipfPoint = ipfPoints[pointIdx];
+
+                float ipfPointZ = (float)ipfPoint.Z;
+                if (ipfPointZ.Equals(float.NaN))
+                {
+                    throw new Exception("Z-coordinate is not defined, SelectPoints with levels is not possible");
+                }
+
+                if (!(ipfPointZ > maxTopLevelValue) && !(ipfPointZ < minBotLevelValue))
+                {
+                    float topValue = (topLevelIDFFile != null) ? topLevelIDFFile.GetValue((float)ipfPoint.X, (float)ipfPoint.Y) : float.NaN;
+                    float botValue = (botLevelIDFFile != null) ? botLevelIDFFile.GetValue((float)ipfPoint.X, (float)ipfPoint.Y) : float.NaN;
+                    // Select points between specified levels
+                    if (!(ipfPointZ > topValue) && !(ipfPointZ < botValue)) // Use inverse expressions for top and bot to cope with possible NaN-value
+                    {
+                        if (selectPointMethod == SelectPointMethod.Inside)
+                        {
+                            if (!srcPointIndices.Contains(pointIdx))
+                            {
+                                newIPFFile.AddPoint(ipfPoint);
+                                srcPointIndices.Add(pointIdx);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (selectPointMethod == SelectPointMethod.Outside)
+                        {
+                            newIPFFile.AddPoint(ipfPoint);
+                            srcPointIndices.Add(pointIdx);
+                        }
+                    }
+                }
+                else
+                {
+                    if (selectPointMethod == SelectPointMethod.Outside)
+                    {
+                        if (!srcPointIndices.Contains(pointIdx))
+                        {
+                            newIPFFile.AddPoint(ipfPoint);
+                            srcPointIndices.Add(pointIdx);
+                        }
+                    }
+                }
+            }
+
+            return newIPFFile;
+        }
+
+        /// <summary>
+        /// Selects all IPF-points that are inside/outside the specified extent (depending on selectionmethod).
+        /// </summary>
+        /// <param name="sourceIPFFile"></param>
+        /// <param name="extent"></param>
+        /// <param name="selectMethod"></param>
+        /// <param name="srcPointIndices">optional (empty, non-null) list to store indices to selected points in source IPF-file</param>
+        /// <returns></returns>
+        public static IPFFile SelectPoints(IPFFile sourceIPFFile, Extent extent, SelectPointMethod selectMethod = SelectPointMethod.Inside, List<int> srcPointIndices = null)
+        {
+            IPFFile newIPFFile = new IPFFile();
+            newIPFFile.CopyProperties(sourceIPFFile);
+
+            if (srcPointIndices == null)
+            {
+                // When no list is specified, Create dummy list to speed up inner loop, actual list contents will not be returned as list is a value parameter
+                srcPointIndices = new List<int>();
+            }
+
+            List<IPFPoint> ipfPoints = sourceIPFFile.Points;
+            for (int pointIdx = 0; pointIdx < sourceIPFFile.PointCount; pointIdx++)
+            {
+                IPFPoint ipfPoint = ipfPoints[pointIdx];
+
+                bool isContained = ipfPoint.IsContainedBy(extent);
+                if ((isContained && (selectMethod == SelectPointMethod.Inside)) || (!isContained && (selectMethod == SelectPointMethod.Outside)))
+                {
+                    if (!srcPointIndices.Contains(pointIdx))
+                    {
+                        newIPFFile.AddPoint(ipfPoint);
+                        srcPointIndices.Add(pointIdx);
+                    }
+                }
+            }
+
+            return newIPFFile;
+        }
+
+        /// <summary>
+        /// Selects all points that are inside/outside the specified polygons
+        /// </summary>
+        /// <param name="sourceIPFFile"></param>
+        /// <param name="genFile"></param>
+        /// <param name="selectMethod">specify if specified points should be inside/outside the specified extent</param>
+        /// <param name="srcPointIndices">optional (empty, non-null) list to store indices to selected points in source IPF-file</param>
+        /// <param name="isSourceColAdded">if true, two columns with a reference to the source are added: index and ID</param>
+        /// <returns>List of selected particle numbers</returns>
+        public static IPFFile SelectPoints(IPFFile sourceIPFFile, GENFile genFile, SelectPointMethod selectMethod = SelectPointMethod.Inside, List<int> srcPointIndices = null, bool isSourceColAdded = true)
+        {
+            IPFFile newIPFFile = new IPFFile();
+            newIPFFile.CopyProperties(sourceIPFFile);
+
+            if (isSourceColAdded)
+            {
+                newIPFFile.AddColumn(sourceIPFFile.FindUniqueColumnName("SourcePolygonIndex"), "0");
+                newIPFFile.AddColumn(sourceIPFFile.FindUniqueColumnName("SourcePolygonId"));
+            }
+
+            List<GENPolygon> genPolygons = genFile.RetrieveGENPolygons();
+
+            if (srcPointIndices == null)
+            {
+                // When no list is specified, Create dummy list to speed up inner loop, actual list contents will not be returned as list is a value parameter
+                srcPointIndices = new List<int>();
+            }
+
+            List<IPFPoint> ipfPoints = sourceIPFFile.Points;
+            for (int genPolygonIdx = 0; genPolygonIdx < genPolygons.Count; genPolygonIdx++)
+            {
+                GENPolygon genPolygon = genPolygons[genPolygonIdx];
+                string genPolygonId = IPFUtils.RemoveListSeperators(genPolygon.ID);
+                Extent boundingBox = new Extent(genPolygon.Points);
+
+                for (int pointIdx = 0; pointIdx < sourceIPFFile.PointCount; pointIdx++)
+                {
+                    IPFPoint ipfPoint = ipfPoints[pointIdx];
+
+                    // First do fast check for proximity of point to polygon
+                    if (ipfPoint.IsContainedBy(boundingBox))
+                    {
+                        // Point is inside bounding box, do further checks to see if point is inside/outside polygon
+                        bool isContainedByPolygon = ipfPoint.IsInside(genPolygon.Points);
+                        if ((isContainedByPolygon && (selectMethod == SelectPointMethod.Inside)) || (!isContainedByPolygon && (selectMethod == SelectPointMethod.Outside)))
+                        {
+                            if (!srcPointIndices.Contains(pointIdx))
+                            {
+                                srcPointIndices.Add(pointIdx);
+                                IPFPoint ipfPointCopy = ipfPoint.CopyIPFPoint();
+                                if (isSourceColAdded)
+                                {
+                                    ipfPointCopy.ColumnValues.Add((genPolygonIdx + 1).ToString());
+                                    ipfPointCopy.ColumnValues.Add(genPolygonId);
+                                }
+                                newIPFFile.AddPoint(ipfPointCopy);
+                            }
+                        }
+                    }
+                    else if ((selectMethod == SelectPointMethod.Outside))
+                    {
+                        // point is outside bounding box. If points outside the polygon have to be selected, this point should be added
+                        if (!srcPointIndices.Contains(pointIdx))
+                        {
+                            srcPointIndices.Add(pointIdx);
+                            IPFPoint ipfPointCopy = ipfPoint.CopyIPFPoint();
+                            if (isSourceColAdded)
+                            {
+                                ipfPointCopy.ColumnValues.Add((genPolygonIdx + 1).ToString());
+                                ipfPointCopy.ColumnValues.Add(genPolygonId);
+                            }
+                            newIPFFile.AddPoint(ipfPointCopy);
+                        }
+                    }
+                }
+            }
+
+            return newIPFFile;
+        }
+
+        /// <summary>
+        /// Selects all points that are in the specified IDF-file cells as defined by the zoneValues.
+        /// </summary>
+        /// <param name="sourceIPFFile"></param>
+        /// <param name="zoneIDFFile"></param>
+        /// <param name="zoneValues"></param>
+        /// <param name="selectMethod">specify if specified points should be inside/outside the specified extent</param>
+        /// <param name="srcPointIndices">optional (empty, non-null) list to store indices to selected points in source IPF-file</param>
+        /// <param name="isSourceColAdded">if true, two columns with a reference to the source are added: index and ID</param>
+        /// <returns>List of selected particle numbers</returns>
+        public static IPFFile SelectPoints(IPFFile sourceIPFFile, IDFFile zoneIDFFile, List<float> zoneValues, SelectPointMethod selectMethod, List<int> srcPointIndices = null, bool isSourceColAdded = true)
+        {
+            IPFFile newIPFFile = new IPFFile();
+            newIPFFile.CopyProperties(sourceIPFFile);
+
+            if (isSourceColAdded)
+            {
+                newIPFFile.AddColumn(sourceIPFFile.FindUniqueColumnName("SourcePolygonIndex"), "0");
+                newIPFFile.AddColumn(sourceIPFFile.FindUniqueColumnName("SourcePolygonId"));
+            }
+
+            if (srcPointIndices == null)
+            {
+                // When no list is specified, Create dummy list to speed up inner loop, actual list contents will not be returned as list is a value parameter
+                srcPointIndices = new List<int>();
+            }
+
+            List<IPFPoint> ipfPoints = sourceIPFFile.Points;
+            for (int pointIdx = 0; pointIdx < sourceIPFFile.PointCount; pointIdx++)
+            {
+                IPFPoint ipfPoint = ipfPoints[pointIdx];
+
+                float ipfPointZoneValue = zoneIDFFile.GetValue((float)ipfPoint.X, (float)ipfPoint.Y);
+
+                bool isInsideZone = false;
+                foreach (float zoneValue in zoneValues)
+                {
+                    if (ipfPointZoneValue.Equals(zoneValue))
+                    {
+                        isInsideZone = true;
+                        break;
+                    }
+                }
+
+                // First do fast check for proximity of point to polygon
+                if (isInsideZone)
+                {
+                    if (selectMethod == SelectPointMethod.Inside)
+                    {
+                        if (!srcPointIndices.Contains(pointIdx))
+                        {
+                            srcPointIndices.Add(pointIdx);
+                            IPFPoint ipfPointCopy = ipfPoint.CopyIPFPoint();
+                            if (isSourceColAdded)
+                            {
+                                ipfPointCopy.ColumnValues.Add(ipfPoint.ToString());
+                                ipfPointCopy.ColumnValues.Add(ipfPointZoneValue.ToString(IMODFile.EnglishCultureInfo));
+                            }
+                            newIPFFile.AddPoint(ipfPointCopy);
+                        }
+                    }
+                }
+                else if ((selectMethod == SelectPointMethod.Outside))
+                {
+                    // point is outside bounding box. If points outside the polygon have to be selected, this point should be added
+                    if (!srcPointIndices.Contains(pointIdx))
+                    {
+                        srcPointIndices.Add(pointIdx);
+                        IPFPoint ipfPointCopy = ipfPoint.CopyIPFPoint();
+                        if (isSourceColAdded)
+                        {
+                            ipfPointCopy.ColumnValues.Add(ipfPoint.ToString());
+                            ipfPointCopy.ColumnValues.Add(ipfPointZoneValue.ToString(IMODFile.EnglishCultureInfo));
+                        }
+                        newIPFFile.AddPoint(ipfPointCopy);
+                    }
+                }
+            }
+
+            return newIPFFile;
+        }
+
+        /// <summary>
+        /// Remove all specified listseperators from given string (replace by empty strings)
+        /// </summary>
+        /// <param name="someString"></param>
+        /// <param name="listSeperators">if null default IPF-listseperators are used</param>
+        /// <returns></returns>
+        public static string RemoveListSeperators(string someString, string listSeperators = null)
+        {
+            if (listSeperators == null)
+            {
+                listSeperators = IPFFile.DefaultListSeperators;
+            }
+            for (int charIdx = 0; charIdx < listSeperators.Length; charIdx++)
+            {
+                someString = someString.Replace(listSeperators[charIdx].ToString(), string.Empty);
+            }
+            return someString;
+        }
+    }
+
+    /// <summary>
+    /// Defined if points are selected inside or outside selection
+    /// </summary>
+    public enum SelectPointMethod
+    {
+        Undefined,
+        Inside,
+        Outside
     }
 }
