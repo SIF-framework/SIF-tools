@@ -96,10 +96,11 @@ namespace Sweco.SIF.IPFplot
                                           "/i:2", "Specified optional ID column indices", new string[] { "..." });
             AddToolOptionDescription("n", "Specify comma-seperated list of series name per IPF-file to use",
                                           "/n:meting,simulatie", "Series names are defined for IPF-file: {0}", new string[] { "..." });
-            AddToolOptionDescription("c", "Specify semicolon seperated list of comma seperated RGB-colors for defined series\n" +
+            AddToolOptionDescription("c", "Specify comma-seperated list of semicolon-seperated RGB-colors for defined series\n" +
                                           "If one series is defined a seperate color for series and average line can be defined",
                                           "/c:200;0;0,0;200;0,0;0;200", "RGB-colors are specified as: {0}", new string[] { "..." });
-            AddToolOptionDescription("v", "Specify comma-seperated list with (one-based) valuelist number per IPF-file to use (default: 1)",
+            AddToolOptionDescription("v", "Specify comma-seperated list with (one-based) valuelist number per IPF-file to use (default: 1)\n" +
+                                          "Note: this column number refers to columns in the associated TXT-files",
                                           "/v:1", "Valuelist are defined per IPF-file: {0}", new string[] { "..." });
             AddToolOptionDescription("x", "Exclude plots if one or more of the IPF-points or all values in IPF-timeseries are missing", 
                                           "/x", "Missing points are excluded");
