@@ -19,6 +19,7 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with iMODWBalFormat. If not, see <https://www.gnu.org/licenses/>.
+using Sweco.SIF.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,19 +48,23 @@ namespace iMODWBalFormat
         public float Out;
         public float Sum;
 
+        private AlphanumComparator alphanumComparator;
+
         public WBalPost(string name, float inValue, float outValue)
         {
             this.Name = name;
             this.In = inValue;
             this.Out = outValue;
             this.Sum = inValue + outValue;
+
+            alphanumComparator = new AlphanumComparator();
         }
 
         public int CompareTo(WBalPost other)
         {
             if (this.GetRank().Equals(other.GetRank()))
             {
-                return this.Name.CompareTo(other.Name);
+                return alphanumComparator.Compare(this.Name, other.Name);
             }
             else
             {
