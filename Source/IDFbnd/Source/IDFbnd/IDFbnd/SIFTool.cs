@@ -85,7 +85,7 @@ namespace Sweco.SIF.IDFbnd
         protected override void DefineToolProperties()
         {
             AddAuthor("Koen van der Hauw");
-            ToolPurpose = "SIF-tool for correcting boundary around selected cells";
+            ToolPurpose = "SIF-tool for correcting boundary around active IDF-cells";
         }
 
         /// <summary>
@@ -122,7 +122,7 @@ namespace Sweco.SIF.IDFbnd
                 }
                 else
                 {
-                    Log.AddInfo("Skipped existing outputfile " + Path.GetFileName(currentFilePath));
+                    Log.AddWarning("Skipped existing outputfile " + Path.GetFileName(currentFilePath), 1);
                 }
             }
 
@@ -143,11 +143,13 @@ namespace Sweco.SIF.IDFbnd
             // Now remove cells outside boundary
             if (settings.IsOuterCorrection)
             {
+                // Remove active cells outside boundary or extent
                 CorrectOuterCells(resultBNDIDFFile, activeValue, boundaryValue, inactiveValue, settings.Extent, log);
 
-                // Correct for diagonal cells when not diagonally checked
+                // Correct for unnecessary diagonal cells when not diagonally checked
                 if (!settings.IsDiagonallyChecked)
                 {
+                    // Remove diagonally redundant boundary cells when not diagonally checked
                     CorrectOuterBoundary(resultBNDIDFFile, activeValue, boundaryValue, inactiveValue, log);
                 }
             }
@@ -158,40 +160,42 @@ namespace Sweco.SIF.IDFbnd
         }
             
         /// <summary>
-        /// Inactivate cell outside boundary cells
+        /// Inactivate cells outside boundary cells inside specified bndIDFFile: 
+        /// - if an extent is specified, all cells outside this extent are inactivated
+        /// - if no extent is specified, all active cells outside boundary cells are inactivated
         /// </summary>
-        /// <param name="outputIDFFile"></param>
+        /// <param name="bndIDFFile"></param>
         /// <param name="activeValue"></param>
         /// <param name="bndValue"></param>
         /// <param name="inactiveValue"></param>
         /// <param name="extent"></param>
         /// <param name="log"></param>
-        protected void CorrectOuterCells(IDFFile outputIDFFile, float activeValue, float bndValue, float inactiveValue, Extent extent, Log log)
+        protected void CorrectOuterCells(IDFFile bndIDFFile, float activeValue, float bndValue, float inactiveValue, Extent extent, Log log)
         {
             if (extent != null)
             {
                 // Retrieve row/column indices. GetRowIdx takes row below upper/lower edge and right of left/right edge of extent, so correct bottom row and right column with cellsize
-                int extentTopRow = outputIDFFile.GetRowIdx(extent.ury);
-                int extentBotRow = outputIDFFile.GetRowIdx(extent.lly + outputIDFFile.YCellsize);
-                int extentLeftCol = outputIDFFile.GetColIdx(extent.llx);
-                int extentRightCol = outputIDFFile.GetColIdx(extent.urx - outputIDFFile.XCellsize);
+                int extentTopRow = bndIDFFile.GetRowIdx(extent.ury);
+                int extentBotRow = bndIDFFile.GetRowIdx(extent.lly + bndIDFFile.YCellsize);
+                int extentLeftCol = bndIDFFile.GetColIdx(extent.llx);
+                int extentRightCol = bndIDFFile.GetColIdx(extent.urx - bndIDFFile.XCellsize);
 
                 // Start from cells at edge of IDF grid, add these to a queue of cells to visit
                 Queue<IDFCell> cellQueue = new Queue<IDFCell>();
                 // Remove part above extent
                 for (int rowIdx = 0; rowIdx < extentTopRow; rowIdx++)
                 {
-                    for (int colIdx = 0; colIdx < outputIDFFile.NCols; colIdx++)
+                    for (int colIdx = 0; colIdx < bndIDFFile.NCols; colIdx++)
                     {
-                        outputIDFFile.values[rowIdx][colIdx] = inactiveValue;
+                        bndIDFFile.values[rowIdx][colIdx] = inactiveValue;
                     }
                 }
                 // Remove part below extent
-                for (int rowIdx = extentBotRow + 1; rowIdx < outputIDFFile.NRows; rowIdx++)
+                for (int rowIdx = extentBotRow + 1; rowIdx < bndIDFFile.NRows; rowIdx++)
                 {
-                    for (int colIdx = 0; colIdx < outputIDFFile.NCols; colIdx++)
+                    for (int colIdx = 0; colIdx < bndIDFFile.NCols; colIdx++)
                     {
-                        outputIDFFile.values[rowIdx][colIdx] = inactiveValue;
+                        bndIDFFile.values[rowIdx][colIdx] = inactiveValue;
                     }
                 }
                 // Remove part left from extent
@@ -199,43 +203,44 @@ namespace Sweco.SIF.IDFbnd
                 {
                     for (int colIdx = 0; colIdx < extentLeftCol; colIdx++)
                     {
-                        outputIDFFile.values[rowIdx][colIdx] = inactiveValue;
+                        bndIDFFile.values[rowIdx][colIdx] = inactiveValue;
                     }
                 }
                 // Remove part right from extent
                 for (int rowIdx = extentTopRow; rowIdx <= extentBotRow; rowIdx++)
                 {
-                    for (int colIdx = extentRightCol + 1; colIdx < outputIDFFile.NCols; colIdx++)
+                    for (int colIdx = extentRightCol + 1; colIdx < bndIDFFile.NCols; colIdx++)
                     {
-                        outputIDFFile.values[rowIdx][colIdx] = inactiveValue;
+                        bndIDFFile.values[rowIdx][colIdx] = inactiveValue;
                     }
                 }
             }
             else
             {
-                // Only correct active cells outside boundary, don't pass through other cells
-                IDFFile visitedCellsIDFFile = outputIDFFile.CopyIDF(string.Empty);
+                // Only correct active cells that can be reached via active cells outside boundary, don't pass through other cells
+                IDFFile srcBNDIDFFile = bndIDFFile.CopyIDF(string.Empty);
+                IDFFile visitedCellsIDFFile = bndIDFFile.CopyIDF(string.Empty);
                 visitedCellsIDFFile.SetValues(0);
-                visitedCellsIDFFile.ReplaceValues(outputIDFFile, activeValue, 0);
-                visitedCellsIDFFile.ReplaceValues(outputIDFFile, outputIDFFile.NoDataValue, visitedCellsIDFFile.NoDataValue);
+                visitedCellsIDFFile.ReplaceValues(bndIDFFile, activeValue, 0);
+                visitedCellsIDFFile.ReplaceValues(bndIDFFile, bndIDFFile.NoDataValue, visitedCellsIDFFile.NoDataValue);
 
                 int bndTopRow = 0;
-                int bndBotRow = outputIDFFile.NRows - 1;
+                int bndBotRow = bndIDFFile.NRows - 1;
                 int bndLeftCol = 0;
-                int bndRightCol = outputIDFFile.NCols - 1;
+                int bndRightCol = bndIDFFile.NCols - 1;
 
                 // Start from cells at edge of IDF grid, add these to a queue of cells to visit
                 Queue<IDFCell> cellQueue = new Queue<IDFCell>();
                 for (int rowIdx = bndTopRow; rowIdx <= bndBotRow; rowIdx++)
                 {
                     // Don't change or visit boundary cells
-                    float cellValue = outputIDFFile.values[rowIdx][bndLeftCol];
+                    float cellValue = bndIDFFile.values[rowIdx][bndLeftCol];
                     if (!cellValue.Equals(bndValue))
                     {
                         cellQueue.Enqueue(new IDFCell(rowIdx, bndLeftCol));
                         visitedCellsIDFFile.values[rowIdx][bndLeftCol] = 1;
                     }
-                    cellValue = outputIDFFile.values[rowIdx][bndRightCol];
+                    cellValue = bndIDFFile.values[rowIdx][bndRightCol];
                     if (!cellValue.Equals(bndValue))
                     {
                         cellQueue.Enqueue(new IDFCell(rowIdx, bndRightCol));
@@ -245,13 +250,13 @@ namespace Sweco.SIF.IDFbnd
                 for (int colIdx = bndLeftCol + 1; colIdx < bndRightCol; colIdx++)
                 {
                     // Don't change or visit boundary cells
-                    float cellValue = outputIDFFile.values[bndTopRow][colIdx];
+                    float cellValue = bndIDFFile.values[bndTopRow][colIdx];
                     if (!cellValue.Equals(bndValue))
                     {
                         cellQueue.Enqueue(new IDFCell(bndTopRow, colIdx));
                         visitedCellsIDFFile.values[bndTopRow][colIdx] = 1;
                     }
-                    cellValue = outputIDFFile.values[bndBotRow][colIdx];
+                    cellValue = bndIDFFile.values[bndBotRow][colIdx];
                     if (!cellValue.Equals(bndValue))
                     {
                         cellQueue.Enqueue(new IDFCell(bndBotRow, colIdx));
@@ -259,20 +264,30 @@ namespace Sweco.SIF.IDFbnd
                     }
                 }
 
+                //IDFFile baseIDFFile = visitedCellsIDFFile.CopyIDF(string.Empty);
+                //baseIDFFile.ResetValues();
+
                 // Now start visiting cells to find outer cells
                 while (cellQueue.Count > 0)
                 {
+                    //visitedCellsIDFFile.WriteFile(Path.Combine(((SIFToolSettings)this.Settings).OutputPath, "VisitedCells.IDF"));
+                    //IDFFile queuedIDFFile = IDFUtils.ConvertToIDF(cellQueue, baseIDFFile, true, float.NaN, 1f);
+                    //queuedIDFFile.WriteFile(Path.Combine(((SIFToolSettings)this.Settings).OutputPath, "QueuedCells.IDF"));
+
                     // Take next cell to be visited
                     IDFCell currentCell = cellQueue.Dequeue();
                     int currentRowIdx = currentCell.RowIdx;
                     int currentColIdx = currentCell.ColIdx;
 
-                    float cellValue = outputIDFFile.values[currentRowIdx][currentColIdx];
+                    //IDFFile currentCellIDFFile = IDFUtils.ConvertToIDF(new List<IDFCell>() { currentCell}, baseIDFFile, true, float.NaN, 1f);
+                    //currentCellIDFFile.WriteFile(Path.Combine(((SIFToolSettings)this.Settings).OutputPath, "CurrentCell.IDF"));
+
+                    float cellValue = bndIDFFile.values[currentRowIdx][currentColIdx];
                     // Replace all cellvalues that have an active value with an inactive value. Other values are left as they are
                     // Values other than active, inactive or boundary can be replaced before with option r
                     if (cellValue.Equals(activeValue))
                     {
-                        outputIDFFile.values[currentRowIdx][currentColIdx] = inactiveValue;
+                        bndIDFFile.values[currentRowIdx][currentColIdx] = inactiveValue;
                     }
 
                     // Check all neighbours (always check diagonally for outer cell correction)
@@ -280,29 +295,48 @@ namespace Sweco.SIF.IDFbnd
                     {
                         for (int colSubIdx = -1; colSubIdx <= 1; colSubIdx++)
                         {
-                            int neighbourRowIdx = currentRowIdx + rowSubIdx;
-                            int neighbourColIdx = currentColIdx + colSubIdx;
-                            // Check that neighbour is inside input grid
-                            if ((neighbourRowIdx >= 0) && (neighbourRowIdx < outputIDFFile.NRows) && (neighbourColIdx >= 0) && (neighbourColIdx < outputIDFFile.NCols))
+                            if ((rowSubIdx == 0) || (colSubIdx == 0))
                             {
-                                float neighbourCellValue = outputIDFFile.values[neighbourRowIdx][neighbourColIdx];
-                                // Only allow checking of neighbours via activeValue neighbours, don't go through inactive or boundary barriers
-                                if (neighbourCellValue.Equals(activeValue))
+                                int neighbourRowIdx = currentRowIdx + rowSubIdx;
+                                int neighbourColIdx = currentColIdx + colSubIdx;
+
+                                // Check that neighbour is inside input grid
+                                if ((neighbourRowIdx >= 0) && (neighbourRowIdx < bndIDFFile.NRows) && (neighbourColIdx >= 0) && (neighbourColIdx < bndIDFFile.NCols))
                                 {
-                                    // If neighbour has not yet been visited, add it to the queue to visit
-                                    if (visitedCellsIDFFile.values[neighbourRowIdx][neighbourColIdx].Equals(0))
+                                    float neighbourCellValue = bndIDFFile.values[neighbourRowIdx][neighbourColIdx];
+                                    // Only check cells via active neighbours, don't go through inactive or boundary barriers
+                                    if (neighbourCellValue.Equals(activeValue))
                                     {
-                                        cellQueue.Enqueue(new IDFCell(neighbourRowIdx, neighbourColIdx));
-                                        visitedCellsIDFFile.values[neighbourRowIdx][neighbourColIdx] = 1;
+                                        // If neighbour has not yet been visited, add it to the queue to visit
+                                        if (visitedCellsIDFFile.values[neighbourRowIdx][neighbourColIdx].Equals(0))
+                                        {
+                                            cellQueue.Enqueue(new IDFCell(neighbourRowIdx, neighbourColIdx));
+                                            visitedCellsIDFFile.values[neighbourRowIdx][neighbourColIdx] = 1;
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
+
+                long activeCellCount = bndIDFFile.RetrieveValueCount(activeValue);
+                if (activeCellCount == 0)
+                {
+                    bndIDFFile.values = srcBNDIDFFile.values;
+                }
             }
         }
 
+        /// <summary>
+        /// Replace boundary values by inactive value if neighbouring cells already form a boundary between active and inactive cells.
+        /// This effectively removes diagonally redundant boundary cells. 
+        /// </summary>
+        /// <param name="idfFile"></param>
+        /// <param name="activeValue"></param>
+        /// <param name="bndValue"></param>
+        /// <param name="inactiveValue"></param>
+        /// <param name="log"></param>
         protected void CorrectOuterBoundary(IDFFile idfFile, float activeValue, float bndValue, float inactiveValue, Log log)
         {
             float[][] idfValues = idfFile.values;
@@ -322,12 +356,18 @@ namespace Sweco.SIF.IDFbnd
                         bool hasRightBndCell = (colIdx < bndRightCol) && idfValues[rowIdx][colIdx + 1].Equals(bndValue);
                         if (hasTopBndCell && hasLeftBndCell)
                         {
+                            // ?B?
+                            // BB?
+                            // ???
+
                             // Check topleft cell for active value
                             if ((rowIdx > 0) && (colIdx > 0) && idfValues[rowIdx - 1][colIdx - 1].Equals(activeValue))
                             {
                                 // AB?
                                 // BB?
                                 // ???
+
+                                // Check bottom or right cell for inactive or NoData-value
                                 if (((rowIdx < bndBotRow) && idfValues[rowIdx + 1][colIdx].Equals(inactiveValue)) || ((colIdx < bndRightCol) && idfValues[rowIdx][colIdx + 1].Equals(inactiveValue)))
                                 {
                                     idfValues[rowIdx][colIdx] = inactiveValue;

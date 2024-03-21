@@ -84,7 +84,7 @@ namespace Sweco.SIF.IDFbnd
             AddToolOptionDescription("e", "Extent for boundary (xll,yll,xur,yur). Boundary is searched inwards from this extent.\n" + 
                                           "Cells outside extent will be inactivated.", "/e:184000,352500,200500,371000", "Extent used for boundary cells: {0},{1},{2},{2}", new string[] { "xll", "yll", "xur", "yur" });
             AddToolOptionDescription("i", "Prevent inactive (or NoData-)cells to be converted to boundary cells, leave inactive cells.", "/i", "Inactive cells are not changed into boundary cells");
-            AddToolOptionDescription("p", "Prevent inactivation of cells outside specified extent", "/p", "Cells outside specified extent will not be inactivated");
+            AddToolOptionDescription("p", "Prevent inactivation of outer cells (outside specified specified extent or boundary cells)", "/p", "Outer cells will not be inactivated");
         }
 
         /// <summary>
