@@ -159,8 +159,7 @@ namespace Sweco.SIF.IPFGENconvert
                 // Convert IPF-points to GEN-features and add to GEN-file
                 ConvertIPFPointsToGEN(ipfFile, genFile, datFile, settings, logIndentLevel);
 
-                Log.AddInfo("Writing GEN-file " + Path.GetFileName(genFilename) + " ...", logIndentLevel);
-                WriteGENFile(genFile, genFilename, settings);
+                WriteGENFile(genFile, genFilename, settings, Log, logIndentLevel);
             }
             else
             {
@@ -353,7 +352,14 @@ namespace Sweco.SIF.IPFGENconvert
 
         protected virtual IPFFile ReadIPFFile(string inputFilename, SIFToolSettings settings)
         {
-            return IPFFile.ReadFile(inputFilename);
+            IPFFile ipfFile = IPFFile.ReadFile(inputFilename, settings.XColIdx, settings.YColIdx, -1);
+
+            if (settings.Extent != null)
+            {
+                ipfFile = ipfFile.ClipIPF(settings.Extent);
+            }
+
+            return ipfFile;
         }
 
         /// <summary>
@@ -361,8 +367,27 @@ namespace Sweco.SIF.IPFGENconvert
         /// </summary>
         protected virtual void RetrievePointXY(Point point, out double x, out double y, SIFToolSettings settings)
         {
-            x = point.X;
-            y = point.Y;
+            if (!settings.SnapCellsize.Equals(double.NaN))
+            {
+                if (settings.SnapType == SnapType.SnapToGrid)
+                {
+                    // snap to gridedges based on cellszie
+                    x = ((int)settings.SnapCellsize) * Math.Round(point.X / (int)settings.SnapCellsize, 0);
+                    y = ((int)settings.SnapCellsize) * Math.Round(point.Y / (int)settings.SnapCellsize, 0);
+                }
+                else
+                {
+                    // snap to cellcenter based on cellszie
+                    x = (settings.SnapCellsize / 2.0) + ((int)settings.SnapCellsize) * Math.Floor(point.X / (int)settings.SnapCellsize);
+                    y = (settings.SnapCellsize / 2.0) + ((int)settings.SnapCellsize) * Math.Floor(point.Y / (int)settings.SnapCellsize);
+                }
+            }
+            else
+            {
+                // Do not modify XY-coordinates
+                x = point.X;
+                y = point.Y;
+            }
         }
 
         protected virtual DATRow CreateDATRow(GENFile genFile, GENFeature genFeature, IPFPoint ipfPoint, IPFFile ipfFile, int id, SIFToolSettings settings)
@@ -400,15 +425,22 @@ namespace Sweco.SIF.IPFGENconvert
             }
         }
 
-        protected virtual void WriteGENFile(GENFile genFile, string genFilename, SIFToolSettings settings)
+        protected virtual void WriteGENFile(GENFile genFile, string genFilename, SIFToolSettings settings, Log log, int logIndentLevel)
         {
+            if (settings.Postfix != null)
+            {
+                genFilename = Path.Combine(Path.GetDirectoryName(genFilename), Path.GetFileNameWithoutExtension(genFilename) + settings.Postfix + Path.GetExtension(genFilename));
+            }
+
+            log.AddInfo("Writing GEN-file " + Path.GetFileName(genFilename) + " ...", logIndentLevel);
+
             if (genFile != null)
             {
                 genFile.WriteFile(genFilename);
             }
             else
             {
-                throw new ToolException("GEN-file could not be created");
+                throw new ToolException("GEN-file could not be created:" + genFilename);
             }
         }
 
@@ -420,13 +452,23 @@ namespace Sweco.SIF.IPFGENconvert
         /// <param name="settings"></param>
         protected virtual void WriteIPFFile(IPFFile ipfFile, string ipfFilename, SIFToolSettings settings)
         {
+            if (settings.Postfix != null)
+            {
+                ipfFilename = Path.Combine(Path.GetDirectoryName(ipfFilename), Path.GetFileNameWithoutExtension(ipfFilename) + settings.Postfix + Path.GetExtension(ipfFilename));
+            }
+
+            if (settings.Extent != null)
+            {
+                ipfFile = ipfFile.ClipIPF(settings.Extent);
+            }
+
             if (ipfFile != null)
             {
                 ipfFile.WriteFile(ipfFilename);
             }
             else
             {
-                throw new ToolException("GEN-file could not be created");
+                throw new ToolException("IPF-file could not be created: " + ipfFilename);
             }
         }
 
