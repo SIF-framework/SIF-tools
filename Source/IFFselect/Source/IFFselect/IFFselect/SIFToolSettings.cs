@@ -108,9 +108,9 @@ namespace Sweco.SIF.IFFSelect
             AddToolOptionDescription("p", "Selection volume within polygon(s) in GEN-file p1", "/p:somecountour.GEN",
                                      "Analysis volume area defined by: {0}", new string[] { "p1" });
             AddToolOptionDescription("t", "Select flowlines that have travel time between t1 and t2 (years)", "/t:2010,2020",
-                                      "Flowlines are selected with travel time between {0} and {1}", new string[] { "t1", "t2" });
+                                      "Flowlines are selected with travel time between {0} and {1}", null, new string[] { "t1", "t2" }, new string[] { "0", "Inf" });
             AddToolOptionDescription("v", "Select flowlines that have velocity between v1 and v2 (m/d)",
-                                    "/v:0.1,5", "Flowlines with velocity between {0} and {1} are selected", new string[] { "v1", "v2" });
+                                    "/v:0.1,5", "Flowlines with velocity between {0} and {1} are selected", null, new string[] { "v1", "v2" }, new string[] { "0", "Inf" });
             AddToolOptionDescription("c", "Clip IFF-pathlines as defined by selection volume and c1 parameter: \n" +
                                      "  0) Select all pathlines; \n" +
                                      "  1) Select only pathlines inside specified volume (clip, the default); \n" +
@@ -300,7 +300,11 @@ namespace Sweco.SIF.IFFSelect
                 if (hasOptionParameters)
                 {
                     string[] optionParameters = GetOptionParameters(optionParametersString);
-                    if (float.TryParse(optionParameters[0], NumberStyles.Float, EnglishCultureInfo, out float minTravelTime))
+                    if (optionParameters[0].Equals(string.Empty))
+                    {
+                        // leave float.NaN value
+                    }
+                    else if (float.TryParse(optionParameters[0], NumberStyles.Float, EnglishCultureInfo, out float minTravelTime))
                     {
                         MinTravelTime = minTravelTime;
                     }
@@ -311,7 +315,11 @@ namespace Sweco.SIF.IFFSelect
 
                     if (optionParameters.Length == 2)
                     {
-                        if (float.TryParse(optionParameters[1], NumberStyles.Float, EnglishCultureInfo, out float maxTravelTime))
+                        if (optionParameters[1].Equals(string.Empty))
+                        {
+                            // leave float.NaN value
+                        }
+                        else if (float.TryParse(optionParameters[1], NumberStyles.Float, EnglishCultureInfo, out float maxTravelTime))
                         {
                             MaxTravelTime = maxTravelTime;
                         }
@@ -336,7 +344,11 @@ namespace Sweco.SIF.IFFSelect
                 {
 
                     string[] optionParameters = GetOptionParameters(optionParametersString);
-                    if (float.TryParse(optionParameters[0], NumberStyles.Float, EnglishCultureInfo, out float minVelocity))
+                    if (optionParameters[0].Equals(string.Empty))
+                    {
+                        // leave float.NaN value
+                    }
+                    else if (float.TryParse(optionParameters[0], NumberStyles.Float, EnglishCultureInfo, out float minVelocity))
                     {
                         MinVelocity = minVelocity;
                     }
@@ -347,7 +359,11 @@ namespace Sweco.SIF.IFFSelect
 
                     if (optionParameters.Length > 1)
                     {
-                        if (float.TryParse(optionParameters[1], NumberStyles.Float, EnglishCultureInfo, out float maxVelocity))
+                        if (optionParameters[1].Equals(string.Empty))
+                        {
+                            // leave float.NaN value
+                        }
+                        else if (float.TryParse(optionParameters[1], NumberStyles.Float, EnglishCultureInfo, out float maxVelocity))
                         {
                             MaxVelocity = maxVelocity;
                         }
@@ -421,7 +437,7 @@ namespace Sweco.SIF.IFFSelect
                                 SelectPointType = SelectPointType.Start;
                                 break;
                             case 2:
-                                SelectPointType = SelectPointType.End;
+                                SelectPointType = SelectPointType.Mid;
                                 break;
                             case 3:
                                 SelectPointType = SelectPointType.End;
