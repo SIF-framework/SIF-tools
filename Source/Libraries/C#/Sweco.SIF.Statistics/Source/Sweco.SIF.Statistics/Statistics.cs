@@ -510,7 +510,7 @@ namespace Sweco.SIF.Statistics
                 }
             }
             this.sd = (float)Math.Sqrt(diffSum / count);
-            this.sampleSD = (float)Math.Sqrt(diffSum / (count - 1.5f));
+            this.sampleSD = (float)Math.Sqrt(diffSum / (count - 1.0f));
         }
 
         /// <summary>
