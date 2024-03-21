@@ -78,6 +78,8 @@ namespace Sweco.SIF.ResidualAnalysis
 
         public int PercentileCount { get; set; }
 
+        public bool SkipIDMismatches { get; set; }
+
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
         /// </summary>
@@ -111,6 +113,8 @@ namespace Sweco.SIF.ResidualAnalysis
             MaskIDFValues = null;
 
             PercentileCount = 0;
+
+            SkipIDMismatches = false;
         }
 
         /// <summary>
@@ -152,6 +156,9 @@ namespace Sweco.SIF.ResidualAnalysis
             AddToolOptionDescription("w", "Use weights as defined in column number", "/w:3", "Weights are defined by column number {0}", new string[] { "w1" });
             AddToolOptionDescription("p", "Add number of percentile classes to be used in result statistics \n" +
                                      "i.e. 4 classes give percentile 25, 50, 75 and 100.", "/p:4", "Number of percentile classes: {0}", new string[] { "p1" });
+            AddToolOptionDescription("sim", "Skip points in output IPF-files (via option i) that do not match an ID in previous results.\n" +
+                                     "Note: the number of points (N) in the summary sheet may not be correct for skipped points, but the\n" +
+                                     "other statistics will be correct and values are copied from the individual sheets.", "/sim", "Points without a matching point with equal ID are skipped");
         }
 
         /// <summary>
@@ -418,8 +425,6 @@ namespace Sweco.SIF.ResidualAnalysis
                     throw new ToolException("Parameter value expected for option '" + optionName + "'");
                 }
             }
-
-            
             else if (optionName.ToLower().Equals("p"))
             {
                 if (hasOptionParameters)
@@ -448,6 +453,10 @@ namespace Sweco.SIF.ResidualAnalysis
                 {
                     throw new ToolException("Parameter value expected for option '" + optionName + "'");
                 }
+            }
+            else if (optionName.ToLower().Equals("sim"))
+            {
+                SkipIDMismatches = true;
             }
             else
             {

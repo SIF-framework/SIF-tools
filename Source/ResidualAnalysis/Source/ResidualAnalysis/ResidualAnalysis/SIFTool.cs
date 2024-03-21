@@ -171,6 +171,15 @@ namespace Sweco.SIF.ResidualAnalysis
                     {
                         Log.AddInfo("Clipped IPF-file has no points and is skipped: " + Path.GetFileName(ipfFile.Filename), logIndentLevel);
                     }
+
+                    if (settings.IdColString != null)
+                    {
+                        int idColIdx = ipfFile.FindColumnIndex(settings.IdColString);
+                        if (idColIdx >= 0)
+                        {
+                            ipfFile.SortIPFPoints(idColIdx);
+                        }
+                    }
                 }
                 else
                 {
@@ -336,26 +345,14 @@ namespace Sweco.SIF.ResidualAnalysis
                 }
                 workbook = excelManager.OpenWorkbook(settings.OutputFilename, false);
 
-                // remove old overviewsheet
-                int summarySheetIdx = workbook.FindSheetIndex(SummarySheetname);
-                if (summarySheetIdx >= 0)
-                {
-                    try
-                    {
-                        workbook.DeleteSheet(summarySheetIdx);
-                    }
-                    catch (Exception ex)
-                    {
-                        log.AddWarning(ex.GetBaseException().Message, logIndentLevel);
-                    }
-                }
+                DeleteSummmarySheet(workbook, log, logIndentLevel);
 
-                int sheetNameIdx = 1;
+                int sheetNameNr = 1;
                 string baseSheetname = sheetname;
                 while (workbook.GetSheet(sheetname) != null)
                 {
-                    sheetNameIdx++;
-                    sheetname = SpreadsheetUtils.CorrectSheetname(baseSheetname + sheetNameIdx);
+                    sheetNameNr++;
+                    sheetname = SpreadsheetUtils.CorrectSheetname(baseSheetname + sheetNameNr);
                 }
                 sheet = workbook.AddSheet(sheetname);
             }
@@ -398,16 +395,37 @@ namespace Sweco.SIF.ResidualAnalysis
             }
         }
 
+        private void DeleteSummmarySheet(IWorkbook workbook, Log log, int logIndentLevel)
+        {
+            // remove old summary sheet
+            int summarySheetIdx = workbook.FindSheetIndex(SummarySheetname);
+            if (summarySheetIdx >= 0)
+            {
+                try
+                {
+                    workbook.DeleteSheet(summarySheetIdx);
+                }
+                catch (Exception ex)
+                {
+                    log.AddWarning(ex.GetBaseException().Message, logIndentLevel);
+                }
+            }
+        }
+
         protected void AddResidualSummarySheets(IWorkbook workbook, int idColNr, int observedColNr, int simulatedColNr, bool isWeighed, Log log, int logIndentLevel, SIFToolSettings settings)
         {
             log.AddInfo("Creating summary sheets ...", logIndentLevel);
 
-            IWorksheet summarySheet = workbook.AddSheet(SummarySheetname);
+            List<string> skippedIDs = new List<string>();
+            IWorksheet summarySheet = null;
+            summarySheet = workbook.AddSheet(SummarySheetname);
             workbook.MoveSheetToStart(summarySheet);
 
             List<string> calibrationSets = new List<string>();
             Dictionary<string, List<CalSetModelDef>> calibrationSetDefs = new Dictionary<string, List<CalSetModelDef>>();
             int nextCalibrationsetRowIdx = ComparisonSheetHeaderRowIdx;
+
+            // Loop through all existing sheets, but skip summary sheet
             for (int sheetIdx = 1; sheetIdx < workbook.Sheets.Count(); sheetIdx++)
             {
                 IWorksheet residualSheet = workbook.Sheets[sheetIdx];
@@ -575,15 +593,22 @@ namespace Sweco.SIF.ResidualAnalysis
                 Range headerRange = new Range(summarySheet, headerRowIdx, 0, headerRowIdx + 1, sseStartColIdx + modelCount);
                 summarySheet.SetFontBold(headerRange, true);
 
-                if (settings.IsDiffIPFCreated)
+                CalSetModelDef basicCalSetModelDef = calibrationSetDefs[calibrationsetname][0];
+                if (!basicCalSetModelDef.ModelName.Equals(calSetModelDef.ModelName))
                 {
-                    CalSetModelDef basicCalSetModelDef = calibrationSetDefs[calibrationsetname][0];
-                    if (!basicCalSetModelDef.ModelName.Equals(calSetModelDef.ModelName))
+                    int currentSkippedCount = skippedIDs.Count;
+                    CreateResidualDifferenceIPFFile(workbook, basicCalSetModelDef, calSetModelDef, idColNr, observedColNr, simulatedColNr, ref skippedIDs, log, settings);
+
+                    if (skippedIDs.Count > currentSkippedCount)
                     {
-                        CreateResidualDifferenceIPFFile(workbook, basicCalSetModelDef, calSetModelDef, idColNr, observedColNr, simulatedColNr, log, settings);
+                        summarySheet.SetCellValue(0, 0, "Mismatches skipped!");
+                        summarySheet.SetFontBold(0, 0, true);
+                        summarySheet.SetFontColor(0, 0, Color.DarkRed);
+                        // ToDo: mark count with red color for rows/layers with mismatches
                     }
                 }
             }
+
             summarySheet.AutoFitColumns();
             summarySheet.SetColumnWidth(0, 4);
             summarySheet.FreezeRow(1);
@@ -668,7 +693,7 @@ namespace Sweco.SIF.ResidualAnalysis
             }
         }
 
-        protected void CreateResidualDifferenceIPFFile(IWorkbook workbook, CalSetModelDef basicCalSetModelDef, CalSetModelDef calSetModelDef, int idColNr, int observedColNr, int simulatedColNr, Log log, SIFToolSettings settings)
+        protected void CreateResidualDifferenceIPFFile(IWorkbook workbook, CalSetModelDef basicCalSetModelDef, CalSetModelDef calSetModelDef, int idColNr, int observedColNr, int simulatedColNr, ref List<string> skippedIDs, Log log, SIFToolSettings settings)
         {
             string ipfFilename = Path.Combine(settings.IpfPath, FileUtils.EnsureTrailingSlash(basicCalSetModelDef.CalibrationsetName) + calSetModelDef.ModelName + "-" + basicCalSetModelDef.ModelName + ".IPF");
             int resColIdx = 3;
@@ -757,10 +782,6 @@ namespace Sweco.SIF.ResidualAnalysis
                 {
                     colName2 = string.Empty;
                 }
-                //if (!colName1.Equals(colName2))
-                //{
-                //    throw new Exception("Columnname mismatch ('" + colName1 + "' vs '" + colName2 + "') in sheets: '" + sheet1.GetSheetname() + "' and '" + sheet2.GetSheetname() + "'");
-                //}
                 if (colIdx <= lastSingleColIdx)
                 {
                     // XY-columns are already added for new IPF
@@ -783,11 +804,49 @@ namespace Sweco.SIF.ResidualAnalysis
             ipfFile.AddColumn("dSGN");  // Verschil in sign: van -1 naar 1 of van 1 naar -1
 
             // Add IPF points
-            int rowIdx = headerIdx1 + 1;
-            while (!sheet1.IsEmpty(rowIdx, 1))
+            int skippedPoints1 = 0;
+            int skippedPoints2 = 0;
+            int rowIdx1 = headerIdx1 + 1;
+            int rowIdx2 = headerIdx1 + 1;
+            while (!sheet1.IsEmpty(rowIdx1, 1))
             {
                 colIdx = 0;
                 List<string> columnValues = new List<string>();
+
+                if (settings.SkipIDMismatches)
+                {
+                    // Check equality of both ID's and skip mismatches
+                    if (settings.IdColString != null)
+                    {
+                        string id1 = (!sheet1.IsEmpty(rowIdx1, idColNr - 1)) ? sheet1.GetCellValue(rowIdx1, idColNr - 1) : null;
+                        string id2 = (!sheet2.IsEmpty(rowIdx2, idColNr - 1)) ? sheet2.GetCellValue(rowIdx2, idColNr - 1) : null;
+                        while (!id1.Equals(id2))
+                        {
+                            if (id1.CompareTo(id2) < 0)
+                            {
+                                if (!skippedIDs.Contains(id1))
+                                {
+                                    log.AddWarning("Point with ID '" + id1 + " is missing in dataset 2 and is skipped");
+                                    skippedIDs.Add(id1);
+                                    skippedPoints1++;
+                                }
+                                rowIdx1++;
+                            }
+                            else
+                            {
+                                if (!skippedIDs.Contains(id2))
+                                {
+                                    log.AddWarning("Point with ID '" + id2 + " is missing in dataset 1 and is skipped");
+                                    skippedIDs.Add(id2);
+                                    skippedPoints2++;
+                                }
+                                rowIdx2++;
+                            }
+                            id1 = (!sheet1.IsEmpty(rowIdx1, idColNr - 1)) ? sheet1.GetCellValue(rowIdx1, idColNr - 1) : null;
+                            id2 = (!sheet2.IsEmpty(rowIdx2, idColNr - 1)) ? sheet2.GetCellValue(rowIdx2, idColNr - 1) : null;
+                        }
+                    }
+                }
 
                 // For each point in sheet loop through columns: 1) check equality of x/y and id for both models and 2) calculate differences in residual and absolute residual
                 string x = null;
@@ -797,8 +856,9 @@ namespace Sweco.SIF.ResidualAnalysis
                 int diff_sign = 0;
                 while (!sheet1.IsEmpty(headerIdx1, colIdx))
                 {
-                    string value1String = sheet1.GetCellValue(rowIdx, colIdx);
-                    string value2String = sheet2.GetCellValue(rowIdx, colIdx);
+                    string value1String = sheet1.GetCellValue(rowIdx1, colIdx);
+                    string value2String = (!sheet2.IsEmpty(rowIdx2, 1)) ? sheet2.GetCellValue(rowIdx2, colIdx) : null;
+
                     if (value1String == null)
                     {
                         value1String = string.Empty;
@@ -808,14 +868,11 @@ namespace Sweco.SIF.ResidualAnalysis
                         value2String = string.Empty;
                     }
 
-                    double value1;
-                    double value2;
-                    if (double.TryParse(value1String.Replace(",", "."), NumberStyles.Any, englishCultureInfo, out value1)
-                        && double.TryParse(value2String.Replace(",", "."), NumberStyles.Any, englishCultureInfo, out value2))
+                    if (double.TryParse(value1String.Replace(",", "."), NumberStyles.Any, englishCultureInfo, out double value1)
+                        && double.TryParse(value2String.Replace(",", "."), NumberStyles.Any, englishCultureInfo, out double value2))
                     {
                         // If it's a number round and use english notation
-                        long value1Long;
-                        if (long.TryParse(value1String, out value1Long))
+                        if (long.TryParse(value1String, out long value1Long))
                         {
                             value1String = value1.ToString();
                         }
@@ -823,8 +880,7 @@ namespace Sweco.SIF.ResidualAnalysis
                         {
                             value1String = Math.Round(value1, 5).ToString(englishCultureInfo);
                         }
-                        long value2Long;
-                        if (long.TryParse(value2String, out value2Long))
+                        if (long.TryParse(value2String, out long value2Long))
                         {
                             value2String = value2Long.ToString();
                         }
@@ -847,12 +903,12 @@ namespace Sweco.SIF.ResidualAnalysis
                         double res1;
                         if (!double.TryParse(value1String, NumberStyles.Any, englishCultureInfo, out res1))
                         {
-                            throw new Exception("Invalid residual value in cell (" + rowIdx + "," + colIdx + ") in sheet " + sheet1.GetSheetname() + ": " + value1String);
+                            throw new Exception("Invalid residual value in cell (" + rowIdx1 + "," + colIdx + ") in sheet " + sheet1.GetSheetname() + ": " + value1String);
                         }
                         double res2;
                         if (!double.TryParse(value2String, NumberStyles.Any, englishCultureInfo, out res2))
                         {
-                            throw new Exception("Invalid residual value in cell (" + rowIdx + "," + colIdx + ") in sheet " + sheet2.GetSheetname() + ": " + value2String);
+                            throw new Exception("Invalid residual value in cell (" + rowIdx2 + "," + colIdx + ") in sheet " + sheet2.GetSheetname() + ": " + value2String);
                         }
                         diff_res = res2 - res1; // res = sim1 - meting; res2 = sim2 - meting; res2 - res1 = sim2 - sim1 ( = effect van aanpassing voor model2)
                         diff_sign = Math.Sign(res2) * Math.Sign(res1);
@@ -862,12 +918,12 @@ namespace Sweco.SIF.ResidualAnalysis
                         double absres1;
                         if (!double.TryParse(value1String, NumberStyles.Float, englishCultureInfo, out absres1))
                         {
-                            throw new Exception("Invalid residual value in cell (" + rowIdx + "," + colIdx + ") in sheet " + sheet1.GetSheetname() + ": " + value1String);
+                            throw new Exception("Invalid residual value in cell (" + rowIdx1 + "," + colIdx + ") in sheet " + sheet1.GetSheetname() + ": " + value1String);
                         }
                         double absres2;
                         if (!double.TryParse(value2String, NumberStyles.Float, englishCultureInfo, out absres2))
                         {
-                            throw new Exception("Invalid residual value in cell (" + rowIdx + "," + colIdx + ") in sheet " + sheet2.GetSheetname() + ": " + value2String);
+                            throw new Exception("Invalid residual value in cell (" + rowIdx2 + "," + colIdx + ") in sheet " + sheet2.GetSheetname() + ": " + value2String);
                         }
                         diff_absres = absres1 - absres2;
                     }
@@ -876,9 +932,9 @@ namespace Sweco.SIF.ResidualAnalysis
                     {
                         if (!value1String.Equals(value2String))
                         {
-                            string row1String = GetRowString(sheet1, rowIdx, colIdx);
-                            string row2String = GetRowString(sheet2, rowIdx, colIdx);
-                            throw new ToolException("Value mismatch ('" + value1String + "' vs '" + value2String + "') in cell " + SpreadsheetUtils.ExcelColumnFromNumber(colIdx + 1) + (rowIdx + 1) + " in sheets: '" + sheet1.GetSheetname() + "' and '" + sheet2.GetSheetname() + "'" + "\r\nsheet1: " + row1String + "\r\nsheet2: " + row2String + "\r\n" + "Check that calibratiesets and extents match!");
+                            string row1String = GetRowString(sheet1, rowIdx1, colIdx);
+                            string row2String = GetRowString(sheet2, rowIdx2, colIdx);
+                            throw new ToolException("Value mismatch ('" + value1String + "' vs '" + value2String + "') in cell " + SpreadsheetUtils.ExcelColumnFromNumber(colIdx + 1) + (rowIdx1 + 1) + " in sheets: '" + sheet1.GetSheetname() + "' and '" + sheet2.GetSheetname() + "'" + "\r\nsheet1: " + row1String + "\r\nsheet2: " + row2String + "\r\n" + "Check that calibratiesets and extents match!");
                         }
                         columnValues.Add(value1String);
                     }
@@ -896,11 +952,26 @@ namespace Sweco.SIF.ResidualAnalysis
                 columnValues.Add((baseClass + GetLegendClassIdx(diff_absres)).ToString());
                 columnValues.Add(diff_sign.ToString());
                 ipfFile.AddPoint(new IPFPoint(ipfFile, new FloatPoint(x, y), columnValues));
-                rowIdx++;
+
+                rowIdx1++;
+                rowIdx2++;
             }
-            ipfFile.WriteFile(ipfFilename);
-            //            IPFLegend ipfLegend = (IPFLegend) ipfFile.CreateDifferenceLegend();
-            //            ipfLegend.WriteLegendFile(Path.Combine(Path.GetDirectoryName(ipfFilename), Path.GetFileNameWithoutExtension(ipfFilename) + ".leg"));
+
+            if (skippedPoints1 > 0)
+            {
+                log.AddWarning(skippedPoints1 + " points from dataset1 were missing in dataset2 and were not compared");
+            }
+            if (skippedPoints2 > 0)
+            {
+                log.AddWarning(skippedPoints2 + " points from dataset2 were missing in dataset1 and were not compared");
+            }
+
+            if (settings.IsDiffIPFCreated)
+            {
+                ipfFile.WriteFile(ipfFilename);
+                //            IPFLegend ipfLegend = (IPFLegend) ipfFile.CreateDifferenceLegend();
+                //            ipfLegend.WriteLegendFile(Path.Combine(Path.GetDirectoryName(ipfFilename), Path.GetFileNameWithoutExtension(ipfFilename) + ".leg"));
+            }
         }
 
         protected static string GetRowString(IWorksheet sheet, int rowIdx, int colIdx)

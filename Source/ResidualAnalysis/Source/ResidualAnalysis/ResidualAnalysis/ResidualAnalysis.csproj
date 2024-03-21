@@ -45,12 +45,13 @@
     <Reference Include="Sweco.SIF.iMOD">
       <HintPath>..\..\Libraries\Sweco.SIF.iMOD.dll</HintPath>
     </Reference>
-    <Reference Include="Sweco.SIF.Spreadsheets">
-      <HintPath>..\..\..\..\GeoTOPscale\Source\Libraries\Sweco.SIF.Spreadsheets.dll</HintPath>
-    </Reference>
-    <Reference Include="Sweco.SIF.Statistics, Version=1.2.0.1, Culture=neutral, processorArchitecture=AMD64">
+    <Reference Include="Sweco.SIF.Spreadsheets, Version=2.0.1.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\Libraries\C#\Sweco.SIF.Statistics\Bin\x64\Sweco.SIF.Statistics.dll</HintPath>
+      <HintPath>..\..\Libraries\Sweco.SIF.Spreadsheets.dll</HintPath>
+    </Reference>
+    <Reference Include="Sweco.SIF.Statistics, Version=2.0.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Libraries\Sweco.SIF.Statistics.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
