@@ -20,6 +20,7 @@ In the current version two main types of functionality are available:
     PRJ-files.
 
 ![Figure 1.1](/Source/iMODValidator/Doc/media/image1.png)
+
 Figure 1.1 Screenshot of the main window of the current tool
 
 # Tool description
@@ -183,10 +184,12 @@ cells and analyse the model cell-by-cell. Related model cells are
 checked in the vertical direction, possibly in other model files, but
 most check to do analyse surrounding cells.
 
-[Figure 2.1](/Source/iMODValidator/Doc/media/image5.png)
+![Figure 2.1](/Source/iMODValidator/Doc/media/image5.png)
+
 Figure 2.1 Screenshot of 2nd tab in which selected checks and settings per check can be defined
 
 ![Figure 2.2](/Source/iMODValidator/Doc/media/image6.png)
+
 Figure 2.2 3rd tab with general settings. The red marked setting defines the maximally checked stress period in transient checks.
 
 ### Supported iMOD-packages
@@ -236,12 +239,15 @@ in the RUN/PRJ-file or files that were not found, which will influence
 the issues found.
 
 ![Figure 2.3](/Source/iMODValidator/Doc/media/image10.png)
+
 Figure 2.3 Screenshot with iMODValidator warnings for three layers: KVV_L1, RIV_SYS1 and RIV_SYS3
 
 ![Figure 2.4](/Source/iMODValidator/Doc/media/image11.png)
+
 Figure 2.4 Screenshot iMODValidator Excel summary with issues found per check
 
 ![Figure 2.5](/Source/iMODValidator/Doc/media/image12.png)
+
 Figure 2.5 Example of errors and warnings in log and Excel-file which may influence results, but are not spatial and cannot be shown via the IMF-file.
 
 ## Comparison
