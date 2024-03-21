@@ -685,5 +685,30 @@ namespace Sweco.SIF.GIS
 
             return GetDistance((float)minX, (float)minY);
         }
+
+        /// <summary>
+        /// Move this point over specfied distance along specified vector and return as new Point object
+        /// </summary>
+        /// <param name="v"></param>
+        /// <param name="distance"></param>
+        /// <returns></returns>
+        public Point Move(Vector v, double distance)
+        {
+            double dx2 = double.NaN;
+            double dy2 = double.NaN;
+            if (!v.dX.Equals(0))
+            {
+                double angle = Math.Atan2(v.dY, v.dX);
+                dx2 = distance * Math.Cos(angle);
+                dy2 = distance * Math.Sin(angle);
+            }
+            else
+            {
+                dx2 = 0;
+                dy2 = distance * Math.Sign(v.dY);
+            }
+
+            return new DoublePoint(X + dx2, Y + dy2);
+        }
     }
 }
