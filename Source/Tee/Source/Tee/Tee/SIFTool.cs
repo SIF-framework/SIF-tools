@@ -98,20 +98,54 @@ namespace Sweco.SIF.Tee
 
             questionLineQueue = new Queue<string>();
             StreamWriter sw = null;
+            string line;
+            StringBuilder sb;
+            int intval;
+            char ch;
             try
             {
                 // Create output file
                 sw = new StreamWriter(settings.OutputFilename, settings.IsOutputAppended);
 
-                // Read lines from console
-                string line;
-                while ((line = Console.ReadLine()) != null)
+                if (settings.IsCharacterMode)
                 {
-                    int errorLevel = ProcessLine(line, sw, settings);
-                    if (errorLevel > exitcode)
+                    // Read characters from console
+                    sb = new StringBuilder();
+                    while ((intval = Console.Read()) >= 0)
                     {
-                        exitcode = errorLevel;
+                        ch = Convert.ToChar(intval);
+                        if ((ch == '\n') || (ch == '?'))
+                        {
+                            if (ch == '?')
+                            {
+                                sb.Append(ch);
+                            }
+
+                            int errorLevel = ProcessLine(sb.ToString(), sw, settings);
+                            if (errorLevel > exitcode)
+                            {
+                                exitcode = errorLevel;
+                            }
+                            sb.Clear();
+                        }
+                        else
+                        {
+                            sb.Append(ch);
+                        }
                     }
+                }
+                else
+                {
+                    // Read lines from console
+                    while ((line = Console.ReadLine()) != null)
+                    {
+                        int errorLevel = ProcessLine(line, sw, settings);
+                        if (errorLevel > exitcode)
+                        {
+                            exitcode = errorLevel;
+                        }
+                    }
+
                 }
             }
             finally

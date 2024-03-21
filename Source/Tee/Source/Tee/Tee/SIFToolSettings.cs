@@ -39,6 +39,7 @@ namespace Sweco.SIF.Tee
 
         public string OutputFilename { get; set; }
         public bool IsOutputAppended { get; set; }
+        public bool IsCharacterMode { get; set; }
         public bool IsErrorLevelSet { get; set; }
         public bool IsQuestionEchoed { get; set; }
         public int MaxQuestionLines { get; set; }
@@ -51,6 +52,7 @@ namespace Sweco.SIF.Tee
             // Set default values for settings
             OutputFilename = null;
             IsOutputAppended = false;
+            IsCharacterMode = false;
             IsErrorLevelSet = true;
             IsQuestionEchoed = false;
         }
@@ -62,8 +64,10 @@ namespace Sweco.SIF.Tee
         protected override void DefineToolSyntax()
         {
             AddToolParameterDescription("outFile", "Full path and filename of outputfile", "C:\\Test\\Output\\SomeTool.log");
-            AddToolOptionDescription("a", "Append output to outputfile. Otherwise an existing outputfile is overwritten.");
-            AddToolOptionDescription("e", "Turn off setting of ERRORLEVEL environment variable.\n" +
+            AddToolOptionDescription("a", "Append output to outputfile. Otherwise an existing outputfile is overwritten", "/a", "Output is appended to outputfile");
+            AddToolOptionDescription("c", "Run in charactermode: read and write characters until EOL or question marks\n" +
+                                          "Note: this ensures that lines are shown that end with a question mark and wait for user input", "/c", "Processing in charactermode");
+            AddToolOptionDescription("e", "Turn off setting of ERRORLEVEL environment variable\n" +
                                           "Default ERRORLEVEL is set to 1 when one or more lines start with '" + ErrorMessagePrefix + "'.");
             AddToolOptionDescription("?", "Only echo lines to console that end with a question mark. All previous lines upto first empty line are\n" +
                                           "shown (default), limited by maximum number of lines c. Use c=1 to show only line with question mark.", null, null, null, new string[] { "c" }, new string[] { "0" });
@@ -100,6 +104,10 @@ namespace Sweco.SIF.Tee
             if (optionName.ToLower().Equals("a"))
             {
                 IsOutputAppended = true;
+            }
+            else if (optionName.ToLower().Equals("c"))
+            {
+                IsCharacterMode = true;
             }
             else if (optionName.ToLower().Equals("e"))
             {
