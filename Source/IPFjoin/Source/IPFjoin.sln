@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1622
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPFjoin", "IPFjoin\IPFjoin\IPFjoin.csproj", "{8AD8F9ED-FA50-4FA5-B018-ACEE6049303F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPFjoin.Tests", "IPFjoin\IPFjoin.Tests\IPFjoin.Tests.csproj", "{500A9A11-234B-4DD4-8657-2AC9AE752A6E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8AD8F9ED-FA50-4FA5-B018-ACEE6049303F}.Debug|x64.ActiveCfg = Debug|x64
+		{8AD8F9ED-FA50-4FA5-B018-ACEE6049303F}.Debug|x64.Build.0 = Debug|x64
+		{8AD8F9ED-FA50-4FA5-B018-ACEE6049303F}.Release|x64.ActiveCfg = Release|x64
+		{8AD8F9ED-FA50-4FA5-B018-ACEE6049303F}.Release|x64.Build.0 = Release|x64
+		{500A9A11-234B-4DD4-8657-2AC9AE752A6E}.Debug|x64.ActiveCfg = Debug|x64
+		{500A9A11-234B-4DD4-8657-2AC9AE752A6E}.Debug|x64.Build.0 = Debug|x64
+		{500A9A11-234B-4DD4-8657-2AC9AE752A6E}.Release|x64.ActiveCfg = Release|x64
+		{500A9A11-234B-4DD4-8657-2AC9AE752A6E}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BB00F9C3-3410-4AD2-921D-D70D95D94F0D}
+	EndGlobalSection
+EndGlobal
