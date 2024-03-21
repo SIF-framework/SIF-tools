@@ -148,27 +148,18 @@ namespace Sweco.SIF.IFFSHPconvert
                 }
 
                 Log.AddInfo("Reading IFF-file " + Path.GetFileName(inputFilename) + " ...", logIndentLevel);
-
                 IFFFile iffFile = IFFFile.ReadFile(inputFilename);
 
-                Log.AddInfo("Converting" + Path.GetFileName(inputFilename) + " ...");
-
-
+                Log.AddInfo("Converting " + Path.GetFileName(inputFilename) + " ...", 1);
                 int iffPointIdx = 0;
                 ShapeFileWriter sfw = null;
 
                 try
                 {
-                    string shapeFilename = Path.Combine(settings.OutputPath, Path.GetFileNameWithoutExtension(inputFilename) + ".shp");
-                    // string shapeFilename2 = Path.Combine(OutputPath, Path.GetFileNameWithoutExtension(inputFilename) + "2.shp");
+                    string shapeFilename = (settings.OutputFilename != null) ? settings.OutputFilename : inputFilename;
+                    shapeFilename = Path.Combine(settings.OutputPath, Path.GetFileNameWithoutExtension(shapeFilename) + ".shp");
                     List<DbfFieldDesc> fieldDescs = CreateIFFFieldDescs();
                     sfw = ShapeFileWriter.CreateWriter(settings.OutputPath, Path.GetFileNameWithoutExtension(shapeFilename), ShapeType.PolyLine, fieldDescs.ToArray());
-
-                    //shpDLL.OpenShape(shapeFilename2, ArcShapeFileDLL.ShapeFiles.eNew.shpCreate, ArcShapeFileDLL.ShapeFiles.eShapeType.shpPolyLineZ);
-                    //CreateFieldDefinitions(shpDLL);
-                    //shpDLL.AppendFieldDefs();
-
-
 
                     IFFPoint prevIFFPoint = iffFile.ParticlePoints[0];
                     int currentParticleNr = prevIFFPoint.ParticleNumber;
@@ -180,8 +171,6 @@ namespace Sweco.SIF.IFFSHPconvert
                         {
                             lineCount++;
                             AddShapeRecord(sfw, prevIFFPoint, iffPoint);
-                            // AddShapeRecord(shpDLL, prevIFFPoint, iffPoint, lineCount);
-
                         }
                         else
                         {
@@ -203,6 +192,11 @@ namespace Sweco.SIF.IFFSHPconvert
                 }
 
                 fileCount++;
+            }
+
+            if (fileCount == 0)
+            {
+                Log.AddWarning("No files found for filter '" + settings.InputFilter + "' in path: " + settings.InputPath, 1);
             }
 
             ToolSuccessMessage = "Finished processing " + fileCount + " file(s)";
