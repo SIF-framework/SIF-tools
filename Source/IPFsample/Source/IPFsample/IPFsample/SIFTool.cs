@@ -121,7 +121,7 @@ namespace Sweco.SIF.IPFsample
 
                 if (settings.OutputFilename == null)
                 {
-                    newFilename = Path.Combine(settings.OutputPath, Path.GetFileNameWithoutExtension(inputFilename) + ".gen");
+                    newFilename = Path.Combine(settings.OutputPath, Path.GetFileNameWithoutExtension(inputFilename) + ".IPF");
                 }
                 else
                 {

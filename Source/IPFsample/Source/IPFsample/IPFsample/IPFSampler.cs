@@ -74,20 +74,20 @@ namespace Sweco.SIF.IPFsample
 
                 log.AddInfo("Reading IPF file " + Path.GetFileName(inputIPFFilename) + "... ", logIndentLevel);
                 IPFFile inputIPFFile = IPFFile.ReadFile(inputIPFFilename, false, null);
-                int observationColIdx = -1;
+                int observationColNr = 0;
                 if (observationColString != null)
                 {
-                    if (!int.TryParse(observationColString, out observationColIdx))
+                    if (!int.TryParse(observationColString, out observationColNr))
                     {
-                        observationColIdx = inputIPFFile.FindColumnName(observationColString, true, false) + 1;
-                        if (observationColIdx == 0)
+                        observationColNr = inputIPFFile.FindColumnName(observationColString, true, false) + 1;
+                        if (observationColNr == 0)
                         {
                             throw new ToolException("Specified column name not found in input IPF-file: " + observationColString);
                         }
                     }
-                    if (observationColIdx > inputIPFFile.ColumnCount)
+                    if (observationColNr > inputIPFFile.ColumnCount)
                     {
-                        throw new ToolException("Specified measurement column index is larger than number of columns in " + Path.GetFileName(inputIPFFilename));
+                        throw new ToolException("Specified measurement column number is larger than number of columns in " + Path.GetFileName(inputIPFFilename));
                     }
                 }
 
@@ -166,11 +166,11 @@ namespace Sweco.SIF.IPFsample
                                 {
                                     try
                                     {
-                                        measuredValue = double.Parse(ipfPoint.ColumnValues[observationColIdx - 1].Replace(".", ","), dutchCultureInfo);
+                                        measuredValue = double.Parse(ipfPoint.ColumnValues[observationColNr - 1].Replace(".", ","), dutchCultureInfo);
                                     }
                                     catch (Exception ex)
                                     {
-                                        log.AddWarning("Invalid value in observation column (" + observationColIdx + "): " + ipfPoint.ColumnValues[observationColIdx - 1] + " for point (" + ipfPoint.X + "," + ipfPoint.Y + "): " + ex.GetBaseException().Message, logIndentLevel);
+                                        log.AddWarning("Invalid value in observation column (" + observationColNr + "): " + ipfPoint.ColumnValues[observationColNr - 1] + " for point (" + ipfPoint.X + "," + ipfPoint.Y + "): " + ex.GetBaseException().Message, logIndentLevel);
                                         measuredValue = float.NaN;
                                     }
                                     if (measuredValue.Equals(float.NaN))
@@ -186,7 +186,18 @@ namespace Sweco.SIF.IPFsample
                                     }
                                     else
                                     {
-                                        residual = value - measuredValue;
+                                        switch (settings.StatOperator)
+                                        {
+                                            case StatOperator.Minus:
+                                                residual = value - measuredValue;
+                                                break;
+                                            case StatOperator.Divide:
+                                                residual = value / measuredValue;
+                                                break;
+                                            default:
+                                                throw new Exception("Unknown statistical operator: " + settings.StatOperator);
+                                        }
+                                        
                                         absResidual = Math.Abs(residual);
                                         sumResiduals += residual;
                                         sumAbsResiduals += absResidual;
@@ -254,7 +265,7 @@ namespace Sweco.SIF.IPFsample
                         pvalues.Add(pvalue);
                     }
                     ipfStats.PValues = pvalues;
-                    ipfStats.CalculateStatistics(observationColIdx - 1, outputIPFFile.ColumnCount - 3, log);
+                    ipfStats.CalculateStatistics(observationColNr - 1, outputIPFFile.ColumnCount - 3, settings.StatOperator, log);
 
                     if (csvStatsFilename == null)
                     {

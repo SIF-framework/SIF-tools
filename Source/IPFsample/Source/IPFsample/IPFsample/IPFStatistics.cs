@@ -117,7 +117,7 @@ namespace Sweco.SIF.IPFsample
             percentilesAbsRes = new List<float>();
         }
 
-        public void CalculateStatistics(int measuredValueColIdx, int modeledValueColIdx, Log log)
+        public void CalculateStatistics(int measuredValueColIdx, int modeledValueColIdx, StatOperator statOperator, Log log)
         {
             float sumMeasuredValues = 0;
             float sumModeledValues = 0;
@@ -155,7 +155,19 @@ namespace Sweco.SIF.IPFsample
                 }
                 else
                 {
-                    float res = modeledValue - measuredValue;
+                    float res = float.NaN;
+                    switch (statOperator)
+                    {
+                        case StatOperator.Minus:
+                            res = modeledValue - measuredValue;
+                            break;
+                        case StatOperator.Divide:
+                            res = modeledValue / measuredValue;
+                            break;
+                        default:
+                            throw new Exception("Unknown StatOperator: " + statOperator);
+                    }
+
                     float absRes = Math.Abs(res);
 
                     measuredValues.Add(measuredValue);

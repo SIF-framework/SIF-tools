@@ -30,6 +30,12 @@ using Sweco.SIF.Common;
 
 namespace Sweco.SIF.IPFsample
 {
+    public enum StatOperator
+    {
+        Minus,
+        Divide
+    }
+
     /// <summary>
     /// Class for processing command-line arguments and storing settings for this tool
     /// </summary>
@@ -48,6 +54,7 @@ namespace Sweco.SIF.IPFsample
         public bool IsOverwrite { get; set; }
         public string ObservationColString { get; set; }
         public string StatPrefix { get; set; }
+        public StatOperator StatOperator { get; set; }
         public string CSVStatsFilename { get; set; }
         public bool IsNaNPointExcluded { get; set; }
 
@@ -74,6 +81,7 @@ namespace Sweco.SIF.IPFsample
             ObservationColString = null;
             CSVStatsFilename = null;
             StatPrefix = null;
+            StatOperator = StatOperator.Minus;
             IsNaNPointExcluded = false;
             
             ValueColumnname = null;
@@ -97,11 +105,13 @@ namespace Sweco.SIF.IPFsample
             AddToolOptionDescription("i", "Interpolate gridvalues to IPF-locations", "/i", "Gridvalues are interpolated");
             AddToolOptionDescription("n", "Skip points in NoData-cells", "/n", "Points in NoData-cells or outside IDF-extent are removed from results");
             AddToolOptionDescription("o", "Overwrite existing outputfile; if not specified, existing files will be skipped", "/o", "Existing output files are overwritten");
-            AddToolOptionDescription("s", "Calculate residual statistics for value in column s1 in IPF-file. Use (one-based) number or column name.\n" +
-                                     "The IDF-value, residual and absolute residual are added to the output IPF-file \n" +
-                                     "Other statistics are written in CSV-filename s2 (if specified) or in CSV-file in outputpath." +
-                                     "Optionally add substring s3 to use as prefix before residual column names.", "/s:6",
-                                     "Residual statistics will be calculated relative to the values in column: {0}; CSV-filename: {1}", new string[] { "s1" }, new string[] { "s2", "s3" }, new string[] { "<IPF-file>_stats.csv", "\"\"" });
+            AddToolOptionDescription("s", "Calculate residual statistics (IDF-IPF) for (decimal) value in column s1 in IPF-file. Use (one-based)\n" + 
+                                          "number or column name. The IDF-value, residual and absolute residual are added to the output IPF-file.\n" +
+                                          "Other statistics are written in CSV-filename s2 (if specified) or in CSV-file in outputpath.\n" +
+                                          "Optionally add substring s3 to use as prefix before residual column names.\n" +
+                                          "Optionally add operator s4 to use for residual statistic (IDF s4 IPF), use one of: '-', '/'", "/s:6",
+                                          "Residual statistics will be calculated relative to the values in column: {0};\n" + 
+                                          "    CSV-filename: {1}, postfix: {2}, operator: {3}", new string[] { "s1" }, new string[] { "s2", "s3", "s4" }, new string[] { "<IPF-file>_stats.csv", "\"\"", "-" });
             AddToolOptionDescription("x", "Exclude points that have a NoData-value in the specified column for option s", "/x", "NoData values are excluded for option s");
             AddToolOptionDescription("csv", "Write output file in CSV-format instead of IPF-format", "/csv", "Output is written as csv-file");
         }
@@ -207,6 +217,10 @@ namespace Sweco.SIF.IPFsample
                     {
                         StatPrefix = optionParameters[2];
                     }
+                    if (optionParameters.Length > 3)
+                    {
+                        StatOperator = ParseOperator(optionParameters[3]);
+                    }
                 }
                 else
                 {
@@ -251,6 +265,19 @@ namespace Sweco.SIF.IPFsample
             }
 
             return true;
+        }
+
+        private StatOperator ParseOperator(string operatorString)
+        {
+            switch (operatorString)
+            {
+                case "-":
+                    return StatOperator.Minus;
+                case "/":
+                    return StatOperator.Divide;
+                default:
+                    throw new ToolException("Invalid statistical operator: " + operatorString);
+            }
         }
 
         /// <summary>
