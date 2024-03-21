@@ -62,12 +62,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="StatisticsResult.cs" />
-    <Compile Include="ZoneStatistics.cs" />
+    <Compile Include="Zones\IDFZoneStatistics.cs" />
+    <Compile Include="Zones\IPFZoneStatistics.cs" />
+    <Compile Include="ResultTable.cs" />
+    <Compile Include="Zones\ZoneStatistics.cs" />
     <Compile Include="SIFTool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SIFToolSettings.cs" />
-    <Compile Include="ZoneDefinition.cs" />
+    <Compile Include="Zones\ZoneDefinition.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

@@ -21,9 +21,12 @@
 // along with iMODstats. If not, see <https://www.gnu.org/licenses/>.
 using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
+using Sweco.SIF.iMOD;
 using Sweco.SIF.iMOD.ASC;
 using Sweco.SIF.iMOD.IDF;
+using Sweco.SIF.iMOD.IPF;
 using Sweco.SIF.iMOD.Values;
+using Sweco.SIF.iMODstats.Zones;
 using Sweco.SIF.Spreadsheets;
 using Sweco.SIF.Spreadsheets.Excel;
 using System;
@@ -51,7 +54,6 @@ namespace Sweco.SIF.iMODstats
         #endregion
 
         protected const string NoResultsMessage = "No results found";
-        protected const int MaxUniqueValueCount = 1000;
 
         /// <summary>
         /// Entry point of tool
@@ -89,7 +91,8 @@ namespace Sweco.SIF.iMODstats
         protected override void DefineToolProperties()
         {
             AddAuthor("Koen van der Hauw");
-            ToolPurpose = "SIF-tool for creating Excelfile with statistics for IDF-files";
+            ToolPurpose = "SIF-tool for creating Excel-file with statistics for iMOD-files (IDF/IPF)";
+            ToolDescription = "This tool will create an Excelsheet with statistics about one or more iMOD-files. Currently supported are IDF, ASC and IPF-files. For IPF-files statistics will be created over all related timeseries.";
         }
 
         /// <summary>
@@ -103,79 +106,146 @@ namespace Sweco.SIF.iMODstats
             // Retrieve tool settings that have been parsed from the command-line arguments 
             SIFToolSettings settings = (SIFToolSettings) Settings;
 
-            // Retrieve statistics for all files and (optional) zones
-            Dictionary<string, List<ZoneStatistics>> fileZoneStats = GetFileZoneStatistics(settings.InputPath, settings, Log);
-            if ((fileZoneStats == null) || (fileZoneStats.Count == 0))
+            string[] inputfiles = Directory.GetFiles(settings.InputPath, settings.InputFilter, settings.IsRecursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+            if (ContainsExtension(inputfiles, "IPF"))
             {
-                throw new ToolException("No files found in inputpath for specified filter (" + settings.InputFilter + "): " + settings.InputPath);
+                if ((settings.IPFValueColRef == null) && (settings.IPFTSValueColIdx1 < 0))
+                {
+                    Log.AddInfo("Using default value column numnber " + SIFToolSettings.DefaultIPFTSValueColNr + " for calculation of timeseries statistics");
+                    settings.IPFTSValueColIdx1 = SIFToolSettings.DefaultIPFTSValueColNr - 1;
+                }
             }
 
-            // Create statistics result table
-            StatisticssResult statsResult = null;
-            try
-            {
-                statsResult = CreateStatsResultsObject(fileZoneStats);
-                statsResult.Initialize();
 
-                // Loop through filenames and write statistics per file (and optional zones) to result table
-                for (int idx = 0; idx < fileZoneStats.Keys.Count; idx++)
+            // Retrieve statistics for all files and (optional) zones
+            Dictionary<string, Dictionary<string, List<ZoneStatistics>>> fileExtZoneStatsDictionary = GetFileExtensionZoneStatistics(settings.InputPath, settings, Log);
+            if ((fileExtZoneStatsDictionary == null) || (fileExtZoneStatsDictionary.Count == 0))
+            {
+                throw new ToolException("No files found in input path for specified filter (" + settings.InputFilter + "): " + settings.InputPath);
+            }
+
+            foreach (string fileExtension in fileExtZoneStatsDictionary.Keys)
+            {
+                Dictionary<string, List<ZoneStatistics>> fileZoneStatsDictionary = fileExtZoneStatsDictionary[fileExtension];
+
+                // Create statistics result table
+                ResultTable resultTable = null;
+
+                try
                 {
-                    // Retrieve filename
-                    string filename = fileZoneStats.Keys.ElementAt(idx);
-                    // Retrieve statistics for current file
-                    List<ZoneStatistics> zoneStats = fileZoneStats.Values.ElementAt(idx);
-                    for (int zoneIdx = 0; zoneIdx < zoneStats.Count; zoneIdx++)
+                    resultTable = CreateResultTable(fileZoneStatsDictionary, fileExtension);
+
+                    string resultFilename = settings.OutputFile;
+                    if (fileExtZoneStatsDictionary.Count > 1)
                     {
-                        ZoneStatistics stats = zoneStats[zoneIdx];
-                        if (stats != null)
-                        {
-                            statsResult.AddZoneStats(filename, stats);
-                        }
+                        // Add file extension to result filename when multiple extensions were processed
+                        resultFilename = FileUtils.AddFilePostFix(resultFilename, "_" + fileExtension);
+                    }
+
+                    Log.AddInfo("Writing result to " + resultFilename + " ...", 1);
+                    resultTable.WriteFile(resultFilename);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Could not create and/or write result spreadsheet", ex);
+                }
+                finally
+                {
+                    if (resultTable != null)
+                    {
+                        resultTable.Cleanup();
                     }
                 }
-
-                statsResult.ProcessLayout();
-
-                Log.AddInfo("Writing result to " + settings.OutputFile + " ...", 1);
-                statsResult.WriteFile(settings.OutputFile);
-
-                ToolSuccessMessage = "Finished processing";
-
-                exitcode = 0;
             }
-            catch (Exception ex)
-            {
-                throw new Exception("Could not write spreadsheet", ex);
-            }
-            finally
-            {
-                if (statsResult != null)
-                {
-                    statsResult.Cleanup();
-                }
-            }
+
+            ToolSuccessMessage = "Finished processing";
+
+            exitcode = 0;
 
             return exitcode;
         }
 
-        /// <summary>
-        /// Create an empty StatsResult object
-        /// </summary>
-        /// <param name="fileStats"></param>
-        /// <returns></returns>
-        protected virtual StatisticssResult CreateStatsResultsObject(Dictionary<string, List<ZoneStatistics>> fileStats)
+        protected virtual ResultTable CreateResultTable(Dictionary<string, List<ZoneStatistics>> fileZoneStatsDictionary, string fileExtension)
         {
-            return new StatisticssResult((SIFToolSettings) Settings, fileStats, Log);
+            SIFToolSettings settings = (SIFToolSettings) Settings;
+            ResultTable resultTable = CreateResultTableObject(fileZoneStatsDictionary, settings);
+
+            // Create list of extra settings specific for file type/extension that should be logged above the result table
+            Dictionary<string, string> loggedTableSettings = new Dictionary<string, string>();
+            switch (fileExtension.ToUpper())
+            {
+                case "IPF":
+                    if (settings.IPFValueColRef != null)
+                    {
+                        loggedTableSettings.Add("IPF value column", settings.IPFValueColRef);
+                    }
+                    else
+                    {
+                        loggedTableSettings.Add("IPF TS-value column v1", settings.IPFTSValueColIdx1.ToString());
+                        if (settings.IPFTSValueColIdx2 >= 0)
+                        {
+                            loggedTableSettings.Add("IPF TS-value column v2 for residual", settings.IPFTSValueColIdx2.ToString());
+                        }
+                    }
+                    if ((settings.IPFTSPeriodStartDate != null) || (settings.IPFTSPeriodEndDate != null))
+                    {
+                        string periodString = ((settings.IPFTSPeriodStartDate != null) ? settings.IPFTSPeriodStartDate.ToString() : string.Empty) + " - " + ((settings.IPFTSPeriodEndDate != null) ? settings.IPFTSPeriodEndDate.ToString() : string.Empty);
+                        loggedTableSettings.Add("Period", periodString);
+                    }
+                    break;
+                case "IDF":
+                case "ASC":
+                    break;
+                default:
+                    // ignore
+                    break;
+            }
+
+            resultTable.Initialize(loggedTableSettings);
+
+            // Loop through filenames and write statistics per file (and optional zones) to result table
+            for (int idx = 0; idx < fileZoneStatsDictionary.Keys.Count; idx++)
+            {
+                // Retrieve filename
+                string filename = fileZoneStatsDictionary.Keys.ElementAt(idx);
+                // Retrieve statistics for current file
+                List<ZoneStatistics> zoneStats = fileZoneStatsDictionary.Values.ElementAt(idx);
+                for (int zoneIdx = 0; zoneIdx < zoneStats.Count; zoneIdx++)
+                {
+                    ZoneStatistics stats = zoneStats[zoneIdx];
+                    if (stats != null)
+                    {
+                        resultTable.AddZoneStatistics(filename, stats);
+                    }
+                }
+            }
+
+            resultTable.ProcessLayout();
+
+            return resultTable;
         }
 
         /// <summary>
-        /// Retrieves dictionary with list of ZoneStatistics (one per zone) per filename
+        /// Create an empty ResultTable object
+        /// </summary>
+        /// <param name="zoneStatistics"></param>
+        /// <param name="settings"></param>
+        /// <returns></returns>
+        protected virtual ResultTable CreateResultTableObject(Dictionary<string, List<ZoneStatistics>> zoneStatistics, SIFToolSettings settings)
+        {
+            ResultTableSettings resultTableSettings = CreateResultTableSettings(settings);
+
+            return new ResultTable(resultTableSettings, zoneStatistics, Log);
+        }
+
+        /// <summary>
+        /// Retrieves dictionary with list of ZoneStatistics (one per zone) per filename per file extension (which is key of first dictionary)
         /// </summary>
         /// <param name="inputPath"></param>
         /// <param name="settings"></param>
         /// <param name="log"></param>
         /// <returns></returns>
-        protected virtual Dictionary<string, List<ZoneStatistics>> GetFileZoneStatistics(string inputPath, SIFToolSettings settings, Log log)
+        protected virtual Dictionary<string, Dictionary<string, List<ZoneStatistics>>> GetFileExtensionZoneStatistics(string inputPath, SIFToolSettings settings, Log log)
         {
             string currentFilename = null;
             string currentFilePath = null;
@@ -184,33 +254,60 @@ namespace Sweco.SIF.iMODstats
             string[] inputFiles = Directory.GetFiles(inputPath, settings.InputFilter);
             CommonUtils.SortAlphanumericStrings(inputFiles);
 
-            // Loop through all input files and retrieve statistics per file, stored in dictionary with full filename as key
-            Dictionary<string, List<ZoneStatistics>> fileStatsDictionary = new Dictionary<string, List<ZoneStatistics>>();
+            // Loop through all input files and retrieve statistics per file, stored in dictionary with full filename as key, which itself is stores in a dictionary with the file extension (upper case) as a string
+            Dictionary<string, Dictionary<string, List<ZoneStatistics>>> fileExtensionStatsDictionary = new Dictionary<string, Dictionary<string, List<ZoneStatistics>>>();
             for (int i = 0; i < inputFiles.Length; i++)
             {
                 currentFilePath = inputFiles[i];
                 currentFilename = Path.GetFileName(currentFilePath);
                 log.AddInfo("Processing file " + currentFilename + " ...", 1);
-                if (!Path.GetExtension(currentFilename).ToLower().Equals(".idf") && !Path.GetExtension(currentFilename).ToLower().Equals(".asc"))
+
+                string fileExtension = Path.GetExtension(currentFilename);
+                if ((fileExtension != null) && !fileExtension.Equals(string.Empty))
                 {
-                    continue;
+                    // Remove initial dot and convert to uppercase
+                    fileExtension = fileExtension.Substring(1).ToUpper();
+                }
+                if (!fileExtensionStatsDictionary.ContainsKey(fileExtension))
+                {
+                    fileExtensionStatsDictionary.Add(fileExtension, new Dictionary<string, List<ZoneStatistics>>());
+                }
+                Dictionary<string, List<ZoneStatistics>> fileStatsDictionary = fileExtensionStatsDictionary[fileExtension];
+
+                // Create statistics per zone for current file
+                List<ZoneStatistics> zoneStatistics = null;
+                IMODFile imodFile = null;
+                string extension = Path.GetExtension(currentFilename);
+                switch (Path.GetExtension(currentFilename).ToLower())
+                {
+                    case ".idf":
+                        IDFFile idfFile = IDFFile.ReadFile(currentFilePath, false, log, 0, settings.Extent);
+                        imodFile = idfFile;
+                        zoneStatistics = GetZoneStatistics(idfFile, settings);
+                        break;
+                    case ".asc":
+                        ASCFile ascFile = ASCFile.ReadFile(currentFilePath, EnglishCultureInfo);
+                        idfFile = new IDFFile(ascFile);
+                        imodFile = idfFile;
+                        if (settings.Extent != null)
+                        {
+                            idfFile = idfFile.ClipIDF(settings.Extent);
+                        }
+                        zoneStatistics = GetZoneStatistics(idfFile, settings);
+                        break;
+                    case ".ipf":
+                        IPFFile ipfFile = ReadIPFFile(currentFilePath, settings);
+                        imodFile = ipfFile;
+                        zoneStatistics = GetZoneStatistics(ipfFile, settings);
+                        break;
+                    default:
+                        log.AddWarning("Extension " + extension + " is not supported, file is skipped: " + Path.GetFileName(currentFilePath));
+                        continue;
                 }
 
                 try
                 {
-                    // Create statistics per zone for current file
-                    IDFFile idfFile = null;
-                    if (IDFFile.HasIDFExtension(currentFilePath))
-                    {
-                        idfFile = IDFFile.ReadFile(currentFilePath, false, log, 0, settings.Extent);
-                    }
-                    else if (ASCFile.HasASCExtension(currentFilePath))
-                    {
-                        ASCFile ascFile = ASCFile.ReadFile(currentFilePath, EnglishCultureInfo);
-                        idfFile = new IDFFile(ascFile);
-                    }
-
-                    if (idfFile.Extent == null)
+                    if (imodFile.Extent == null)
                     {
                         // Empty extent, skip file
                         if (settings.Extent != null)
@@ -224,7 +321,10 @@ namespace Sweco.SIF.iMODstats
                         continue;
                     }
 
-                    fileStatsDictionary.Add(currentFilePath, GetZoneStatistics(idfFile, settings));
+                    if (zoneStatistics != null)
+                    {
+                        fileStatsDictionary.Add(currentFilePath, zoneStatistics);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -234,7 +334,47 @@ namespace Sweco.SIF.iMODstats
                 }
             }
 
-            return fileStatsDictionary;
+            if (settings.IsRecursive)
+            {
+                string[] subdirs = Directory.GetDirectories(inputPath);
+                foreach (string subdir in subdirs)
+                {
+                    Dictionary<string, Dictionary<string, List<ZoneStatistics>>> subFileExtList = GetFileExtensionZoneStatistics(subdir, settings, log);
+                    foreach (string fileExtension in subFileExtList.Keys)
+                    {
+                        Dictionary<string, List<ZoneStatistics>> subFileList = subFileExtList[fileExtension];
+                        foreach (string filename in subFileList.Keys)
+                        {
+                            if (!fileExtensionStatsDictionary.ContainsKey(fileExtension))
+                            {
+                                fileExtensionStatsDictionary.Add(fileExtension, new Dictionary<string, List<ZoneStatistics>>());
+                            }
+                            fileExtensionStatsDictionary[fileExtension].Add(filename, subFileList[filename]);
+                        }
+                    }
+                }
+            }
+
+            return fileExtensionStatsDictionary;
+        }
+
+        protected IPFFile ReadIPFFile(string ipfFilename, SIFToolSettings settings)
+        {
+            IPFFile ipfFile = IPFFile.ReadFile(ipfFilename, true);
+            int xColIdx = ipfFile.FindColumnIndex(settings.IPFXColRef);
+            int yColIdx = ipfFile.FindColumnIndex(settings.IPFYColRef);
+            if ((xColIdx < 0) || (xColIdx >= ipfFile.ColumnCount))
+            {
+                throw new ToolException("Invalid X-column: " + settings.IPFXColRef);
+            }
+            if ((yColIdx < 0) || (yColIdx >= ipfFile.ColumnCount))
+            {
+                throw new ToolException("Invalid Y-column: " + settings.IPFYColRef);
+            }
+
+            ipfFile = IPFFile.ReadFile(ipfFilename, xColIdx, yColIdx);
+
+            return ipfFile;
         }
 
         /// <summary>
@@ -242,102 +382,170 @@ namespace Sweco.SIF.iMODstats
         /// </summary>
         /// <param name="idfFile"></param>
         /// <param name="settings"></param>
-        /// <param name="log"></param>
         /// <returns></returns>
         protected virtual List<ZoneStatistics> GetZoneStatistics(IDFFile idfFile, SIFToolSettings settings)
         {
             List<ZoneStatistics> statList = new List<ZoneStatistics>();
 
-            // Retrieve statistics for zones: currently only a single zone (null) is used, equal to the whole extent of the IDF-file
-            statList.Add(GetZoneStatistics(idfFile, settings, null));
+            IDFZoneSettings zoneSettings = CreateIDFZoneSettings(settings);
+
+            // Retrieve statistics: currently only a single zone (null) is used, equal to the whole extent of the IDF-file
+            ZoneStatistics zoneStatistics = new IDFZoneStatistics(idfFile, zoneSettings, null);
+            zoneStatistics.Calculate();
+
+            statList.Add(zoneStatistics);
+
+            return statList;
+        }
+
+
+        /// <summary>
+        /// Retrieve statistics per zone for specified IPF-file and settings. Note: currently only a single zone is used, equal to the whole IPF-file
+        /// </summary>
+        /// <param name="ipfFile"></param>
+        /// <param name="settings"></param>
+        /// <returns></returns>
+        protected virtual List<ZoneStatistics> GetZoneStatistics(IPFFile ipfFile, SIFToolSettings settings)
+        {
+            List<ZoneStatistics> statList = new List<ZoneStatistics>();
+
+            IPFZoneSettings zoneSettings = CreateIPFZoneSettings(settings);
+
+            // Retrieve statistics: currently only a single zone (null) is used, equal to the whole IPF-file
+            IPFZoneStatistics zoneStatistics = new IPFZoneStatistics(ipfFile, zoneSettings, null);
+            zoneStatistics.Calculate();
+
+            if ((zoneStatistics.ResultIPFFile != null) && (zoneStatistics.ResultIPFFile.PointCount > 0))
+            {
+                // Write resulting IPF-file
+                string resultIPFFilename = Path.Combine(Path.GetDirectoryName(settings.OutputFile), Path.GetFileNameWithoutExtension(settings.OutputFile) + ".IPF");
+                zoneStatistics.ResultIPFFile.WriteFile(resultIPFFilename);
+            }
+
+            statList.Add(zoneStatistics);
 
             return statList;
         }
 
         /// <summary>
-        /// Retrieve statistics for all non-NoData cells in specified IDF-file for specified settings.
+        /// Create ZoneSettings object specific for IDF-file statistics; copy settings from SIFToolsSettings object
         /// </summary>
-        /// <param name="idfFile"></param>
         /// <param name="settings"></param>
-        /// <param name="zoneID">an id for the non-NoData cells in the specified IDF-file</param>
         /// <returns></returns>
-        protected virtual ZoneStatistics GetZoneStatistics(IDFFile idfFile, SIFToolSettings settings, string zoneID)
+        protected virtual IDFZoneSettings CreateIDFZoneSettings(SIFToolSettings settings)
         {
-            ZoneStatistics zoneStatistics = new ZoneStatistics(settings.PercentileClassCount, settings.DecimalCount, zoneID);
-
-            IDFStatistics idfStats = null;
-            if ((settings.Extent != null) && idfFile.Extent.Equals(settings.Extent))
-            {
-                idfStats = new IDFStatistics(idfFile, settings.Extent, new List<float>());
-            }
-            else
-            {
-                idfStats = new IDFStatistics(idfFile, new List<float>());
-            }
-            idfStats.ComputeBasicStatistics(false, false);
-            idfStats.ComputePercentiles();
-            List<float> statList = new List<float>();
-            long count = idfStats.Count;
-            statList.Add(idfFile.XCellsize);
-            statList.Add(count);
-            statList.Add(idfStats.NonSkippedFraction);
-            statList.Add((count > 0) ? idfStats.Min : 0);
-            statList.Add((count > 0) ? idfStats.Max : 0);
-            statList.Add((count > 0) ? idfStats.Mean : 0);
-            statList.Add((count > 0) ? idfStats.SD : 0);
-            statList.Add((count > 0) ? idfStats.Sum : 0);
-
-            if (count > 0)
-            {
-                float[] percentiles = idfStats.Percentiles;
-                for (int pctIdx = 1; pctIdx <= settings.PercentileClassCount; pctIdx++)
-                {
-                    int percentile = (int)((100.0 / ((float)settings.PercentileClassCount)) * pctIdx);
-                    statList.Add(percentiles[percentile]);
-                }
-            }
-            else
-            {
-                for (int pctIdx = 1; pctIdx <= settings.PercentileClassCount; pctIdx++)
-                {
-                    statList.Add(0);
-                }
-            }
-            zoneStatistics.StatList = statList;
-
-            return zoneStatistics;
+            IDFZoneSettings idfZoneSettings = new IDFZoneSettings();
+            CopyIDFZoneSettings(settings, idfZoneSettings);
+            return idfZoneSettings;
         }
 
         /// <summary>
-        /// Corrects scale of source IDFFile to scale of reference IDFile. Currently only works when X- and Y-cellsizes of both IDF-files are equal.
-        /// If cellsize of source and reference are different a new IDF-file object is created, otheriwse no scaling is applied and this IDF-file object is returned.
+        /// Create ZoneSettings object specific for IPF-file statistics; copy settings from SIFToolsSettings object
         /// </summary>
-        /// <param name="sourceIDFFile"></param>
-        /// <param name="refIDFFile"></param>
-        /// <param name="log"></param>
+        /// <param name="settings"></param>
         /// <returns></returns>
-        protected static IDFFile CorrectScale(IDFFile sourceIDFFile, IDFFile refIDFFile, Log log, int logIndentLevel = 0)
+        protected virtual IPFZoneSettings CreateIPFZoneSettings(SIFToolSettings settings)
         {
-            IDFFile scaledIDFFile = sourceIDFFile;
+            IPFZoneSettings ipfZoneSettings = new IPFZoneSettings();
+            CopyIPFZoneSettings(settings, ipfZoneSettings);
+            return ipfZoneSettings;
+        }
 
-            if ((sourceIDFFile != null) && (!refIDFFile.XCellsize.Equals(sourceIDFFile.XCellsize) || !refIDFFile.YCellsize.Equals(sourceIDFFile.YCellsize)))
+        /// <summary>
+        /// Create ResultTableSettings object from SIFToolsSettings object
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <returns></returns>
+        protected ResultTableSettings CreateResultTableSettings(SIFToolSettings settings)
+        {
+            ResultTableSettings resultTableSettings = new ResultTableSettings();
+            CopyResultTableSettings(settings, resultTableSettings);
+            return resultTableSettings;
+        }
+
+        /// <summary>
+        /// Copy settings from SIFToolsSettings object
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <param name="idfZoneSettings"></param>
+        protected void CopyIDFZoneSettings(SIFToolSettings settings, IDFZoneSettings idfZoneSettings)
+        {
+            CopyBasicZoneSettings(settings, idfZoneSettings);
+
+            // Copy settings that are specific for IDF-files
+        }
+
+        /// <summary>
+        /// Copy settings from SIFToolsSettings object
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <param name="idfZoneSettings"></param>
+        protected void CopyIPFZoneSettings(SIFToolSettings settings, IPFZoneSettings ipfZoneSettings)
+        {
+            CopyBasicZoneSettings(settings, ipfZoneSettings);
+
+            // Copy settings that are specific for IPF-files
+            ipfZoneSettings.InputPath = settings.InputPath;
+            ipfZoneSettings.IPFIDColRef = settings.IPFIDColRef;
+            ipfZoneSettings.IPFValueColRef = settings.IPFValueColRef;
+            ipfZoneSettings.IPFSelColRefs = settings.IPFSelColRefs;
+            ipfZoneSettings.IPFTSValueColIdx1 = settings.IPFTSValueColIdx1;
+            ipfZoneSettings.IPFTSValueColIdx2 = settings.IPFTSValueColIdx2;
+            ipfZoneSettings.IPFResidualMethod = settings.IPFResidualMethod;
+            ipfZoneSettings.IPFTSPeriodStartDate = settings.IPFTSPeriodStartDate;
+            ipfZoneSettings.IPFTSPeriodEndDate = settings.IPFTSPeriodEndDate;
+        }
+
+        /// <summary>
+        /// Copy basic settings from SIFToolsSettings object that are used for all statistic analysis
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <param name="idfZoneSettings"></param>
+        protected void CopyBasicZoneSettings(SIFToolSettings settings, ZoneSettings zoneSettings)
+        {
+            zoneSettings.DecimalCount = settings.DecimalCount;
+            zoneSettings.PercentileClassCount = settings.PercentileClassCount;
+            zoneSettings.Extent = settings.Extent;
+        }
+
+        /// <summary>
+        /// Copy settings from SIFToolsSettings object that are used to create result table
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <param name="idfZoneSettings"></param>
+        protected void CopyResultTableSettings(SIFToolSettings settings, ResultTableSettings resultTableSettings)
+        {
+            resultTableSettings.InputPath = settings.InputPath;
+            resultTableSettings.InputFilter = settings.InputFilter;
+            resultTableSettings.OutputFile = settings.OutputFile;
+            resultTableSettings.IsRecursive = settings.IsRecursive;
+
+            resultTableSettings.Extent = settings.Extent;
+            resultTableSettings.IsOverwrite = settings.IsOverwrite;
+        }
+
+        /// <summary>
+        /// Check if array of filenames contains a filename with specified extension
+        /// </summary>
+        /// <param name="filenames"></param>
+        /// <param name="extension">heck file extension, case ignored</param>
+        /// <returns></returns>
+        protected bool ContainsExtension(string[] filenames, string extension)
+        {
+            foreach (string filename in filenames)
             {
-                // zone IDF-file and IDF-file have mismatch in cellsize, try to scale when x- and y-cellsizes are equal
-                if (sourceIDFFile.XCellsize.Equals(sourceIDFFile.YCellsize) && refIDFFile.XCellsize.Equals(refIDFFile.YCellsize))
+                string currentExtension = Path.GetExtension(filename);
+                if (!currentExtension.Equals(string.Empty))
                 {
-                    log.AddInfo("Scaling " + Path.GetFileName(sourceIDFFile.Filename) + " from " + sourceIDFFile.XCellsize + " to " + refIDFFile.XCellsize + " ...", logIndentLevel);
-                    if (sourceIDFFile.XCellsize < refIDFFile.XCellsize)
-                    {
-                        scaledIDFFile = sourceIDFFile.ScaleUp(refIDFFile.XCellsize, UpscaleMethodEnum.MostOccurring);
-                    }
-                    else
-                    {
-                        scaledIDFFile = sourceIDFFile.ScaleDown(refIDFFile.XCellsize, DownscaleMethodEnum.Block);
-                    }
+                    // remove leading dot
+                    currentExtension = currentExtension.Substring(1);
+                }
+                if (currentExtension.ToUpper().Equals(extension.ToUpper()))
+                {
+                    return true;
                 }
             }
-
-            return scaledIDFFile;
+            return false;
         }
     }
 }
