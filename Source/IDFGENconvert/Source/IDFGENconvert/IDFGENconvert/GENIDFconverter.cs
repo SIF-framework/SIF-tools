@@ -228,6 +228,11 @@ namespace Sweco.SIF.IDFGENconvert
                     else
                     {
                         // Feature is an island of previous feature, add it to list of that feature
+                        if (!measureDictionary.ContainsKey(prevPositiveMeasure))
+                        {
+                            // This can happen when prevPositiveMeasure is NaN and this is the first feature in the GEN-file, but with incorrect point order. It doesn't matter for the sorting, just add it.
+                            measureDictionary.Add(prevPositiveMeasure, new List<GENFeature>());
+                        }
                         measureDictionary[prevPositiveMeasure].Add(genFeature);
                     }
                 }
@@ -351,7 +356,7 @@ namespace Sweco.SIF.IDFGENconvert
                 else
                 {
                     log.AddWarning("Points of polygon " + genPolygon.ID + " are defined counterclockwise, indicating an island, and may give unexpected results. Use option /i or /n.", logIndentLevel);
-                    return;
+                    clockwiseGENPolygon = genPolygon;
                 }
             }
 
@@ -774,16 +779,6 @@ namespace Sweco.SIF.IDFGENconvert
             }
         }
 
-        /// <summary>
-        /// Retrieves the columnindex into the values-array for the given x-value
-        /// </summary>
-        /// <param name="y"></param>
-        /// <returns></returns>
-        public static int GetColIdx(IDFFile idfFile, double x)
-        {
-            return (int)((x - idfFile.Extent.llx) / idfFile.XCellsize);
-        }
-
         public void CheckSettings(GENFile genFile)
         {
             if (settings.GridPar1String != null)
@@ -810,16 +805,6 @@ namespace Sweco.SIF.IDFGENconvert
                     }
                 }
             }
-        }
-
-        /// <summary>
-        /// Retrieves the rowindex into the values-array for the given y-value
-        /// </summary>
-        /// <param name="y"></param>
-        /// <returns></returns>
-        public static int GetRowIdx(IDFFile idfFile, double y)
-        {
-            return (int)(((idfFile.Extent.ury - 0.00001) - y) / idfFile.YCellsize);
         }
 
         /// <summary>

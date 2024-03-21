@@ -124,9 +124,9 @@ namespace Sweco.SIF.IDFGENconvert
                                           "2) for concave hull, specify initial number of neighbours (k-value)", "/h:2,100", "Hull of type {0} created for IDF-files", new string[] { "h1" }, new string[] { "h2" }, new string[] { "3" }, new int[] { 1 });
             AddToolOptionDescription("m", "Merge all resulting GEN-features into one GEN-file with filename 'fname':\n" +
                                           "If no filename is given, the default is 'IDFconversion.GEN'", "/m", "Resulting GEN-files are merged to: {0}", null, new string[] { "f" }, new string[] { DefaultMergedGENFilename }, 1);
+            AddToolUsageOptionPreRemark("Note: statistics (N, average, SD, median, IQR, min, max) about IDF-values per GEN-polygon are written in the GEN-files", 2);
 
             // Define GEN-IDF option syntax
-            AddToolUsageOptionPreRemark("Statistics (N, average, SD, median, IQR, min, max) about IDF-values per GEN-polygon are written in the GEN-files", 2);
             AddToolUsageOptionPreRemark("\nFor GEN-IDF conversion: ", 2);
             AddToolOptionDescription("g", "Create a grid with:" +
                                           "cellsize 'sz' (default 25)\n" +

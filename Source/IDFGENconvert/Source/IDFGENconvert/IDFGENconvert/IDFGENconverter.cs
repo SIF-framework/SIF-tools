@@ -130,23 +130,9 @@ namespace Sweco.SIF.IDFGENconvert
                 int genFeatureIdx = genFile.Features.Count + 1;
                 foreach (GENFeature genFeature in idfGENFile.Features)
                 {
-                    // string sourceID = genFeature.ID;
-
-                    //if ((genFeature.ID == "12933") || (genFeature.ID == "12934"))
-                    //{
-                    //    int a = 0;
-                    //}
-
                     DATRow datRow = idfGENFile.DATFile.GetRow(genFeature.ID);
-//                    genFeature.GENFile.DATFile.RemoveRow(sourceID);
-//                    genFeature.ID = genFeatureIdx.ToString();
                     if (datRow == null)
                     {
-                    //    datRow[0] = genFeature.ID;
-                    //    genFeature.GENFile.DATFile.AddRow(datRow);
-                    //}
-                    //else
-                    //{
                         log.AddWarning("No DAT-row found for GEN-feature " + genFeature.ID);
                     }
 
