@@ -171,7 +171,15 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="value"></param>
         public void SetCellValue(int rowIdx, int colIdx, float value)
         {
-            epplusCells[rowIdx + 1, colIdx + 1].Value = value;
+            if (value.Equals(float.NaN))
+            {
+                // Excel gives an error when a NaN-value is written to Excel by EPPlus, convert it to a string
+                epplusCells[rowIdx + 1, colIdx + 1].Value = value.ToString();
+            }
+            else
+            {
+                epplusCells[rowIdx + 1, colIdx + 1].Value = value;
+            }
         }
 
         /// <summary>
@@ -182,7 +190,15 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="value"></param>
         public void SetCellValue(int rowIdx, int colIdx, double value)
         {
-            epplusCells[rowIdx + 1, colIdx + 1].Value = value;
+            if (value.Equals(float.NaN))
+            {
+                // Excel gives an error when a NaN-value is written to Excel by EPPlus, convert it to a string
+                epplusCells[rowIdx + 1, colIdx + 1].Value = value.ToString();
+            }
+            else
+            {
+                epplusCells[rowIdx + 1, colIdx + 1].Value = value;
+            }
         }
 
         /// <summary>
@@ -204,7 +220,18 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         /// <param name="value"></param>
         public void SetCellValue(int rowIdx, int colIdx, object value)
         {
-            epplusCells[rowIdx + 1, colIdx + 1].Value = value;
+            if (value is float)
+            {
+                SetCellValue(rowIdx, colIdx, (float)value);
+            }
+            else if (value is double)
+            {
+                SetCellValue(rowIdx, colIdx, (double)value);
+            }
+            else
+            {
+                epplusCells[rowIdx + 1, colIdx + 1].Value = value;
+            }
         }
 
         /// <summary>
@@ -1076,17 +1103,23 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         }
 
         /// <summary>
-        /// Set color for horizontal inner border lines in specified range
+        /// Set color for horizontal bottom border line in specified range
         /// </summary>
         /// <param name="range"></param>
         /// <param name="color"></param>
         public void SetBorderEdgeBottomColor(Range range, System.Drawing.Color color)
         {
             ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
-            if (epplusRange.Style.Border.Bottom.Style == ExcelBorderStyle.None)
+            ExcelBorderStyle borderStyle = epplusRange.Style.Border.Bottom.Style;
+            if (borderStyle == ExcelBorderStyle.None)
             {
-                epplusRange.Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+                borderStyle = ExcelBorderStyle.Thin;
             }
+
+            // Force bottom style since it can happen that a borderstyle is only partially present in the range
+            epplusRange.Style.Border.Bottom.Style = borderStyle;
+
+            // Actually set color
             epplusRange.Style.Border.Bottom.Color.SetColor(color);
         }
 
