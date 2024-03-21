@@ -52,17 +52,26 @@ namespace Sweco.SIF.IPFselect
         public string OutputPath { get; set; }
         public string OutputFilename { get; set; }
 
-        public List<ColumnExpressionDef> ColumnExpressionDefs { get; set; }
+        public int XColIdx { get; set; }
+        public int YColIdx { get; set; }
+        public int ZColIdx { get; set; }
+        public string TopLevelString { get; set; }
+        public string BotLevelString { get; set; }
+        public Extent Extent { get; set; }
+        public string ZoneFilename { get; set; }
+        public List<float> ZoneValues { get; set; }
+        public SelectPointMethod SelectPointMethod { get; set; }
         public string ExpColReference { get; set; }
         public ValueOperator ExpOperator { get; set; }
         public string ExpValue { get; set; }
+        public bool UseRegExp { get; set; }
+        public List<ColumnExpressionDef> ColumnExpressionDefs { get; set; }
         public bool IsTSSkipped { get; set; }
         public bool IsEmptyTSPointRemoved { get; set; }
         public DateTime? TSPeriodStartDate { get; set; }
         public DateTime? TSPeriodEndDate { get; set; }
         public bool IsTSClipped { get; set; }
         public int ValueColIndex { get; set; }
-        public bool UseRegExp { get; set; }
         public bool IsMetadataAdded { get; set; }
 
         /// <summary>
@@ -76,11 +85,23 @@ namespace Sweco.SIF.IPFselect
             OutputPath = null;
             OutputFilename = null;
 
-            ColumnExpressionDefs = null;
+            XColIdx = 0;
+            YColIdx = 1;
+            ZColIdx = -1;
+
+            TopLevelString = null;
+            BotLevelString = null;
+            Extent = null;
+            ZoneFilename = null;
+            ZoneValues = null;
+            SelectPointMethod = SelectPointMethod.Inside;
 
             ExpColReference = null;
             ExpOperator = ValueOperator.Undefined;
             ExpValue = null;
+            UseRegExp = false;
+
+            ColumnExpressionDefs = null;
 
             IsTSSkipped = false;
             TSPeriodStartDate = null;
@@ -88,7 +109,6 @@ namespace Sweco.SIF.IPFselect
             IsTSClipped = false;
             IsEmptyTSPointRemoved = false;
             ValueColIndex = -1;
-            UseRegExp = false;
             IsMetadataAdded = false;
         }
 
@@ -102,7 +122,7 @@ namespace Sweco.SIF.IPFselect
             AddToolParameterDescription("filter", "Filter to select input files (e.g. *.IPF)", "*.IPF");
             AddToolParameterDescription("outPath", "Path or IPF-filename to write results", "C:\\Test\\Output");
             AddToolOptionDescription("c", "Change columnvalues of selected points\n" +
-                                          "one or more column/exp-definitions can be specified, seperated by commas.;\n" +
+                                          "one or more column/exp-definitions can be specified, seperated by commas;\n" +
                                           "each column/exp-definition is specified by 'c1;c2;c3', where:\n" +
                                           "  'c1' is a (one-based) column index or a column name. If a column name is not found \n" +
                                           "    it is added, where non - selected points will receive an empty string as a value. \n" +
@@ -122,11 +142,25 @@ namespace Sweco.SIF.IPFselect
                                           "      Note: string expression results are trimmed after applying expressions.\n" +
                                           "  'c3' is an optional NoData-value for new columns and rows that were not selected.",
                                           "/c:3;*2.5", "Changes are made to column with expressions: {...}", new string[] { "c1" }, new string[] { "..." });
+            AddToolOptionDescription("l", "Selection volume below specified value/IDFFile l1 or \n" +
+                                          "between top/bot-levels by values/IDFFile l1 and l2",
+                                          "/l:3,5", "Analysis volume levels defined: {0},{1}", new string[] { "l1" }, new string[] { "l2" });
+            AddToolOptionDescription("m", "Add metadata and including existing metadata from source file", "/m", "Metadata is added");
+            AddToolOptionDescription("r", "Use regular expressions for strings values and (un)equal operator \n" +
+                                          "expressions are embedded between Regex-symbols (^$) to get an exact match",
+                                          "/r", "Regular expressions are used for string values and operators");
+            AddToolOptionDescription("v", "Specify volume/area method, v1: 1=inside (default); 2=outside specified volume/area",
+                                          "/v:1", "Volume/area method is: {0}", new string[] { "v1" });
             AddToolOptionDescription("x", "Select expression on values of column with (one based) column number or name x1;\n" +
                                           "with operator x2 against specified value x3. Supported logical operators: eq: equal; gt: greater than;\n" +
                                           "gteq: greater than or equal; lt: lower than; lteq: lower than or equal; uneq: unequal\n" +
                                           "NoData- or string-values are valid for (un)equality, otherwise result in false",
                                           "/x:3,eq,5.5", "Condition for selection: {0} {1} {2}", new string[] { "x1", "x2", "x3" });
+            AddToolOptionDescription("y", "Specify (one based) columnindices for x-, y- and (optionally) z-coordinates",
+                                          "/y:1,2,4", "x, y (and z) columnindices are redefined to: {0}, {1}, {2}", new string[] { "y1", "y2" }, new string[] { "y3" }, new string[] { "NA" });
+            AddToolOptionDescription("z", "Selection volume within zone(s) in IDF/GEN-file z1\n" +
+                                          "For IDF-file also specify (semicolon-seperated) zone-values z2", "/p:somecountour.GEN",
+                                          "Analysis volume zone defined within: {...}", new string[] { "z1" }, new string[] { "z2" }, new string[] { "NA" });
             AddToolOptionDescription("tse", "Remove IPF-points without timeseries or with empty timeseries (without any values)",
                                             "/tse", "IPF-points with empty timeseries are removed");
             AddToolOptionDescription("tss", "Skip writing IPF-timeseries (and keep non-existing timeseries references in input file).",
@@ -137,10 +171,6 @@ namespace Sweco.SIF.IPFselect
                                             "of the value column that should be checked for values. When tsp4=-1 (default), \n" +
                                             "all value columns should contain values for a point to be selected.",
                                             "/tsp:20070101,20201231", "Period for timeseries selection: {0}-{1}", new string[] { "tsp1", "tsp2" }, new string[] { "tsp3", "tsp4" });
-            AddToolOptionDescription("r", "Use regular expressions for strings values and (un)equal operator \n" +
-                                          "expressions are embedded between Regex-symbols (^$) to get an exact match",
-                                          "/r", "Regular expressions are used for string values and operators");
-            AddToolOptionDescription("m", "Add metadata and including existing metadata from source file", "/m", "Metadata is added");
         }
 
         /// <summary>
@@ -221,6 +251,83 @@ namespace Sweco.SIF.IPFselect
                     throw new ToolException("Parameter value expected for option '" + optionName + "'");
                 }
             }
+            else if (optionName.ToLower().Equals("e"))
+            {
+                if (hasOptionParameters)
+                {
+                    // split option parameter string into comma seperated substrings
+                    try
+                    {
+                        Extent = Extent.ParseExtent(optionParametersString);
+                    }
+                    catch
+                    {
+                        throw new ToolException("Could not parse extent: " + optionParametersString);
+                    }
+                }
+                else
+                {
+                    throw new ToolException("Parameter value expected for option '" + optionName + "'");
+                }
+            }
+            else if (optionName.ToLower().Equals("l"))
+            {
+                if (hasOptionParameters)
+                {
+                    string[] optionParameters = GetOptionParameters(optionParametersString);
+                    TopLevelString = optionParameters[0];
+                    if (optionParameters.Length > 1)
+                    {
+                        BotLevelString = optionParameters[1];
+                    }
+                    else if (optionParameters.Length > 2)
+                    {
+                        throw new ToolException("For option 'l' not more than two parameters are allowed: " + optionParameters);
+                    }
+                }
+                else
+                {
+                    throw new ToolException("Parameter value expected for option '" + optionName + "'");
+                }
+            }
+            else if (optionName.ToLower().Equals("m"))
+            {
+                IsMetadataAdded = true;
+            }
+            else if (optionName.ToLower().Equals("r"))
+            {
+                UseRegExp = true;
+            }
+            else if (optionName.ToLower().Equals("v"))
+            {
+                if (hasOptionParameters)
+                {
+                    string[] optionParameters = GetOptionParameters(optionParametersString);
+                    int s1Value;
+                    if (int.TryParse(optionParameters[0], out s1Value))
+                    {
+                        switch (s1Value)
+                        {
+                            case 1:
+                                SelectPointMethod = SelectPointMethod.Inside;
+                                break;
+                            case 2:
+                                SelectPointMethod = SelectPointMethod.Outside;
+                                break;
+                            default:
+                                throw new ToolException("Invalid parameter value for option v, parameter v1: " + optionParameters);
+                        }
+                    }
+                    else
+                    {
+                        throw new ToolException("Parameter for option 'v' should be an integer value 1 or 2: " + optionParameters);
+                    }
+                }
+                else
+                {
+                    throw new ToolException("Parameter value expected for option '" + optionName + "'");
+                }
+            }
             else if (optionName.ToLower().Equals("x"))
             {
                 if (hasOptionParameters)
@@ -251,13 +358,58 @@ namespace Sweco.SIF.IPFselect
                     throw new ToolException("Parameter value expected for option '" + optionName + "'");
                 }
             }
-            else if (optionName.ToLower().Equals("r"))
+            else if (optionName.ToLower().Equals("y"))
             {
-                UseRegExp = true;
+                if (hasOptionParameters)
+                {
+                    string[] optionParameters = GetOptionParameters(optionParametersString);
+                    if ((optionParameters.Length != 2) && (optionParameters.Length != 3))
+                    {
+                        throw new ToolException("Please specify x,y (and optionally z) column indices after 'y:':" + optionParameters);
+                    }
+                    else
+                    {
+                        try
+                        {
+                            // Parse substrings for this option
+                            XColIdx = int.Parse(optionParameters[0]) - 1;
+                            YColIdx = int.Parse(optionParameters[1]) - 1;
+                            if (optionParameters.Length == 3)
+                            {
+                                ZColIdx = int.Parse(optionParameters[2]) - 1;
+                            }
+                        }
+                        catch (Exception)
+                        {
+                            throw new ToolException("xyz-values should be integers for option 'y': " + optionParametersString);
+                        }
+                    }
+                }
             }
-            else if (optionName.ToLower().Equals("m"))
+            else if (optionName.ToLower().Equals("z"))
             {
-                IsMetadataAdded = true;
+                if (hasOptionParameters)
+                {
+                    string[] optionParameters = GetOptionParameters(optionParametersString);
+
+                    ZoneFilename = optionParameters[0];
+                    if (optionParameters.Length == 2)
+                    {
+                        ZoneValues = new List<float>();
+                        foreach (string zonevalueString in optionParameters[1].Split(new char[] { ';' }))
+                        {
+                            if (!float.TryParse(zonevalueString, NumberStyles.Float, EnglishCultureInfo, out float zoneValue))
+                            {
+                                throw new ToolException("Invalid zone value, float value(s) expected for option '" + optionName + "': " + optionParametersString);
+                            }
+                            ZoneValues.Add(zoneValue);
+                        }
+                    }
+                }
+                else
+                {
+                    throw new ToolException("Parameter value expected for option '" + optionName + "'");
+                }
             }
             else if (optionName.ToLower().Equals("tse"))
             {
@@ -358,6 +510,32 @@ namespace Sweco.SIF.IPFselect
             {
                 Directory.CreateDirectory(OutputPath);
             }
+
+            if (TopLevelString != null)
+            {
+                if (!IsValidLevelString(TopLevelString))
+                {
+                    throw new ToolException("Level1 is not a floating point or existing IDF-file: " + TopLevelString);
+                }
+            }
+            if (BotLevelString != null)
+            {
+                if (!IsValidLevelString(BotLevelString))
+                {
+                    throw new ToolException("Level2 is not a floating point or existing IDF-file: " + BotLevelString);
+                }
+            }
+            if (ZoneFilename != null)
+            {
+                if (!File.Exists(ZoneFilename))
+                {
+                    throw new ToolException("Specified GEN-file does not exist: " + ZoneFilename);
+                }
+            }
+            if ((XColIdx < 0) || (YColIdx < 0) || (ZColIdx < -1))
+            {
+                throw new ToolException("xyz-column indices should be positive numbers: " + XColIdx.ToString() + "," + YColIdx.ToString() + "," + ZColIdx.ToString());
+            }
         }
 
         /// <summary>
@@ -365,7 +543,7 @@ namespace Sweco.SIF.IPFselect
         /// </summary>
         /// <param name="defValues"></param>
         /// <returns></returns>
-        private string[] FixSeperators(string[] defValues)
+        protected string[] FixSeperators(string[] defValues)
         {
             List<string> corrDefValues = new List<string>();
 
@@ -401,7 +579,7 @@ namespace Sweco.SIF.IPFselect
         /// </summary>
         /// <param name="parString"></param>
         /// <returns></returns>
-        private string FixSeperators(string parString)
+        protected string FixSeperators(string parString)
         {
             return parString.Replace("[,]", "[###COMMA###]").Replace("[;]", "[###SEMICOLON###]").Replace("[,]", "[###COMMA###]").Replace("[;]", "[###SEMICOLON###]");
         }
@@ -411,9 +589,22 @@ namespace Sweco.SIF.IPFselect
         /// </summary>
         /// <param name="expString"></param>
         /// <returns></returns>
-        private string UnFixSeperators(string expString)
+        protected string UnFixSeperators(string expString)
         {
             return expString.Replace("[###COMMA###]", "[,]").Replace("[###SEMICOLON###]", "[;]");
+        }
+
+        protected bool IsValidLevelString(string levelString)
+        {
+            float value;
+            if (!float.TryParse(levelString, NumberStyles.Float, EnglishCultureInfo, out value))
+            {
+                if (!File.Exists(levelString))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 

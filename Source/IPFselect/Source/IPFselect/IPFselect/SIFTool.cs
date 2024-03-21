@@ -21,6 +21,8 @@
 // along with IPFselect. If not, see <https://www.gnu.org/licenses/>.
 using Sweco.SIF.Common;
 using Sweco.SIF.iMOD;
+using Sweco.SIF.iMOD.GEN;
+using Sweco.SIF.iMOD.IDF;
 using Sweco.SIF.iMOD.IPF;
 using Sweco.SIF.iMOD.Utils;
 using Sweco.SIF.iMOD.Values;
@@ -54,6 +56,21 @@ namespace Sweco.SIF.IPFselect
         /// Currently processed IPF-file
         /// </summary>
         protected IPFFile inputIPFFile;
+
+        /// <summary>
+        /// IDFFile object with top of volume used for selection
+        /// </summary>
+        protected IDFFile topIDFFile;
+
+        /// <summary>
+        /// IDFFile object with bottom of volume used for selection
+        /// </summary>
+        protected IDFFile botIDFFile;
+
+        /// <summary>
+        /// IDF- or GENFile object with zones used for selection
+        /// </summary>
+        protected IMODFile zoneFile;
 
         /// <summary>
         /// Entry point of tool
@@ -196,10 +213,62 @@ namespace Sweco.SIF.IPFselect
         protected virtual void ReadInputFiles(string inputIPFFilename, SIFToolSettings settings, Log log, int logIndentLevel)
         {
             Log.AddInfo("Reading IPF-file " + Path.GetFileName(inputIPFFilename) + " ...", logIndentLevel);
-            inputIPFFile = IPFFile.ReadFile(inputIPFFilename, false, null, logIndentLevel);
+            inputIPFFile = IPFFile.ReadFile(inputIPFFilename, settings.XColIdx, settings.YColIdx, settings.ZColIdx, false, null, logIndentLevel);
             if ((settings.IsMetadataAdded) && File.Exists(Path.ChangeExtension(inputIPFFilename, "MET")))
             {
                 inputIPFFile.Metadata = Metadata.ReadMetaFile(inputIPFFilename);
+            }
+
+            if ((settings.XColIdx != 0) || (settings.YColIdx != 0) || (settings.ZColIdx >= 0))
+            {
+                string xyzMessage = "used x,y" + ((settings.ZColIdx >= 0) ? ",z" : string.Empty) + "-columns: " + inputIPFFile.ColumnNames[settings.XColIdx] + ", " + inputIPFFile.ColumnNames[settings.YColIdx] + ((settings.ZColIdx >= 0) ? (" and " + inputIPFFile.ColumnNames[settings.ZColIdx]) : string.Empty);
+                log.AddInfo(xyzMessage, logIndentLevel + 1);
+            }
+
+            if (settings.TopLevelString != null)
+            {
+                float topValue;
+                if (float.TryParse(settings.TopLevelString, NumberStyles.Float, EnglishCultureInfo, out topValue))
+                {
+                    topIDFFile = new ConstantIDFFile(topValue);
+                }
+                else
+                {
+                    log.AddInfo("Reading top IDF-file " + Path.GetFileName(settings.TopLevelString) + " ...", logIndentLevel);
+                    topIDFFile = IDFFile.ReadFile(settings.TopLevelString);
+                }
+            }
+
+            if (settings.BotLevelString != null)
+            {
+                float botValue;
+                if (float.TryParse(settings.BotLevelString, NumberStyles.Float, EnglishCultureInfo, out botValue))
+                {
+                    botIDFFile = new ConstantIDFFile(botValue);
+                }
+                else
+                {
+                    log.AddInfo("Reading bottom IDF-file " + Path.GetFileName(settings.BotLevelString) + " ...", logIndentLevel);
+                    botIDFFile = IDFFile.ReadFile(settings.BotLevelString);
+                }
+            }
+
+            if (settings.ZoneFilename != null)
+            {
+                zoneFile = null;
+                switch (Path.GetExtension(settings.ZoneFilename).ToLower())
+                {
+                    case ".idf":
+                        log.AddInfo("Reading zone IDF-file " + Path.GetFileName(settings.ZoneFilename) + " ...", logIndentLevel);
+                        zoneFile = IDFFile.ReadFile(settings.ZoneFilename);
+                        break;
+                    case ".gen":
+                        log.AddInfo("Reading zone GEN-file " + Path.GetFileName(settings.ZoneFilename) + " ...", logIndentLevel);
+                        zoneFile = GENFile.ReadFile(settings.ZoneFilename);
+                        break;
+                    default:
+                        throw new Exception("Unknown extension for zone-file:" + Path.GetFileName(settings.ZoneFilename));
+                }
             }
         }
 
@@ -241,6 +310,40 @@ namespace Sweco.SIF.IPFselect
                 {
                     throw new ToolException("Invalid expression column reference: " + settings.ExpColReference);
                 }
+            }
+
+            // Select points in relation to specified extent
+            if (settings.Extent != null)
+            {
+                log.AddInfo("Selecting points with extent ...", logIndentLevel);
+                List<int> tmpPointIndices = new List<int>();
+                ipfFile = IPFUtils.SelectPoints(ipfFile, settings.Extent, settings.SelectPointMethod, tmpPointIndices);
+                selSourcePointIndices = ParseUtils.RetrieveIndexItems(tmpPointIndices, selSourcePointIndices);
+            }
+
+            // Select points in relation to volume specified by TOP-and BOT-levels
+            if (settings.BotLevelString != null || settings.TopLevelString != null)
+            {
+                log.AddInfo("Selecting points with TOP- and BOT-levels ...", logIndentLevel);
+                List<int> tmpPointIndices = new List<int>();
+                ipfFile = IPFUtils.SelectPoints(ipfFile, topIDFFile, botIDFFile, settings.SelectPointMethod, tmpPointIndices);
+                selSourcePointIndices = ParseUtils.RetrieveIndexItems(tmpPointIndices, selSourcePointIndices);
+            }
+
+            // Select points in relation to specified zone(s)
+            if (settings.ZoneFilename != null)
+            {
+                log.AddInfo("Selecting points in zone(s) ...", logIndentLevel);
+                List<int> tmpPointIndices = new List<int>();
+                if (zoneFile is GENFile)
+                {
+                    ipfFile = IPFUtils.SelectPoints(ipfFile, (GENFile)zoneFile, settings.SelectPointMethod, tmpPointIndices);
+                }
+                else if (zoneFile is IDFFile)
+                {
+                    ipfFile = IPFUtils.SelectPoints(ipfFile, (IDFFile)zoneFile, settings.ZoneValues, settings.SelectPointMethod, tmpPointIndices);
+                }
+                selSourcePointIndices = ParseUtils.RetrieveIndexItems(tmpPointIndices, selSourcePointIndices);
             }
 
             if (settings.TSPeriodStartDate != null)
@@ -489,6 +592,41 @@ namespace Sweco.SIF.IPFselect
                 metadata.MergeMetadata(newIPFMetadata);
 
                 newIPFMetadata = metadata;
+            }
+
+            if (settings.TopLevelString != null)
+            {
+                if (topIDFFile is ConstantIDFFile)
+                {
+                    newIPFMetadata.ProcessDescription += "TOP-level: " + ((ConstantIDFFile)topIDFFile).ConstantValue + "; ";
+                }
+                else
+                {
+                    newIPFMetadata.ProcessDescription += "TOP IDF-file: " + topIDFFile.Filename + "; ";
+                }
+            }
+
+            if (settings.BotLevelString != null)
+            {
+                if (botIDFFile is ConstantIDFFile)
+                {
+                    newIPFMetadata.ProcessDescription += "BOT-level: " + ((ConstantIDFFile)botIDFFile).ConstantValue + "; ";
+                }
+                else
+                {
+                    newIPFMetadata.ProcessDescription += "BOT IDF-file: " + botIDFFile.Filename + "; ";
+                }
+            }
+
+            if (settings.ZoneFilename != null)
+            {
+                newIPFMetadata.ProcessDescription += "zone file: " + zoneFile.Filename + "; ";
+            }
+
+            if ((settings.XColIdx != 0) || (settings.YColIdx != 0) || (settings.ZColIdx >= 0))
+            {
+                string xyzMessage = "used x,y" + ((settings.ZColIdx >= 0) ? ",z" : string.Empty) + "-columns: " + ipfFile.ColumnNames[settings.XColIdx] + ", " + ipfFile.ColumnNames[settings.YColIdx] + ((settings.ZColIdx >= 0) ? (" and " + inputIPFFile.ColumnNames[settings.ZColIdx]) : string.Empty);
+                newIPFMetadata.ProcessDescription += "; " + xyzMessage;
             }
 
             return newIPFMetadata;
