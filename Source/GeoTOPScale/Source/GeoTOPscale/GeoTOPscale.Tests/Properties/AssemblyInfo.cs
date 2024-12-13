@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Sweco Nederland B.V.")]
 [assembly: AssemblyProduct("GeoTOPscale.Tests")]
-[assembly: AssemblyCopyright("Copyright � 2016 Sweco Nederland B.V.")]
+[assembly: AssemblyCopyright("Copyright ? 2016 Sweco Nederland B.V.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -16,5 +16,5 @@ using System.Runtime.InteropServices;
 [assembly: Guid("e4e9c1ea-307a-4bd1-bd87-67664c130562")]
 
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("2.0.0.0")]
-[assembly: AssemblyFileVersion("2.0.0.0")]
+[assembly: AssemblyVersion("2.0.2.0")]
+[assembly: AssemblyFileVersion("2.0.2.0")]

@@ -143,6 +143,12 @@ namespace Sweco.SIF.GeoTOPscale
             {
                 throw new ToolException("Invalid input extent, voxel extent (" + voxelInfo.Extent + ") has no overlap with extent of TOP IDF-file: " + selLayer.TOPIDFFile.Extent);
             }
+            // Check that cellsize of input files is equal
+            if (!voxelInfo.XCellSize.Equals(selLayer.TOPIDFFile.XCellsize) || !voxelInfo.YCellSize.Equals(selLayer.TOPIDFFile.YCellsize))
+            {
+                throw new ToolException("Invalid input cellsize, voxel cellsize (" + voxelInfo.XCellSize + "x" + voxelInfo.YCellSize + ") is different from cellsize of TOP IDF-file: " + selLayer.TOPIDFFile.XCellsize + "x" + selLayer.TOPIDFFile.YCellsize);
+            }
+
             outputExtent = voxelInfo.Extent.Clip(selLayer.TOPIDFFile.Extent); //??is this the same extent as topidffile when cellsize between strat en top idffile differ??
             outputXcellSize = voxelInfo.XCellSize;
             outputYcellSize = voxelInfo.YCellSize;
