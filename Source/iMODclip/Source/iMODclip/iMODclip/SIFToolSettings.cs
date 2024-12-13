@@ -49,6 +49,7 @@ namespace Sweco.SIF.iMODclip
         public List<string> SkippedCopySubstrings { get; set; }
         public List<string> SkippedExtensions { get; set; }
         public bool IsContinueOnErrors { get; set; }
+        public bool IsDebugMode { get; set; }
 
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
@@ -69,6 +70,7 @@ namespace Sweco.SIF.iMODclip
             SkippedCopySubstrings = new List<string>();
             SkippedExtensions = new List<string>();
             IsContinueOnErrors = true;
+            IsDebugMode = false;
         }
 
         /// <summary>
@@ -102,8 +104,10 @@ namespace Sweco.SIF.iMODclip
                                         + "3: copy complete source file when extent is completey outside clipextent", "/e:3", "Method for handling empty files/folders: {0}", new string[] { "i" }, null, null, new int[] { 0, 1 });
             AddToolOptionDescription("n", "skip IDF- or ASC-files with only NoData in specified extent\nthis option overrules method 0 of option e", null, "IDF/ASC-files with only NoData in extent are skipped");
             AddToolOptionDescription("err", "stop when an error occurs, instead of continuing and copying file(s)", "/err", "Clipping is stopped when an error occurs", null, null, null, new int[] { 0, 1 });
+            AddToolOptionDescription("debug", "Log debug info while processing", "/debug", "Tool is run in debug mode", null, null, null, new int[] { 0, 1 });
 
             AddToolUsageOptionPostRemark("Note: if xll,yll,xur,yur are not specified, extent of input file is used and specified files are copied (including related files like MET- or TXT-files)");
+            AddToolUsageOptionPostRemark("Note: ISG-files are currently skipped (if extent has no overlap) or copied completely (if extent has some overlap)");
         }
 
         /// <summary>
@@ -227,6 +231,10 @@ namespace Sweco.SIF.iMODclip
             else if (optionName.ToLower().Equals("err"))
             {
                 IsContinueOnErrors = false;
+            }
+            else if (optionName.ToLower().Equals("debug"))
+            {
+                IsDebugMode = true;
             }
             else
             {
