@@ -55,6 +55,9 @@ namespace Sweco.SIF.Tee
             IsCharacterMode = false;
             IsErrorLevelSet = true;
             IsQuestionEchoed = false;
+
+            // Set to zero to turn off maximum limit
+            MaxQuestionLines = 0;
         }
 
         /// <summary>
@@ -68,7 +71,7 @@ namespace Sweco.SIF.Tee
             AddToolOptionDescription("c", "Run in charactermode: read and write characters until EOL or question marks\n" +
                                           "Note: this ensures that lines are shown that end with a question mark and wait for user input", "/c", "Processing in charactermode");
             AddToolOptionDescription("e", "Turn off setting of ERRORLEVEL environment variable\n" +
-                                          "Default ERRORLEVEL is set to 1 when one or more lines start with '" + ErrorMessagePrefix + "'.");
+                                          "Default ERRORLEVEL is set to 1 when one or more lines start with '" + ErrorMessagePrefix + "'.", null, "Errorlevel-setting for '" + ErrorMessagePrefix + "'-strings is turned off");
             AddToolOptionDescription("?", "Only echo lines to console that end with a question mark. All previous lines upto first empty line are\n" +
                                           "shown (default), limited by maximum number of lines c. Use c=1 to show only line with question mark.", null, null, null, new string[] { "c" }, new string[] { "0" });
         }

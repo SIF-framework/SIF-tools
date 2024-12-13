@@ -182,7 +182,7 @@ namespace Sweco.SIF.Tee
             sw.Flush();
 
             int errorlevel = 0;
-            if (line.StartsWith(SIFToolSettings.ErrorMessagePrefix))
+            if (settings.IsErrorLevelSet && line.StartsWith(SIFToolSettings.ErrorMessagePrefix))
             {
                 errorlevel = 1;
             }
