@@ -54,7 +54,7 @@ namespace Sweco.SIF.ResidualAnalysis
         #endregion
 
         // Note: sheets use zero-based row/col-indices: 0 is the index of the first column/row
-        protected const int SheetSummaryHeaderRowIdx = 4;
+        protected const int ResSheetSummaryHeaderRowIdx = 4;
         protected const int SummarySheetHeaderRowIdx = 0;
         protected const int ComparisonSheetHeaderRowIdx = 0;
         protected const string SummarySheetname = "Comparison";
@@ -139,7 +139,12 @@ namespace Sweco.SIF.ResidualAnalysis
                 settings.OutputFilename = Path.Combine(outputPath, settings.OutputFilename);
             }
 
-            Log.AddInfo("Processing input files ...", logIndentLevel);
+            Log.AddInfo("Processing input files " +
+                (((settings.Modelname != null) || (settings.Calibrationsetname != null)) ? "for " : string.Empty) +
+                ((settings.Modelname != null) ? "model '" + settings.Modelname + "' " : string.Empty) +
+                (((settings.Modelname != null) && (settings.Calibrationsetname != null)) ? "and " : string.Empty) +
+                ((settings.Calibrationsetname != null) ? "dataset '" + settings.Calibrationsetname + "' " : string.Empty) +
+                "...", logIndentLevel);
             int fileCount = 0;
             List<IPFFile> ipfFileList = new List<IPFFile>();
 
@@ -303,6 +308,26 @@ namespace Sweco.SIF.ResidualAnalysis
             return calibrationsetname;
         }
 
+        /// <summary>
+        /// Process a residual dataset which consists of one or more IPF-files
+        /// </summary>
+        /// <param name="modelname"></param>
+        /// <param name="calibrationsetname"></param>
+        /// <param name="ipfFileList"></param>
+        /// <param name="idColNr"></param>
+        /// <param name="layerColNr"></param>
+        /// <param name="observedColNr"></param>
+        /// <param name="simulatedColNr"></param>
+        /// <param name="residualColNr"></param>
+        /// <param name="weightColNr"></param>
+        /// <param name="extraColumnNrs"></param>
+        /// <param name="extraColumnNames"></param>
+        /// <param name="metadataString1"></param>
+        /// <param name="metadataString2"></param>
+        /// <param name="log"></param>
+        /// <param name="logIndentLevel"></param>
+        /// <param name="settings"></param>
+        /// <exception cref="ToolException"></exception>
         protected void processResidualFiles(string modelname, string calibrationsetname, List<IPFFile> ipfFileList, int idColNr, int layerColNr, int observedColNr, int simulatedColNr, int residualColNr, int weightColNr, List<int> extraColumnNrs, List<string> extraColumnNames, string metadataString1, string metadataString2, Log log, int logIndentLevel, SIFToolSettings settings)
         {
             // Do general checks
@@ -337,6 +362,7 @@ namespace Sweco.SIF.ResidualAnalysis
             bool isSummaryAdded = true; // always add summary sheet
             if (File.Exists(settings.OutputFilename) && !settings.IsOverwrite)
             {
+                // Open existing Excelsheet
                 isSummaryAdded = true;
                 if (!settings.IsBackupSkipped)
                 {
@@ -345,6 +371,7 @@ namespace Sweco.SIF.ResidualAnalysis
                 }
                 workbook = excelManager.OpenWorkbook(settings.OutputFilename, false);
 
+                // Always delete an existing summary sheet and create again later
                 DeleteSummmarySheet(workbook, log, logIndentLevel);
 
                 int sheetNameNr = 1;
@@ -364,10 +391,12 @@ namespace Sweco.SIF.ResidualAnalysis
 
             try
             {
+                // Add specified residual dataset
                 AddResidualStatistics(sheet, modelname, calibrationsetname, ipfFileList, idColNr, layerColNr, observedColNr, simulatedColNr, residualColNr, weightColNr, extraColumnNrs, extraColumnNames, metadataString1, metadataString2, logIndentLevel, settings);
                 if (isSummaryAdded)
                 {
-                    AddResidualSummarySheets(workbook, idColNr, observedColNr, simulatedColNr, (weightColNr > 0), log, logIndentLevel, settings);
+                    // Create summarysheet with summary and comparison statistics
+                    AddResidualSummarySheet(workbook, idColNr, observedColNr, simulatedColNr, (weightColNr > 0), log, logIndentLevel, settings);
                 }
                 else if (settings.IsDiffIPFCreated)
                 {
@@ -412,9 +441,9 @@ namespace Sweco.SIF.ResidualAnalysis
             }
         }
 
-        protected void AddResidualSummarySheets(IWorkbook workbook, int idColNr, int observedColNr, int simulatedColNr, bool isWeighed, Log log, int logIndentLevel, SIFToolSettings settings)
+        protected void AddResidualSummarySheet(IWorkbook workbook, int idColNr, int observedColNr, int simulatedColNr, bool isWeighed, Log log, int logIndentLevel, SIFToolSettings settings)
         {
-            log.AddInfo("Creating summary sheets ...", logIndentLevel);
+            log.AddInfo("Creating summary sheet ...", logIndentLevel);
 
             List<string> skippedIDs = new List<string>();
             IWorksheet summarySheet = null;
@@ -424,52 +453,53 @@ namespace Sweco.SIF.ResidualAnalysis
             List<string> calibrationSets = new List<string>();
             Dictionary<string, List<CalSetModelDef>> calibrationSetDefs = new Dictionary<string, List<CalSetModelDef>>();
             int nextCalibrationsetRowIdx = ComparisonSheetHeaderRowIdx;
+            bool hasMismatches = false;
 
-            // Loop through all existing sheets, but skip summary sheet
+            // Loop through all existing sheets, but skip summary sheet (which is always first sheet)
             for (int sheetIdx = 1; sheetIdx < workbook.Sheets.Count(); sheetIdx++)
             {
                 IWorksheet residualSheet = workbook.Sheets[sheetIdx];
 
-                // Retrieve modelname and calibrationsetname
+                // Retrieve modelname and calibrationsetname from metadata string in sheet header
                 string metadataString2 = residualSheet.GetCellValue(2, 0);
                 if ((metadataString2 == null) || metadataString2.Equals(string.Empty))
                 {
-                    throw new ToolException("\"Model:modelname,calibrationset:calibrationsetname\" expected, invalid empty cell in sheet " + residualSheet.GetSheetname() + ", cell (" + SheetSummaryHeaderRowIdx + "," + ")" + ": " + metadataString2 + ".");
+                    throw new ToolException("\"Model:modelname,calibrationset:calibrationsetname\" expected, invalid empty cell in sheet " + residualSheet.GetSheetname() + ", cell (" + ResSheetSummaryHeaderRowIdx + "," + ")" + ": " + metadataString2 + ".");
                 }
                 string[] metadataStringValues = metadataString2.Split(',');
                 if (metadataStringValues.Length != 2)
                 {
-                    throw new ToolException("\"Model:modelname,calibrationset:calibrationsetname\" expected, invalid cellvalue in sheet " + residualSheet.GetSheetname() + ", cell (" + SheetSummaryHeaderRowIdx + "," + ")" + ": " + metadataString2 + ".");
+                    throw new ToolException("\"Model:modelname,calibrationset:calibrationsetname\" expected, invalid cellvalue in sheet " + residualSheet.GetSheetname() + ", cell (" + ResSheetSummaryHeaderRowIdx + "," + ")" + ": " + metadataString2 + ".");
                 }
                 string[] modelnameKeyValues = metadataStringValues[0].Split(':');
                 string[] calibrationsetKeyValues = metadataStringValues[1].Split(':');
                 if (modelnameKeyValues.Length != 2)
                 {
-                    throw new ToolException("\"Model:modelname,calibrationset:calibrationsetname\" expected, invalid cellvalue in sheet " + residualSheet.GetSheetname() + ", cell (" + SheetSummaryHeaderRowIdx + "," + ")" + ": " + metadataString2 + ".");
+                    throw new ToolException("\"Model:modelname,calibrationset:calibrationsetname\" expected, invalid cellvalue in sheet " + residualSheet.GetSheetname() + ", cell (" + ResSheetSummaryHeaderRowIdx + "," + ")" + ": " + metadataString2 + ".");
                 }
                 if (metadataStringValues.Length != 2)
                 {
-                    throw new ToolException("\"Model:modelname,calibrationset:calibrationsetname\" expected, invalid cellvalue in sheet " + residualSheet.GetSheetname() + ", cell (" + SheetSummaryHeaderRowIdx + "," + ")" + ": " + metadataString2 + ".");
+                    throw new ToolException("\"Model:modelname,calibrationset:calibrationsetname\" expected, invalid cellvalue in sheet " + residualSheet.GetSheetname() + ", cell (" + ResSheetSummaryHeaderRowIdx + "," + ")" + ": " + metadataString2 + ".");
                 }
                 string modelname = modelnameKeyValues[1].Trim();
                 string calibrationsetname = calibrationsetKeyValues[1].Trim();
                 CalSetModelDef calSetModelDef = new CalSetModelDef(calibrationsetname, modelname, residualSheet);
 
                 // Retrieve residual columnname
-                string resColName = residualSheet.GetCellValue(SheetSummaryHeaderRowIdx, 2);
+                string resColName = residualSheet.GetCellValue(ResSheetSummaryHeaderRowIdx, 2);
                 if (resColName != null)
                 {
                     resColName = resColName.Replace("M(", string.Empty);
                     resColName = resColName.Replace(")", string.Empty);
                 }
 
-                // Try to find calibrationset
+                // Try to find current calibrationset in existing summary sheet
                 int residualRowIdx;
                 int comparisonRowIdx;
                 int headerRowIdx = SummarySheetHeaderRowIdx;
-                int calsetLayerCount = 0; // number of layers in current calibration set
-                int calSetModelCount = 0; // number of models in current calibration set
-                int modelCount = 0; // maximum number of models over all calibration sets
+                int calsetLayerCount = 0;   // number of layers of current calibration set
+                int calSetModelCount = 0;   // number of models of current calibration set
+                int maxModelCount = 0;      // maximum number of models over all calibration sets
 
                 // Find residual columns in current comparison sheet
                 int avgResStartColIdx = 3;
@@ -478,8 +508,8 @@ namespace Sweco.SIF.ResidualAnalysis
                 int rmseStartColIdx = RetrieveSheetColIdx(summarySheet, ResidualStatistic.RMSE, 9, isWeighed, (sheetIdx > 1), settings);
                 int sseStartColIdx = RetrieveSheetColIdx(summarySheet, ResidualStatistic.SSE, 11, isWeighed, (sheetIdx > 1), settings);
 
-                // Calculate maximum model count over all current calibration sets
-                modelCount = sdAvgResStartColIdx - avgAbsResStartColIdx - 1;
+                // Calculate maximum model count over all current calibration sets in summary sheet
+                maxModelCount = sdAvgResStartColIdx - avgAbsResStartColIdx - 1;
 
                 Cell calibrationSetCell = summarySheet.FindCell(calibrationsetname);
                 if (calibrationSetCell != null)
@@ -495,9 +525,9 @@ namespace Sweco.SIF.ResidualAnalysis
                     calSetModelCount = cell2.ColIdx - cell1.ColIdx - 1;
                     calsetLayerCount = cell3.RowIdx - cell1.RowIdx - 1;
 
-                    if (calSetModelCount >= modelCount)
+                    if (calSetModelCount >= maxModelCount)
                     {
-                        // Insert columns
+                        // Insert a column for this model in each statistic-block
                         summarySheet.InsertColumn(avgAbsResStartColIdx);
                         avgAbsResStartColIdx += 1;
                         sdAvgResStartColIdx += 1;
@@ -510,10 +540,14 @@ namespace Sweco.SIF.ResidualAnalysis
                         summarySheet.InsertColumn(sseStartColIdx);
                         sseStartColIdx += 1;
                     }
+                    else
+                    {
+                        // an empty column has already been inserted for this modelname; probably it has been inserted for another calibrationset
+                    }
                 }
                 else
                 {
-                    // Calibrationset is not yet present, add at it below last calibration set
+                    // Calibrationset is not yet present, add at it below last calibration set; also add headers
                     calibrationSetDefs.Add(calibrationsetname, new List<CalSetModelDef>());
                     calibrationSetDefs[calibrationsetname].Add(calSetModelDef);
 
@@ -539,8 +573,8 @@ namespace Sweco.SIF.ResidualAnalysis
                         summarySheet.SetComment(nextCalibrationsetRowIdx, sseStartColIdx, RetrieveSummaryColumnComment(ResidualStatistic.SSE, isWeighed));
                     }
 
-                    // Find number of layers and residuals
-                    residualRowIdx = SheetSummaryHeaderRowIdx + 1;
+                    // Find and copy number of layers and point count of first residual sheet
+                    residualRowIdx = ResSheetSummaryHeaderRowIdx + 1;
                     comparisonRowIdx = nextCalibrationsetRowIdx + 2;
                     while (!residualSheet.IsEmpty(residualRowIdx, 1))
                     {
@@ -564,8 +598,8 @@ namespace Sweco.SIF.ResidualAnalysis
                     nextCalibrationsetRowIdx = comparisonRowIdx + 1;
                 }
 
-                // Now add model statistics to comparison table
-                residualRowIdx = SheetSummaryHeaderRowIdx + 1;
+                // Now add model statistics of current sheet to comparison table at found location
+                residualRowIdx = ResSheetSummaryHeaderRowIdx + 1;
                 comparisonRowIdx = headerRowIdx + 2;
                 int modellayerCount = 0;
                 summarySheet.SetHyperlink(headerRowIdx + 1, avgResStartColIdx + calSetModelCount, null, "'" + residualSheet.GetSheetname() + "'!A1", null, modelname);
@@ -576,37 +610,85 @@ namespace Sweco.SIF.ResidualAnalysis
                 summarySheet.SetColumnWidth(sseStartColIdx + calSetModelCount, 12);
                 while (!residualSheet.IsEmpty(residualRowIdx, 1))
                 {
-                    residualSheet.CopyCell(new Cell(residualSheet, residualRowIdx, 2), new Cell(summarySheet, comparisonRowIdx, avgResStartColIdx + calSetModelCount));
-                    residualSheet.CopyCell(new Cell(residualSheet, residualRowIdx, 3), new Cell(summarySheet, comparisonRowIdx, avgAbsResStartColIdx + calSetModelCount));
-                    residualSheet.CopyCell(new Cell(residualSheet, residualRowIdx, 4), new Cell(summarySheet, comparisonRowIdx, sdAvgResStartColIdx + calSetModelCount));
-                    residualSheet.CopyCell(new Cell(residualSheet, residualRowIdx, 5), new Cell(summarySheet, comparisonRowIdx, rmseStartColIdx + calSetModelCount));
-                    residualSheet.CopyCell(new Cell(residualSheet, residualRowIdx, 6), new Cell(summarySheet, comparisonRowIdx, sseStartColIdx + calSetModelCount));
-                    residualRowIdx++;
-                    comparisonRowIdx++;
-                    modellayerCount++;
+                    // Check if layernumbers match; if not, insert extra rows
+                    int residualLayerNr = ParseCellIntValue(residualSheet, residualRowIdx, 0, false, int.MaxValue);
+                    int summaryLayerNr = ParseCellIntValue(summarySheet, comparisonRowIdx, 1, false, int.MaxValue);
+                    int residualPointCount = ParseCellIntValue(residualSheet, residualRowIdx, 1, false, int.MaxValue);
+                    int summaryPointCount = ParseCellIntValue(summarySheet, comparisonRowIdx, 2, false, int.MaxValue);
+
+                    if (summaryLayerNr < residualLayerNr)
+                    {
+                        // Layer number in comparison sheet is missing in residual sheet; mark difference and skip row in comparison sheet
+                        summarySheet.SetFontColor(comparisonRowIdx, 2, Color.DarkRed);
+                        summarySheet.SetFontBold(comparisonRowIdx, 2, true);
+                        comparisonRowIdx++;
+                        hasMismatches = true;
+                    }
+                    else
+                    {
+                        if (summaryLayerNr > residualLayerNr)
+                        {
+                            // Layer number in residual sheet is missing in comparison sheet, insert extra row in comparison sheet
+                            summaryPointCount = 0;
+                            summarySheet.InsertRow(comparisonRowIdx);
+                            summarySheet.SetCellValue(comparisonRowIdx, 1, residualLayerNr);
+                            summarySheet.SetCellValue(comparisonRowIdx, 2, residualPointCount);
+                        }
+
+                        residualSheet.CopyCell(new Cell(residualSheet, residualRowIdx, 2), new Cell(summarySheet, comparisonRowIdx, avgResStartColIdx + calSetModelCount));
+                        residualSheet.CopyCell(new Cell(residualSheet, residualRowIdx, 3), new Cell(summarySheet, comparisonRowIdx, avgAbsResStartColIdx + calSetModelCount));
+                        residualSheet.CopyCell(new Cell(residualSheet, residualRowIdx, 4), new Cell(summarySheet, comparisonRowIdx, sdAvgResStartColIdx + calSetModelCount));
+                        residualSheet.CopyCell(new Cell(residualSheet, residualRowIdx, 5), new Cell(summarySheet, comparisonRowIdx, rmseStartColIdx + calSetModelCount));
+                        residualSheet.CopyCell(new Cell(residualSheet, residualRowIdx, 6), new Cell(summarySheet, comparisonRowIdx, sseStartColIdx + calSetModelCount));
+
+                        if (residualPointCount != summaryPointCount)
+                        {
+                            summarySheet.SetFontColor(comparisonRowIdx, 2, Color.DarkRed);
+                            summarySheet.SetFontBold(comparisonRowIdx, 2, true);
+                            hasMismatches = true;
+                        }
+
+                        // Go to next layer in both summary and residal sheets
+                        residualRowIdx++;
+                        comparisonRowIdx++;
+                        modellayerCount++;
+                    }
                 }
+
+                // update row for next calibrationset
+                if (comparisonRowIdx >= nextCalibrationsetRowIdx)
+                {
+                    nextCalibrationsetRowIdx =  comparisonRowIdx + 1;
+                }
+                
                 modellayerCount--;
-                if (modellayerCount != calsetLayerCount)
+                if (!settings.SkipIDMismatches && (modellayerCount != calsetLayerCount))
                 {
                     throw new ToolException("Unequal number of layers found for calibration set '" + calibrationsetname + "': " + calsetLayerCount + " vs " + modellayerCount + " for model " + modelname);
                 }
-                Range headerRange = new Range(summarySheet, headerRowIdx, 0, headerRowIdx + 1, sseStartColIdx + modelCount);
+
+                Range headerRange = new Range(summarySheet, headerRowIdx, 0, headerRowIdx + 1, sseStartColIdx + maxModelCount);
                 summarySheet.SetFontBold(headerRange, true);
 
-                CalSetModelDef basicCalSetModelDef = calibrationSetDefs[calibrationsetname][0];
-                if (!basicCalSetModelDef.ModelName.Equals(calSetModelDef.ModelName))
+                CalSetModelDef baseCalSetModelDef = calibrationSetDefs[calibrationsetname][0];
+                if (!baseCalSetModelDef.ModelName.Equals(calSetModelDef.ModelName))
                 {
                     int currentSkippedCount = skippedIDs.Count;
-                    CreateResidualDifferenceIPFFile(workbook, basicCalSetModelDef, calSetModelDef, idColNr, observedColNr, simulatedColNr, ref skippedIDs, log, settings);
-
-                    if (skippedIDs.Count > currentSkippedCount)
+                    if (settings.IsDiffIPFCreated)
                     {
-                        summarySheet.SetCellValue(0, 0, "Mismatches skipped!");
-                        summarySheet.SetFontBold(0, 0, true);
-                        summarySheet.SetFontColor(0, 0, Color.DarkRed);
-                        // ToDo: mark count with red color for rows/layers with mismatches
+                        log.AddInfo("Creating residual difference IPF-file ...", logIndentLevel);
+                        CreateResidualDifferenceIPFFile(workbook, baseCalSetModelDef, calSetModelDef, idColNr, observedColNr, simulatedColNr, ref skippedIDs, log, logIndentLevel + 1, settings);
                     }
                 }
+            }
+
+            if (hasMismatches) //  skippedIDs.Count > currentSkippedCount)
+            {
+                summarySheet.SetCellValue(0, 0, "Mismatches found!");
+                summarySheet.SetComment(0, 0, "Note: number of points (N) in summary sheet may not be correct for layers with mismatches (marked red), " +
+                                              "but other statistics per model will be correct since values are copied from individual residual sheets.");
+                summarySheet.SetFontBold(0, 0, true);
+                summarySheet.SetFontColor(0, 0, Color.DarkRed);
             }
 
             summarySheet.AutoFitColumns();
@@ -693,9 +775,9 @@ namespace Sweco.SIF.ResidualAnalysis
             }
         }
 
-        protected void CreateResidualDifferenceIPFFile(IWorkbook workbook, CalSetModelDef basicCalSetModelDef, CalSetModelDef calSetModelDef, int idColNr, int observedColNr, int simulatedColNr, ref List<string> skippedIDs, Log log, SIFToolSettings settings)
+        protected void CreateResidualDifferenceIPFFile(IWorkbook workbook, CalSetModelDef baseCalSetModelDef, CalSetModelDef calSetModelDef, int idColNr, int observedColNr, int simulatedColNr, ref List<string> skippedIDs, Log log, int logIndentLevel, SIFToolSettings settings)
         {
-            string ipfFilename = Path.Combine(settings.IpfPath, FileUtils.EnsureTrailingSlash(basicCalSetModelDef.CalibrationsetName) + calSetModelDef.ModelName + "-" + basicCalSetModelDef.ModelName + ".IPF");
+            string ipfFilename = Path.Combine(settings.IPFPath, FileUtils.EnsureTrailingSlash(baseCalSetModelDef.CalibrationsetName) + calSetModelDef.ModelName + "-" + baseCalSetModelDef.ModelName + ".IPF");
             int resColIdx = 3;
             int lastSingleColIdx = 1; // X,Y or X,Y,ID
             if (idColNr > 0)
@@ -712,12 +794,12 @@ namespace Sweco.SIF.ResidualAnalysis
                 resColIdx++;
             }
 
-            IWorksheet sheet1 = basicCalSetModelDef.Worksheet;
+            IWorksheet sheet1 = baseCalSetModelDef.Worksheet;
             IWorksheet sheet2 = calSetModelDef.Worksheet;
 
             // Find residual header of filters in sheet1
             // skip values rows of summary
-            int headerIdx1 = SheetSummaryHeaderRowIdx;
+            int headerIdx1 = ResSheetSummaryHeaderRowIdx;
             while (!sheet1.IsEmpty(new Cell(sheet1, headerIdx1, 0)))
             {
                 headerIdx1++;
@@ -742,7 +824,7 @@ namespace Sweco.SIF.ResidualAnalysis
 
             // Find residual header of filters in sheet2
             // skip values rows of summary
-            int headerIdx2 = SheetSummaryHeaderRowIdx;
+            int headerIdx2 = ResSheetSummaryHeaderRowIdx;
             while (!sheet2.IsEmpty(new Cell(sheet2, headerIdx2, 0)))
             {
                 headerIdx2++;
@@ -765,7 +847,7 @@ namespace Sweco.SIF.ResidualAnalysis
                 throw new Exception("Invalid residualsheet, filters header with columnname 'Y' not found: " + sheet2.GetSheetname());
             }
 
-            if (headerIdx1 != headerIdx2)
+            if (!settings.SkipIDMismatches && (headerIdx1 != headerIdx2))
             {
                 throw new Exception("Invalid residualsheet, filters header in different rows (" + headerIdx1 + " vs " + headerIdx2 + ") for sheets: '" + sheet1.GetSheetname() + "' and '" + sheet2.GetSheetname() + "'");
             }
@@ -800,12 +882,19 @@ namespace Sweco.SIF.ResidualAnalysis
             ipfFile.AddColumn("dRES2-1(dH2-1)"); // Dit geeft de verandering van de grondwaterstand door model2 tov model1 ter plaatse van filter
             ipfFile.AddColumn("dABSRES1-2"); // Dit geeft de verbetering in het absolute residu: geeft aan of het model absoluut gezien beter wordt. 
             ipfFile.AddColumn("ABS(dABSRES1-2)"); // De absolute waarden van dABSRES1-2
-            ipfFile.AddColumn("CLASS"); // De absolute waarden van dABSRES1-2
+            ipfFile.AddColumn("CLASS"); // 
             ipfFile.AddColumn("dSGN");  // Verschil in sign: van -1 naar 1 of van 1 naar -1
 
-            // Add IPF points
+            Dictionary<string, int> id1RowDictionary = null;
+            Dictionary<string, int> id2RowDictionary = null;
+            if (settings.IdColString != null)
+            {
+                // Retrieve ID's for both sheets
+                id1RowDictionary = RetrieveIDRows(sheet1, headerIdx1, idColNr);
+                id2RowDictionary = RetrieveIDRows(sheet2, headerIdx2, idColNr);
+            }
+
             int skippedPoints1 = 0;
-            int skippedPoints2 = 0;
             int rowIdx1 = headerIdx1 + 1;
             int rowIdx2 = headerIdx1 + 1;
             while (!sheet1.IsEmpty(rowIdx1, 1))
@@ -813,39 +902,33 @@ namespace Sweco.SIF.ResidualAnalysis
                 colIdx = 0;
                 List<string> columnValues = new List<string>();
 
-                if (settings.SkipIDMismatches)
+                if (settings.SkipIDMismatches && (settings.IdColString != null))
                 {
                     // Check equality of both ID's and skip mismatches
-                    if (settings.IdColString != null)
+                    string id1 = (!sheet1.IsEmpty(rowIdx1, idColNr - 1)) ? sheet1.GetCellValue(rowIdx1, idColNr - 1) : null;
+
+                    if (id2RowDictionary.ContainsKey(id1))
                     {
-                        string id1 = (!sheet1.IsEmpty(rowIdx1, idColNr - 1)) ? sheet1.GetCellValue(rowIdx1, idColNr - 1) : null;
-                        string id2 = (!sheet2.IsEmpty(rowIdx2, idColNr - 1)) ? sheet2.GetCellValue(rowIdx2, idColNr - 1) : null;
-                        while (!id1.Equals(id2))
-                        {
-                            if (id1.CompareTo(id2) < 0)
-                            {
-                                if (!skippedIDs.Contains(id1))
-                                {
-                                    log.AddWarning("Point with ID '" + id1 + " is missing in dataset 2 and is skipped");
-                                    skippedIDs.Add(id1);
-                                    skippedPoints1++;
-                                }
-                                rowIdx1++;
-                            }
-                            else
-                            {
-                                if (!skippedIDs.Contains(id2))
-                                {
-                                    log.AddWarning("Point with ID '" + id2 + " is missing in dataset 1 and is skipped");
-                                    skippedIDs.Add(id2);
-                                    skippedPoints2++;
-                                }
-                                rowIdx2++;
-                            }
-                            id1 = (!sheet1.IsEmpty(rowIdx1, idColNr - 1)) ? sheet1.GetCellValue(rowIdx1, idColNr - 1) : null;
-                            id2 = (!sheet2.IsEmpty(rowIdx2, idColNr - 1)) ? sheet2.GetCellValue(rowIdx2, idColNr - 1) : null;
-                        }
+                        rowIdx2 = id2RowDictionary[id1];
+
+                        id2RowDictionary.Remove(id1);
                     }
+                    else
+                    {
+                        log.AddWarning("Point with ID '" + id1 + " is missing in dataset 2 and is skipped", logIndentLevel);
+                        if (!skippedIDs.Contains(id1))
+                        {
+                            skippedIDs.Add(id1);
+                            skippedPoints1++;
+                        }
+                        rowIdx1++;
+                        continue;
+                    }
+                }
+
+                if (sheet1.IsEmpty(rowIdx1, 1))
+                {
+                    break;
                 }
 
                 // For each point in sheet loop through columns: 1) check equality of x/y and id for both models and 2) calculate differences in residual and absolute residual
@@ -934,7 +1017,9 @@ namespace Sweco.SIF.ResidualAnalysis
                         {
                             string row1String = GetRowString(sheet1, rowIdx1, colIdx);
                             string row2String = GetRowString(sheet2, rowIdx2, colIdx);
-                            throw new ToolException("Value mismatch ('" + value1String + "' vs '" + value2String + "') in cell " + SpreadsheetUtils.ExcelColumnFromNumber(colIdx + 1) + (rowIdx1 + 1) + " in sheets: '" + sheet1.GetSheetname() + "' and '" + sheet2.GetSheetname() + "'" + "\r\nsheet1: " + row1String + "\r\nsheet2: " + row2String + "\r\n" + "Check that calibratiesets and extents match!");
+                            throw new ToolException("Value mismatch ('" + value1String + "' vs '" + value2String + "') in cell " + SpreadsheetUtils.ExcelColumnFromNumber(colIdx + 1) + (rowIdx1 + 1) 
+                                + " in sheets: '" + sheet1.GetSheetname() + "' and '" + sheet2.GetSheetname() + "'" + "\r\nsheet1: " + row1String + "\r\nsheet2: " + row2String + "\r\n" 
+                                + "Check that calibratiesets and extents match! Or use option /sim to match points by ID");
                         }
                         columnValues.Add(value1String);
                     }
@@ -954,16 +1039,23 @@ namespace Sweco.SIF.ResidualAnalysis
                 ipfFile.AddPoint(new IPFPoint(ipfFile, new FloatPoint(x, y), columnValues));
 
                 rowIdx1++;
-                rowIdx2++;
+                rowIdx2++; // increase rowIdx2 in case sim-option is not used
             }
 
             if (skippedPoints1 > 0)
             {
-                log.AddWarning(skippedPoints1 + " points from dataset1 were missing in dataset2 and were not compared");
+                log.AddWarning(skippedPoints1 + " points from dataset 1 were missing in dataset 2 and were not compared", logIndentLevel);
             }
-            if (skippedPoints2 > 0)
+            if (id2RowDictionary.Count > 0)
             {
-                log.AddWarning(skippedPoints2 + " points from dataset2 were missing in dataset1 and were not compared");
+                log.AddWarning(id2RowDictionary.Count + " points from dataset 2 were missing in dataset 1 and were not compared:", logIndentLevel);
+                foreach (string id in id2RowDictionary.Keys)
+                {
+                    int rowIdx = id2RowDictionary[id];
+                    int layerNr = ParseCellIntValue(sheet2, rowIdx, (idColNr == 0) ? 2  : 3);
+
+                    log.AddInfo("- '" + id + "' in layer " + layerNr, logIndentLevel + 1);
+                }
             }
 
             if (settings.IsDiffIPFCreated)
@@ -972,6 +1064,30 @@ namespace Sweco.SIF.ResidualAnalysis
                 //            IPFLegend ipfLegend = (IPFLegend) ipfFile.CreateDifferenceLegend();
                 //            ipfLegend.WriteLegendFile(Path.Combine(Path.GetDirectoryName(ipfFilename), Path.GetFileNameWithoutExtension(ipfFilename) + ".leg"));
             }
+        }
+
+        private Dictionary<string, int> RetrieveIDRows(IWorksheet sheet, int headerIdx, int idColNr)
+        {
+            Dictionary<string, int> idRowDictionary = new Dictionary<string, int>();
+            int rowIdx = headerIdx + 1;
+            while (!sheet.IsEmpty(rowIdx, 1))
+            {
+                string id = (!sheet.IsEmpty(rowIdx, idColNr - 1)) ? sheet.GetCellValue(rowIdx, idColNr - 1) : null;
+                if (!idRowDictionary.ContainsKey(id))
+                {
+                    idRowDictionary.Add(id, rowIdx);
+                }
+                else
+                {
+                    string layerNr = (!sheet.IsEmpty(rowIdx, idColNr)) ? sheet.GetCellValue(rowIdx, idColNr) : null;
+
+                    // ignore, this should normally not occur; only when a single filter is copied /reused for different modellayers ...
+                    Log.AddWarning("ID '" + id + "' found multiple times in sheet '" + sheet.GetSheetname() + "', only first occurence is matched. Row in layer " + layerNr + " is skipped.");
+                }
+                rowIdx++;
+            }
+
+            return idRowDictionary;
         }
 
         protected static string GetRowString(IWorksheet sheet, int rowIdx, int colIdx)
@@ -984,28 +1100,61 @@ namespace Sweco.SIF.ResidualAnalysis
             return rowString;
         }
 
-        protected static int ParseCellIntValue(IWorksheet sheet, int rowIdx, int colIdx)
+        protected static int ParseCellIntValue(IWorksheet sheet, int rowIdx, int colIdx, bool throwParseException = true, int defaultValue = int.MaxValue)
         {
-            string valueString = sheet.GetCellValue(SheetSummaryHeaderRowIdx, 1);
-            int value;
-            if (!int.TryParse(valueString, out value))
+            string valueString = sheet.GetCellValue(rowIdx, colIdx);
+            if (!int.TryParse(valueString, out int value))
             {
-                throw new ToolException("Integer value expected in sheet " + sheet.GetSheetname() + ", cell (" + rowIdx + "," + colIdx + ")" + ": " + valueString + ".");
+                if (throwParseException)
+                {
+                    throw new ToolException("Integer value expected in sheet " + sheet.GetSheetname() + ", cell (" + rowIdx + "," + colIdx + ")" + ": " + valueString + ".");
+                }
+                else
+                {
+                    return defaultValue;
+                }
             }
             return value;
         }
 
-        protected double ParseCellDoubleValue(IWorksheet sheet, int rowIdx, int colIdx)
+        protected double ParseCellDoubleValue(IWorksheet sheet, int rowIdx, int colIdx, bool throwParseException = true, int defaultValue = int.MaxValue)
         {
-            string valueString = sheet.GetCellValue(SheetSummaryHeaderRowIdx, 1);
-            double value;
-            if (!double.TryParse(valueString, NumberStyles.Float, englishCultureInfo, out value))
+            string valueString = sheet.GetCellValue(rowIdx, colIdx);
+            if (!double.TryParse(valueString, NumberStyles.Float, englishCultureInfo, out double value))
             {
-                throw new ToolException("Double value expected in sheet " + sheet.GetSheetname() + ", cell (" + rowIdx + "," + colIdx + ")" + ": " + valueString + ".");
+                if (throwParseException)
+                {
+                    throw new ToolException("Double value expected in sheet " + sheet.GetSheetname() + ", cell (" + rowIdx + "," + colIdx + ")" + ": " + valueString + ".");
+                }
+                else
+                {
+                    return defaultValue;
+                }
             }
             return value;
         }
 
+        /// <summary>
+        /// Add residualsheet for individual dataset which consists of one or more IPF-files
+        /// </summary>
+        /// <param name="sheet"></param>
+        /// <param name="modelname"></param>
+        /// <param name="calibrationsetname"></param>
+        /// <param name="ipfFileList"></param>
+        /// <param name="idColNr"></param>
+        /// <param name="layerColNr"></param>
+        /// <param name="observedColNr"></param>
+        /// <param name="simulatedColNr"></param>
+        /// <param name="residualColNr"></param>
+        /// <param name="weightColNr"></param>
+        /// <param name="extraColumnNrs"></param>
+        /// <param name="extraColumnNames"></param>
+        /// <param name="metadataString1"></param>
+        /// <param name="metadataString2"></param>
+        /// <param name="logIndentLevel"></param>
+        /// <param name="settings"></param>
+        /// <exception cref="ToolException"></exception>
+        /// <exception cref="Exception"></exception>
         protected virtual void AddResidualStatistics(IWorksheet sheet, string modelname, string calibrationsetname, List<IPFFile> ipfFileList, int idColNr, int layerColNr, int observedColNr, int simulatedColNr, int residualColNr, int weightColNr, List<int> extraColumnNrs, List<string> extraColumnNames, string metadataString1, string metadataString2, int logIndentLevel, SIFToolSettings settings)
         {
             int obsColIdx = observedColNr - 1;
@@ -1019,25 +1168,25 @@ namespace Sweco.SIF.ResidualAnalysis
             sheet.SetCellValue(2, 0, metadataString2);
 
             // Create and write summary values
-            sheet.SetCellValue(SheetSummaryHeaderRowIdx, 0, "Layer");
-            sheet.SetCellValue(SheetSummaryHeaderRowIdx, 1, "N");
+            sheet.SetCellValue(ResSheetSummaryHeaderRowIdx, 0, "Layer");
+            sheet.SetCellValue(ResSheetSummaryHeaderRowIdx, 1, "N");
             // Note: columnnames of columns 2-6 are written later since they can depend on the residual columnname
-            sheet.SetCellValue(SheetSummaryHeaderRowIdx, 7, "Min.");
-            sheet.SetComment(SheetSummaryHeaderRowIdx, 7, (weightColNr > 0) ? "Minimum of weighted residuals per layer" : "Minimum of residuals per layer");
-            sheet.SetCellValue(SheetSummaryHeaderRowIdx, 8, "Max.");
-            sheet.SetComment(SheetSummaryHeaderRowIdx, 8, (weightColNr > 0) ? "Maximum of weighted residuals per layer" : "Maximum of residuals per layer");
-            sheet.SetCellValue(SheetSummaryHeaderRowIdx, 9, "Range");
-            sheet.SetComment(SheetSummaryHeaderRowIdx, 9, "Difference between Max and Min");
+            sheet.SetCellValue(ResSheetSummaryHeaderRowIdx, 7, "Min.");
+            sheet.SetComment(ResSheetSummaryHeaderRowIdx, 7, (weightColNr > 0) ? "Minimum of weighted residuals per layer" : "Minimum of residuals per layer");
+            sheet.SetCellValue(ResSheetSummaryHeaderRowIdx, 8, "Max.");
+            sheet.SetComment(ResSheetSummaryHeaderRowIdx, 8, (weightColNr > 0) ? "Maximum of weighted residuals per layer" : "Maximum of residuals per layer");
+            sheet.SetCellValue(ResSheetSummaryHeaderRowIdx, 9, "Range");
+            sheet.SetComment(ResSheetSummaryHeaderRowIdx, 9, "Difference between Max and Min");
 
             // Add percentile headers
             for (int pctIdx = 1; pctIdx <= settings.PercentileCount; pctIdx++)
             {
                 int percentile = (int)((100.0 / ((float)settings.PercentileCount)) * pctIdx);
-                sheet.SetCellValue(SheetSummaryHeaderRowIdx, 9 + pctIdx, percentile.ToString() + "%-pct");
+                sheet.SetCellValue(ResSheetSummaryHeaderRowIdx, 9 + pctIdx, percentile.ToString() + "%-pct");
             }
-            sheet.SetFontBold(new Range(sheet, SheetSummaryHeaderRowIdx, 0, SheetSummaryHeaderRowIdx, 9 + settings.PercentileCount), true);
-            sheet.SetBorderEdgeBottomColor(new Range(sheet, SheetSummaryHeaderRowIdx - 1, 0, SheetSummaryHeaderRowIdx - 1, 9 + settings.PercentileCount), Color.Black);
-            sheet.SetBorderEdgeBottomColor(new Range(sheet, SheetSummaryHeaderRowIdx, 0, SheetSummaryHeaderRowIdx, 9 + settings.PercentileCount), Color.Black);
+            sheet.SetFontBold(new Range(sheet, ResSheetSummaryHeaderRowIdx, 0, ResSheetSummaryHeaderRowIdx, 9 + settings.PercentileCount), true);
+            sheet.SetBorderEdgeTopColor(new Range(sheet, ResSheetSummaryHeaderRowIdx, 0, ResSheetSummaryHeaderRowIdx, 9 + settings.PercentileCount), Color.Black);
+            sheet.SetBorderEdgeBottomColor(new Range(sheet, ResSheetSummaryHeaderRowIdx, 0, ResSheetSummaryHeaderRowIdx, 9 + settings.PercentileCount), Color.Black);
 
             // Retrieve summary statistics for all layers in specified IPF-files
             List<float> totalWeightList = new List<float>();
@@ -1053,7 +1202,7 @@ namespace Sweco.SIF.ResidualAnalysis
             int filenameLayer = -1;
 
             string resColName = null;
-            int sheetRowIdx = SheetSummaryHeaderRowIdx + 1;
+            int sheetRowIdx = ResSheetSummaryHeaderRowIdx + 1;
             bool isEmptyStringValueSkipped = settings.SkippedValues.Contains(float.NaN);
             int maskedTotalPointCount = 0;
             int srcTotalPointCount = 0;
@@ -1190,17 +1339,17 @@ namespace Sweco.SIF.ResidualAnalysis
 
             // Write columnnames
             bool isWeighed = (weightColNr > 0);
-            sheet.SetCellValue(SheetSummaryHeaderRowIdx, 2, RetrieveSheetColumnName(ResidualStatistic.ME, isWeighed, settings, resColName));
-            sheet.SetComment(SheetSummaryHeaderRowIdx, 2, RetrieveSheetColumnComment(ResidualStatistic.ME, isWeighed));
-            sheet.SetCellValue(SheetSummaryHeaderRowIdx, 3, RetrieveSheetColumnName(ResidualStatistic.MAE, isWeighed, settings, resColName));
-            sheet.SetComment(SheetSummaryHeaderRowIdx, 3, RetrieveSheetColumnComment(ResidualStatistic.MAE, isWeighed));
-            sheet.SetCellValue(SheetSummaryHeaderRowIdx, 4, RetrieveSheetColumnName(ResidualStatistic.SDE, isWeighed, settings, resColName));
-            sheet.SetComment(SheetSummaryHeaderRowIdx, 4, RetrieveSheetColumnComment(ResidualStatistic.MAE, isWeighed));
+            sheet.SetCellValue(ResSheetSummaryHeaderRowIdx, 2, RetrieveSheetColumnName(ResidualStatistic.ME, isWeighed, settings, resColName));
+            sheet.SetComment(ResSheetSummaryHeaderRowIdx, 2, RetrieveSheetColumnComment(ResidualStatistic.ME, isWeighed));
+            sheet.SetCellValue(ResSheetSummaryHeaderRowIdx, 3, RetrieveSheetColumnName(ResidualStatistic.MAE, isWeighed, settings, resColName));
+            sheet.SetComment(ResSheetSummaryHeaderRowIdx, 3, RetrieveSheetColumnComment(ResidualStatistic.MAE, isWeighed));
+            sheet.SetCellValue(ResSheetSummaryHeaderRowIdx, 4, RetrieveSheetColumnName(ResidualStatistic.SDE, isWeighed, settings, resColName));
+            sheet.SetComment(ResSheetSummaryHeaderRowIdx, 4, RetrieveSheetColumnComment(ResidualStatistic.MAE, isWeighed));
             // Add (WM)RMSE and (W)SSE
-            sheet.SetCellValue(SheetSummaryHeaderRowIdx, 5, RetrieveSheetColumnName(ResidualStatistic.RMSE, isWeighed, settings, resColName));
-            sheet.SetComment(SheetSummaryHeaderRowIdx, 5, RetrieveSheetColumnComment(ResidualStatistic.MAE, isWeighed));
-            sheet.SetCellValue(SheetSummaryHeaderRowIdx, 6, RetrieveSheetColumnName(ResidualStatistic.SSE, isWeighed, settings, resColName));
-            sheet.SetComment(SheetSummaryHeaderRowIdx, 6, RetrieveSheetColumnComment(ResidualStatistic.MAE, isWeighed));
+            sheet.SetCellValue(ResSheetSummaryHeaderRowIdx, 5, RetrieveSheetColumnName(ResidualStatistic.RMSE, isWeighed, settings, resColName));
+            sheet.SetComment(ResSheetSummaryHeaderRowIdx, 5, RetrieveSheetColumnComment(ResidualStatistic.MAE, isWeighed));
+            sheet.SetCellValue(ResSheetSummaryHeaderRowIdx, 6, RetrieveSheetColumnName(ResidualStatistic.SSE, isWeighed, settings, resColName));
+            sheet.SetComment(ResSheetSummaryHeaderRowIdx, 6, RetrieveSheetColumnComment(ResidualStatistic.MAE, isWeighed));
 
             // Now calculated derived statistics
             float totalWeightSum;
@@ -1325,7 +1474,7 @@ namespace Sweco.SIF.ResidualAnalysis
                 sheetRowIdx++;
             }
 
-            sheet.SetBorderEdgeBottomColor(new Range(sheet, sheetRowIdx - 1, 0, sheetRowIdx - 1, 9 + settings.PercentileCount), Color.Black);
+            sheet.SetBorderEdgeTopColor(new Range(sheet, sheetRowIdx, 0, sheetRowIdx, 9 + settings.PercentileCount), Color.Black);
             sheet.SetBorderEdgeBottomColor(new Range(sheet, sheetRowIdx, 0, sheetRowIdx, 9 + settings.PercentileCount), Color.Black);
 
             // Calculate total statistics
@@ -1373,11 +1522,11 @@ namespace Sweco.SIF.ResidualAnalysis
                 }
             }
 
-            sheet.SetNumberFormat(new Range(sheet, SheetSummaryHeaderRowIdx + 1, 2, sheetRowIdx, 9 + settings.PercentileCount), "0.00");
+            sheet.SetNumberFormat(new Range(sheet, ResSheetSummaryHeaderRowIdx + 1, 2, sheetRowIdx, 9 + settings.PercentileCount), "0.00");
             sheet.SetFontBold(new Range(sheet, sheetRowIdx, 0, sheetRowIdx, 9 + settings.PercentileCount), true);
             sheet.SetColumnWidth(6, 12);
 
-            WriteResidualLegend(sheet, SheetSummaryHeaderRowIdx, 9 + settings.PercentileCount + 2);
+            WriteResidualLegend(sheet, ResSheetSummaryHeaderRowIdx, 9 + settings.PercentileCount + 2);
             sheetRowIdx += 2;
             int chartRowIdx = sheetRowIdx;
 
@@ -1453,8 +1602,8 @@ namespace Sweco.SIF.ResidualAnalysis
                 sheet.SetComment(sheetRowIdx, colIdx, columnNameRemarks[colIdx]);
             }
             sheet.SetFontBold(new Range(sheet, filterHeaderRowIdx, 0, filterHeaderRowIdx, columnNames.Count - 1), true);
+            sheet.SetBorderEdgeTopColor(new Range(sheet, filterHeaderRowIdx, 0, filterHeaderRowIdx, columnNames.Count - 1), Color.Black);
             sheet.SetBorderEdgeBottomColor(new Range(sheet, filterHeaderRowIdx, 0, filterHeaderRowIdx, columnNames.Count - 1), Color.Black);
-            sheet.SetBorderEdgeBottomColor(new Range(sheet, filterHeaderRowIdx - 1, 0, filterHeaderRowIdx - 1, columnNames.Count - 1), Color.Black);
 
             // Write values
             sheetRowIdx++;
@@ -1729,6 +1878,7 @@ namespace Sweco.SIF.ResidualAnalysis
             {
                 IChart scatterPlotChart = sheet.CreateChart(new Range(sheet, chartRowIdx, 0, chartRowIdx + 15, 8), ChartType.ScatterChart);
                 int resultObsColIdx = (idColNr > 0) ? 4 : 3;
+                
                 scatterPlotChart.AddData(new Range(sheet, filterHeaderRowIdx + 1, resultObsColIdx, sheetRowIdx - 1, resultObsColIdx), new Range(sheet, filterHeaderRowIdx + 1, resultObsColIdx + 1, sheetRowIdx - 1, resultObsColIdx + 1));
                 scatterPlotChart.SetXAxis(minObservedValue, maxObservedValue, "Observed Values");
                 scatterPlotChart.SetYAxis(minSimulatedValue, maxSimulatedValue, "Computed Values");

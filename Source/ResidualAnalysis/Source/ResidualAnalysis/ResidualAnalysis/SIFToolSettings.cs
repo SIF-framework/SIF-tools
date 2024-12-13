@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Text;
 using System.Threading.Tasks;
 using Sweco.SIF.Common;
@@ -66,7 +67,7 @@ namespace Sweco.SIF.ResidualAnalysis
         public string Modelname { get; set; }
         public string Calibrationsetname { get; set; }
         public Extent Extent { get; set; }
-        public string IpfPath { get; set; }
+        public string IPFPath { get; set; }
         public bool IsDiffIPFCreated { get; set; }
         public bool IsOverwrite { get; set; }
         public List<float> SkippedValues { get; set; }
@@ -102,7 +103,7 @@ namespace Sweco.SIF.ResidualAnalysis
             Modelname = null;
             Calibrationsetname = null;
             Extent = null;
-            IpfPath = null;
+            IPFPath = null;
             IsDiffIPFCreated = false;
             IsOverwrite = false;
             SkippedValues = new List<float>();
@@ -144,7 +145,17 @@ namespace Sweco.SIF.ResidualAnalysis
             AddToolOptionDescription("e", "Extent (within specified IPFs) for residual analysis", "/e:184000,352500,200500,371000", "Extent is defined as: {0},{1},{2},{3}",
                                      new string[] { "e1", "e2", "e3", "e4" });
             AddToolOptionDescription("i", "Create IPF-files with model residual-differences per calibrationset \n"+
-                                     "a (relative) path can be specified for these files (default: " + DefaultDiffResIPFPath + ")", 
+                                     "a (relative) path can be specified for these files (default: " + DefaultDiffResIPFPath + ")\n" +
+                                     "The following columns in the resulting IPF-file can be used for visualization:\n" +
+                                     "- ID:         the ID of the point for which the residual difference is calculated\n" +
+                                     "- RES(1):     residual from first/reference model\n" +
+                                     "- RES(2):     residual from second/modified model\n" +
+                                     "- dABSRES1-2: ABS(res1) - ABS(res2), with resi the residual of model i\n" +
+                                     "                a positive value indicates an improvement by model 2\n" +
+                                     "- CLASS:      number of class in legend of absolute residuals (which currently cannot be changed)\n" +
+                                     "                5: > 1.0; 4: > 0.5; 3: > 0.2; 2: > 0.1; 1: <= 0.1\n" +
+                                     "- dSGN        difference in sign: -1 indicates the sign has changed\n" +
+                                     "note: in case of mismatches, only the matched points of model 1 are reported",
                                      "/i:test.ipf", "IPF-file is created with residual-differences: {0}", new string[] { "i1" });
             AddToolOptionDescription("k", "Use mask IDF-file (k1) and (comma-seperated) mask values (kx) \n" +
                                      "IPF-points in cells with IDF-value equal to any ki-value (default NoData) are skipped in results",
@@ -156,9 +167,9 @@ namespace Sweco.SIF.ResidualAnalysis
             AddToolOptionDescription("w", "Use weights as defined in column number", "/w:3", "Weights are defined by column number {0}", new string[] { "w1" });
             AddToolOptionDescription("p", "Add number of percentile classes to be used in result statistics \n" +
                                      "i.e. 4 classes give percentile 25, 50, 75 and 100.", "/p:4", "Number of percentile classes: {0}", new string[] { "p1" });
-            AddToolOptionDescription("sim", "Skip points in output IPF-files (via option i) that do not match an ID in previous results.\n" +
+            AddToolOptionDescription("sim", "Skip ID mismatches (for option i): skip points that do not match an ID in previous results.\n" +
                                      "Note: the number of points (N) in the summary sheet may not be correct for skipped points, but the\n" +
-                                     "other statistics will be correct and values are copied from the individual sheets.", "/sim", "Points without a matching point with equal ID are skipped");
+                                     "other statistics will be correct and values are copied from the individual sheets.", "/sim", "Points without matching ID are skipped");
         }
 
         /// <summary>
@@ -302,7 +313,7 @@ namespace Sweco.SIF.ResidualAnalysis
                     // Parse substrings for this option
                     if (optionParameters.Length == 1)
                     {
-                        IpfPath = optionParameters[0];
+                        IPFPath = optionParameters[0];
                     }
                     else
                     {
@@ -490,6 +501,11 @@ namespace Sweco.SIF.ResidualAnalysis
             {
                 // Specify default
                 InputFilter = "*.IPF";
+            }
+
+            if (SkipIDMismatches && (IdColString == null))
+            {
+                throw new ToolException("For sim-option it is required that an ID-column is defined via option i");
             }
         }
     }
