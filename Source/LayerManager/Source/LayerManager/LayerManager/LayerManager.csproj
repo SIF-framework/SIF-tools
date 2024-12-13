@@ -8,7 +8,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Sweco.SIF.LayerManager</RootNamespace>
     <AssemblyName>LayerManager</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <PublishUrl>publish\</PublishUrl>
@@ -86,6 +86,9 @@
     <Compile Include="LayerModels\LayerModel.cs" />
     <Compile Include="LayerModels\LayerModelMaps\LayerModelMap.cs" />
     <Compile Include="LayerModels\LayerUtils.cs" />
+    <Compile Include="NameParsers\LayerNameParser.cs" />
+    <Compile Include="NameParsers\REGISLayerNameParser1.cs" />
+    <Compile Include="NameParsers\LayerNameParserFactory.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>

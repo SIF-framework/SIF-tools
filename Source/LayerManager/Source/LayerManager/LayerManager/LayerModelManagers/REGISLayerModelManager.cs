@@ -23,6 +23,7 @@ using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD.IDF;
 using Sweco.SIF.LayerManager.LayerModels;
+using Sweco.SIF.LayerManager.NameParsers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -42,6 +43,8 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
         public REGISLayerModelManager(SIFToolSettings settings) : base(settings)
         {
             IsLayerGroupLevelMerged = settings.IsLayerGroupLevelMerged;
+
+            LayerNameParserFactory.RegisterNameParser(new REGISLayerNameParser1());
         }
 
         /// <summary>
@@ -58,19 +61,20 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
         /// <summary>
         /// Reads files from specified modelmap and check for inconsistencies in layermodel
         /// </summary>
-        /// <param name="regisLayerModelMap"></param>
+        /// <param name="layerModelMap">REGISLayerModelMap object</param>
         /// <param name="settings"></param>
         /// <param name="modelname">a modelname for the checked files, used to create a subdirectory for checkresults, or leave empty</param>
         /// <param name="log"></param>
         /// <param name="logIndentLevel"></param>
         /// <returns></returns>
-        public override bool Check(LayerModelMap regisLayerModelMap, SIFToolSettings settings, string modelname, IDFLog log, int logIndentLevel = 0)
+        public override bool Check(LayerModelMap layerModelMap, SIFToolSettings settings, string modelname, IDFLog log, int logIndentLevel = 0)
         {
             IDFFile regisTopIDFFile;
             IDFFile regisBotIDFFile;
             IDFFile regisKDCIDFFile;
             LayerType regisLayerType;
             int regisModellayerNumber;
+            REGISLayerModelMap regisLayerModelMap = (REGISLayerModelMap)layerModelMap;
 
             // Check REGIS-layers, work from top to bottom
             log.AddInfo("Checking input REGIS-model for inconsistencies ... ", logIndentLevel);
@@ -83,7 +87,7 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
             Layer prevLayers = null;
             for (int fileIdx = 0; fileIdx < regisLayerModelMap.TOPFilenames.Length; fileIdx++)
             {
-                string layerName = REGISLayerModelMap.GetREGISPrefix(regisLayerModelMap.TOPFilenames[fileIdx]);
+                string layerName = regisLayerModelMap.GetREGISPrefix(regisLayerModelMap.TOPFilenames[fileIdx]);
                 if (layerName != null)
                 {
                     log.AddInfo("Checking REGIS-layer '" + layerName + "' ...", logIndentLevel + 1);
@@ -106,19 +110,19 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
                     if (regisLayerType == LayerType.Complex)
                     {
                         // Complex layers are checked for both kD- and c-values
-                        log.AddInfo("checking " + REGISLayerModelMap.GetREGISPrefix(regisLayerModelMap.BOTFilenames[fileIdx]) + "-complex aquifer-part ...", logIndentLevel + 2);
-                        regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, LayerType.Aquifer, regisTopIDFFile, regisBotIDFFile, settings.Extent, log, logIndentLevel + 2);
+                        log.AddInfo("checking " + regisLayerModelMap.GetREGISPrefix(regisLayerModelMap.BOTFilenames[fileIdx]) + "-complex aquifer-part ...", logIndentLevel + 2);
+                        regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, LayerType.Aquifer, regisTopIDFFile, regisBotIDFFile, settings.Extent, true, log, logIndentLevel + 2);
                         regisLayer = new Layer(layerName, regisModellayerNumber, LayerType.Aquifer, regisTopIDFFile, regisBotIDFFile, regisKDCIDFFile);
                         isValidModel = regisLayer.CheckLayer(log, logIndentLevel + 2) && isValidModel;
 
-                        log.AddInfo("checking " + REGISLayerModelMap.GetREGISPrefix(regisLayerModelMap.BOTFilenames[fileIdx]) + "-complex aquitard-part ...", logIndentLevel + 2);
-                        regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, LayerType.Aquitard, regisTopIDFFile, regisBotIDFFile, settings.Extent, log, logIndentLevel + 2);
+                        log.AddInfo("checking " + regisLayerModelMap.GetREGISPrefix(regisLayerModelMap.BOTFilenames[fileIdx]) + "-complex aquitard-part ...", logIndentLevel + 2);
+                        regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, LayerType.Aquitard, regisTopIDFFile, regisBotIDFFile, settings.Extent, true, log, logIndentLevel + 2);
                         regisLayer = new Layer(layerName, regisModellayerNumber, LayerType.Aquitard, regisTopIDFFile, regisBotIDFFile, regisKDCIDFFile);
                         isValidModel = regisLayer.CheckLayer(log, logIndentLevel + 2) && isValidModel;
                     }
                     else
                     {
-                        regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, regisLayerType, regisTopIDFFile, regisBotIDFFile, settings.Extent, log, logIndentLevel + 2);
+                        regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, regisLayerType, regisTopIDFFile, regisBotIDFFile, settings.Extent, true, log, logIndentLevel + 2);
                         regisLayer = new Layer(layerName, regisModellayerNumber, regisLayerType, regisTopIDFFile, regisBotIDFFile, regisKDCIDFFile);
                         isValidModel = regisLayer.CheckLayer(log, logIndentLevel + 2) && isValidModel;
                     }
@@ -212,18 +216,19 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
         /// <param name="log"></param>
         /// <param name="logIndentLevel"></param>
         /// <returns></returns>
-        public override int CalculateKDC(LayerModelMap regisLayerModelMap, SIFToolSettings settings, IDFLog log, int logIndentLevel = 0)
+        public override int CalculateKDC(LayerModelMap layerModelMap, SIFToolSettings settings, IDFLog log, int logIndentLevel = 0)
         {
             IDFFile regisTopIDFFile;
             IDFFile regisBotIDFFile;
             IDFFile regisKDCIDFFile;
             LayerType regisLayerType;
             int regisModellayerNumber;
+            REGISLayerModelMap regisLayerModelMap = (REGISLayerModelMap)layerModelMap;
 
             log.AddInfo("Calculating and writing kD/c-values ...", logIndentLevel);
             for (int fileIdx = 0; fileIdx < regisLayerModelMap.TOPFilenames.Length; fileIdx++)
             {
-                string layerName = REGISLayerModelMap.GetREGISPrefix(regisLayerModelMap.TOPFilenames[fileIdx]);
+                string layerName = regisLayerModelMap.GetREGISPrefix(regisLayerModelMap.TOPFilenames[fileIdx]);
                 if (layerName != null)
                 {
                     // Retrieve characteristics of new layer: aquifer/aquitard and iMOD-layernumber, etc
@@ -243,8 +248,8 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
                     if (regisLayerType == LayerType.Complex)
                     {
                         // Complex layers are checked for both kD- and c-values
-                        log.AddInfo("calculating kD-values for " + REGISLayerModelMap.GetREGISPrefix(regisLayerModelMap.BOTFilenames[fileIdx]) + "-complex aquifer-part ...", logIndentLevel + 1);
-                        regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, LayerType.Aquifer, regisTopIDFFile, regisBotIDFFile, settings.Extent, log);
+                        log.AddInfo("calculating kD-values for " + regisLayerModelMap.GetREGISPrefix(regisLayerModelMap.BOTFilenames[fileIdx]) + "-complex aquifer-part ...", logIndentLevel + 1);
+                        regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, LayerType.Aquifer, regisTopIDFFile, regisBotIDFFile, settings.Extent, false, log);
                         if (regisKDCIDFFile == null)
                         {
                             if (settings.IsSkipWriteKDCDefault)
@@ -262,8 +267,8 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
                             string kdcFilename = Path.Combine(settings.OutputPath, Path.Combine(settings.OutputKDSubdirname, layerName + Properties.Settings.Default.REGISkDFilePostfix + ".IDF"));
                             regisKDCIDFFile.WriteFile(kdcFilename);
 
-                            log.AddInfo("calculating c-values for " + REGISLayerModelMap.GetREGISPrefix(regisLayerModelMap.BOTFilenames[fileIdx]) + "-complex aquitard-part ...", logIndentLevel + 1);
-                            regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, LayerType.Aquitard, regisTopIDFFile, regisBotIDFFile, settings.Extent, log);
+                            log.AddInfo("calculating c-values for " + regisLayerModelMap.GetREGISPrefix(regisLayerModelMap.BOTFilenames[fileIdx]) + "-complex aquitard-part ...", logIndentLevel + 1);
+                            regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, LayerType.Aquitard, regisTopIDFFile, regisBotIDFFile, settings.Extent, false, log);
                             if (regisKDCIDFFile == null)
                             {
                                 if (settings.IsSkipWriteKDCDefault)
@@ -285,7 +290,7 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
                     }
                     else
                     {
-                        regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, regisLayerType, regisTopIDFFile, regisBotIDFFile, settings.Extent, log);
+                        regisKDCIDFFile = RetrieveKDCFile(regisLayerModelMap, fileIdx, regisLayerType, regisTopIDFFile, regisBotIDFFile, settings.Extent, false, log);
                         if (regisKDCIDFFile == null)
                         {
                             if (settings.IsSkipWriteKDCDefault)
@@ -325,7 +330,7 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
         /// Retrieves the corresponding kDCFile, either a kD- or a C-value. A non-null file with a non-null values property is guaranteed
         /// When it is not found in the list of kh/kv/kD/c-filenames, a copy is made of the topIDFFile and it's non-noData values are replaced by default kD/c-values or calculated from default kh/v-values
         /// </summary>
-        /// <param name="regisLayerModelMap"></param>
+        /// <param name="layerModelMap">REGISLayerModelMap object</param>
         /// <param name="fileIdx"></param>
         /// <param name="layerType"></param>
         /// <param name="topIDFFile"></param>
@@ -334,8 +339,10 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
         /// <param name="log"></param>
         /// <param name="logIndentLevel"></param>
         /// <returns></returns>
-        protected IDFFile RetrieveKDCFile(LayerModelMap regisLayerModelMap, int fileIdx, LayerType layerType, IDFFile topIDFFile, IDFFile botIDFFile, Extent extent, Log log, int logIndentLevel = 0)
+        protected IDFFile RetrieveKDCFile(LayerModelMap layerModelMap, int fileIdx, LayerType layerType, IDFFile topIDFFile, IDFFile botIDFFile, Extent extent, bool useDummyThickness1, Log log, int logIndentLevel = 0)
         {
+            REGISLayerModelMap regisLayerModelMap = (REGISLayerModelMap)layerModelMap;
+
             string topFilename = Path.GetFileNameWithoutExtension(topIDFFile.Filename);
             IDFFile idfFile = null;
 
@@ -366,7 +373,8 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
                 }
                 idx1 = idx1 + 2;
 
-                int idx2 = topFilename.IndexOf(Properties.Settings.Default.REGISTopFilePatternString);
+                string topFilePatternString = regisLayerModelMap.GetTopFilePatternString(topFilename);
+                int idx2 = topFilename.IndexOf(topFilePatternString);
 
                 string searchString = topFilename.Substring(idx1 + 1, idx2 - idx1).ToLower();
 
@@ -443,13 +451,13 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
                     {
                         IDFFile khIDFFile = ReadIDFFileOrConstant(khFilename, false, log, logIndentLevel, extent);
                         IDFFile thickness = topIDFFile - botIDFFile;
-                        idfFile = thickness * khIDFFile;
+                        idfFile = (useDummyThickness1) ? khIDFFile * 1.0f : thickness * khIDFFile; 
                     }
                     else if ((kvFilename != null) && !kvFilename.Equals(string.Empty))
                     {
                         IDFFile kvIDFFile = ReadIDFFileOrConstant(kvFilename, false, log, logIndentLevel, extent);
                         IDFFile thickness = topIDFFile - botIDFFile;
-                        idfFile = thickness * kvIDFFile;
+                        idfFile = (useDummyThickness1) ? kvIDFFile * 1.0f : thickness * kvIDFFile;
                     }
                     else if ((kdFilename != null) && !kdFilename.Equals(string.Empty))
                     {
@@ -467,13 +475,13 @@ namespace Sweco.SIF.LayerManager.LayerModelManagers
                     {
                         IDFFile kvIDFFile = ReadIDFFileOrConstant(kvFilename, false, log, logIndentLevel, extent);
                         IDFFile thickness = topIDFFile - botIDFFile;
-                        idfFile = thickness / kvIDFFile;
+                        idfFile = (useDummyThickness1) ? (new ConstantIDFFile(1)) / kvIDFFile : thickness / kvIDFFile;
                     }
                     else if ((khFilename != null) && !khFilename.Equals(string.Empty))
                     {
                         IDFFile khIDFFile = ReadIDFFileOrConstant(khFilename, false, log, logIndentLevel, extent);
                         IDFFile thickness = topIDFFile - botIDFFile;
-                        idfFile = thickness / khIDFFile;
+                        idfFile = (useDummyThickness1) ? (new ConstantIDFFile(1)) / khIDFFile : thickness / khIDFFile;
                     }
                     else if ((cFilename != null) && !cFilename.Equals(string.Empty))
                     {

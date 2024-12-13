@@ -194,11 +194,11 @@ namespace Sweco.SIF.LayerManager.LayerModels
             // Check number of filenames 
             if ((TOPFilenames == null) || (TOPFilenames.Length == 0))
             {
-                throw new ToolException("No TOP-files (\"" + settings.TOPFilenamesPattern + "\") found in " + settings.TOPPath);
+                throw new ToolException("No TOP-files (\"" + settings.TOPFilenamesPatterns + "\") found in " + settings.TOPPath);
             }
             if ((BOTFilenames == null) || (BOTFilenames.Length == 0))
             {
-                throw new ToolException("No BOT-files (\"" + settings.BOTFilenamesPattern + "\") found in " + settings.BOTPath);
+                throw new ToolException("No BOT-files (\"" + settings.BOTFilenamesPatterns + "\") found in " + settings.BOTPath);
             }
             if (TOPFilenames.Length != BOTFilenames.Length)
             {
@@ -206,19 +206,19 @@ namespace Sweco.SIF.LayerManager.LayerModels
             }
             if ((KHVFilenames != null) && ((KHVFilenames.Length == 0) && (settings.KHVParString != null)))
             {
-                log.AddWarning("No kh-files (\"" + settings.KHVFilenamesPattern + "\") found in " + settings.KHVPath, logIndentlevel);
+                log.AddWarning("No kh-files (\"" + settings.KHVFilenamesPatterns + "\") found in " + settings.KHVPath, logIndentlevel);
             }
             if ((KVVFilenames != null) && ((KVVFilenames.Length == 0) && (settings.KVVParString != null)))
             {
-                log.AddWarning("No kv-files (\"" + settings.KVVFilenamesPattern + "\") found in " + settings.KHVPath, logIndentlevel);
+                log.AddWarning("No kv-files (\"" + settings.KVVFilenamesPatterns + "\") found in " + settings.KHVPath, logIndentlevel);
             }
             if ((KDWFilenames != null) && ((KDWFilenames.Length == 0) && (settings.KDWParString != null)))
             {
-                log.AddInfo("No kD-files (\"" + settings.KDWFilenamesPattern + "\") found in " + settings.KDWPath, logIndentlevel);
+                log.AddInfo("No kD-files (\"" + settings.KDWFilenamesPatterns + "\") found in " + settings.KDWPath, logIndentlevel);
             }
             if ((VCWFilenames != null) && ((VCWFilenames.Length == 0) && (settings.VCWParString != null)))
             {
-                log.AddInfo("No C-files (\"" + settings.VCWFilenamesPattern + "\") found in " + settings.VCWPath, logIndentlevel);
+                log.AddInfo("No C-files (\"" + settings.VCWFilenamesPatterns + "\") found in " + settings.VCWPath, logIndentlevel);
             }
         }
 
@@ -241,240 +241,6 @@ namespace Sweco.SIF.LayerManager.LayerModels
                 }
             }
             return false;
-        }
-
-        /// <summary>
-        /// Check for aquitard in either REGIS filename format or WVP/SDL format for iMODLayerManager as described in the helpfile
-        /// </summary>
-        /// <param name="regisFilename"></param>
-        /// <returns></returns>
-        public bool IsAquitard(int fileIdx)
-        {
-            bool isAquitard = false;
-
-            // Check if layer is explicitly defined as an aquifer/aquitard
-            if (AquitardDefinitions != null)
-            {
-                isAquitard = AquitardDefinitions[fileIdx];
-            }
-            else
-            {
-                string regisFilename = BOTFilenames[fileIdx];
-
-                // Check iMODLayerManager format
-                if (regisFilename.ToLower().Contains(Properties.Settings.Default.REGISAquitardAbbr.ToLower()) || regisFilename.ToLower().Contains(Properties.Settings.Default.REGISAquiferAbbr.ToLower()))
-                {
-                    isAquitard = regisFilename.ToLower().Contains(Properties.Settings.Default.REGISAquitardAbbr.ToLower());
-                }
-                else
-                {
-                    try
-                    {
-                        // Check REGIS format
-                        ParseREGISFilename(regisFilename, out string lithologyCode, out int index, out bool isAquifer, out isAquitard, out string layerName, out string substring);
-                    }
-                    catch (Exception)
-                    {
-                        // File doesn't have REGIS format, check c- or kD-columns: when nothing is defined aquifer is the default
-                        isAquitard = (VCWFilenames != null) && ((VCWFilenames[fileIdx] != null) && !VCWFilenames[fileIdx].Equals(string.Empty));
-                    }
-                }
-            }
-
-            return isAquitard;
-        }
-
-        /// <summary>
-        /// Check for aquifer in either REGIS filename format or WVP/SDL format for iMODLayerManager as described in the helpfile
-        /// </summary>
-        /// <param name="regisFilename"></param>
-        /// <returns></returns>
-        public bool IsAquifer(int fileIdx)
-        {
-            bool isAquifer = false;
-
-            // Check if layer is explicitly defined as an aquifer/aquitard
-            if (AquitardDefinitions != null)
-            {
-                isAquifer = !AquitardDefinitions[fileIdx];
-            }
-            else
-            {
-                string regisFilename = BOTFilenames[fileIdx];
-
-                // Check iMODLayerManager format
-                if (regisFilename.ToLower().Contains(Properties.Settings.Default.REGISAquitardAbbr.ToLower()) || regisFilename.ToLower().Contains(Properties.Settings.Default.REGISAquiferAbbr.ToLower()))
-                {
-                    isAquifer = regisFilename.ToLower().Contains(Properties.Settings.Default.REGISAquiferAbbr.ToLower());
-                }
-                else
-                {
-                    try
-                    {
-                        // Check REGIS format
-                        ParseREGISFilename(regisFilename, out string lithologyCode, out int index, out isAquifer, out bool isAquitard, out string layerName, out string substring);
-                    }
-                    catch (Exception)
-                    {
-                        // File doesn't have REGIS format, check c- or kD-columns: when nothing is defined aquifer is the default
-                        throw new ToolException("IsAquifer: unknown file format, layer type cannot be determined: " + Path.GetFileName(regisFilename));
-                        // isAquifer = !((VCWFilenames != null) && (VCWFilenames[fileIdx] != null) && !VCWFilenames[fileIdx].Equals(string.Empty));
-                    }
-                }
-            }
-            return isAquifer;
-        }
-
-        /// <summary>
-        /// Files in array layerFilenames2 are matched with files in array layerFilenames1 with corresponding REGIS-prefix and placed at corresponding indices.
-        /// Mismatches are logged.
-        /// </summary>
-        /// <param name="layerFilenames1"></param>
-        /// <param name="layerFilenames2"></param>
-        /// <param name="typeString1"></param>
-        /// <param name="typeString2"></param>
-        /// <param name="log"></param>
-        /// <param name="logIndentlevel"></param>
-        protected void MatchByPrefix(string[] regisFilenames1, ref string[] regisFilenames2, string typeString1, string typeString2, Log log, int logIndentlevel)
-        {
-            if ((regisFilenames2 == null) || (regisFilenames2.Length == 0))
-            {
-                // nothing to do
-                return;
-            }
-
-            // List<string> layerFilenames2List = new List<string>(regisFilenames2);
-            Dictionary<string, string> layerPrefix2Dictionary = new Dictionary<string, string>();
-            for (int fileIdx2 = 0; fileIdx2 < regisFilenames2.Length; fileIdx2++)
-            {
-                string filename2 = regisFilenames2[fileIdx2];
-                if (filename2 != null)
-                {
-                    string prefix2 = REGISLayerModelMap.GetREGISPrefix(filename2).ToLower();
-                    layerPrefix2Dictionary.Add(prefix2, filename2);
-                }
-            }
-
-            // Now loop through layerFilenames1 and search file with corresponding REGIS-prefix in layerFilenames2
-            string[] tmpREGISFilename2 = new string[regisFilenames1.Length];
-            List<string> mismatchedFilenames1 = new List<string>();
-            List<string> mismatchedPrefixes1 = new List<string>();
-            for (int fileIdx1 = 0; fileIdx1 < regisFilenames1.Length; fileIdx1++)
-            {
-                string filename1 = regisFilenames1[fileIdx1];
-                string prefix1 = REGISLayerModelMap.GetREGISPrefix(filename1).ToLower();
-
-                if (layerPrefix2Dictionary.ContainsKey(prefix1))
-                {
-                    tmpREGISFilename2[fileIdx1] = layerPrefix2Dictionary[prefix1];
-                    layerPrefix2Dictionary.Remove(prefix1);
-                }
-                else
-                {
-                    mismatchedFilenames1.Add(filename1);
-                    mismatchedPrefixes1.Add(prefix1);
-                }
-            }
-
-            regisFilenames2 = tmpREGISFilename2;
-        }
-
-        /// <summary>
-        /// Check that filenames in both arrays have equal prefixes
-        /// </summary>
-        /// <param name="regisFilenames1"></param>
-        /// <param name="regisFilenames2"></param>
-        /// <param name="typeString1"></param>
-        /// <param name="typeString2"></param>
-        protected void CheckPrefixes(string[] regisFilenames1, string[] regisFilenames2, string typeString1, string typeString2)
-        {
-            // Check that TOP and BOT-filenames have equal length
-            if (regisFilenames1.Length != regisFilenames2.Length)
-            {
-                throw new ToolException("Nummber of REGIS " + typeString1 + "-files (" + regisFilenames1.Length + ") is not equal to number of " + typeString2 + "-files (" + regisFilenames2.Length + "). Check input path.");
-            }
-
-            for (int fileIdx = 0; fileIdx < regisFilenames1.Length; fileIdx++)
-            {
-                string filename1 = regisFilenames1[fileIdx];
-                string filename2 = regisFilenames2[fileIdx];
-                string prefix1 = REGISLayerModelMap.GetREGISPrefix(filename1);
-                string prefix2 = REGISLayerModelMap.GetREGISPrefix(filename1);
-                if (prefix1 == null)
-                {
-                    if (prefix2 != null)
-                    {
-                        throw new ToolException("REGIS " + typeString1 + "-file prefix NULL does not match " + typeString1 + "-file prefix (" + prefix2 + ") for " + typeString1 + "-file at index " + (fileIdx + 1).ToString() + ": " + Path.GetFileName(filename1) + ". Check for missing REGIS-files.");
-                    }
-                }
-                else if (!prefix1.ToLower().Equals(prefix2.ToLower()))
-                {
-                    throw new ToolException("REGIS " + typeString1 + "-file prefix (" + prefix1 + ") does not match " + typeString1 + "-file prefix (" + prefix2 + ") for " + typeString1 + "-file at index " + (fileIdx + 1).ToString() + ": " + Path.GetFileName(filename1));
-                }
-            }
-        }
-
-        protected void SortByPrefix(string[] filenames, Log log, int logIndentlevel)
-        {
-            if (layerOrderPrefixIdxDictionary != null)
-            {
-                if (filenames != null)
-                {
-                    string[] tmpFilenames = new string[layerOrderPrefixIdxDictionary.Keys.Count];
-                    List<string> mismatchedFilenames = new List<string>();
-                    List<string> prefixes = new List<string>();
-                    for (int fileIdx = 0; fileIdx < filenames.Length; fileIdx++)
-                    {
-                        string filename = filenames[fileIdx];
-                        string prefix = REGISLayerModelMap.GetREGISPrefix(filename).ToLower();
-                        // Check that prefix is unique 
-                        if (prefixes.Contains(prefix.ToLower()))
-                        {
-                            throw new ToolException("Prefix " + prefix + " is not unique, check file: " + Path.GetFileName(filename));
-                        }
-                        else
-                        {
-                            prefixes.Add(prefix);
-                        }
-
-                        prefixes.Add(prefix);
-
-                        int layerIdx = layerOrderPrefixIdxDictionary.ContainsKey(prefix) ? layerOrderPrefixIdxDictionary[prefix] : -1;
-                        if (layerIdx > -1)
-                        {
-                            tmpFilenames[layerIdx] = filename;
-                        }
-                        else
-                        {
-                            log.AddWarning("Layer prefix '" + prefix + "' not found in layer order file, layer file is ignored: " + Path.GetFileName(filename), logIndentlevel);
-                            mismatchedFilenames.Add(filename);
-                        }
-                    }
-
-                    // Add sorted filenames to original array
-                    int filenameIdx = 0;
-                    for (int fileIdx = 0; fileIdx < tmpFilenames.Length; fileIdx++)
-                    {
-                        string filename = tmpFilenames[fileIdx];
-                        if (filename != null)
-                        {
-                            filenames[filenameIdx] = filename;
-                            filenameIdx++;
-                        }
-                    }
-
-                    // Add null values for mismatched filenames at end
-                    foreach (string filename in mismatchedFilenames)
-                    {
-                        filenames[filenameIdx] = null; // 
-                        filenameIdx++;
-                    }
-                }
-            }
-            else
-            {
-                throw new Exception("For sorting a layer order should be defined, but layerOrderPrefixIdxDictionary == null");
-            }
         }
 
         protected void ReadOrderFile(string orderTextFilename, Log log)
@@ -534,132 +300,6 @@ namespace Sweco.SIF.LayerManager.LayerModels
                     sr.Close();
                 }
             }
-        }
-
-        /// <summary>
-        /// Parse REGIS filename with format: (LAYER(z|k|v|c|q)[_SUB]-(t|b|kh|kv|kd|c)-(ck|sk).IDF
-        /// where _SUB is optional and SUB can be a substring of any length
-        /// </summary>
-        /// <param name="regisFilename"></param>
-        /// <param name="lithologyCode"></param>
-        /// <param name="index"></param>
-        /// <param name="isAquifer"></param>
-        /// <param name="isAquitard"></param>
-        private static void ParseREGISFilename(string regisFilename, out string lithologyCode, out int index, out bool isAquifer, out bool isAquitard, out string layerName, out string substring)
-        {
-            index = 0;
-            lithologyCode = null;
-            substring = null;
-            regisFilename = Path.GetFileName(regisFilename);
-
-            int dashIndex1 = regisFilename.IndexOf("-");
-            if (dashIndex1 > 0)
-            {
-                // Check for substring after layername
-                int underscoreIndex = regisFilename.IndexOf("_");
-                if (underscoreIndex > 0)
-                {
-                    substring = regisFilename.Substring(underscoreIndex + 1, (dashIndex1 - underscoreIndex - 1));
-                    regisFilename = regisFilename.Remove(underscoreIndex, substring.Length + 1);
-                    dashIndex1 = regisFilename.IndexOf("-");
-                }
-
-                layerName = regisFilename.Substring(0, dashIndex1);
-                int dashIndex2 = regisFilename.IndexOf("-", dashIndex1 + 1);
-                if (dashIndex2 > 0)
-                {
-                    string postfix = string.Empty;
-                    if (ContainsDigits(layerName))
-                    {
-                        // check for postfix after layer unit index, e.g.KIk1a or KIz2b
-                        int postfixIdx = dashIndex1 - 1;
-                        while (postfixIdx > 0)
-                        {
-                            if (!int.TryParse(regisFilename.Substring(postfixIdx, 1), out int digit))
-                            {
-                                postfix = regisFilename.Substring(postfixIdx, 1) + postfix;
-                            }
-                            else
-                            {
-                                postfixIdx = 0;
-                            }
-                            postfixIdx--;
-                        }
-                    }
-                    else
-                    {
-                        postfix = string.Empty;
-                    }
-
-                    index = 0;
-                    int charIdx = dashIndex1 - 1 - postfix.Length;
-                    int factor = 1;
-                    while (charIdx > 0)
-                    {
-                        if (int.TryParse(regisFilename.Substring(charIdx, 1), out int digit))
-                        {
-                            index += factor * digit;
-                            factor *= 10;
-                        }
-                        else
-                        {
-                            lithologyCode = regisFilename.Substring(charIdx, 1);
-                            charIdx = 0;
-                        }
-                        charIdx--;
-                    }
-                }
-                else
-                {
-                    throw new Exception("Filename doesn't have REGIS format: " + Path.GetFileName(regisFilename));
-                }
-            }
-            else
-            {
-                throw new Exception("Filename doesn't have REGIS format: " + Path.GetFileName(regisFilename));
-            }
-
-            isAquifer = false;
-            isAquitard = false;
-            if (lithologyCode != null)
-            {
-                switch (lithologyCode.ToLower())
-                {
-                    case "z":
-                        // zand
-                        isAquifer = true;
-                        break;
-                    case "k":
-                        // klei
-                        isAquitard = true;
-                        break;
-                    case "c":
-                        // complex
-                        isAquifer = true;
-                        isAquitard = true;
-                        break;
-                    case "q":
-                        // kalk
-                        isAquifer = true;
-                        isAquitard = true;
-                        break;
-                    case "v":
-                        // veen
-                        isAquitard = true;
-                        break;
-                    case "b":
-                        // bruinkool
-                        isAquitard = true;
-                        break;
-                    default:
-                        throw new Exception("Unknown REGIS lithology code in filename: " + regisFilename);
-                }
-            }
-        }
-
-        private static bool ContainsDigits(string layerName)
-        {
-            return layerName.Any(c => char.IsDigit(c));
         }
 
         /// <summary>
@@ -753,5 +393,19 @@ namespace Sweco.SIF.LayerManager.LayerModels
         /// <param name="log"></param>
         /// <param name="logIndentlevel"></param>
         protected abstract void DoReadDirectories(SIFToolSettings settings, Log log, int logIndentlevel);
+
+        /// <summary>
+        /// Check for aquifer
+        /// </summary>
+        /// <param name="fileIdx"></param>
+        /// <returns></returns>
+        public abstract bool IsAquifer(int fileIdx);
+
+        /// <summary>
+        /// Check for aquitard
+        /// </summary>
+        /// <param name="fileIdx"></param>
+        /// <returns></returns>
+        public abstract bool IsAquitard(int fileIdx);
     }
 }

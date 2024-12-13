@@ -64,13 +64,13 @@ namespace Sweco.SIF.LayerManager.LayerModels
         {
             // Read filenames from given folders
             log.AddInfo("Reading iMOD-model filenames ... ", logIndentlevel);
-            TOPFilenames = Utils.SelectIDFASCFiles(Directory.GetFiles(settings.TOPPath, Utils.CreateFilePatternString(settings.TOPFilenamesPattern)));
-            BOTFilenames = Utils.SelectIDFASCFiles(Directory.GetFiles(settings.BOTPath, Utils.CreateFilePatternString(settings.BOTFilenamesPattern)));
-            KHVFilenames = (settings.KHVPath == null) ? null : Utils.SelectIDFASCFiles(Directory.GetFiles(settings.KHVPath, Utils.CreateFilePatternString(settings.KHVFilenamesPattern)));
-            KVVFilenames = (settings.KVVPath == null) ? null : Utils.SelectIDFASCFiles(Directory.GetFiles(settings.KVVPath, Utils.CreateFilePatternString(settings.KVVFilenamesPattern)));
-            KVAFilenames = (settings.KVAPath == null) ? null : Utils.SelectIDFASCFiles(Directory.GetFiles(settings.KVAPath, Utils.CreateFilePatternString(settings.KVAFilenamesPattern)));
-            KDWFilenames = (settings.KDWPath == null) ? null : Utils.SelectIDFASCFiles(Directory.GetFiles(settings.KDWPath, Utils.CreateFilePatternString(settings.KDWFilenamesPattern)));
-            VCWFilenames = (settings.VCWPath == null) ? null : Utils.SelectIDFASCFiles(Directory.GetFiles(settings.VCWPath, Utils.CreateFilePatternString(settings.VCWFilenamesPattern)));
+            TOPFilenames = Utils.SelectIDFASCFiles(Utils.GetFiles(settings.TOPParString, settings.TOPFilenamesPatterns, settings.InputPath));
+            BOTFilenames = Utils.SelectIDFASCFiles(Utils.GetFiles(settings.BOTPath, settings.BOTFilenamesPatterns, settings.InputPath));
+            KHVFilenames = (settings.KHVPath == null) ? null : Utils.SelectIDFASCFiles(Utils.GetFiles(settings.KHVPath, settings.KHVFilenamesPatterns, settings.InputPath));
+            KVVFilenames = (settings.KVVPath == null) ? null : Utils.SelectIDFASCFiles(Utils.GetFiles(settings.KVVPath, settings.KVVFilenamesPatterns, settings.InputPath));
+            KVAFilenames = (settings.KVAPath == null) ? null : Utils.SelectIDFASCFiles(Utils.GetFiles(settings.KVAPath, settings.KVAFilenamesPatterns, settings.InputPath));
+            KDWFilenames = (settings.KDWPath == null) ? null : Utils.SelectIDFASCFiles(Utils.GetFiles(settings.KDWPath, settings.KDWFilenamesPatterns, settings.InputPath));
+            VCWFilenames = (settings.VCWPath == null) ? null : Utils.SelectIDFASCFiles(Utils.GetFiles(settings.VCWPath, settings.VCWFilenamesPatterns, settings.InputPath));
 
             CheckFileCount(settings, log, logIndentlevel + 1);
             SortFiles(settings, log, logIndentlevel + 1);
@@ -174,5 +174,70 @@ namespace Sweco.SIF.LayerManager.LayerModels
             }
         }
 
+        /// <summary>
+        /// Check for aquitard in WVP/SDL format for iMODLayerManager as described in the helpfile
+        /// </summary>
+        /// <param name="regisFilename"></param>
+        /// <returns></returns>
+        public override bool IsAquitard(int fileIdx)
+        {
+            bool isAquitard = false;
+
+            // Check if layer is explicitly defined as an aquifer/aquitard
+            if (AquitardDefinitions != null)
+            {
+                isAquitard = AquitardDefinitions[fileIdx];
+            }
+            else
+            {
+                string regisFilename = BOTFilenames[fileIdx];
+
+                // Check iMODLayerManager format
+                if (regisFilename.ToLower().Contains(Properties.Settings.Default.REGISAquitardAbbr.ToLower()) || regisFilename.ToLower().Contains(Properties.Settings.Default.REGISAquiferAbbr.ToLower()))
+                {
+                    isAquitard = regisFilename.ToLower().Contains(Properties.Settings.Default.REGISAquitardAbbr.ToLower());
+                }
+                else
+                {
+                    // File doesn't have iMOD format, check c- or kD-columns: when nothing is defined aquifer is the default
+                    isAquitard = (VCWFilenames != null) && ((VCWFilenames[fileIdx] != null) && !VCWFilenames[fileIdx].Equals(string.Empty));
+                }
+            }
+
+            return isAquitard;
+        }
+
+        /// <summary>
+        /// Check for aquifer in WVP/SDL format for iMODLayerManager as described in the helpfile
+        /// </summary>
+        /// <param name="regisFilename"></param>
+        /// <returns></returns>
+        public override bool IsAquifer(int fileIdx)
+        {
+            bool isAquifer = false;
+
+            // Check if layer is explicitly defined as an aquifer/aquitard
+            if (AquitardDefinitions != null)
+            {
+                isAquifer = !AquitardDefinitions[fileIdx];
+            }
+            else
+            {
+                string regisFilename = BOTFilenames[fileIdx];
+
+                // Check iMODLayerManager format
+                if (regisFilename.ToLower().Contains(Properties.Settings.Default.REGISAquitardAbbr.ToLower()) || regisFilename.ToLower().Contains(Properties.Settings.Default.REGISAquiferAbbr.ToLower()))
+                {
+                    isAquifer = regisFilename.ToLower().Contains(Properties.Settings.Default.REGISAquiferAbbr.ToLower());
+                }
+                else
+                {
+                    // File doesn't have iMOD format, check c- or kD-columns: when nothing is defined aquifer is the default
+                    throw new ToolException("IsAquifer: unknown file format, layer type cannot be determined: " + Path.GetFileName(regisFilename));
+                    // isAquifer = !((VCWFilenames != null) && (VCWFilenames[fileIdx] != null) && !VCWFilenames[fileIdx].Equals(string.Empty));
+                }
+            }
+            return isAquifer;
+        }
     }
 }

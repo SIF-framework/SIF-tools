@@ -19,6 +19,7 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with LayerManager. If not, see <https://www.gnu.org/licenses/>.
+using Sweco.SIF.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -79,6 +80,41 @@ namespace Sweco.SIF.LayerManager
                 }
             }
             return (filenameList.Count > 0) ? filenameList.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Retrieve filenames for the first pattern that matches one or more files
+        /// </summary>s
+        /// <param name="path"></param>
+        /// <param name="filenamesPatterns">Comma-seperated list of patterns</param>
+        /// <param name="basePath">base path that is used to expand relative paths</param>
+        /// <returns></returns>
+        public static string[] GetFiles(string path, string filenamesPatterns, string basePath)
+        {
+            if (path == null)
+            {
+                path = basePath;
+            }
+            else if (!Path.IsPathRooted(path))
+            {
+                path = Path.Combine(basePath, path);
+            }
+
+            if (!Directory.Exists(path))
+            {
+                throw new ToolException("Path for input files not found: " + path);
+            }
+
+            string[] patterns = CommonUtils.SplitQuoted(filenamesPatterns, ',');
+            foreach (string pattern in patterns)
+            {
+                string[] files = Directory.GetFiles(path, Utils.CreateFilePatternString(pattern));
+                if (files.Length > 0)
+                {
+                    return files;
+                }
+            }
+            return new string[0];
         }
     }
 }

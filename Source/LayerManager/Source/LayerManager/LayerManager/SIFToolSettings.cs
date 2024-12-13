@@ -68,13 +68,13 @@ namespace Sweco.SIF.LayerManager
         public string KVAPath { get; set; }
         public string VCWPath { get; set; }
         public string KHVPath { get; set; }
-        public string TOPFilenamesPattern { get; set; }
-        public string BOTFilenamesPattern { get; set; }
-        public string KDWFilenamesPattern { get; set; }
-        public string VCWFilenamesPattern { get; set; }
-        public string KHVFilenamesPattern { get; set; }
-        public string KVVFilenamesPattern { get; set; }
-        public string KVAFilenamesPattern { get; set; }
+        public string TOPFilenamesPatterns { get; set; }
+        public string BOTFilenamesPatterns { get; set; }
+        public string KDWFilenamesPatterns { get; set; }
+        public string VCWFilenamesPatterns { get; set; }
+        public string KHVFilenamesPatterns { get; set; }
+        public string KVVFilenamesPatterns { get; set; }
+        public string KVAFilenamesPatterns { get; set; }
         public float DefaultKDWValue { get; set; }
         public float DefaultVCWValue { get; set; }
         public float DefaultKHVValue { get; set; }
@@ -108,13 +108,13 @@ namespace Sweco.SIF.LayerManager
             KHVParString = null;
             KVVParString = null;
 
-            TOPFilenamesPattern = Properties.Settings.Default.iMODTOPFilePatternString;
-            BOTFilenamesPattern = Properties.Settings.Default.iMODBOTFilePatternString;
-            KDWFilenamesPattern = Properties.Settings.Default.iMODkDFilePatternString;
-            VCWFilenamesPattern = Properties.Settings.Default.iMODCFilePatternString;
-            KHVFilenamesPattern = Properties.Settings.Default.iMODKHVFilePatternString;
-            KVVFilenamesPattern = Properties.Settings.Default.iMODKVVFilePatternString;
-            KVAFilenamesPattern = Properties.Settings.Default.iMODKVAFilePatternString;
+            TOPFilenamesPatterns = Properties.Settings.Default.iMODTOPFilePatternsString;
+            BOTFilenamesPatterns = Properties.Settings.Default.iMODBOTFilePatternsString;
+            KDWFilenamesPatterns = Properties.Settings.Default.iMODkDFilePatternsString;
+            VCWFilenamesPatterns = Properties.Settings.Default.iMODCFilePatternsString;
+            KHVFilenamesPatterns = Properties.Settings.Default.iMODKHVFilePatternsString;
+            KVVFilenamesPatterns = Properties.Settings.Default.iMODKVVFilePatternsString;
+            KVAFilenamesPatterns = Properties.Settings.Default.iMODKVAFilePatternsString;
 
             OutputKDSubdirname = Properties.Settings.Default.kDSubdirname;
             OutputCSubdirname = Properties.Settings.Default.CSubdirName;
@@ -532,23 +532,23 @@ namespace Sweco.SIF.LayerManager
 
             if (inputType == InputType.REGISII2)
             {
-                TOPFilenamesPattern = Properties.Settings.Default.REGISTopFilePatternString;
-                BOTFilenamesPattern = Properties.Settings.Default.REGISBotFilePatternString;
-                KDWFilenamesPattern = Properties.Settings.Default.REGISkDFilePatternString;
-                VCWFilenamesPattern = Properties.Settings.Default.REGISCFilePatternString;
-                KHVFilenamesPattern = Properties.Settings.Default.REGISKHFilePatternString;
-                KVVFilenamesPattern = Properties.Settings.Default.REGISKVFilePatternString;
-                KVAFilenamesPattern = null;
+                TOPFilenamesPatterns = Properties.Settings.Default.REGISTopFilePatternsString;
+                BOTFilenamesPatterns = Properties.Settings.Default.REGISBotFilePatternsString;
+                KDWFilenamesPatterns = Properties.Settings.Default.REGISkDFilePatternsString;
+                VCWFilenamesPatterns = Properties.Settings.Default.REGISCFilePatternsString;
+                KHVFilenamesPatterns = Properties.Settings.Default.REGISKHFilePatternsString;
+                KVVFilenamesPatterns = Properties.Settings.Default.REGISKVFilePatternsString;
+                KVAFilenamesPatterns = null;
             }
             else
             {
-                TOPFilenamesPattern = Properties.Settings.Default.iMODTOPFilePatternString;
-                BOTFilenamesPattern = Properties.Settings.Default.iMODBOTFilePatternString;
-                KDWFilenamesPattern = Properties.Settings.Default.iMODkDFilePatternString;
-                VCWFilenamesPattern = Properties.Settings.Default.iMODCFilePatternString;
-                KHVFilenamesPattern = Properties.Settings.Default.iMODKHVFilePatternString;
-                KVVFilenamesPattern = Properties.Settings.Default.iMODKVVFilePatternString;
-                KVAFilenamesPattern = Properties.Settings.Default.iMODKVAFilePatternString;
+                TOPFilenamesPatterns = Properties.Settings.Default.iMODTOPFilePatternsString;
+                BOTFilenamesPatterns = Properties.Settings.Default.iMODBOTFilePatternsString;
+                KDWFilenamesPatterns = Properties.Settings.Default.iMODkDFilePatternsString;
+                VCWFilenamesPatterns = Properties.Settings.Default.iMODCFilePatternsString;
+                KHVFilenamesPatterns = Properties.Settings.Default.iMODKHVFilePatternsString;
+                KVVFilenamesPatterns = Properties.Settings.Default.iMODKVVFilePatternsString;
+                KVAFilenamesPatterns = Properties.Settings.Default.iMODKVAFilePatternsString;
             }
         }
 

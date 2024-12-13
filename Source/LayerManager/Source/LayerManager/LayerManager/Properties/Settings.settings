@@ -2,22 +2,22 @@
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="Sweco.SIF.LayerManager.Properties" GeneratedClassName="Settings">
   <Profiles />
   <Settings>
-    <Setting Name="REGISTopFilePatternString" Type="System.String" Scope="User">
+    <Setting Name="REGISTopFilePatternsString" Type="System.String" Scope="User">
       <Value Profile="(Default)">-T-</Value>
     </Setting>
-    <Setting Name="REGISBotFilePatternString" Type="System.String" Scope="User">
+    <Setting Name="REGISBotFilePatternsString" Type="System.String" Scope="User">
       <Value Profile="(Default)">-B-</Value>
     </Setting>
-    <Setting Name="REGISkDFilePatternString" Type="System.String" Scope="User">
+    <Setting Name="REGISkDFilePatternsString" Type="System.String" Scope="User">
       <Value Profile="(Default)">-kD-</Value>
     </Setting>
-    <Setting Name="REGISCFilePatternString" Type="System.String" Scope="User">
+    <Setting Name="REGISCFilePatternsString" Type="System.String" Scope="User">
       <Value Profile="(Default)">-C-</Value>
     </Setting>
-    <Setting Name="REGISKHFilePatternString" Type="System.String" Scope="User">
+    <Setting Name="REGISKHFilePatternsString" Type="System.String" Scope="User">
       <Value Profile="(Default)">-kh-</Value>
     </Setting>
-    <Setting Name="REGISKVFilePatternString" Type="System.String" Scope="User">
+    <Setting Name="REGISKVFilePatternsString" Type="System.String" Scope="User">
       <Value Profile="(Default)">-kv-</Value>
     </Setting>
     <Setting Name="TopFilePrefix" Type="System.String" Scope="User">
@@ -41,25 +41,25 @@
     <Setting Name="ThicknessFilePrefix" Type="System.String" Scope="User">
       <Value Profile="(Default)">DIKTE</Value>
     </Setting>
-    <Setting Name="iMODTOPFilePatternString" Type="System.String" Scope="User">
+    <Setting Name="iMODTOPFilePatternsString" Type="System.String" Scope="User">
       <Value Profile="(Default)">TOP*</Value>
     </Setting>
-    <Setting Name="iMODBOTFilePatternString" Type="System.String" Scope="User">
+    <Setting Name="iMODBOTFilePatternsString" Type="System.String" Scope="User">
       <Value Profile="(Default)">BOT*</Value>
     </Setting>
-    <Setting Name="iMODkDFilePatternString" Type="System.String" Scope="User">
+    <Setting Name="iMODkDFilePatternsString" Type="System.String" Scope="User">
       <Value Profile="(Default)">kD*</Value>
     </Setting>
-    <Setting Name="iMODCFilePatternString" Type="System.String" Scope="User">
+    <Setting Name="iMODCFilePatternsString" Type="System.String" Scope="User">
       <Value Profile="(Default)">C*</Value>
     </Setting>
-    <Setting Name="iMODKHVFilePatternString" Type="System.String" Scope="User">
+    <Setting Name="iMODKHVFilePatternsString" Type="System.String" Scope="User">
       <Value Profile="(Default)">KH*</Value>
     </Setting>
-    <Setting Name="iMODKVVFilePatternString" Type="System.String" Scope="User">
+    <Setting Name="iMODKVVFilePatternsString" Type="System.String" Scope="User">
       <Value Profile="(Default)">KV*</Value>
     </Setting>
-    <Setting Name="iMODKVAFilePatternString" Type="System.String" Scope="User">
+    <Setting Name="iMODKVAFilePatternsString" Type="System.String" Scope="User">
       <Value Profile="(Default)">KVA*</Value>
     </Setting>
     <Setting Name="TOPSubdirname" Type="System.String" Scope="User">

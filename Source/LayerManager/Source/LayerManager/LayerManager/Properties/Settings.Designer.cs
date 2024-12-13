@@ -12,7 +12,7 @@ namespace Sweco.SIF.LayerManager.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "15.9.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.11.0.0")]
     public sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -26,72 +26,72 @@ namespace Sweco.SIF.LayerManager.Properties {
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("-T-")]
-        public string REGISTopFilePatternString {
+        public string REGISTopFilePatternsString {
             get {
-                return ((string)(this["REGISTopFilePatternString"]));
+                return ((string)(this["REGISTopFilePatternsString"]));
             }
             set {
-                this["REGISTopFilePatternString"] = value;
+                this["REGISTopFilePatternsString"] = value;
             }
         }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("-B-")]
-        public string REGISBotFilePatternString {
+        public string REGISBotFilePatternsString {
             get {
-                return ((string)(this["REGISBotFilePatternString"]));
+                return ((string)(this["REGISBotFilePatternsString"]));
             }
             set {
-                this["REGISBotFilePatternString"] = value;
+                this["REGISBotFilePatternsString"] = value;
             }
         }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("-kD-")]
-        public string REGISkDFilePatternString {
+        public string REGISkDFilePatternsString {
             get {
-                return ((string)(this["REGISkDFilePatternString"]));
+                return ((string)(this["REGISkDFilePatternsString"]));
             }
             set {
-                this["REGISkDFilePatternString"] = value;
+                this["REGISkDFilePatternsString"] = value;
             }
         }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("-C-")]
-        public string REGISCFilePatternString {
+        public string REGISCFilePatternsString {
             get {
-                return ((string)(this["REGISCFilePatternString"]));
+                return ((string)(this["REGISCFilePatternsString"]));
             }
             set {
-                this["REGISCFilePatternString"] = value;
+                this["REGISCFilePatternsString"] = value;
             }
         }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("-kh-")]
-        public string REGISKHFilePatternString {
+        public string REGISKHFilePatternsString {
             get {
-                return ((string)(this["REGISKHFilePatternString"]));
+                return ((string)(this["REGISKHFilePatternsString"]));
             }
             set {
-                this["REGISKHFilePatternString"] = value;
+                this["REGISKHFilePatternsString"] = value;
             }
         }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("-kv-")]
-        public string REGISKVFilePatternString {
+        public string REGISKVFilePatternsString {
             get {
-                return ((string)(this["REGISKVFilePatternString"]));
+                return ((string)(this["REGISKVFilePatternsString"]));
             }
             set {
-                this["REGISKVFilePatternString"] = value;
+                this["REGISKVFilePatternsString"] = value;
             }
         }
         
@@ -182,84 +182,84 @@ namespace Sweco.SIF.LayerManager.Properties {
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("TOP*")]
-        public string iMODTOPFilePatternString {
+        public string iMODTOPFilePatternsString {
             get {
-                return ((string)(this["iMODTOPFilePatternString"]));
+                return ((string)(this["iMODTOPFilePatternsString"]));
             }
             set {
-                this["iMODTOPFilePatternString"] = value;
+                this["iMODTOPFilePatternsString"] = value;
             }
         }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("BOT*")]
-        public string iMODBOTFilePatternString {
+        public string iMODBOTFilePatternsString {
             get {
-                return ((string)(this["iMODBOTFilePatternString"]));
+                return ((string)(this["iMODBOTFilePatternsString"]));
             }
             set {
-                this["iMODBOTFilePatternString"] = value;
+                this["iMODBOTFilePatternsString"] = value;
             }
         }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("kD*")]
-        public string iMODkDFilePatternString {
+        public string iMODkDFilePatternsString {
             get {
-                return ((string)(this["iMODkDFilePatternString"]));
+                return ((string)(this["iMODkDFilePatternsString"]));
             }
             set {
-                this["iMODkDFilePatternString"] = value;
+                this["iMODkDFilePatternsString"] = value;
             }
         }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("C*")]
-        public string iMODCFilePatternString {
+        public string iMODCFilePatternsString {
             get {
-                return ((string)(this["iMODCFilePatternString"]));
+                return ((string)(this["iMODCFilePatternsString"]));
             }
             set {
-                this["iMODCFilePatternString"] = value;
+                this["iMODCFilePatternsString"] = value;
             }
         }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("KH*")]
-        public string iMODKHVFilePatternString {
+        public string iMODKHVFilePatternsString {
             get {
-                return ((string)(this["iMODKHVFilePatternString"]));
+                return ((string)(this["iMODKHVFilePatternsString"]));
             }
             set {
-                this["iMODKHVFilePatternString"] = value;
+                this["iMODKHVFilePatternsString"] = value;
             }
         }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("KV*")]
-        public string iMODKVVFilePatternString {
+        public string iMODKVVFilePatternsString {
             get {
-                return ((string)(this["iMODKVVFilePatternString"]));
+                return ((string)(this["iMODKVVFilePatternsString"]));
             }
             set {
-                this["iMODKVVFilePatternString"] = value;
+                this["iMODKVVFilePatternsString"] = value;
             }
         }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("KVA*")]
-        public string iMODKVAFilePatternString {
+        public string iMODKVAFilePatternsString {
             get {
-                return ((string)(this["iMODKVAFilePatternString"]));
+                return ((string)(this["iMODKVAFilePatternsString"]));
             }
             set {
-                this["iMODKVAFilePatternString"] = value;
+                this["iMODKVAFilePatternsString"] = value;
             }
         }
         
