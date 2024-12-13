@@ -32,6 +32,7 @@ namespace Sweco.SIF.IDFmerge
 {
     public enum StatFunction
     {
+        Undefined,
         Min,
         Max,
         Mean,
@@ -63,6 +64,8 @@ namespace Sweco.SIF.IDFmerge
         public bool WriteCountIDFFile { get; set; }
 		public bool WritePostfix { get; set; }
 
+        public bool WriteMetadata { get; set; }
+
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
         /// </summary>
@@ -82,6 +85,7 @@ namespace Sweco.SIF.IDFmerge
             GroupIndices = null;
             WriteCountIDFFile = false;
 			WritePostfix = false;
+            WriteMetadata = true;
 		}
 
         /// <summary>
@@ -176,37 +180,30 @@ namespace Sweco.SIF.IDFmerge
 				{
 					// split option parameter string into comma seperated substrings
 					string[] optionParameters = GetOptionParameters(optionParametersString);
-					try
+					// Parse substrings for this option
+					if (optionParameters.Length == 1)
 					{
-						// Parse substrings for this option
-						if (optionParameters.Length == 1)
+						switch (optionParametersString.ToLower())
 						{
-							switch (optionParametersString.ToLower())
-							{
-								case "min":
-									StatFunction = StatFunction.Min;
-									break;
-								case "max":
-									StatFunction = StatFunction.Max;
-									break;
-								case "mean":
-									StatFunction = StatFunction.Mean;
-									break;
-								case "sum":
-									StatFunction = StatFunction.Sum;
-									break;
-								default:
-									throw new ToolException("Invalid function specified for option 's': " + optionParametersString);
-							}
-						}
-						else
-						{
-							throw new ToolException("Only one paramter should be given for option: " + optionName + ", you provided: " + optionParametersString);
+							case "min":
+								StatFunction = StatFunction.Min;
+								break;
+							case "max":
+								StatFunction = StatFunction.Max;
+								break;
+							case "mean":
+								StatFunction = StatFunction.Mean;
+								break;
+							case "sum":
+								StatFunction = StatFunction.Sum;
+								break;
+							default:
+								throw new ToolException("Invalid function specified for option 's': " + optionParametersString);
 						}
 					}
-					catch (Exception)
+					else
 					{
-						throw new ToolException("Could not parse values for option '" + optionName + "':" + optionParametersString);
+						throw new ToolException("Only one paramter should be given for option: " + optionName + ", you provided: " + optionParametersString);
 					}
 				}
 				else

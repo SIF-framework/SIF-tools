@@ -142,7 +142,7 @@ namespace Sweco.SIF.IDFmerge
 			return Directory.GetFiles(settings.InputPath, settings.InputFilter, SearchOption.TopDirectoryOnly);
 		}
 
-		private void ProcessIDFFiles(string[] idfFilenames, SIFToolSettings settings)
+		protected virtual void ProcessIDFFiles(string[] idfFilenames, SIFToolSettings settings)
 		{
             if ((idfFilenames != null) && (idfFilenames.Length > 0))
             {
@@ -150,7 +150,7 @@ namespace Sweco.SIF.IDFmerge
                 Extent resultExtent = RetrieveExtentUnion(idfFilenames);
 
                 // Process first, initial IDF-file
-                Log.AddInfo("Reading " + Path.GetFileName(idfFilenames[0]) + " ...", 2);
+                LogRead(idfFilenames, 0, settings, Log, 2);
                 IDFFile resultIDFFile = ReadIDFFile(idfFilenames[0], settings);
                 if (!resultIDFFile.Extent.Contains(resultExtent))
                 {
@@ -174,13 +174,12 @@ namespace Sweco.SIF.IDFmerge
                 {
                     if (fileIdx % logSnapPointMessageFrequency == 0)
                     {
-                        Log.AddInfo("Processing GEN-features " + (fileIdx + 1) + "-" + (int)Math.Min(idfFilenames.Length, (fileIdx + logSnapPointMessageFrequency)) + " of " + idfFilenames.Length + " ...", 3);
+                        Log.AddInfo("Processing IDF-files " + (fileIdx + 1) + "-" + (int)Math.Min(idfFilenames.Length, (fileIdx + logSnapPointMessageFrequency)) + " of " + idfFilenames.Length + " ...", 3);
                     }
 
-                    string idfFilename = idfFilenames[fileIdx];
+                    LogRead(idfFilenames, fileIdx, settings, Log, 2);
+                    IDFFile idfFile = ReadIDFFile(idfFilenames[fileIdx], settings);
 
-                    Log.AddInfo("Reading " + Path.GetFileName(idfFilename) + " ...", 2);
-                    IDFFile idfFile = ReadIDFFile(idfFilename, settings);
                     MergeIDFFile(ref resultIDFFile, ref countIDFFile, idfFile, settings);
                 }
 
@@ -196,18 +195,32 @@ namespace Sweco.SIF.IDFmerge
 					}
                 }
 
-                string fileExtension = Path.GetExtension(idfFilenames[0]).ToUpper().Substring(1);
-                Metadata resultMetadata = new Metadata(settings.StatFunction.ToString() + " of " + fileExtension + "-files");
-                resultMetadata.ProcessDescription = "Automatically generated with " + ToolName + " " + ToolVersion + ", " + SIFLicense;
-                resultMetadata.Source = Path.Combine(settings.InputPath, settings.InputFilter);
-                if (settings.GroupIndices != null)
+                if (settings.IgnoreNoDataValue)
                 {
-                    resultMetadata.Source += ", grouped by '" + GetSubstring(Path.GetFileName(idfFilenames[0]), settings.GroupIndices) + "'";
+                    resultIDFFile.ReplaceValues(countIDFFile, 0, resultIDFFile.NoDataValue);
+                }
+
+                string fileExtension = Path.GetExtension(idfFilenames[0]).ToUpper().Substring(1);
+                Metadata resultMetadata = null;
+                if (settings.WriteMetadata)
+                {
+                    resultMetadata = new Metadata(settings.StatFunction.ToString() + " of " + fileExtension + "-files");
+                    resultMetadata.ProcessDescription = "Automatically generated with " + ToolName + " " + ToolVersion + ", " + SIFLicense;
+                    resultMetadata.Source = Path.Combine(settings.InputPath, settings.InputFilter);
+                    if (settings.GroupIndices != null)
+                    {
+                        resultMetadata.Source += ", grouped by '" + GetSubstring(Path.GetFileName(idfFilenames[0]), settings.GroupIndices) + "'";
+                    }
                 }
 
                 WriteResults(idfFilenames, resultIDFFile, resultMetadata, countIDFFile, settings);
             }
 		}
+
+        protected virtual void LogRead(string[] idfFilenames, int fileIdx, SIFToolSettings settings, Log log, int logIndentLevel)
+        {
+            Log.AddInfo("Reading " + Path.GetFileName(idfFilenames[0]) + " ...", 2);
+        }
 
         /// <summary>
         /// Retrieve union of extents of all IDF-files for which filenames are specified. 
@@ -215,7 +228,7 @@ namespace Sweco.SIF.IDFmerge
         /// </summary>
         /// <param name="idfFilenames">array with filenames of IDF-files</param>
         /// <returns></returns>
-        private Extent RetrieveExtentUnion(string[] idfFilenames)
+        protected Extent RetrieveExtentUnion(string[] idfFilenames)
         {
             Extent extent = null;
 
@@ -277,7 +290,7 @@ namespace Sweco.SIF.IDFmerge
         /// <param name="someString"></param>
         /// <param name="groupIndices">List of arrays with two indices i1 and 2 that define each group substring</param>
         /// <returns></returns>
-		private string GetSubstring(string someString, List<int[]> groupIndices)
+		protected string GetSubstring(string someString, List<int[]> groupIndices)
 		{
 			string substring = null;
 
@@ -370,16 +383,16 @@ namespace Sweco.SIF.IDFmerge
             {
                 case StatFunction.Min:
                     resultIDFFile.ReplaceValues(idfFile.IsLesser(resultIDFFile), 1, idfFile);
-					if(!settings.UseNodataCalculationValue && !settings.IgnoreNoDataValue)
+                    if (!settings.UseNodataCalculationValue && !settings.IgnoreNoDataValue)
 					{
-						resultIDFFile.ReplaceValues(idfFile.IsEqual(idfFile.NoDataValue), resultIDFFile.NoDataValue);
-					}
+                        resultIDFFile.ReplaceValues(idfFile.IsEqual(idfFile.NoDataValue), 1, resultIDFFile.NoDataValue);
+                    }
                     break;
                 case StatFunction.Max:
                     resultIDFFile.ReplaceValues(idfFile.IsGreater(resultIDFFile), 1, idfFile);
 					if (!settings.UseNodataCalculationValue && !settings.IgnoreNoDataValue)
 					{
-						resultIDFFile.ReplaceValues(idfFile.IsEqual(idfFile.NoDataValue), resultIDFFile.NoDataValue);
+						resultIDFFile.ReplaceValues(idfFile.IsEqual(idfFile.NoDataValue), 1, resultIDFFile.NoDataValue);
 					}
 					break;
                 case StatFunction.Mean:
@@ -411,7 +424,7 @@ namespace Sweco.SIF.IDFmerge
             }
         }
 
-        protected string GetOutputFilename(string initialFilename, SIFToolSettings settings, string postfix)
+        protected virtual string GetOutputFilename(string initialFilename, SIFToolSettings settings, string postfix)
         {
             string outputFilename;
             if (settings.GroupIndices != null)
