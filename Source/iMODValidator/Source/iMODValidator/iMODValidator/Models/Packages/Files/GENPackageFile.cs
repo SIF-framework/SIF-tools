@@ -102,7 +102,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
         public override PackageFile Copy(string copiedFilename)
         {
             GENPackageFile copiedGENPackageFile = new GENPackageFile(this.Package, this.FName, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
-            copiedGENPackageFile.genfile = genfile.CopyGEN(copiedFilename);
+            copiedGENPackageFile.genfile = (genfile != null) ? genfile.CopyGEN(copiedFilename) : null;
             return copiedGENPackageFile;
         }
 
@@ -136,12 +136,12 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
             return metadata;
         }
 
-        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, bool isNoDataCompared, Log log, int indentLevel = 0)
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, float noDataCalculationValue, Log log, int indentLevel = 0)
         {
-            return CreateDifferenceFile(comparedPackageFile, useLazyLoading, OutputFoldername, null, isNoDataCompared, log, indentLevel);
+            return CreateDifferenceFile(comparedPackageFile, useLazyLoading, OutputFoldername, null, noDataCalculationValue, log, indentLevel);
         }
 
-        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, Extent extent, bool isNoDataCompared, Log log, int indentLevel = 0)
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, Extent extent, float noDataCalculationValue, Log log, int indentLevel = 0)
         {
             if (!this.Exists())
             {
@@ -157,7 +157,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
             if (comparedPackageFile is GENPackageFile)
             {
                 GENPackageFile diffGENPackageFile = new GENPackageFile(this.Package, this.FName, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
-                diffGENPackageFile.GENFile = genfile.CreateDifferenceFile(((GENPackageFile)comparedPackageFile).GENFile, OutputFoldername, isNoDataCompared, extent);
+                diffGENPackageFile.GENFile = (GENFile) genfile.CreateDifferenceFile(((GENPackageFile)comparedPackageFile).GENFile, OutputFoldername, noDataCalculationValue, extent);
                 diffGENPackageFile.GENFile.UseLazyLoading = useLazyLoading;
                 return diffGENPackageFile;
             }

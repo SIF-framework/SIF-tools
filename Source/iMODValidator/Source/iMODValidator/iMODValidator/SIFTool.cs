@@ -203,8 +203,10 @@ namespace Sweco.SIF.iMODValidator
             validator.LoadSettings(settings.SettingsFilename);
 
             // Apply overrides
-            validator.IsIMODOpened = validator.IsIMODOpened && !settings.PreventExternalAppStart;
-            validator.IsResultSheetOpened = validator.IsIMODOpened && !settings.PreventExternalAppStart;
+            validator.IsIMODOpened = (settings.IsIMODOpened != null) ? (bool) settings.IsIMODOpened : validator.IsIMODOpened;
+            validator.IsResultSheetOpened = (settings.IsResultSheetOpened != null) ? (bool)settings.IsResultSheetOpened : validator.IsResultSheetOpened;
+
+            validator.NoDataComparisonValue = settings.NoDataComparisonValue;
 
             // Load check settings
             foreach (Check check in CheckManager.Instance.Checks)

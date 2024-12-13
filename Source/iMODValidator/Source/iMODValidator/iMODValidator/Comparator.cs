@@ -50,6 +50,12 @@ namespace Sweco.SIF.iMODValidator
             get { return "Compares basemodelfiles with files from another model"; }
         }
 
+        /// <summary>
+        /// Value used instead of NoData for comparison between two cells with one or two NoData-values. 
+        /// float.NaN will result in NoData in a cell when one of the IDF-files has a NoData-value in that cell.</param>
+        /// </summary>
+        public float NoDataComparisonValue { get; set; } = 0;
+
         public void Run(Model model, Model comparedModel, ModelComparerResultHandler resultHandler, string comparisonFilesSubdirName, Log log)
         {
             string outputFoldername = model.ToolOutputPath;
@@ -411,6 +417,7 @@ namespace Sweco.SIF.iMODValidator
 
                         if (comparedPackageFile == null)
                         {
+                            // Current file is not found in other model
                             if (!isSkippedNotFound)
                             {
                                 differenceCount++;
@@ -465,6 +472,8 @@ namespace Sweco.SIF.iMODValidator
                         }
                         else
                         {
+                            // Current file is found in other model
+
                             if (isSkippedNotFound)
                             {
                                 // Log start of comparison at this point, when it is known that the comparison file is found
@@ -488,7 +497,7 @@ namespace Sweco.SIF.iMODValidator
                                         log.AddMessage(LogLevel.Trace, "File " + Path.GetFileName(packageFile.FName) + " is different in compared model!");
                                     }
 
-                                    PackageFile diffPackageFile = comparedPackageFile.CreateDifferenceFile(packageFile, true, comparisonOutputFoldername, model.GetExtent(), false, log, 2);
+                                    PackageFile diffPackageFile = comparedPackageFile.CreateDifferenceFile(packageFile, true, comparisonOutputFoldername, model.GetExtent(), NoDataComparisonValue, log, 2);
                                     if (diffPackageFile != null)
                                     {
                                         Metadata diffMetadata = diffPackageFile.CreateMetadata(model);

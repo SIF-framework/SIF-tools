@@ -227,7 +227,29 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
             return null;
         }
 
-        public abstract PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string comparisonOutputFoldername, bool isNodataCompared, Log log, int indentLevel = 0);
-        public abstract PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string comparisonOutputFoldername, Extent extent, bool isNodataCompared, Log log, int indentLevel = 0);
+        /// <summary>
+        /// Create difference iMOD-file between two iMOD-files
+        /// </summary>
+        /// <param name="comparedPackageFile"></param>
+        /// <param name="useLazyLoading"></param>
+        /// <param name="comparisonOutputFoldername"></param>
+        /// <param name="noDataCalculationValue"></param>
+        /// <param name="log"></param>
+        /// <param name="indentLevel"></param>
+        /// <returns></returns>
+        public abstract PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string comparisonOutputFoldername, float noDataCalculationValue, Log log, int indentLevel = 0);
+
+        /// <summary>
+        /// Create difference iMOD-file between two iMOD-files
+        /// </summary>
+        /// <param name="comparedPackageFile"></param>
+        /// <param name="useLazyLoading"></param>
+        /// <param name="comparisonOutputFoldername"></param>
+        /// <param name="extent"></param>
+        /// <param name="noDataCalculationValue"></param>
+        /// <param name="log"></param>
+        /// <param name="indentLevel"></param>
+        /// <returns></returns>
+        public abstract PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string comparisonOutputFoldername, Extent extent, float noDataCalculationValue, Log log, int indentLevel = 0);
     }
 }

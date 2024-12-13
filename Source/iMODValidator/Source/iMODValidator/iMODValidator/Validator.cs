@@ -128,6 +128,12 @@ namespace Sweco.SIF.iMODValidator
 
         protected Model Model { get; set; }
 
+        /// <summary>
+        /// Value used instead of NoData for comparison between two cells with one or two NoData-values. 
+        /// float.NaN will result in NoData in a cell when one of the IDF-files has a NoData-value in that cell.</param>
+        /// </summary>
+        public float NoDataComparisonValue { get; set; }
+
         public Validator(Log log)
         {
             cultureInfo = new CultureInfo("en-GB", false);
@@ -142,6 +148,8 @@ namespace Sweco.SIF.iMODValidator
             this.SplitValidationrunOption = SplitValidationrunSettings.Options.None;
             this.OutputFilenameSubString = null;
             this.Model = null;
+
+            this.NoDataComparisonValue = 0;
         }
 
         public virtual void Run()
@@ -416,9 +424,10 @@ namespace Sweco.SIF.iMODValidator
             log.AddInfo("Starting comparison ...");
             RUNFile comparedRunfile = RUNFileFactory.CreateRUNFileObject(comparedRunfilename);
             Model comparedModel = comparedRunfile.ReadModel(log);
-            ModelComparerResultHandler resultHandler = new ModelComparerResultHandler(model, comparedModel, NoDataValue, Extent, ToolName + "-tool" + ((ToolVersion != null) ? (", " + ToolVersion) : string.Empty));
+            ModelComparerResultHandler resultHandler = new ModelComparerResultHandler(model, comparedModel, NoDataValue, Extent, SIFTool.Instance.ToolName + "-tool" + ((SIFTool.Instance.ToolVersion != null) ? (", " + SIFTool.Instance.ToolVersion) : string.Empty));
             SetResultHandlerSettings(resultHandler);
             ModelComparator modelComparer = new ModelComparator();
+            modelComparer.NoDataComparisonValue = NoDataComparisonValue;
 
             // Create output name
             string commonString = CommonUtils.GetCommonLeftSubstringParts(Path.GetFileNameWithoutExtension(model.RUNFilename), Path.GetFileNameWithoutExtension(comparedModel.RUNFilename), "_", true);

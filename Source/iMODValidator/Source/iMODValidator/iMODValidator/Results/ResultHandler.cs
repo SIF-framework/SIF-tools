@@ -319,7 +319,7 @@ namespace Sweco.SIF.iMODValidator.Results
                 }
 
                 // Now export table file (after opening iMOD to avoid openfile-conflicts). Note file extension doesn't matter since it will be set within the export-method
-                string tableFilename = Path.Combine(outputPath, iMODValidatorSettingsManager.Settings.TooloutputSubfoldername + tableFilenamePrefix + "_" + DateTime.Now.ToString("dd-MM-yyyy HH:mm").Replace(":", ".") + ".txt"); //iMODValidatorSettingsManager.Settings.TooloutputSubfoldername+
+                string tableFilename = Path.Combine(outputPath, iMODValidatorSettingsManager.Settings.TooloutputPrefix + tableFilenamePrefix + "_" + DateTime.Now.ToString("dd-MM-yyyy HH:mm").Replace(":", ".") + ".txt"); //iMODValidatorSettingsManager.Settings.TooloutputSubfoldername+
                 summaryResultTable.Export(tableFilename, log, isExcelOpened);
             }
             else
@@ -335,8 +335,7 @@ namespace Sweco.SIF.iMODValidator.Results
         }
 
         /// <summary>
-        /// Ensures that the given layer is stored in the resultlayers dictionary.
-        /// Note: it is not checked if the layer is already present
+        /// Ensures that the given layer is stored in the resultlayers dictionary if not yet existing
         /// </summary>
         /// <param name="resultLayer"></param>
         public void EnsureAddedLayer(ResultLayer resultLayer)
@@ -517,7 +516,14 @@ namespace Sweco.SIF.iMODValidator.Results
                                 }
                                 else
                                 {
-                                    throw new Exception("A resultlayer of type '" + resultType.ToString() + "' has been added twice. Check '" + resultLayer.Id + "'-implementation");
+                                    if ((resultLayer.ResultFile != null) && (resultLayer.ResultFile.Filename != null))
+                                    {
+                                        log.AddWarning("A resultlayer of type '" + resultType.ToString() + "' has been added twice and is skipped in summary: " + Path.GetFileName(resultLayer.ResultFile.Filename));
+                                    }
+                                    else
+                                    {
+                                        throw new Exception("A resultlayer (filename not defined) of type '" + resultType.ToString() + "' has been added twice. Check '" + resultLayer.Id + "'-implementation");
+                                    }
                                 }
                             }
                         }

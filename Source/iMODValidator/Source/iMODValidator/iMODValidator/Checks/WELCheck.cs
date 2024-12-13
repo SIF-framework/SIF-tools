@@ -46,7 +46,7 @@ namespace Sweco.SIF.iMODValidator.Checks
     [TypeConverter(typeof(PropertySorter))]
     class WELCheckSettings : CheckSettings
     {
-        internal bool IsCheckLevelWarningDisabled = false;
+        public static bool IsCheckLevelWarningDisabled = true;
 
         /// <summary>
         /// Available CheckLevels that define a range of predefined settings that influence the number of results
@@ -710,7 +710,6 @@ namespace Sweco.SIF.iMODValidator.Checks
             WELFractionColumNameOrIdx = "frac";
             IsCheckLevelWarningDisabled = true;
             CheckLevel = CheckLevelEnum.FewResults;
-            IsCheckLevelWarningDisabled = false;
             clusterIDColumnNumber = string.Empty;
             minLayerFilterFraction = (0.01f).ToString(SIFTool.EnglishCultureInfo);
         }

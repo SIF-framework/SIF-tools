@@ -53,7 +53,7 @@ namespace Sweco.SIF.iMODValidator.Settings
     /// </summary>
     public class iMODValidatorSettings
     {
-        public string TooloutputSubfoldername;
+        public string TooloutputPrefix;
         public string DefaultInputRunfile;
         public string DefaultOutputFolder;
         public string DefaultSurfaceLevelFilename;
@@ -93,7 +93,7 @@ namespace Sweco.SIF.iMODValidator.Settings
 
         public iMODValidatorSettings()
         {
-            TooloutputSubfoldername = "iMODValidator";
+            TooloutputPrefix = "iMODValidator";
             DefaultInputRunfile = "<please select or type a valid runfilename>";
             DefaultOutputFolder = "<please select or type enter a valid outputfolder>";
 
@@ -142,8 +142,16 @@ namespace Sweco.SIF.iMODValidator.Settings
 
         public iMODValidatorSettings(bool addDefaultGENFiles) : this()
         {
+            // Force some default setting to show example daa in generated default settings XML-file
             GENFiles.Add(new GENFileSettings(@"C:\Tools\iMODValidator\Shapes\Provincies.GEN", "100,100,100", 2, true));
             GENFiles.Add(new GENFileSettings(@"Shapes\T250WTR.GEN", "0,128,182", 2, false));
+        }
+
+        public ComparisonMethod ComparisonMethod { 
+            get 
+            {
+                return ((SIFToolSettings)SIFTool.Instance.Settings).ComparisonMethod; 
+            } 
         }
     }
 

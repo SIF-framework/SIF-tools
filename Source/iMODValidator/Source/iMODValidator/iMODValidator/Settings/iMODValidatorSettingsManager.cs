@@ -203,7 +203,9 @@ namespace Sweco.SIF.iMODValidator.Settings
             if (nodeList.Count > 0)
             {
                 string jsonString = JsonConvert.SerializeXmlNode(nodeList[0], Newtonsoft.Json.Formatting.None, true);
+                WELCheckSettings.IsCheckLevelWarningDisabled = true;
                 settings = JsonConvert.DeserializeObject(jsonString, settingsType);
+                WELCheckSettings.IsCheckLevelWarningDisabled = false;
             }
 
             return settings;

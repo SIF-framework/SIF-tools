@@ -32,6 +32,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -309,8 +310,8 @@ namespace Sweco.SIF.iMODValidator.Forms
             }
 
             // Set default outputmethod
-            openIMODCheckBox.Checked = iMODValidatorSettingsManager.Settings.IsIMODOpened;
-            openExcelCheckBox.Checked = iMODValidatorSettingsManager.Settings.IsExcelOpened;
+            openIMODCheckBox.Checked =  (((SIFToolSettings) ToolInstance.Settings).IsIMODOpened != null) ? (bool)((SIFToolSettings)ToolInstance.Settings).IsIMODOpened : iMODValidatorSettingsManager.Settings.IsIMODOpened;
+            openExcelCheckBox.Checked = (((SIFToolSettings)ToolInstance.Settings).IsResultSheetOpened!= null) ? (bool)((SIFToolSettings)ToolInstance.Settings).IsResultSheetOpened : iMODValidatorSettingsManager.Settings.IsExcelOpened;
 
             // Set default error margin
             float levelErrorMargin = iMODValidatorSettingsManager.Settings.LevelErrorMargin;
@@ -363,6 +364,13 @@ namespace Sweco.SIF.iMODValidator.Forms
             logLevelComboBox.Items.Add(LogLevel.Debug.ToString());
             logLevelComboBox.Items.Add(LogLevel.Trace.ToString());
             logLevelComboBox.SelectedIndex = 1;
+
+            noDataComparisonValueTextBox.Text = "0";
+            useNoDataAsComparisonValueCheckBox.Checked = true;
+            useNoDataAsComparisonValueCheckBox.Enabled = isModelComparedCheckBox.Checked;
+
+            // Turn on warning for CheckLevel change 
+            WELCheckSettings.IsCheckLevelWarningDisabled = false;
         }
 
         private void AddDataGridCheckRow(Check check)
@@ -410,7 +418,7 @@ namespace Sweco.SIF.iMODValidator.Forms
                 }
                 else
                 {
-                    MessageBox.Show("Runfile doesn't exist, please specifiy an existing runfilename");
+                    MessageBox.Show("RUN-file doesn't exist, please specifiy an existing runfilename");
                     runfileTextBox.Focus();
                     return false;
                 }
@@ -425,7 +433,7 @@ namespace Sweco.SIF.iMODValidator.Forms
             // Retrieve defined outputpath
             try
             {
-                validator.OutputPath = Path.Combine(outputPathTextBox.Text, iMODValidatorSettingsManager.Settings.TooloutputSubfoldername);
+                validator.OutputPath = Path.GetFullPath(outputPathTextBox.Text);
             }
             catch (Exception)
             {
@@ -667,6 +675,24 @@ namespace Sweco.SIF.iMODValidator.Forms
             // Retrieve other settings
             validator.IsModelValidated = isModelValidatedCheckBox.Checked;
 
+            // Retrieve comparison settings
+            float noDataComparisonValue = float.NaN;
+            if (useNoDataAsComparisonValueCheckBox.Checked)
+            {
+                try
+                {
+                    noDataComparisonValue = float.Parse(noDataComparisonValueTextBox.Text, englishCultureInfo);
+                }
+                catch (Exception)
+                {
+                    tabControl1.SelectTab(1);
+                    noDataComparisonValueTextBox.Focus();
+                    MessageBox.Show("Invalid NoData comparison value");
+                    return false;
+                }
+            }
+            validator.NoDataComparisonValue = noDataComparisonValue;
+
             return true;
         }
 
@@ -710,7 +736,6 @@ namespace Sweco.SIF.iMODValidator.Forms
                     filename = fileDialog.FileName;
                 }
                 runfileTextBox.Text = filename;
-                outputPathTextBox.Text = Path.GetDirectoryName(filename);
                 runfileTextBox.Focus();
             }
         }
@@ -942,6 +967,7 @@ namespace Sweco.SIF.iMODValidator.Forms
         {
             comparedRUNFileTextBox.Enabled = isModelComparedCheckBox.Checked;
             comparedRUNFileButton.Enabled = isModelComparedCheckBox.Checked;
+            useNoDataAsComparisonValueCheckBox.Enabled = isModelComparedCheckBox.Checked;
         }
 
         private void comparedRUNFileButton_Click(object sender, EventArgs e)
@@ -984,9 +1010,13 @@ namespace Sweco.SIF.iMODValidator.Forms
                     filename = fileDialog.FileName;
                 }
                 comparedRUNFileTextBox.Text = filename;
-                outputPathTextBox.Text = Path.GetDirectoryName(filename);
                 comparedRUNFileTextBox.Focus();
             }
+        }
+
+        private void useNoDataAsComparisonValueCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            noDataComparisonValueTextBox.Enabled = useNoDataAsComparisonValueCheckBox.Checked;
         }
     }
 }

@@ -73,6 +73,8 @@
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.noDataComparisonValueTextBox = new System.Windows.Forms.TextBox();
+            this.useNoDataAsComparisonValueCheckBox = new System.Windows.Forms.CheckBox();
             this.comparedRUNFileTextBox = new System.Windows.Forms.TextBox();
             this.comparedRUNFileButton = new System.Windows.Forms.Button();
             this.isModelComparedCheckBox = new System.Windows.Forms.CheckBox();
@@ -128,11 +130,11 @@
             this.groupBox2.Controls.Add(this.surfacelevelFileRadioButton);
             this.groupBox2.Controls.Add(this.surfacelevelOLFRadioButton);
             this.groupBox2.ForeColor = System.Drawing.Color.White;
-            this.groupBox2.Location = new System.Drawing.Point(4, 89);
-            this.groupBox2.Margin = new System.Windows.Forms.Padding(2);
+            this.groupBox2.Location = new System.Drawing.Point(5, 110);
+            this.groupBox2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Padding = new System.Windows.Forms.Padding(2);
-            this.groupBox2.Size = new System.Drawing.Size(940, 65);
+            this.groupBox2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.groupBox2.Size = new System.Drawing.Size(1253, 80);
             this.groupBox2.TabIndex = 1;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Surface level";
@@ -140,10 +142,10 @@
             // surfacelevelMetaSWAPradioButton
             // 
             this.surfacelevelMetaSWAPradioButton.AutoSize = true;
-            this.surfacelevelMetaSWAPradioButton.Location = new System.Drawing.Point(181, 17);
-            this.surfacelevelMetaSWAPradioButton.Margin = new System.Windows.Forms.Padding(2);
+            this.surfacelevelMetaSWAPradioButton.Location = new System.Drawing.Point(241, 21);
+            this.surfacelevelMetaSWAPradioButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.surfacelevelMetaSWAPradioButton.Name = "surfacelevelMetaSWAPradioButton";
-            this.surfacelevelMetaSWAPradioButton.Size = new System.Drawing.Size(209, 17);
+            this.surfacelevelMetaSWAPradioButton.Size = new System.Drawing.Size(256, 20);
             this.surfacelevelMetaSWAPradioButton.TabIndex = 5;
             this.surfacelevelMetaSWAPradioButton.Text = "use MetaSWAP/CAPSIM surface level";
             this.surfacelevelMetaSWAPradioButton.UseVisualStyleBackColor = true;
@@ -152,10 +154,10 @@
             // 
             this.surfaceLevelSmartRadioButton.AutoSize = true;
             this.surfaceLevelSmartRadioButton.Checked = true;
-            this.surfaceLevelSmartRadioButton.Location = new System.Drawing.Point(7, 17);
-            this.surfaceLevelSmartRadioButton.Margin = new System.Windows.Forms.Padding(2);
+            this.surfaceLevelSmartRadioButton.Location = new System.Drawing.Point(9, 21);
+            this.surfaceLevelSmartRadioButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.surfaceLevelSmartRadioButton.Name = "surfaceLevelSmartRadioButton";
-            this.surfaceLevelSmartRadioButton.Size = new System.Drawing.Size(169, 17);
+            this.surfaceLevelSmartRadioButton.Size = new System.Drawing.Size(210, 20);
             this.surfaceLevelSmartRadioButton.TabIndex = 4;
             this.surfaceLevelSmartRadioButton.TabStop = true;
             this.surfaceLevelSmartRadioButton.Text = "find surface level automatically";
@@ -165,9 +167,10 @@
             // 
             this.surfacelevelFileButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.surfacelevelFileButton.ForeColor = System.Drawing.Color.Black;
-            this.surfacelevelFileButton.Location = new System.Drawing.Point(910, 36);
+            this.surfacelevelFileButton.Location = new System.Drawing.Point(1213, 44);
+            this.surfacelevelFileButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.surfacelevelFileButton.Name = "surfacelevelFileButton";
-            this.surfacelevelFileButton.Size = new System.Drawing.Size(24, 23);
+            this.surfacelevelFileButton.Size = new System.Drawing.Size(32, 28);
             this.surfacelevelFileButton.TabIndex = 3;
             this.surfacelevelFileButton.Text = "...";
             this.surfacelevelFileButton.UseVisualStyleBackColor = true;
@@ -177,20 +180,20 @@
             // 
             this.surfacelevelFileTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.surfacelevelFileTextBox.Location = new System.Drawing.Point(316, 39);
-            this.surfacelevelFileTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.surfacelevelFileTextBox.Location = new System.Drawing.Point(421, 48);
+            this.surfacelevelFileTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.surfacelevelFileTextBox.Name = "surfacelevelFileTextBox";
-            this.surfacelevelFileTextBox.Size = new System.Drawing.Size(590, 20);
+            this.surfacelevelFileTextBox.Size = new System.Drawing.Size(785, 22);
             this.surfacelevelFileTextBox.TabIndex = 2;
             this.surfacelevelFileTextBox.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             // 
             // surfacelevelFileRadioButton
             // 
             this.surfacelevelFileRadioButton.AutoSize = true;
-            this.surfacelevelFileRadioButton.Location = new System.Drawing.Point(181, 39);
-            this.surfacelevelFileRadioButton.Margin = new System.Windows.Forms.Padding(2);
+            this.surfacelevelFileRadioButton.Location = new System.Drawing.Point(241, 48);
+            this.surfacelevelFileRadioButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.surfacelevelFileRadioButton.Name = "surfacelevelFileRadioButton";
-            this.surfacelevelFileRadioButton.Size = new System.Drawing.Size(135, 17);
+            this.surfacelevelFileRadioButton.Size = new System.Drawing.Size(167, 20);
             this.surfacelevelFileRadioButton.TabIndex = 1;
             this.surfacelevelFileRadioButton.Text = "use file as surface level";
             this.surfacelevelFileRadioButton.UseVisualStyleBackColor = true;
@@ -198,10 +201,10 @@
             // surfacelevelOLFRadioButton
             // 
             this.surfacelevelOLFRadioButton.AutoSize = true;
-            this.surfacelevelOLFRadioButton.Location = new System.Drawing.Point(7, 39);
-            this.surfacelevelOLFRadioButton.Margin = new System.Windows.Forms.Padding(2);
+            this.surfacelevelOLFRadioButton.Location = new System.Drawing.Point(9, 48);
+            this.surfacelevelOLFRadioButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.surfacelevelOLFRadioButton.Name = "surfacelevelOLFRadioButton";
-            this.surfacelevelOLFRadioButton.Size = new System.Drawing.Size(142, 17);
+            this.surfacelevelOLFRadioButton.Size = new System.Drawing.Size(175, 20);
             this.surfacelevelOLFRadioButton.TabIndex = 0;
             this.surfacelevelOLFRadioButton.Text = "use OLF as surface level";
             this.surfacelevelOLFRadioButton.UseVisualStyleBackColor = true;
@@ -231,11 +234,11 @@
             this.tabPage3.Controls.Add(this.label2);
             this.tabPage3.Controls.Add(this.levelErrorMarginTextBox);
             this.tabPage3.Controls.Add(this.levelErrorMarginLabel);
-            this.tabPage3.Location = new System.Drawing.Point(4, 22);
-            this.tabPage3.Margin = new System.Windows.Forms.Padding(2);
+            this.tabPage3.Location = new System.Drawing.Point(4, 25);
+            this.tabPage3.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage3.Name = "tabPage3";
-            this.tabPage3.Padding = new System.Windows.Forms.Padding(2);
-            this.tabPage3.Size = new System.Drawing.Size(946, 527);
+            this.tabPage3.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.tabPage3.Size = new System.Drawing.Size(1264, 652);
             this.tabPage3.TabIndex = 2;
             this.tabPage3.Text = "Advanced settings";
             // 
@@ -243,10 +246,10 @@
             // 
             this.addRelativePathIMFCheckBox.AutoSize = true;
             this.addRelativePathIMFCheckBox.ForeColor = System.Drawing.Color.White;
-            this.addRelativePathIMFCheckBox.Location = new System.Drawing.Point(15, 240);
-            this.addRelativePathIMFCheckBox.Margin = new System.Windows.Forms.Padding(2);
+            this.addRelativePathIMFCheckBox.Location = new System.Drawing.Point(20, 295);
+            this.addRelativePathIMFCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.addRelativePathIMFCheckBox.Name = "addRelativePathIMFCheckBox";
-            this.addRelativePathIMFCheckBox.Size = new System.Drawing.Size(244, 17);
+            this.addRelativePathIMFCheckBox.Size = new System.Drawing.Size(302, 20);
             this.addRelativePathIMFCheckBox.TabIndex = 28;
             this.addRelativePathIMFCheckBox.Text = "Add iMOD-projectfile (IMF) with relatieve paths";
             this.addRelativePathIMFCheckBox.UseVisualStyleBackColor = true;
@@ -255,29 +258,28 @@
             // 
             this.label13.AutoSize = true;
             this.label13.ForeColor = System.Drawing.Color.White;
-            this.label13.Location = new System.Drawing.Point(218, 38);
-            this.label13.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label13.Location = new System.Drawing.Point(291, 47);
             this.label13.Name = "label13";
-            this.label13.Size = new System.Drawing.Size(145, 13);
+            this.label13.Size = new System.Drawing.Size(180, 16);
             this.label13.TabIndex = 27;
             this.label13.Text = "with split-validation-run option";
             // 
             // splitValidationrunOptionComboBox
             // 
             this.splitValidationrunOptionComboBox.FormattingEnabled = true;
-            this.splitValidationrunOptionComboBox.ItemHeight = 13;
-            this.splitValidationrunOptionComboBox.Location = new System.Drawing.Point(366, 34);
-            this.splitValidationrunOptionComboBox.Margin = new System.Windows.Forms.Padding(2);
+            this.splitValidationrunOptionComboBox.ItemHeight = 16;
+            this.splitValidationrunOptionComboBox.Location = new System.Drawing.Point(488, 42);
+            this.splitValidationrunOptionComboBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.splitValidationrunOptionComboBox.Name = "splitValidationrunOptionComboBox";
-            this.splitValidationrunOptionComboBox.Size = new System.Drawing.Size(76, 21);
+            this.splitValidationrunOptionComboBox.Size = new System.Drawing.Size(100, 24);
             this.splitValidationrunOptionComboBox.TabIndex = 26;
             // 
             // firstTimeStepTextBox
             // 
-            this.firstTimeStepTextBox.Location = new System.Drawing.Point(124, 36);
-            this.firstTimeStepTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.firstTimeStepTextBox.Location = new System.Drawing.Point(165, 44);
+            this.firstTimeStepTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.firstTimeStepTextBox.Name = "firstTimeStepTextBox";
-            this.firstTimeStepTextBox.Size = new System.Drawing.Size(34, 20);
+            this.firstTimeStepTextBox.Size = new System.Drawing.Size(44, 22);
             this.firstTimeStepTextBox.TabIndex = 10;
             this.firstTimeStepTextBox.Text = "0";
             // 
@@ -285,10 +287,9 @@
             // 
             this.label12.AutoSize = true;
             this.label12.ForeColor = System.Drawing.Color.White;
-            this.label12.Location = new System.Drawing.Point(13, 38);
-            this.label12.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label12.Location = new System.Drawing.Point(17, 47);
             this.label12.Name = "label12";
-            this.label12.Size = new System.Drawing.Size(108, 13);
+            this.label12.Size = new System.Drawing.Size(135, 16);
             this.label12.TabIndex = 25;
             this.label12.Text = "Check timesteps from";
             // 
@@ -296,10 +297,10 @@
             // 
             this.useIPFWarningForColumnMismatchCheckBox.AutoSize = true;
             this.useIPFWarningForColumnMismatchCheckBox.ForeColor = System.Drawing.Color.White;
-            this.useIPFWarningForColumnMismatchCheckBox.Location = new System.Drawing.Point(15, 210);
-            this.useIPFWarningForColumnMismatchCheckBox.Margin = new System.Windows.Forms.Padding(2);
+            this.useIPFWarningForColumnMismatchCheckBox.Location = new System.Drawing.Point(20, 258);
+            this.useIPFWarningForColumnMismatchCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.useIPFWarningForColumnMismatchCheckBox.Name = "useIPFWarningForColumnMismatchCheckBox";
-            this.useIPFWarningForColumnMismatchCheckBox.Size = new System.Drawing.Size(251, 17);
+            this.useIPFWarningForColumnMismatchCheckBox.Size = new System.Drawing.Size(309, 20);
             this.useIPFWarningForColumnMismatchCheckBox.TabIndex = 24;
             this.useIPFWarningForColumnMismatchCheckBox.Text = "Give warning for mismatch in IPF column values";
             this.useIPFWarningForColumnMismatchCheckBox.UseVisualStyleBackColor = true;
@@ -308,10 +309,10 @@
             // 
             this.useIPFWarningForExistingPointCheckBox.AutoSize = true;
             this.useIPFWarningForExistingPointCheckBox.ForeColor = System.Drawing.Color.White;
-            this.useIPFWarningForExistingPointCheckBox.Location = new System.Drawing.Point(15, 178);
-            this.useIPFWarningForExistingPointCheckBox.Margin = new System.Windows.Forms.Padding(2);
+            this.useIPFWarningForExistingPointCheckBox.Location = new System.Drawing.Point(20, 219);
+            this.useIPFWarningForExistingPointCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.useIPFWarningForExistingPointCheckBox.Name = "useIPFWarningForExistingPointCheckBox";
-            this.useIPFWarningForExistingPointCheckBox.Size = new System.Drawing.Size(191, 17);
+            this.useIPFWarningForExistingPointCheckBox.Size = new System.Drawing.Size(234, 20);
             this.useIPFWarningForExistingPointCheckBox.TabIndex = 23;
             this.useIPFWarningForExistingPointCheckBox.Text = "Give warning for existing IPF points";
             this.useIPFWarningForExistingPointCheckBox.UseVisualStyleBackColor = true;
@@ -320,20 +321,20 @@
             // 
             this.useSparseMatrixCheckBox.AutoSize = true;
             this.useSparseMatrixCheckBox.ForeColor = System.Drawing.Color.White;
-            this.useSparseMatrixCheckBox.Location = new System.Drawing.Point(15, 148);
-            this.useSparseMatrixCheckBox.Margin = new System.Windows.Forms.Padding(2);
+            this.useSparseMatrixCheckBox.Location = new System.Drawing.Point(20, 182);
+            this.useSparseMatrixCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.useSparseMatrixCheckBox.Name = "useSparseMatrixCheckBox";
-            this.useSparseMatrixCheckBox.Size = new System.Drawing.Size(132, 17);
+            this.useSparseMatrixCheckBox.Size = new System.Drawing.Size(167, 20);
             this.useSparseMatrixCheckBox.TabIndex = 22;
             this.useSparseMatrixCheckBox.Text = "Use sparse result grids";
             this.useSparseMatrixCheckBox.UseVisualStyleBackColor = true;
             // 
             // maxLayerNumberTextBox
             // 
-            this.maxLayerNumberTextBox.Location = new System.Drawing.Point(243, 118);
-            this.maxLayerNumberTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.maxLayerNumberTextBox.Location = new System.Drawing.Point(324, 145);
+            this.maxLayerNumberTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.maxLayerNumberTextBox.Name = "maxLayerNumberTextBox";
-            this.maxLayerNumberTextBox.Size = new System.Drawing.Size(45, 20);
+            this.maxLayerNumberTextBox.Size = new System.Drawing.Size(59, 22);
             this.maxLayerNumberTextBox.TabIndex = 15;
             this.maxLayerNumberTextBox.Text = "999";
             // 
@@ -341,19 +342,18 @@
             // 
             this.label9.AutoSize = true;
             this.label9.ForeColor = System.Drawing.Color.White;
-            this.label9.Location = new System.Drawing.Point(224, 120);
-            this.label9.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label9.Location = new System.Drawing.Point(299, 148);
             this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(16, 13);
+            this.label9.Size = new System.Drawing.Size(18, 16);
             this.label9.TabIndex = 20;
             this.label9.Text = "to";
             // 
             // firstLayerNumberTextBox
             // 
-            this.firstLayerNumberTextBox.Location = new System.Drawing.Point(175, 118);
-            this.firstLayerNumberTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.firstLayerNumberTextBox.Location = new System.Drawing.Point(233, 145);
+            this.firstLayerNumberTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.firstLayerNumberTextBox.Name = "firstLayerNumberTextBox";
-            this.firstLayerNumberTextBox.Size = new System.Drawing.Size(45, 20);
+            this.firstLayerNumberTextBox.Size = new System.Drawing.Size(59, 22);
             this.firstLayerNumberTextBox.TabIndex = 14;
             this.firstLayerNumberTextBox.Text = "1";
             // 
@@ -361,29 +361,27 @@
             // 
             this.label11.AutoSize = true;
             this.label11.ForeColor = System.Drawing.Color.White;
-            this.label11.Location = new System.Drawing.Point(13, 120);
-            this.label11.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label11.Location = new System.Drawing.Point(17, 148);
             this.label11.Name = "label11";
-            this.label11.Size = new System.Drawing.Size(161, 13);
+            this.label11.Size = new System.Drawing.Size(202, 16);
             this.label11.TabIndex = 18;
             this.label11.Text = "Run validation from layernumber ";
             // 
             // maxTimeStepTextBox
             // 
-            this.maxTimeStepTextBox.Location = new System.Drawing.Point(180, 36);
-            this.maxTimeStepTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.maxTimeStepTextBox.Location = new System.Drawing.Point(240, 44);
+            this.maxTimeStepTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.maxTimeStepTextBox.Name = "maxTimeStepTextBox";
-            this.maxTimeStepTextBox.Size = new System.Drawing.Size(34, 20);
+            this.maxTimeStepTextBox.Size = new System.Drawing.Size(44, 22);
             this.maxTimeStepTextBox.TabIndex = 11;
             // 
             // label10
             // 
             this.label10.AutoSize = true;
             this.label10.ForeColor = System.Drawing.Color.White;
-            this.label10.Location = new System.Drawing.Point(160, 38);
-            this.label10.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label10.Location = new System.Drawing.Point(213, 47);
             this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(16, 13);
+            this.label10.Size = new System.Drawing.Size(18, 16);
             this.label10.TabIndex = 16;
             this.label10.Text = "to";
             // 
@@ -391,29 +389,27 @@
             // 
             this.label6.AutoSize = true;
             this.label6.ForeColor = System.Drawing.Color.White;
-            this.label6.Location = new System.Drawing.Point(216, 64);
-            this.label6.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label6.Location = new System.Drawing.Point(288, 79);
             this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(15, 13);
+            this.label6.Size = new System.Drawing.Size(18, 16);
             this.label6.TabIndex = 15;
             this.label6.Text = "m";
             // 
             // summaryMinCellSizeTextBox
             // 
-            this.summaryMinCellSizeTextBox.Location = new System.Drawing.Point(167, 62);
-            this.summaryMinCellSizeTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.summaryMinCellSizeTextBox.Location = new System.Drawing.Point(223, 76);
+            this.summaryMinCellSizeTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.summaryMinCellSizeTextBox.Name = "summaryMinCellSizeTextBox";
-            this.summaryMinCellSizeTextBox.Size = new System.Drawing.Size(45, 20);
+            this.summaryMinCellSizeTextBox.Size = new System.Drawing.Size(59, 22);
             this.summaryMinCellSizeTextBox.TabIndex = 12;
             // 
             // label7
             // 
             this.label7.AutoSize = true;
             this.label7.ForeColor = System.Drawing.Color.White;
-            this.label7.Location = new System.Drawing.Point(13, 66);
-            this.label7.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label7.Location = new System.Drawing.Point(17, 81);
             this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(149, 13);
+            this.label7.Size = new System.Drawing.Size(191, 16);
             this.label7.TabIndex = 13;
             this.label7.Text = "Minimum summary-IDF cellsize";
             // 
@@ -421,50 +417,47 @@
             // 
             this.label5.AutoSize = true;
             this.label5.ForeColor = System.Drawing.Color.White;
-            this.label5.Location = new System.Drawing.Point(13, 92);
-            this.label5.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label5.Location = new System.Drawing.Point(17, 113);
             this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(159, 13);
+            this.label5.Size = new System.Drawing.Size(195, 16);
             this.label5.TabIndex = 12;
             this.label5.Text = "Log level shown in resultwindow";
             // 
             // logLevelComboBox
             // 
             this.logLevelComboBox.FormattingEnabled = true;
-            this.logLevelComboBox.ItemHeight = 13;
-            this.logLevelComboBox.Location = new System.Drawing.Point(173, 89);
-            this.logLevelComboBox.Margin = new System.Windows.Forms.Padding(2);
+            this.logLevelComboBox.ItemHeight = 16;
+            this.logLevelComboBox.Location = new System.Drawing.Point(231, 110);
+            this.logLevelComboBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.logLevelComboBox.Name = "logLevelComboBox";
-            this.logLevelComboBox.Size = new System.Drawing.Size(76, 21);
+            this.logLevelComboBox.Size = new System.Drawing.Size(100, 24);
             this.logLevelComboBox.TabIndex = 11;
             // 
             // label2
             // 
             this.label2.AutoSize = true;
             this.label2.ForeColor = System.Drawing.Color.White;
-            this.label2.Location = new System.Drawing.Point(185, 13);
-            this.label2.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label2.Location = new System.Drawing.Point(247, 16);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(15, 13);
+            this.label2.Size = new System.Drawing.Size(18, 16);
             this.label2.TabIndex = 10;
             this.label2.Text = "m";
             // 
             // levelErrorMarginTextBox
             // 
-            this.levelErrorMarginTextBox.Location = new System.Drawing.Point(106, 11);
-            this.levelErrorMarginTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.levelErrorMarginTextBox.Location = new System.Drawing.Point(141, 14);
+            this.levelErrorMarginTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.levelErrorMarginTextBox.Name = "levelErrorMarginTextBox";
-            this.levelErrorMarginTextBox.Size = new System.Drawing.Size(76, 20);
+            this.levelErrorMarginTextBox.Size = new System.Drawing.Size(100, 22);
             this.levelErrorMarginTextBox.TabIndex = 9;
             // 
             // levelErrorMarginLabel
             // 
             this.levelErrorMarginLabel.AutoSize = true;
             this.levelErrorMarginLabel.ForeColor = System.Drawing.Color.White;
-            this.levelErrorMarginLabel.Location = new System.Drawing.Point(13, 13);
-            this.levelErrorMarginLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.levelErrorMarginLabel.Location = new System.Drawing.Point(17, 16);
             this.levelErrorMarginLabel.Name = "levelErrorMarginLabel";
-            this.levelErrorMarginLabel.Size = new System.Drawing.Size(91, 13);
+            this.levelErrorMarginLabel.Size = new System.Drawing.Size(115, 16);
             this.levelErrorMarginLabel.TabIndex = 8;
             this.levelErrorMarginLabel.Text = "Level error margin";
             // 
@@ -472,10 +465,9 @@
             // 
             this.llxLabel.AutoSize = true;
             this.llxLabel.ForeColor = System.Drawing.Color.Gray;
-            this.llxLabel.Location = new System.Drawing.Point(356, 49);
-            this.llxLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.llxLabel.Location = new System.Drawing.Point(475, 60);
             this.llxLabel.Name = "llxLabel";
-            this.llxLabel.Size = new System.Drawing.Size(14, 13);
+            this.llxLabel.Size = new System.Drawing.Size(15, 16);
             this.llxLabel.TabIndex = 12;
             this.llxLabel.Text = "X";
             // 
@@ -483,10 +475,9 @@
             // 
             this.urxLabel.AutoSize = true;
             this.urxLabel.ForeColor = System.Drawing.Color.Gray;
-            this.urxLabel.Location = new System.Drawing.Point(356, 20);
-            this.urxLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.urxLabel.Location = new System.Drawing.Point(475, 25);
             this.urxLabel.Name = "urxLabel";
-            this.urxLabel.Size = new System.Drawing.Size(14, 13);
+            this.urxLabel.Size = new System.Drawing.Size(15, 16);
             this.urxLabel.TabIndex = 11;
             this.urxLabel.Text = "X";
             // 
@@ -494,10 +485,9 @@
             // 
             this.llyLabel.AutoSize = true;
             this.llyLabel.ForeColor = System.Drawing.Color.Gray;
-            this.llyLabel.Location = new System.Drawing.Point(441, 49);
-            this.llyLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.llyLabel.Location = new System.Drawing.Point(588, 60);
             this.llyLabel.Name = "llyLabel";
-            this.llyLabel.Size = new System.Drawing.Size(14, 13);
+            this.llyLabel.Size = new System.Drawing.Size(16, 16);
             this.llyLabel.TabIndex = 10;
             this.llyLabel.Text = "Y";
             // 
@@ -505,60 +495,57 @@
             // 
             this.uryLabel.AutoSize = true;
             this.uryLabel.ForeColor = System.Drawing.Color.Gray;
-            this.uryLabel.Location = new System.Drawing.Point(441, 20);
-            this.uryLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.uryLabel.Location = new System.Drawing.Point(588, 25);
             this.uryLabel.Name = "uryLabel";
-            this.uryLabel.Size = new System.Drawing.Size(14, 13);
+            this.uryLabel.Size = new System.Drawing.Size(16, 16);
             this.uryLabel.TabIndex = 9;
             this.uryLabel.Text = "Y";
             // 
             // uryTextBox
             // 
             this.uryTextBox.Enabled = false;
-            this.uryTextBox.Location = new System.Drawing.Point(458, 17);
-            this.uryTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.uryTextBox.Location = new System.Drawing.Point(611, 21);
+            this.uryTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.uryTextBox.Name = "uryTextBox";
-            this.uryTextBox.Size = new System.Drawing.Size(59, 20);
+            this.uryTextBox.Size = new System.Drawing.Size(77, 22);
             this.uryTextBox.TabIndex = 7;
             // 
             // lllabel
             // 
             this.lllabel.AutoSize = true;
             this.lllabel.ForeColor = System.Drawing.Color.Gray;
-            this.lllabel.Location = new System.Drawing.Point(292, 49);
-            this.lllabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.lllabel.Location = new System.Drawing.Point(389, 60);
             this.lllabel.Name = "lllabel";
-            this.lllabel.Size = new System.Drawing.Size(53, 13);
+            this.lllabel.Size = new System.Drawing.Size(63, 16);
             this.lllabel.TabIndex = 6;
             this.lllabel.Text = "Lower left";
             // 
             // llxTextBox
             // 
             this.llxTextBox.Enabled = false;
-            this.llxTextBox.Location = new System.Drawing.Point(374, 46);
-            this.llxTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.llxTextBox.Location = new System.Drawing.Point(499, 57);
+            this.llxTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.llxTextBox.Name = "llxTextBox";
-            this.llxTextBox.Size = new System.Drawing.Size(59, 20);
+            this.llxTextBox.Size = new System.Drawing.Size(77, 22);
             this.llxTextBox.TabIndex = 5;
             // 
             // urlabel
             // 
             this.urlabel.AutoSize = true;
             this.urlabel.ForeColor = System.Drawing.Color.Gray;
-            this.urlabel.Location = new System.Drawing.Point(292, 20);
-            this.urlabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.urlabel.Location = new System.Drawing.Point(389, 25);
             this.urlabel.Name = "urlabel";
-            this.urlabel.Size = new System.Drawing.Size(59, 13);
+            this.urlabel.Size = new System.Drawing.Size(73, 16);
             this.urlabel.TabIndex = 4;
             this.urlabel.Text = "Upper right";
             // 
             // llyTextBox
             // 
             this.llyTextBox.Enabled = false;
-            this.llyTextBox.Location = new System.Drawing.Point(458, 46);
-            this.llyTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.llyTextBox.Location = new System.Drawing.Point(611, 57);
+            this.llyTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.llyTextBox.Name = "llyTextBox";
-            this.llyTextBox.Size = new System.Drawing.Size(59, 20);
+            this.llyTextBox.Size = new System.Drawing.Size(77, 22);
             this.llyTextBox.TabIndex = 8;
             // 
             // openIMODCheckBox
@@ -568,10 +555,10 @@
             this.openIMODCheckBox.Checked = true;
             this.openIMODCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
             this.openIMODCheckBox.ForeColor = System.Drawing.Color.White;
-            this.openIMODCheckBox.Location = new System.Drawing.Point(5, 510);
-            this.openIMODCheckBox.Margin = new System.Windows.Forms.Padding(2);
+            this.openIMODCheckBox.Location = new System.Drawing.Point(7, 629);
+            this.openIMODCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.openIMODCheckBox.Name = "openIMODCheckBox";
-            this.openIMODCheckBox.Size = new System.Drawing.Size(133, 17);
+            this.openIMODCheckBox.Size = new System.Drawing.Size(162, 20);
             this.openIMODCheckBox.TabIndex = 8;
             this.openIMODCheckBox.Text = "Open iMod with results";
             this.openIMODCheckBox.UseVisualStyleBackColor = true;
@@ -579,10 +566,10 @@
             // packageExtentRadioButton
             // 
             this.packageExtentRadioButton.AutoSize = true;
-            this.packageExtentRadioButton.Location = new System.Drawing.Point(7, 47);
-            this.packageExtentRadioButton.Margin = new System.Windows.Forms.Padding(2);
+            this.packageExtentRadioButton.Location = new System.Drawing.Point(9, 58);
+            this.packageExtentRadioButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.packageExtentRadioButton.Name = "packageExtentRadioButton";
-            this.packageExtentRadioButton.Size = new System.Drawing.Size(141, 17);
+            this.packageExtentRadioButton.Size = new System.Drawing.Size(173, 20);
             this.packageExtentRadioButton.TabIndex = 3;
             this.packageExtentRadioButton.Text = "use package (file) extent";
             this.packageExtentRadioButton.UseVisualStyleBackColor = true;
@@ -595,11 +582,11 @@
             this.tabControl1.Controls.Add(this.tabPage1);
             this.tabControl1.Controls.Add(this.tabPage2);
             this.tabControl1.Controls.Add(this.tabPage3);
-            this.tabControl1.Location = new System.Drawing.Point(10, 9);
-            this.tabControl1.Margin = new System.Windows.Forms.Padding(2);
+            this.tabControl1.Location = new System.Drawing.Point(13, 11);
+            this.tabControl1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(954, 553);
+            this.tabControl1.Size = new System.Drawing.Size(1272, 681);
             this.tabControl1.TabIndex = 50;
             this.tabControl1.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.tabControl1_KeyPress);
             // 
@@ -610,11 +597,11 @@
             this.tabPage1.Controls.Add(this.groupBox1);
             this.tabPage1.Controls.Add(this.resultTextBox);
             this.tabPage1.Controls.Add(this.label3);
-            this.tabPage1.Location = new System.Drawing.Point(4, 22);
-            this.tabPage1.Margin = new System.Windows.Forms.Padding(2);
+            this.tabPage1.Location = new System.Drawing.Point(4, 25);
+            this.tabPage1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage1.Name = "tabPage1";
-            this.tabPage1.Padding = new System.Windows.Forms.Padding(2);
-            this.tabPage1.Size = new System.Drawing.Size(946, 527);
+            this.tabPage1.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.tabPage1.Size = new System.Drawing.Size(1264, 652);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Start";
             // 
@@ -622,6 +609,8 @@
             // 
             this.groupBox3.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.groupBox3.Controls.Add(this.noDataComparisonValueTextBox);
+            this.groupBox3.Controls.Add(this.useNoDataAsComparisonValueCheckBox);
             this.groupBox3.Controls.Add(this.comparedRUNFileTextBox);
             this.groupBox3.Controls.Add(this.comparedRUNFileButton);
             this.groupBox3.Controls.Add(this.isModelComparedCheckBox);
@@ -630,21 +619,48 @@
             this.groupBox3.Controls.Add(this.runfileTextBox);
             this.groupBox3.Controls.Add(this.runfileButton);
             this.groupBox3.ForeColor = System.Drawing.Color.White;
-            this.groupBox3.Location = new System.Drawing.Point(2, 4);
+            this.groupBox3.Location = new System.Drawing.Point(3, 5);
+            this.groupBox3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Size = new System.Drawing.Size(963, 128);
+            this.groupBox3.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox3.Size = new System.Drawing.Size(1284, 158);
             this.groupBox3.TabIndex = 46;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Input specifications";
+            // 
+            // noDataComparisonValueTextBox
+            // 
+            this.noDataComparisonValueTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.noDataComparisonValueTextBox.Enabled = false;
+            this.noDataComparisonValueTextBox.Location = new System.Drawing.Point(407, 112);
+            this.noDataComparisonValueTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.noDataComparisonValueTextBox.Name = "noDataComparisonValueTextBox";
+            this.noDataComparisonValueTextBox.Size = new System.Drawing.Size(92, 22);
+            this.noDataComparisonValueTextBox.TabIndex = 11;
+            this.noDataComparisonValueTextBox.Text = "0";
+            // 
+            // useNoDataAsComparisonValueCheckBox
+            // 
+            this.useNoDataAsComparisonValueCheckBox.AutoSize = true;
+            this.useNoDataAsComparisonValueCheckBox.Location = new System.Drawing.Point(164, 114);
+            this.useNoDataAsComparisonValueCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.useNoDataAsComparisonValueCheckBox.Name = "useNoDataAsComparisonValueCheckBox";
+            this.useNoDataAsComparisonValueCheckBox.Size = new System.Drawing.Size(217, 20);
+            this.useNoDataAsComparisonValueCheckBox.TabIndex = 10;
+            this.useNoDataAsComparisonValueCheckBox.Text = "Use &NoData comparison value:";
+            this.useNoDataAsComparisonValueCheckBox.UseVisualStyleBackColor = true;
+            this.useNoDataAsComparisonValueCheckBox.CheckedChanged += new System.EventHandler(this.useNoDataAsComparisonValueCheckBox_CheckedChanged);
             // 
             // comparedRUNFileTextBox
             // 
             this.comparedRUNFileTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.comparedRUNFileTextBox.Enabled = false;
-            this.comparedRUNFileTextBox.Location = new System.Drawing.Point(123, 65);
+            this.comparedRUNFileTextBox.Location = new System.Drawing.Point(164, 80);
+            this.comparedRUNFileTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.comparedRUNFileTextBox.Name = "comparedRUNFileTextBox";
-            this.comparedRUNFileTextBox.Size = new System.Drawing.Size(786, 20);
+            this.comparedRUNFileTextBox.Size = new System.Drawing.Size(1047, 22);
             this.comparedRUNFileTextBox.TabIndex = 8;
             // 
             // comparedRUNFileButton
@@ -653,9 +669,10 @@
             this.comparedRUNFileButton.BackColor = System.Drawing.SystemColors.ButtonFace;
             this.comparedRUNFileButton.Enabled = false;
             this.comparedRUNFileButton.ForeColor = System.Drawing.Color.Black;
-            this.comparedRUNFileButton.Location = new System.Drawing.Point(915, 64);
+            this.comparedRUNFileButton.Location = new System.Drawing.Point(1220, 79);
+            this.comparedRUNFileButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.comparedRUNFileButton.Name = "comparedRUNFileButton";
-            this.comparedRUNFileButton.Size = new System.Drawing.Size(24, 23);
+            this.comparedRUNFileButton.Size = new System.Drawing.Size(32, 28);
             this.comparedRUNFileButton.TabIndex = 9;
             this.comparedRUNFileButton.Text = "...";
             this.comparedRUNFileButton.UseVisualStyleBackColor = false;
@@ -664,10 +681,10 @@
             // isModelComparedCheckBox
             // 
             this.isModelComparedCheckBox.AutoSize = true;
-            this.isModelComparedCheckBox.Location = new System.Drawing.Point(12, 70);
-            this.isModelComparedCheckBox.Margin = new System.Windows.Forms.Padding(2);
+            this.isModelComparedCheckBox.Location = new System.Drawing.Point(16, 86);
+            this.isModelComparedCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.isModelComparedCheckBox.Name = "isModelComparedCheckBox";
-            this.isModelComparedCheckBox.Size = new System.Drawing.Size(99, 17);
+            this.isModelComparedCheckBox.Size = new System.Drawing.Size(126, 20);
             this.isModelComparedCheckBox.TabIndex = 7;
             this.isModelComparedCheckBox.Text = "&Compare model";
             this.isModelComparedCheckBox.UseVisualStyleBackColor = true;
@@ -678,10 +695,10 @@
             this.isModelValidatedCheckBox.AutoSize = true;
             this.isModelValidatedCheckBox.Checked = true;
             this.isModelValidatedCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.isModelValidatedCheckBox.Location = new System.Drawing.Point(12, 46);
-            this.isModelValidatedCheckBox.Margin = new System.Windows.Forms.Padding(2);
+            this.isModelValidatedCheckBox.Location = new System.Drawing.Point(16, 57);
+            this.isModelValidatedCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.isModelValidatedCheckBox.Name = "isModelValidatedCheckBox";
-            this.isModelValidatedCheckBox.Size = new System.Drawing.Size(95, 17);
+            this.isModelValidatedCheckBox.Size = new System.Drawing.Size(120, 20);
             this.isModelValidatedCheckBox.TabIndex = 6;
             this.isModelValidatedCheckBox.Text = "&Validate model";
             this.isModelValidatedCheckBox.UseVisualStyleBackColor = true;
@@ -689,9 +706,10 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(9, 24);
+            this.label1.Location = new System.Drawing.Point(12, 30);
+            this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(111, 13);
+            this.label1.Size = new System.Drawing.Size(140, 16);
             this.label1.TabIndex = 0;
             this.label1.Text = "Basemodel RUNFILE:";
             // 
@@ -699,9 +717,10 @@
             // 
             this.runfileTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.runfileTextBox.Location = new System.Drawing.Point(123, 22);
+            this.runfileTextBox.Location = new System.Drawing.Point(164, 27);
+            this.runfileTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.runfileTextBox.Name = "runfileTextBox";
-            this.runfileTextBox.Size = new System.Drawing.Size(786, 20);
+            this.runfileTextBox.Size = new System.Drawing.Size(1047, 22);
             this.runfileTextBox.TabIndex = 1;
             // 
             // runfileButton
@@ -709,9 +728,10 @@
             this.runfileButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.runfileButton.BackColor = System.Drawing.SystemColors.ButtonFace;
             this.runfileButton.ForeColor = System.Drawing.Color.Black;
-            this.runfileButton.Location = new System.Drawing.Point(915, 21);
+            this.runfileButton.Location = new System.Drawing.Point(1220, 26);
+            this.runfileButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.runfileButton.Name = "runfileButton";
-            this.runfileButton.Size = new System.Drawing.Size(24, 23);
+            this.runfileButton.Size = new System.Drawing.Size(32, 28);
             this.runfileButton.TabIndex = 2;
             this.runfileButton.Text = "...";
             this.runfileButton.UseVisualStyleBackColor = false;
@@ -725,9 +745,11 @@
             this.groupBox1.Controls.Add(this.outputPathTextBox);
             this.groupBox1.Controls.Add(this.outputFolderButton);
             this.groupBox1.ForeColor = System.Drawing.Color.White;
-            this.groupBox1.Location = new System.Drawing.Point(2, 138);
+            this.groupBox1.Location = new System.Drawing.Point(3, 170);
+            this.groupBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(963, 47);
+            this.groupBox1.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox1.Size = new System.Drawing.Size(1284, 58);
             this.groupBox1.TabIndex = 45;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Output specifications";
@@ -735,9 +757,10 @@
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(14, 24);
+            this.label4.Location = new System.Drawing.Point(19, 30);
+            this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(66, 13);
+            this.label4.Size = new System.Drawing.Size(77, 16);
             this.label4.TabIndex = 9;
             this.label4.Text = "Output path:";
             // 
@@ -745,9 +768,10 @@
             // 
             this.outputPathTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.outputPathTextBox.Location = new System.Drawing.Point(82, 21);
+            this.outputPathTextBox.Location = new System.Drawing.Point(109, 26);
+            this.outputPathTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.outputPathTextBox.Name = "outputPathTextBox";
-            this.outputPathTextBox.Size = new System.Drawing.Size(827, 20);
+            this.outputPathTextBox.Size = new System.Drawing.Size(1101, 22);
             this.outputPathTextBox.TabIndex = 11;
             // 
             // outputFolderButton
@@ -755,9 +779,10 @@
             this.outputFolderButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.outputFolderButton.BackColor = System.Drawing.SystemColors.ButtonFace;
             this.outputFolderButton.ForeColor = System.Drawing.Color.Black;
-            this.outputFolderButton.Location = new System.Drawing.Point(915, 19);
+            this.outputFolderButton.Location = new System.Drawing.Point(1220, 23);
+            this.outputFolderButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.outputFolderButton.Name = "outputFolderButton";
-            this.outputFolderButton.Size = new System.Drawing.Size(24, 23);
+            this.outputFolderButton.Size = new System.Drawing.Size(32, 28);
             this.outputFolderButton.TabIndex = 12;
             this.outputFolderButton.Text = "...";
             this.outputFolderButton.UseVisualStyleBackColor = false;
@@ -768,11 +793,12 @@
             this.resultTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.resultTextBox.Location = new System.Drawing.Point(5, 197);
+            this.resultTextBox.Location = new System.Drawing.Point(7, 242);
+            this.resultTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.resultTextBox.Multiline = true;
             this.resultTextBox.Name = "resultTextBox";
             this.resultTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.resultTextBox.Size = new System.Drawing.Size(936, 325);
+            this.resultTextBox.Size = new System.Drawing.Size(1247, 399);
             this.resultTextBox.TabIndex = 30;
             this.resultTextBox.WordWrap = false;
             this.resultTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.resultTextBox_KeyPress);
@@ -780,9 +806,10 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(3, 197);
+            this.label3.Location = new System.Drawing.Point(4, 242);
+            this.label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(40, 13);
+            this.label3.Size = new System.Drawing.Size(48, 16);
             this.label3.TabIndex = 8;
             this.label3.Text = "Result:";
             // 
@@ -794,11 +821,11 @@
             this.tabPage2.Controls.Add(this.openExcelCheckBox);
             this.tabPage2.Controls.Add(this.openIMODCheckBox);
             this.tabPage2.Controls.Add(this.groupBox2);
-            this.tabPage2.Location = new System.Drawing.Point(4, 22);
-            this.tabPage2.Margin = new System.Windows.Forms.Padding(2);
+            this.tabPage2.Location = new System.Drawing.Point(4, 25);
+            this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage2.Name = "tabPage2";
-            this.tabPage2.Padding = new System.Windows.Forms.Padding(2);
-            this.tabPage2.Size = new System.Drawing.Size(946, 527);
+            this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.tabPage2.Size = new System.Drawing.Size(1264, 652);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Settings";
             // 
@@ -807,8 +834,8 @@
             this.splitContainer.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.splitContainer.Location = new System.Drawing.Point(5, 158);
-            this.splitContainer.Margin = new System.Windows.Forms.Padding(2);
+            this.splitContainer.Location = new System.Drawing.Point(7, 194);
+            this.splitContainer.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.splitContainer.Name = "splitContainer";
             // 
             // splitContainer.Panel1
@@ -821,9 +848,8 @@
             // 
             this.splitContainer.Panel2.AutoScroll = true;
             this.splitContainer.Panel2.Controls.Add(this.checkPropertyGrid);
-            this.splitContainer.Size = new System.Drawing.Size(939, 347);
-            this.splitContainer.SplitterDistance = 627;
-            this.splitContainer.SplitterWidth = 3;
+            this.splitContainer.Size = new System.Drawing.Size(1252, 427);
+            this.splitContainer.SplitterDistance = 836;
             this.splitContainer.TabIndex = 21;
             // 
             // checkDataGridView
@@ -838,12 +864,13 @@
             this.Description});
             this.checkDataGridView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.checkDataGridView.Location = new System.Drawing.Point(0, 0);
-            this.checkDataGridView.Margin = new System.Windows.Forms.Padding(2);
+            this.checkDataGridView.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.checkDataGridView.Name = "checkDataGridView";
             this.checkDataGridView.RowHeadersVisible = false;
+            this.checkDataGridView.RowHeadersWidth = 51;
             this.checkDataGridView.RowTemplate.Height = 24;
             this.checkDataGridView.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.checkDataGridView.Size = new System.Drawing.Size(627, 347);
+            this.checkDataGridView.Size = new System.Drawing.Size(836, 427);
             this.checkDataGridView.TabIndex = 3;
             this.checkDataGridView.CellMouseDown += new System.Windows.Forms.DataGridViewCellMouseEventHandler(this.checkDataGridView_CellMouseDown);
             this.checkDataGridView.CellMouseUp += new System.Windows.Forms.DataGridViewCellMouseEventHandler(this.checkDataGridView_CellMouseUp);
@@ -854,12 +881,14 @@
             // IsActive
             // 
             this.IsActive.HeaderText = "Active?";
+            this.IsActive.MinimumWidth = 6;
             this.IsActive.Name = "IsActive";
             this.IsActive.Width = 60;
             // 
             // Check
             // 
             this.Check.HeaderText = "Check";
+            this.Check.MinimumWidth = 6;
             this.Check.Name = "Check";
             this.Check.ReadOnly = true;
             this.Check.Width = 140;
@@ -867,6 +896,7 @@
             // Description
             // 
             this.Description.HeaderText = "Description";
+            this.Description.MinimumWidth = 6;
             this.Description.Name = "Description";
             this.Description.ReadOnly = true;
             this.Description.Width = 600;
@@ -876,10 +906,10 @@
             this.checkPropertyGrid.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.checkPropertyGrid.Location = new System.Drawing.Point(2, 0);
-            this.checkPropertyGrid.Margin = new System.Windows.Forms.Padding(2);
+            this.checkPropertyGrid.Location = new System.Drawing.Point(3, 0);
+            this.checkPropertyGrid.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.checkPropertyGrid.Name = "checkPropertyGrid";
-            this.checkPropertyGrid.Size = new System.Drawing.Size(305, 347);
+            this.checkPropertyGrid.Size = new System.Drawing.Size(409, 427);
             this.checkPropertyGrid.TabIndex = 20;
             this.checkPropertyGrid.ToolbarVisible = false;
             this.checkPropertyGrid.PropertyValueChanged += new System.Windows.Forms.PropertyValueChangedEventHandler(this.checkPropertyGrid_PropertyValueChanged);
@@ -902,11 +932,11 @@
             this.groupBox4.Controls.Add(this.customExtentRadioButton);
             this.groupBox4.Controls.Add(this.modelExtentRadioButton);
             this.groupBox4.ForeColor = System.Drawing.Color.White;
-            this.groupBox4.Location = new System.Drawing.Point(4, 5);
-            this.groupBox4.Margin = new System.Windows.Forms.Padding(2);
+            this.groupBox4.Location = new System.Drawing.Point(5, 6);
+            this.groupBox4.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.groupBox4.Name = "groupBox4";
-            this.groupBox4.Padding = new System.Windows.Forms.Padding(2);
-            this.groupBox4.Size = new System.Drawing.Size(940, 79);
+            this.groupBox4.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.groupBox4.Size = new System.Drawing.Size(1253, 97);
             this.groupBox4.TabIndex = 4;
             this.groupBox4.TabStop = false;
             this.groupBox4.Text = "Extent";
@@ -914,19 +944,19 @@
             // urxTextBox
             // 
             this.urxTextBox.Enabled = false;
-            this.urxTextBox.Location = new System.Drawing.Point(374, 17);
-            this.urxTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.urxTextBox.Location = new System.Drawing.Point(499, 21);
+            this.urxTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.urxTextBox.Name = "urxTextBox";
-            this.urxTextBox.Size = new System.Drawing.Size(59, 20);
+            this.urxTextBox.Size = new System.Drawing.Size(77, 22);
             this.urxTextBox.TabIndex = 2;
             // 
             // customExtentRadioButton
             // 
             this.customExtentRadioButton.AutoSize = true;
-            this.customExtentRadioButton.Location = new System.Drawing.Point(181, 17);
-            this.customExtentRadioButton.Margin = new System.Windows.Forms.Padding(2);
+            this.customExtentRadioButton.Location = new System.Drawing.Point(241, 21);
+            this.customExtentRadioButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.customExtentRadioButton.Name = "customExtentRadioButton";
-            this.customExtentRadioButton.Size = new System.Drawing.Size(111, 17);
+            this.customExtentRadioButton.Size = new System.Drawing.Size(134, 20);
             this.customExtentRadioButton.TabIndex = 1;
             this.customExtentRadioButton.Text = "use custom extent";
             this.customExtentRadioButton.UseVisualStyleBackColor = true;
@@ -936,10 +966,10 @@
             // 
             this.modelExtentRadioButton.AutoSize = true;
             this.modelExtentRadioButton.Checked = true;
-            this.modelExtentRadioButton.Location = new System.Drawing.Point(7, 17);
-            this.modelExtentRadioButton.Margin = new System.Windows.Forms.Padding(2);
+            this.modelExtentRadioButton.Location = new System.Drawing.Point(9, 21);
+            this.modelExtentRadioButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.modelExtentRadioButton.Name = "modelExtentRadioButton";
-            this.modelExtentRadioButton.Size = new System.Drawing.Size(142, 17);
+            this.modelExtentRadioButton.Size = new System.Drawing.Size(175, 20);
             this.modelExtentRadioButton.TabIndex = 0;
             this.modelExtentRadioButton.TabStop = true;
             this.modelExtentRadioButton.Text = "use model (runfile) extent";
@@ -952,10 +982,10 @@
             this.openExcelCheckBox.Checked = true;
             this.openExcelCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
             this.openExcelCheckBox.ForeColor = System.Drawing.Color.White;
-            this.openExcelCheckBox.Location = new System.Drawing.Point(264, 510);
-            this.openExcelCheckBox.Margin = new System.Windows.Forms.Padding(2);
+            this.openExcelCheckBox.Location = new System.Drawing.Point(352, 629);
+            this.openExcelCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.openExcelCheckBox.Name = "openExcelCheckBox";
-            this.openExcelCheckBox.Size = new System.Drawing.Size(136, 17);
+            this.openExcelCheckBox.Size = new System.Drawing.Size(165, 20);
             this.openExcelCheckBox.TabIndex = 9;
             this.openExcelCheckBox.Text = "Open Excel with results";
             this.openExcelCheckBox.UseVisualStyleBackColor = true;
@@ -965,9 +995,10 @@
             this.startButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.startButton.BackColor = System.Drawing.SystemColors.ButtonFace;
             this.startButton.ForeColor = System.Drawing.Color.Black;
-            this.startButton.Location = new System.Drawing.Point(10, 568);
+            this.startButton.Location = new System.Drawing.Point(13, 699);
+            this.startButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.startButton.Name = "startButton";
-            this.startButton.Size = new System.Drawing.Size(75, 23);
+            this.startButton.Size = new System.Drawing.Size(100, 28);
             this.startButton.TabIndex = 47;
             this.startButton.Text = "&Start";
             this.startButton.UseVisualStyleBackColor = false;
@@ -977,9 +1008,10 @@
             // label8
             // 
             this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(8, 177);
+            this.label8.Location = new System.Drawing.Point(11, 218);
+            this.label8.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(0, 13);
+            this.label8.Size = new System.Drawing.Size(0, 16);
             this.label8.TabIndex = 46;
             // 
             // exitButton
@@ -987,9 +1019,10 @@
             this.exitButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.exitButton.BackColor = System.Drawing.SystemColors.ButtonFace;
             this.exitButton.ForeColor = System.Drawing.Color.Black;
-            this.exitButton.Location = new System.Drawing.Point(97, 568);
+            this.exitButton.Location = new System.Drawing.Point(129, 699);
+            this.exitButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.exitButton.Name = "exitButton";
-            this.exitButton.Size = new System.Drawing.Size(75, 23);
+            this.exitButton.Size = new System.Drawing.Size(100, 28);
             this.exitButton.TabIndex = 48;
             this.exitButton.Text = "E&xit";
             this.exitButton.UseVisualStyleBackColor = false;
@@ -1000,9 +1033,10 @@
             this.helpButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.helpButton.BackColor = System.Drawing.SystemColors.ButtonFace;
             this.helpButton.ForeColor = System.Drawing.Color.Black;
-            this.helpButton.Location = new System.Drawing.Point(889, 568);
+            this.helpButton.Location = new System.Drawing.Point(1185, 699);
+            this.helpButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.helpButton.Name = "helpButton";
-            this.helpButton.Size = new System.Drawing.Size(75, 23);
+            this.helpButton.Size = new System.Drawing.Size(100, 28);
             this.helpButton.TabIndex = 49;
             this.helpButton.Text = "&Help";
             this.helpButton.UseVisualStyleBackColor = false;
@@ -1010,16 +1044,17 @@
             // 
             // MainForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(32)))), ((int)(((byte)(78)))));
-            this.ClientSize = new System.Drawing.Size(972, 600);
+            this.ClientSize = new System.Drawing.Size(1296, 738);
             this.Controls.Add(this.tabControl1);
             this.Controls.Add(this.startButton);
             this.Controls.Add(this.label8);
             this.Controls.Add(this.exitButton);
             this.Controls.Add(this.helpButton);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.Name = "MainForm";
             this.Text = "iMODValidator";
             this.Load += new System.EventHandler(this.MainForm_Load);
@@ -1124,5 +1159,7 @@
         protected System.Windows.Forms.TextBox comparedRUNFileTextBox;
         protected System.Windows.Forms.Button comparedRUNFileButton;
         protected System.Windows.Forms.CheckBox isModelComparedCheckBox;
+        protected System.Windows.Forms.TextBox noDataComparisonValueTextBox;
+        protected System.Windows.Forms.CheckBox useNoDataAsComparisonValueCheckBox;
     }
 }

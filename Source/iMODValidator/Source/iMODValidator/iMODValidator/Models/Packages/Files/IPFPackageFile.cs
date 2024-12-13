@@ -135,12 +135,12 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
             return clippedIPFPackageFile;
         }
 
-        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, bool isNoDataCompared, Log log, int indentLevel = 0)
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, float noDataCalculationValue, Log log, int indentLevel = 0)
         {
-            return CreateDifferenceFile(comparedPackageFile, useLazyLoading, OutputFoldername, null, isNoDataCompared, log, indentLevel);
+            return CreateDifferenceFile(comparedPackageFile, useLazyLoading, OutputFoldername, null, noDataCalculationValue, log, indentLevel);
         }
 
-        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, Extent extent, bool isNoDataCompared, Log log, int indentLevel = 0)
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, Extent extent, float noDataCalculationValue, Log log, int indentLevel = 0)
         {
             if (!this.Exists())
             {
@@ -156,7 +156,7 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
             if (comparedPackageFile is IPFPackageFile)
             {
                 IPFPackageFile diffIPFPackageFile = new IPFPackageFile(this.Package, this.FName, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
-                diffIPFPackageFile.IPFFile = ipfFile.CreateDifferenceFile(((IPFPackageFile)comparedPackageFile).IPFFile, OutputFoldername, isNoDataCompared, extent);
+                diffIPFPackageFile.IPFFile = ipfFile.CreateDifferenceFile(((IPFPackageFile)comparedPackageFile).IPFFile, OutputFoldername, noDataCalculationValue, extent);
                 diffIPFPackageFile.IPFFile.UseLazyLoading = useLazyLoading;
                 return diffIPFPackageFile;
             }

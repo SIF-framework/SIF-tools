@@ -31,6 +31,12 @@ using Sweco.SIF.iMODValidator.Settings;
 
 namespace Sweco.SIF.iMODValidator
 {
+    public enum ComparisonMethod
+    {
+        Subtraction,
+        Auto
+    }
+
     /// <summary>
     /// Class for processing command-line arguments and storing settings for this tool
     /// </summary>
@@ -41,11 +47,14 @@ namespace Sweco.SIF.iMODValidator
 
         public string OutputPath { get; set; }
         public string SettingsFilename { get; set; }
-        public bool PreventExternalAppStart { get; set; }
+        public bool? IsIMODOpened { get; set; }
+        public bool? IsResultSheetOpened { get; set; }
 
         public bool IsValidated { get; set; }
         public bool IsCompared { get; set; }
-
+        public ComparisonMethod ComparisonMethod { get; set; }
+        public float NoDataComparisonValue { get; set; }
+        
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
         /// </summary>
@@ -55,10 +64,13 @@ namespace Sweco.SIF.iMODValidator
             RUNFilename = null;
             OutputPath = null;
             SettingsFilename = null;
-            PreventExternalAppStart = false;
+            IsIMODOpened = null;
+            IsResultSheetOpened = null;
 
             IsValidated = false;
             IsCompared = false;
+            ComparisonMethod = ComparisonMethod.Auto;
+            NoDataComparisonValue = 0;
         }
 
         /// <summary>
@@ -70,10 +82,43 @@ namespace Sweco.SIF.iMODValidator
             AddToolParameterDescription("runfile", "iMOD RUN/PRJ-file with references to files to check", "C:\\Test\\Input", 1);
             AddToolParameterDescription("outPath", "Path to write results", "C:\\Test\\Output", 1);
             AddToolOptionDescription("s", "specify XML-file to retrieve iMODValidator settings from", "/s:Test\\Input\\iMODValidator.xml", "Settings are retrieved from: {0}", new string[] { "s1" }, null, null, new int[] { 0, 1 });
-            AddToolOptionDescription("i", "prevent starting of iMOD and Excel (settings are overruled)", "/i", "Starting of iMOD/Excel is prevented", null, null, null, 1);
-            AddToolOptionDescription("c", "Compare model defined by runfile parameter with model defined by second RUN/PRJ-file r2", "/c:Test\\Input\\Model2.RUN", "Model is compared with RUN/PRJ-file: {0}", new string[] { "r2" }, null, null, 1);
+            AddToolOptionDescription("i", "define opening of iMOD/Excel after completion via i1,i2 (and overrule XML-settings):\n" +
+                                          "i1: 0 = iMOD is NOT opened (default); 1 = iMOD is opened with resulting IMF-file\n" +
+                                          "i2: 0 = Excel is NOT opened (default); 1 = Excel is opened with resulting spreadsheet\n" + 
+                                          "note: when option i is not used, the XML-settings are used", "/i", "Starting of iMOD/Excel is prevented", null, new string[] { "i1", "i2" }, new string[] { "0", "0" }, 1);
+            AddToolOptionDescription("c", "Compare model defined by runfile parameter with model defined by second RUN/PRJ-file r2\n" +
+                                          "Optionally specify method m for IDF-comparison: 0=automatically detect divide/subtract (def); 1=subtract\n" +
+                                          "Optionally specify NoData comparison value n (default: 0); use NaN for NoData if one of both cells is NoData", "/c:Test\\Input\\Model2.RUN", 
+                                          "Model is compared with RUN/PRJ-file: {0}\n" + 
+                                          "\tIDF-comparison-method: {1}; NoData-comparisonvalue: {2}", new string[] { "r2" }, new string[] { "m", "n" }, new string[] { "0", "0" }, 1);
             AddToolOptionDescription("v", "validate model defined by runfile parameter (default action)", "/v", "Model defined by runfile is validated", null, null, null, 1);
             AddToolUsageFinalRemark("When run without arguments, the iMODValidator user interface version is started");
+        }
+
+        protected override string FormatLogStringParameter(string optionName, string parameter, string parameterValue, List<string> parameterValues)
+        {
+            switch (optionName)
+            {
+                case "c":
+                    switch (parameter)
+                    {
+                        case "m":
+                            switch (parameterValue)
+                            {
+                                case "0":
+                                    return "automatically detect divide/subtract";
+                                case "1":
+                                    return "subtract";
+                                default:
+                                    return base.FormatLogStringParameter(optionName, parameter, parameterValue, parameterValues);
+                            }
+                        default:
+                            return base.FormatLogStringParameter(optionName, parameter, parameterValue, parameterValues);
+                    }
+                default:
+                    return base.FormatLogStringParameter(optionName, parameter, parameterValue, parameterValues);
+            }
+            
         }
 
         /// <summary>
@@ -122,15 +167,42 @@ namespace Sweco.SIF.iMODValidator
             }
             else if (optionName.ToLower().Equals("i"))
             {
-                PreventExternalAppStart = true;
+                string[] optionParameters = GetOptionParameters(optionParametersString);
+                IsIMODOpened = ((optionParameters != null) && (optionParameters.Length > 0)) ? optionParameters[0].Equals("1") : false;
+                IsResultSheetOpened = ((optionParameters != null) && (optionParameters.Length > 1)) ? optionParameters[1].Equals("1") : false;
             }
             else if (optionName.ToLower().Equals("c"))
             {
                 IsCompared = true;
                 if (hasOptionParameters)
                 {
-                    RUNFilename = optionParametersString;
-                    RUNFilename2 = optionParametersString;
+                    string[] optionParameters = GetOptionParameters(optionParametersString);
+                    RUNFilename = optionParameters[0];
+                    RUNFilename2 = optionParameters[0];
+
+                    if (optionParameters.Length > 1)
+                    {
+                        switch (optionParameters[1])
+                        {
+                            case "0":
+                                ComparisonMethod = ComparisonMethod.Auto;
+                                break;
+                            case "1":
+                                ComparisonMethod = ComparisonMethod.Subtraction;
+                                break;
+                            default:
+                                throw new ToolException("Unknown comparison method (use 0 or 1): " + optionParameters[1]);
+                        }
+                    }
+
+                    if (optionParameters.Length > 2)
+                    {
+                        if (!float.TryParse(optionParameters[2], NumberStyles.Float, EnglishCultureInfo, out float noDataComparisonValue))
+                        {
+                            throw new ToolException("Invalid NoDataComparison-value, float expected: " + optionParameters[2]);
+                        }
+                        NoDataComparisonValue = noDataComparisonValue;
+                    }
                 }
                 else
                 {

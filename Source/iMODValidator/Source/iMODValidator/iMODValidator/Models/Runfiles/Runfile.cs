@@ -186,10 +186,10 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
         {
             try
             {
-                log.AddMessage(LogLevel.Trace, "Opening runfile " + Path.GetFileName(runfilename) + "...");
+                log.AddMessage(LogLevel.Trace, "Opening " + RUNFileType + "-file " + Path.GetFileName(runfilename) + "...");
                 sr = new StreamReader(runfilename);
 
-                log.AddInfo("Reading RUN-file " + Path.GetFileName(runfilename) + "...");
+                log.AddInfo("Reading " + RUNFileType + "-file " + Path.GetFileName(runfilename) + "...");
                 string runfileString = sr.ReadToEnd();
 
                 runfileLines = SplitLargeString(runfileString, new string[] { "\n" }, log);
@@ -215,7 +215,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             ///////////////////////////////////////
             try
             {
-                log.AddInfo("Parsing RUN-file " + Path.GetFileName(runfilename) + "...");
+                log.AddInfo("Parsing " + RUNFileType + "-file " + Path.GetFileName(runfilename) + "...");
 
                 ResetCurrentLinenumber();
 
@@ -226,7 +226,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             }
             catch (ToolException ex)
             {
-                throw new ToolException("Error while parsing RUN-file line " + GetCurrentLinenumber(), ex);
+                throw new ToolException("Error while parsing " + RUNFileType + "-file line " + GetCurrentLinenumber(), ex);
             }
 
             log.AddInfo(string.Empty);
@@ -254,7 +254,7 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             DateTime prevTime = DateTime.Now;
             if (log != null)
             {
-                log.AddInfo("Splitting RUN-file " + Path.GetFileName(runfilename) + " ..", 0, false);
+                log.AddInfo("Splitting " + RUNFileType + "-file " + Path.GetFileName(runfilename) + " ..", 0, false);
             }
 
             List<string> lineList = new List<string>();

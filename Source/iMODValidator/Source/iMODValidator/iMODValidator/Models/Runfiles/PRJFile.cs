@@ -82,14 +82,21 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                         throw new ToolException("Invalid PRJ-file: " + packageKey + "-package is defined more than once");
                     }
                     package = PackageManager.Instance.CreatePackageInstance(packageKey, model);
-                    package.IsActive = isActive;
-                    package.Model = model;
-                    model.AddPackage(package);
+                    if (package != null)
+                    {
+                        package.IsActive = isActive;
+                        package.Model = model;
+                        model.AddPackage(package);
 
-                    // Remove (singleton) packagefiles from a previous run that may still be attacked to this model
-                    package.ClearFiles();
+                        // Remove (singleton) packagefiles from a previous run that may still be attacked to this model
+                        package.ClearFiles();
 
-                    package.ParsePRJFilePackageFiles(this, maxKPER, log, 1);
+                        package.ParsePRJFilePackageFiles(this, maxKPER, log, 1);
+                    }
+                    else
+                    {
+                        log.AddWarning("Unknown package is skipped: " + packageKey, 1);
+                    }
                 }
                 else if (wholeLine.ToLower().Equals("periods"))
                 {
@@ -136,13 +143,28 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
             subModel.BUFFER = 0;
 
             Package bndPackage = model.GetPackage(BNDPackage.DefaultKey);
-            PackageFile bndPackageFile = bndPackage.GetPackageFile(0);
+            PackageFile bndPackageFile = (bndPackage != null) ? bndPackage.GetPackageFile(0) : null;
             if (bndPackageFile != null)
             {
                 model.BNDFILE = bndPackageFile.FName;
             }
 
-            if ((model.BNDFILE != null) && File.Exists(model.BNDFILE))
+            if ((bndPackageFile != null) && (bndPackageFile.IMODFile != null) && (bndPackageFile.IMODFile is ConstantIDFFile))
+            {
+                log.AddWarning(RUNFileCategoryString, null, "Constant BND-entry found, retrieving (max) extent and cellsize from other packages ...", 1);
+                model.BNDFILE = ((ConstantIDFFile)bndPackageFile.IMODFile).ConstantValue.ToString(englishCultureInfo);
+                log.AddInfo("Retrieving (max) extent and cellsize from other packages ...", 1);
+
+                // Retrieve submodel extent from BND-file
+                Extent extent = model.GetPackageExtent();
+
+                subModel.XMIN = extent.llx;
+                subModel.YMIN = extent.lly;
+                subModel.XMAX = extent.urx;
+                subModel.YMAX = extent.ury;
+                subModel.CSIZE = model.GetMaxPackageCellSize();
+            }
+            else if ((model.BNDFILE != null) && File.Exists(model.BNDFILE))
             {
                 IDFFile bndIDFFile = IDFFile.ReadFile(model.BNDFILE, true, null, 0, Model.GetExtent());
 
@@ -158,6 +180,17 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                 if (model.BNDFILE == null)
                 {
                     log.AddWarning(RUNFileCategoryString, null, "No BND-entries found, retrieving (max) extent and cellsize from other packages ...", 1);
+                    Extent extent = model.GetPackageExtent();
+                    if (extent == null)
+                    {
+                        throw new ToolException("No packages found that define modelextent, please check input file");
+                    }
+
+                    subModel.XMIN = extent.llx;
+                    subModel.YMIN = extent.lly;
+                    subModel.XMAX = extent.urx;
+                    subModel.YMAX = extent.ury;
+                    subModel.CSIZE = model.GetMaxPackageCellSize();
                 }
                 else
                 {
@@ -173,8 +206,6 @@ namespace Sweco.SIF.iMODValidator.Models.Runfiles
                     subModel.YMAX = extent.ury;
                     subModel.CSIZE = model.GetMaxPackageCellSize();
                 }
-
-                model.GetPackageExtent();
             }
 
             Model.Submodels = new SubModel[1];

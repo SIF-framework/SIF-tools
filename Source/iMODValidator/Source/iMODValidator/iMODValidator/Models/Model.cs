@@ -507,7 +507,7 @@ namespace Sweco.SIF.iMODValidator.Models
                         for (int entryIdx = 0; entryIdx < idfFilePackage.GetEntryCount(); entryIdx++)
                         {
                             IDFFile idfFile = idfFilePackage.GetIDFFile(entryIdx);
-                            if (idfFile != null)
+                            if ((idfFile != null) && !(idfFile is ConstantIDFFile))
                             {
                                 idfFileCount++;
                                 if (idfFile.Extent.llx < extent.llx)
