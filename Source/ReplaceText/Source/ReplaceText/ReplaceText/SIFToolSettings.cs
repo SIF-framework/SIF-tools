@@ -111,10 +111,10 @@ namespace Sweco.SIF.ReplaceText
             AddToolOptionDescription("n", "Throw error when searchtext has no match", null, "No match results in an error");
             AddToolOptionDescription("m", "Return matchcount instead of errorcode: \nA negative number indicates an error, a positive number equals the total number of matches", null, "Matchcount is returned instead of errorcode");
             AddToolOptionDescription("r", "Process subfolders in path recursively", "/r", "Subdirectories are searched recursively", null, null, null, new int[] { 0, 1 });
-            AddToolOptionDescription("p", "Show summary of matched patterns/strings per file after finishing", "/s", "Summary of matched patterns/strings is shown", null, null, null, new int[] { 0, 1 });
             AddToolOptionDescription("x", "Use regular expressions (check internet for a description) for text1, text2 and all patterns", "/x", "Using regular expressions");
+            AddToolOptionDescription("sum", "Show summary of matched patterns/strings per file after finishing", "/sum", "Summary of matched patterns/strings is shown", null, null, null, new int[] { 0, 1 });
 
-			AddToolUsageOptionPostRemark("Note: use an @-character before text1 and/or text2 to parse escape characters,\n" +
+            AddToolUsageOptionPostRemark("Note: use an @-character before text1 and/or text2 to parse escape characters,\n" +
                                          "      otherwise the character will be read exactly as specified.");
         }
 
@@ -210,7 +210,7 @@ namespace Sweco.SIF.ReplaceText
             {
                 IsRecursive = true;
             }
-            else if (optionName.ToLower().Equals("p"))
+            else if (optionName.ToLower().Equals("sum"))
             {
                 IsMatchesShown = true;
             }
