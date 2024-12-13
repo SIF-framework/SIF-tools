@@ -126,8 +126,12 @@ namespace Sweco.SIF.GENbuffer
                 Log.AddInfo("Adding buffer of " + settings.BufferSize + "m to GEN-file ...", 2);
                 GENFile newGENFile = ProcessBuffer(genFile, settings);
 
-                string outputFilename = RetrieveOutputFilename(inputFilename, settings.OutputPath, settings.InputPath, settings.OutputFilename, "GEN");
-                outputFilename = FileUtils.AddFilePostFix(outputFilename, "_buffer" + (int)(settings.BufferSize));
+                string outputFilename = RetrieveOutputFilename(inputFilename, settings.OutputPath, settings.InputPath, settings.OutputFilename, "GEN"); ;
+                if (settings.OutputFilename == null)
+                {
+                    // Add postfix
+                    outputFilename = FileUtils.AddFilePostFix(outputFilename, "_buffer" + (int)(settings.BufferSize));
+                }
                 Log.AddInfo("Writing GEN-file " + Path.GetFileName(outputFilename) + " ...", 2);
                 newGENFile.WriteFile(outputFilename);
 
