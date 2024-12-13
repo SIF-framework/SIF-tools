@@ -37,18 +37,21 @@ namespace Sweco.SIF.IPFSHPconvert
     public class SIFToolSettings : SIFToolSettingsBase
     {
         public const string DefaultFIdxColName = "FeatureIdx";
+        public const string NoDataSHPDateValue = "00000000";
 
         /// <summary>
-        /// Searchprefix for NoData-value #1. Note EGIS-library seems to return this value instead of 0-values in input shapefile
+        /// Array with recognized char values for first character of NULL-strings in values of numeric columns. 
+        /// If not defined and array equals null, the correction is skipped completely, which speeds up the conversion.
+        /// Note: EGIS-library returns a string value for each value regardless of type. Default '*'-symbols are returned for NULL-values
         /// </summary>
-        public const string ShpNoData1Prefix = "*****";
-        public const string ShpNoData1ReplacementString = "0";
+        public char[] ShpNullNumericChars { get; set; }
 
         /// <summary>
-        /// Searchprefix for NoData-value #2. Note EGIS-library seems to return this value instead of Null-values in input shapefile
+        /// Replacement value for NULL
         /// </summary>
-        public const string ShpNoData2Prefix = "00000000";
-        public const string ShpNoData2ReplacementString = "NULL";
+        public string ShpNullIntReplacementString { get; set; }
+        public string ShpNullDblReplacementString { get; set; }
+        public string ShpNullDateReplacementString { get; set; }
 
         public string InputPath { get; set; }
         public string InputFilter { get; set; }
@@ -59,21 +62,30 @@ namespace Sweco.SIF.IPFSHPconvert
         public bool IsFeatureIdxAdded { get; set; }
         public string FeatureIdxColumnName { get; set; }
 
+        public string DateFormat { get; set; }
+
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
         /// </summary>
         public SIFToolSettings(string[] args) : base(args)
-    {
-        // Set default values for settings
-        InputPath = null;
-        InputFilter = null;
-        OutputPath = null;
-        OutputFilename = null;
-        IsRecursive = false;
-        IsOverwrite = false;
-        IsFeatureIdxAdded = false;
-        FeatureIdxColumnName = DefaultFIdxColName;
-    }
+        {
+            // Set default values for settings
+            InputPath = null;
+            InputFilter = null;
+            OutputPath = null;
+            OutputFilename = null;
+            IsRecursive = false;
+            IsOverwrite = false;
+            IsFeatureIdxAdded = false;
+            FeatureIdxColumnName = DefaultFIdxColName;
+
+            ShpNullNumericChars = new char[] { '*', '\0' };
+            ShpNullIntReplacementString = "NULL";
+            ShpNullDblReplacementString = "NaN";
+            ShpNullDateReplacementString = "NULL";
+
+            DateFormat = "dd-MM-yyyy";
+        }
 
         /// <summary>
         /// Define the syntax of the tool as shown in the tool usage block. 
@@ -87,6 +99,15 @@ namespace Sweco.SIF.IPFSHPconvert
             AddToolOptionDescription("r", "Process input path recursively", "/r", "Input path is processed recursively");
             AddToolOptionDescription("o", "Overwrite existing target output files; if not specified, the tool aborts for existing files", "/o", "Existing output files are overwritten", null, null, null);
             AddToolOptionDescription("f", "Add shape feature index column with name c for SHP-IPF conversion", "/f", "FID-column is added to output IPF-file", null, new string[] { "c" }, new string[] { DefaultFIdxColName });
+            AddToolOptionDescription("null", "Replace NULL-values in shapefiles by string s when converting to IPF-file\n" +
+                                     "As a default 'NULL' is used for integer and 'NaN' for decimal types\n" +
+                                     "To use empty string for NULL-values, use /null without parameter values\n" +
+                                     "To skip replacement, which may give one or more *-values (depending on field length), use s=*", null, "NULL-values are {0}", null, new string[] { "s" }, new string[] { "[empty string]" });
+            AddToolUsageOptionPostRemark("Note for IPF-files:\n" +
+                                    "- valid boolean values are 'True', 'False' (case-insensitive) or '?' (if undefined);\n" +
+                                    "- valid date values have format 'dd-MM-yyyy' or leave empty to create NULL-value in shapefile;\n" +
+                                    "- valid numeric values can also have special values 'Infinity', 'Inf', '-Infinity', '-Inf' or 'NaN' (case-insensitive)\n" +
+                                    "  and scientific notation is allowed, e.g. '10.01E-6'; use empty value or NULL to create NULL-value in shapefile");
         }
 
         /// <summary>
@@ -120,6 +141,24 @@ namespace Sweco.SIF.IPFSHPconvert
             }
         }
 
+        protected override string FormatLogStringParameter(string optionName, string parameter, string parameterValue, List<string> parameterValues)
+        {
+            switch (optionName)
+            {
+                case "null":
+                    if (parameterValue.Equals("*"))
+                    {
+                        return "not checked; asterisks may be returned";
+                    }
+                    else
+                    {
+                        return "replaced by: " + parameterValue;
+                    }
+                default:
+                    return base.FormatLogStringParameter(optionName, parameter, parameterValue, parameterValues);
+            }
+        }
+
         /// <summary>
         /// Parse and process tool option
         /// </summary>
@@ -144,6 +183,32 @@ namespace Sweco.SIF.IPFSHPconvert
             else if (optionName.ToLower().Equals("r"))
             {
                 IsRecursive = true;
+            }
+            else if (optionName.ToLower().Equals("null"))
+            {
+                if (hasOptionParameters)
+                {
+                    if (optionParametersString.Equals("*"))
+                    {
+                        // Disable check/replacement of NULL-values completely
+                        ShpNullNumericChars = null;
+                        ShpNullDblReplacementString = null;
+                        ShpNullIntReplacementString = null;
+                        ShpNullDateReplacementString = null;
+                    }
+                    else
+                    {
+                        ShpNullDblReplacementString = optionParametersString;
+                        ShpNullIntReplacementString = optionParametersString;
+                        ShpNullDateReplacementString = optionParametersString;
+                    }
+                }
+                else
+                {
+                    ShpNullDblReplacementString = string.Empty;
+                    ShpNullIntReplacementString = string.Empty;
+                    ShpNullDateReplacementString = string.Empty;
+                }
             }
             else
             {

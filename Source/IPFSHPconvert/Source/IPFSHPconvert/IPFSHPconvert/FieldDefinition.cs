@@ -34,30 +34,30 @@ namespace Sweco.SIF.IPFSHPconvert
 
         public string Name;
         public DbfFieldType Type;
-        public int Length;
+        public int FieldLength;
         public int Decimalcount;
 
         public FieldDefinition(string name, DbfFieldType type)
         {
             this.Name = name;
             this.Type = type;
-            this.Length = 0;
+            this.FieldLength = 0;
             this.Decimalcount = DefaultDecimalCount;
         }
 
-        public FieldDefinition(string name, DbfFieldType type, int length)
+        public FieldDefinition(string name, DbfFieldType type, int fieldLength)
         {
             this.Name = name;
             this.Type = type;
-            this.Length = length;
+            this.FieldLength = fieldLength;
             this.Decimalcount = DefaultDecimalCount;
         }
 
-        public FieldDefinition(string name, DbfFieldType type, int length, int decimalcount)
+        public FieldDefinition(string name, DbfFieldType type, int fieldLength, int decimalcount)
         {
             this.Name = name;
             this.Type = type;
-            this.Length = length;
+            this.FieldLength = fieldLength;
             this.Decimalcount = decimalcount;
         }
 
@@ -67,7 +67,7 @@ namespace Sweco.SIF.IPFSHPconvert
             fieldDesc.FieldName = Name;
             fieldDesc.FieldType = Type;
             fieldDesc.DecimalCount = Decimalcount;
-            fieldDesc.FieldLength = Length;
+            fieldDesc.FieldLength = FieldLength;
 
             return fieldDesc;
         }
