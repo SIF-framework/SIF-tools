@@ -44,8 +44,8 @@ namespace Sweco.SIF.IMFcreate
     /// </summary>
     public class IMFCreator
     {
-        private const float IMFXYRatio = 2.06f;
-        private const string DefaultIMFFilename = "CREATEDIMF";
+        private const float IMFXYRatio = 1.85f;
+        private const string DefaultIMFFilename = "IMFcreate.IMF";
         private const string ParameterSectionKeyword = "[PARAMETERS]";
         private const string Parameter_ExtentKeyword = "EXTENT";
         private const string Parameter_OpeniMODKeyword = "OPENIMOD";
@@ -55,6 +55,7 @@ namespace Sweco.SIF.IMFcreate
         private const string MapsSectionKeyword = "[MAPS]";
         private const string Maps_FileKeyword = "FILE";
         private const string Maps_LegendKeyword = "LEGEND";
+        private const string Maps_AliasKeyword = "ALIAS";
         private const string Maps_DLFLegendKeyword = "CSLEGEND";
         private const string Maps_IsSelectedKeyword = "SELECTED";
         private const string Maps_ColumnNumberKeyword = "COLUMN";
@@ -74,6 +75,7 @@ namespace Sweco.SIF.IMFcreate
         private const string Crosssection_LayersAsPlanesKeyword = "LAYERSASPLANES";
         private const string IDFExtension = ".IDF";
         private const string GENExtension = ".GEN";
+        private const string IFFExtension = ".IFF";
         private const string IPFExtension = ".IPF";
         private const string IMFExtension = ".IMF";
         private const string OverlaysSectionKeyword = "[OVERLAYS]";
@@ -185,7 +187,7 @@ namespace Sweco.SIF.IMFcreate
                 log.AddInfo("Fixed aspect ratio for extent from " + xyRatio.ToString("F3", englishCultureInfo) + " to " + IMFXYRatio.ToString("F3", englishCultureInfo) + " ...");
 
                 // Enlarge extent to fit between axes
-                imfFile.Extent = imfFile.Extent.Enlarge(0.125f);
+                imfFile.Extent = imfFile.Extent.Enlarge(0.15f);
             }
 
             string outputFilename = parameters.IMFFilename;
@@ -548,6 +550,7 @@ namespace Sweco.SIF.IMFcreate
             bool IsColumnAdjusted = false;
             bool selected = false;
             string legFilename = null;
+            string aliasDefinition = null;  // note: currently the aliasDefinition is used as a prefix before the source filename, excluding extension. An underscore is added after the prefix.
             string dlfFilename = null;
             bool IsLineColorAdjusted = false;
             bool IsFillColorAdjusted = false;
@@ -626,6 +629,14 @@ namespace Sweco.SIF.IMFcreate
                     {
                         dlfFilename = GetFullPath(parameter[1], parameters.INIPath);
                     }
+                    else if (line.ToUpper().StartsWith(Maps_AliasKeyword + "="))
+                    {
+                        aliasDefinition = parameter[1];
+                        if (aliasDefinition.Equals(string.Empty))
+                        {
+                            aliasDefinition = null;
+                        }
+                    }
                     else if (parameter[0].Trim().ToUpper().Equals(Maps_IsSelectedKeyword))
                     {
                         try
@@ -700,6 +711,10 @@ namespace Sweco.SIF.IMFcreate
                             IDFFile idfFile = IDFFile.ReadFile(iMODFilename, !settings.IsUpdateIMODFiles);
                             idfMap = IDFMap.CreateSurfaceLevelMap("default", idfFile.MinValue, idfFile.MaxValue, iMODFilename, selected);
                         }
+                        if (aliasDefinition != null)
+                        {
+                            idfMap.Alias = aliasDefinition + "_" + Path.GetFileNameWithoutExtension(idfMap.Filename);
+                        }
                         idfMap.SetPRFType((prfType != -1) ? prfType : Map.PRFTypeToInt(IDFMap.PRFTypeFlag.Active));
                         if (IsLineColorAdjusted || IsFillColorAdjusted)
                         {
@@ -732,10 +747,21 @@ namespace Sweco.SIF.IMFcreate
                     else if (iMODFilename.ToUpper().EndsWith(GENExtension))
                     {
                         prevFileExtension = GENExtension;
-                        GENLegend genLegend = new GENLegend(thickness, color);
                         if (!parameters.IsAddOnce || !imfFile.ContainsMap(iMODFilename))
                         {
-                            imfFile.AddMap(new Map(genLegend, iMODFilename));
+                            GENLegend genLegend = new GENLegend(thickness, color);
+                            string alias = (aliasDefinition != null) ? aliasDefinition + "_" + Path.GetFileNameWithoutExtension(iMODFilename) : null;
+                            imfFile.AddMap(new Map(genLegend, iMODFilename, alias));
+                        }
+                    }
+                    else if (iMODFilename.ToUpper().EndsWith(IFFExtension))
+                    {
+                        prevFileExtension = IFFExtension;
+                        if (!parameters.IsAddOnce || !imfFile.ContainsMap(iMODFilename))
+                        {
+                            GENLegend iffLegend = new GENLegend(thickness, color);
+                            string alias = (aliasDefinition != null) ? aliasDefinition + "_" + Path.GetFileNameWithoutExtension(iMODFilename) : null;
+                            imfFile.AddMap(new Map(iffLegend, iMODFilename, alias));
                         }
                     }
                     else if (iMODFilename.ToUpper().EndsWith(IPFExtension))
@@ -784,7 +810,10 @@ namespace Sweco.SIF.IMFcreate
                                     ipfMap.IPFLegend.TextSize = textSize;
                                 }
                             }
-
+                            if (aliasDefinition != null)
+                            {
+                                ipfMap.Alias = aliasDefinition + "_" + Path.GetFileNameWithoutExtension(ipfMap.Filename);
+                            }
                             if (dlfFilename != null)
                             {
                                 ipfMap.DLFFile = DLFFile.ReadFile(dlfFilename);
@@ -939,9 +968,10 @@ namespace Sweco.SIF.IMFcreate
                     else if (parameter[0].Trim().ToUpper().Equals(Parameter_IMFFilenameKeyword))
                     {
                         parameters.IMFFilename = GetFullPath(parameter[1], parameters.INIPath);
-                        if (!Path.HasExtension(parameters.IMFFilename))
+                        if (!parameters.IMFFilename.ToUpper().EndsWith(".IMF"))
                         {
-                            parameters.IMFFilename = Path.ChangeExtension(parameters.IMFFilename, "IMF");
+                            // Add IMF extension, do not use Path.ChangeExtension() which does not work if the filename contains a dot but no extension is given (as is expected for parameters.IMFFilename)
+                            parameters.IMFFilename = parameters.IMFFilename + ".IMF";
                         }
                     }
                     else

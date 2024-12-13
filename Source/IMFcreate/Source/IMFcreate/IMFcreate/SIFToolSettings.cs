@@ -67,21 +67,21 @@ namespace Sweco.SIF.IMFcreate
                                      "[PARAMETERS]                    Mandatory section/keys that define general settings\n" +
                                      "EXTENT=minx,miny,maxx,maxy      Define extent to show when iMOD is opened, leave empty to use union of mapfiles\n" +
                                      "OPENIMOD=<0|1>                  To open IMOD with created IMF choose 1, otherwise 0\n" +
-                                     "IMFFILENAME=<filename>          Define a filename for the IMF file\n" +
-                                     "IMODEXE=<filename>              Define the path to the iMOD executable for opening the IMF\n" +
+                                     "IMFFILENAME=<filename>          Filename for the resulting IMF-file (with or without IMF-extension)\n" +
+                                     "IMODEXE=<filename>              Path to the iMOD executable for opening the IMF-file\n" +
                                      "ADDONCE=<0|1>                   To skip files with the same filename as files already added once choose 1, otherwise 0\n" +
                                      "\n" +
                                      "[CROSSSECTION]                  Optional section/keys that define files/settings for 2D cross section tool\n" +
                                      "REGIS=<path>                    Define path with REGIS IDF-files to load.\n" +
                                      "                                Note: REGIS-layers are added only when TOP-files (*-t-*.IDF) are present\n" +
-                                     "REGISORDER=<filename>           Define filename for ASCI-file (txt) with ordered lines with a REGIS-prefix,\n" +
+                                     "REGISORDER=<filename>           Optional filename for ASCI-file (txt) with ordered lines with a REGIS-prefix,\n" +
                                      "                                as a single value or the last value in multiple comma seperated values.\n" +
-                                     "REGISCOLORS=TNO|AQF|<filename>  Define Excel filename (XSLX) with colors per REGIS-layer with header in row 1 and\n" +
+                                     "REGISCOLORS=TNO|AQF|<filename>  Optional Excel filename (XSLX) with colors per REGIS-layer with header in row 1 and\n" +
                                      "                                rows with REGIS (sub)strings in column 1 and RGB (integer) values in columns 2 to 4\n" +
                                      "                                Or use 'TNO' for TNO REGIS-colors, or 'AQF' for yellow/green hues for aquifer/aquitards\n" +
-                                     "LAYERSASLINES=<paths>           Define one or more (';' seperated) directories with " + Properties.Settings.Default.TOPFilePrefix + "/" + Properties.Settings.Default.BOTFilePrefix + " IDF-files to show as lines\n" +
-                                     "LINECOLOR=r1,g1,b1[;r2,g2;b2]   Define RGB (integer values) for color of " + Properties.Settings.Default.TOPFilePrefix + "/" + Properties.Settings.Default.BOTFilePrefix + "-line. As a default red hues are used\n" +
-                                     "LAYERSASPLANES=<paths>          Define one or more (';' seperated) directories with " + Properties.Settings.Default.TOPFilePrefix + "/" + Properties.Settings.Default.BOTFilePrefix + " IDF-files to show as planes\n" +
+                                     "LAYERSASLINES=<paths>           One or more (';' seperated) directories with " + Properties.Settings.Default.TOPFilePrefix + "/" + Properties.Settings.Default.BOTFilePrefix + " IDF-files to show as lines\n" +
+                                     "LINECOLOR=r1,g1,b1[;r2,g2;b2]   RGB color (R,G,B integer values) of " + Properties.Settings.Default.TOPFilePrefix + "/" + Properties.Settings.Default.BOTFilePrefix + "-line. As a default red hues are used\n" +
+                                     "LAYERSASPLANES=<paths>          One or more (';' seperated) directories with " + Properties.Settings.Default.TOPFilePrefix + "/" + Properties.Settings.Default.BOTFilePrefix + " IDF-files to show as planes\n" +
                                      "                                Colors are defined automatically with yellow for aquifers, green for aquitards\n" +
                                      "SELECTED=<0|1>                  Use 1 to select the IDF-file(s), 0 if otherwise. Default is 1 for REGIS/Modellayers.\n" +
                                      "\n" +
@@ -90,32 +90,35 @@ namespace Sweco.SIF.IMFcreate
                                      "                                Below each FILE-line optional settings can be defined as described below\n" +
                                      "                                If the file type is equal to type of the previous file, the previous settings are reused\n" +
                                      "For IDF-files, the following optional keys are available to define settings:\n" +
-                                     "LEGEND=<filename>               Define path of an iMOD legend (.LEG) file\n" +
-                                     "CSLEGEND=<filename>             Define path of an iMOD Drill File Legend (.DLF) file to visualizee file in cross sections\n" +
+                                     "LEGEND=<filename>               Path of an iMOD legend file (.LEG)\n" +
+                                     "ALIAS=<aliasdefinition>         Defines an alias that can be shown in iMOD as an alternative for the filename;\n" +
+                                     "                                Currently <aliasdefinition> is used as prefix before the source filename,\n" +
+                                     "                                excluding extension; an underscore is added after the prefix\n" +
+                                     "CSLEGEND=<filename>             Path of an iMOD Drill File Legend (.DLF) file to visualizee file in cross sections\n" +
                                      "SELECTED=<0|1>                  Use 1 to select the IDF-file, 0 if otherwise. Default is 0\n" +
-                                     "LINECOLOR=r,g,b                 Define RGB color (integer values) for a line in the crosssection tool\n" +
-                                     "FILLCOLOR=r,g,b                 Define RGB color (integer values) for a plane in the crosssection tool\n" +
-                                     "PRFTYPE=<integer>               Define PRF-type as a combination of indidual values: 1=Active, 3=Line, 4=Points, 8=Fill, 64=Legend\n" +
+                                     "LINECOLOR=r,g,b                 RGB color (R,G,B integer values) for a line in the crosssection tool\n" +
+                                     "FILLCOLOR=r,g,b                 RGB color (R,G,B integer values) for a plane in the crosssection tool\n" +
+                                     "PRFTYPE=<integer>               PRF-type as a combination of indidual values: 1=Active, 3=Line, 4=Points, 8=Fill, 64=Legend\n" +
                                      "\n" +
-                                     "For GEN-files, the following optional keys are available to define settings:\n" +
-                                     "THICKNESS=<integer>             Define thickness of line as integer\n" +
-                                     "COLOR=r,g,b                     Define RGB (3 integer values) for color of GEN-line\n" +
-                                     "SELECTED=<0|1>                  Use 1 to select the GEN-file, 0 if otherwise. Default is 0\n" +
+                                     "For GEN- or IFF-files, the following optional keys are available to define settings:\n" +
+                                     "THICKNESS=<integer>             Thickness of line as integer\n" +
+                                     "COLOR=r,g,b                     RGB (R,G,B integer values) for color of GEN/IFF-line\n" +
+                                     "SELECTED=<0|1>                  Use 1 to select the GEN/IFF-file, 0 if otherwise. Default is 0\n" +
                                      "\n" +
                                      "For IPF-files, the following optional keys are available to define settings:\n" +
-                                     "LEGEND=<filename>               Define path of legend\n" +
-                                     "COLUMN=<integer>                Define columnnumber to apply legend to, legend should be also specified\n" +
+                                     "LEGEND=<filename>               Path of iMOD legend file (.LEG)\n" +
+                                     "COLUMN=<integer>                Column number to apply legend to, legend should be also specified\n" +
                                      "                                Use negative number to count backwards, -1 indicating the last column.\n" +
-                                     "TEXTSIZE=<integer>              Define size of labelled text as an integer (use 0 to hide text)\n" +
-                                     "COLOR=r,g,b                     Define RGB (3 integer values) for color of GEN-line\n" +
-                                     "THICKNESS=<integer>             Define thickness of line as integer\n" +
-                                     "PRFTYPE=<integer>               Define PRF-type as a combination of indidual values: 1=Active, 2=Ass.File, 64=Legend\n" +
+                                     "TEXTSIZE=<integer>              Size of labelled text as an integer (use 0 to hide text)\n" +
+                                     "COLOR=r,g,b                     RGB color (R,G,B integer values) of GEN-line\n" +
+                                     "THICKNESS=<integer>             Thickness of line as integer\n" +
+                                     "PRFTYPE=<integer>               PRF-type as a combination of indidual values: 1=Active, 2=Ass.File, 64=Legend\n" +
                                      "SELECTED=<0|1>                  Use 1 to select the IPF-file, 0 if otherwise. Default is 0\n" +
                                      "\n" +
                                      "[OVERLAYS]                      Optional section/keys that define overlay GEN-files\n" +
                                      "For GEN-files, the following optional keys are available to define settings:\n" +
-                                     "THICKNESS=<integer>             Define thickness of line as integer\n" +
-                                     "COLOR=r,g,b                     Define RGB color (integer values) of GEN-line");
+                                     "THICKNESS=<integer>             Thickness of line as integer\n" +
+                                     "COLOR=r,g,b                     RGB color (R,G,B integer values) of GEN-line");
 
         }
 
