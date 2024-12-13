@@ -321,6 +321,9 @@ namespace Sweco.SIF.IDFGENconvert
                     valueIDFFile.Filename = filename;
                 }
             }
+
+            // Replace NaN-value with NoData-value
+            valueIDFFile.ReplaceValues(float.NaN, valueIDFFile.NoDataValue);
         }
 
         /// <summary>
@@ -1038,7 +1041,9 @@ namespace Sweco.SIF.IDFGENconvert
                             polygonAreaIDFFile.values[rowIdx][colIdx] = polygonArea;
                             break;
                         default:
-                            throw new Exception("Unknown value for GridPar3: " + settings.GridPar3);
+                            // apply default (method 1): use first polygon, ignore later polygons
+                            break;
+                            // throw new Exception("Unknown value for GridPar3: " + settings.GridPar3);
                     }
                 }
             }
@@ -1239,10 +1244,12 @@ namespace Sweco.SIF.IDFGENconvert
                 {
                     if (range.Contains(genValue))
                     {
+                        // Note: first use float.NaN to skip this value, to prevent interpolation for lines with a -9999 value
                         genValue = float.NaN;
                     }
                     if (range.Contains(genValue2))
                     {
+                        // Note: first use float.NaN to skip this value, to prevent interpolation for lines with a -9999 value
                         genValue2 = float.NaN;
                     }
                 }
@@ -1310,11 +1317,12 @@ namespace Sweco.SIF.IDFGENconvert
         /// <param name="logIndentLevel"></param>
         protected virtual void WriteResults(string outputPath, string outputFilename, int logIndentLevel)
         {
-            log.AddInfo("Writing IDF-file '" + Path.GetFileName(valueIDFFile.Filename) + "' ...", logIndentLevel);
-            valueIDFFile.WriteFile(Path.Combine(outputPath, Path.GetFileNameWithoutExtension(outputFilename) + ".IDF"), metadata);
+            string valueIDFFilename = Path.Combine(outputPath, Path.GetFileNameWithoutExtension(outputFilename) + ".IDF");
+            log.AddInfo("Writing IDF-file '" + Path.GetFileName(valueIDFFilename) + "' ...", logIndentLevel);
+            valueIDFFile.WriteFile(valueIDFFilename, metadata);
             if (settings.AddAngleIDFFile)
             {
-                if (angleIDFFile.RetrieveElementCount() > 0)
+                if (angleIDFFile != null)
                 {
                     angleIDFFile.WriteFile(Path.Combine(outputPath, Path.GetFileNameWithoutExtension(outputFilename) + "_angle.IDF"));
                 }

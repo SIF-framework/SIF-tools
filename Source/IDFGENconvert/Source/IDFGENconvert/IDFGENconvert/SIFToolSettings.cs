@@ -109,11 +109,11 @@ namespace Sweco.SIF.IDFGENconvert
             AddToolParameterDescription("outPath", "Path to write results", "C:\\Test\\Output", false, new int[] { 1, 2 });
 
             // Define general option syntax
-            AddToolOptionDescription("s", "Skip specified commaseperated values si, or ranges (s1-s2) in inputfiles", "/s:-9999,-999", "Skipped values: {...}", new string[] { "s1" }, new string[] { "..." }, null, new int[] { 1, 2 });
+            AddToolOptionDescription("s", "Skip specified commaseperated values si, or ranges (s1-s2) in inputfiles, and process as NoData", "/s:-9999,-999", "Skipped values: {...}", new string[] { "s1" }, new string[] { "..." }, null, new int[] { 1, 2 });
 
             // Define IDF-GEN option syntax
             AddToolUsageOptionPreRemark("\nFor IDF-GEN conversion:", 1);
-            AddToolOptionDescription("h", "Create a hull of type h1:\n" +
+            AddToolOptionDescription("h", "Create a hull of type h1 around each region with non-NoData values in IDF-file(s):\n" +
                                           "0) no hull, just write IPF-points for all non-NoData IDF-cells\n" +
                                           "1) convex hull based on cell centers (default)\n" +
                                           "2) concave hull based on cell centers\n" +
@@ -132,6 +132,8 @@ namespace Sweco.SIF.IDFGENconvert
                                           "cellsize 'sz' (default 25)\n" +
                                           "for polygons: cells that overlap with a polygon are assigned a value\n" +
                                           "- c1: columnname or number (one based) or (integer) value c1 if no DAT-file is present\n" +
+                                          "      leave empty for default and use feature number occording to order in GEN-file\n" +
+                                          "      note: NaN-values are converted to the NoData-value of the IDF-file\n" +
                                           "- c2: method for checking polygon-cell overlap: 1) cell center inside polygon (default); 2) actual overlap\n" +
                                           "- c3: method for cellvalue/area when multiple polygons intersect cell:\n" +
                                           "      1)  first: value/area of first processed polygon of GEN-file (default);\n" +
@@ -147,8 +149,9 @@ namespace Sweco.SIF.IDFGENconvert
                                           "      For methods 5-9, the value/area of the first polygon is used for equal areas.\n" +
                                           "- c4: method for aligning grid extent and cellsize:\n" +
                                           "      0: do not snap extent (but a warning is given for mismatch with cellsize)\n" +
-                                          "      1: snap (enlarged) extent to (multiple) of cellsize (default)\n" +
+                                          "      1: snap (enlarged) extent to (multiple) of cellsize (default); size can increase\n" +
                                           "      2: snap extent to (multiple) of cellsize (extent can be corrected for cellsize)\n" +
+                                          "         if original size is multiple of cellsize, resulting size will not increase\n" + 
                                           "for lines: linear interpolation from value in column c1 (one based) for first vertex to value in column c2\n" +
                                           "           (if defined) for last vertex, or (integer) values c1/c2 if no DAT-file is present\n" +
                                           "           optionally, specify max. distance c3 for extrapolation along vector with only one column value\n" +

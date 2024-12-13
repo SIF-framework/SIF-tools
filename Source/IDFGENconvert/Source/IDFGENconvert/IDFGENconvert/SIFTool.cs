@@ -125,6 +125,17 @@ namespace Sweco.SIF.IDFGENconvert
                 // Outputfilename is only allowed when a single input file was selected
                 settings.OutputFilename = null;
             }
+            if (inputFilenames.Length == 0)
+            {
+                if (settings.InputFilter.Contains("*") || settings.InputFilter.Contains("*"))
+                {
+                    Log.AddInfo("No files found for input filter: " + settings.InputFilter);
+                }
+                else
+                {
+                    Log.AddWarning("Specified input file does not exist: " + settings.InputFilter);
+                }
+            }
 
             int fileCount = 0;
             GENFile genFile = null;
@@ -189,7 +200,7 @@ namespace Sweco.SIF.IDFGENconvert
                 }
             }
 
-            if (settings.IsMerged && (genFile.Count > 0))
+            if (settings.IsMerged && (genFile != null) && (genFile.Count > 0))
             {
 #if DEBUG
                 string genIDs = string.Empty;
