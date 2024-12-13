@@ -35,15 +35,24 @@ namespace Sweco.SIF.GENsplit
     /// </summary>
     public class SIFToolSettings : SIFToolSettingsBase
     {
+        // Note: because of rounding, squaring and square root operations the distance can have an error of almost 1.0
+        public const double DistanceTolerance = 0.01;
+
+        /// <summary>
+        /// String to use for NoData-values in resulting GEN-file
+        /// </summary>
+        public const string NoDataValueString = "-9999";
+
         public string InputPath { get; set; }
         public string InputFilter { get; set; }
         public string OutputPath { get; set; }
         public bool SkipOverwrite { get; set; }
-        public float SnapTolerance { get; set; }
+        public float MaxSnapDistance { get; set; }
+        public float MinSplitDistance { get; set; }
         public string DatSplitColumnString { get; set; }
         public string SplitValuePrefix { get; set; }
         public string IPFFilename { get; set; }
-        public int AddedIPFColIdx { get; set; }
+        public int AddedIPFColNr { get; set; }
 
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
@@ -55,11 +64,12 @@ namespace Sweco.SIF.GENsplit
             InputFilter = null;
             OutputPath = null;
             SkipOverwrite = false;
-            SnapTolerance = 100;
+            MaxSnapDistance = 100.0f;
+            MinSplitDistance = 1.0f;
             DatSplitColumnString = null;
             SplitValuePrefix = null;
             IPFFilename = null;
-            AddedIPFColIdx = -1;
+            AddedIPFColNr = -1;
         }
 
         /// <summary>
@@ -73,14 +83,16 @@ namespace Sweco.SIF.GENsplit
             AddToolParameterDescription("outPath", "path for output GEN-files", "C:\\Test\\Output");
             AddToolOptionDescription("o", "Do not overwrite existing target GEN-files; existing files will be skipped", "/o",
                                           "Existing output files are overwritten");
-            AddToolOptionDescription("s", "Specify tolerance in meters for snapping when option i is used (numeric, english notation, default: 100)", "/s:100", 
-                                          "Snap tolerance is: {0}", new string[] { "s1" });
             AddToolOptionDescription("c", "Split GEN-features by values in specified column c1 of DAT-file and create seperate GEN-files\n" +
                                           "Column can be specified by (one-based) number or column name, optionally use split prefix", "/c:5", 
                                           "Columns are split by values in column: {0}", new string[] { "c1" }, new string[] { "c2" });
             AddToolOptionDescription("i", "Split GEN-lines at points in specified IPF-file\n" +
-                                          "Optionally specify (one-based) column index c in IPF-file to add to splitted GEN-file", "/i:split.IPF", 
+                                          "Optionally specify (one-based) column index c in IPF-file to add to split GEN-file", "/i:split.IPF", 
                                           "IPF-file for splitting GEN-lines is: {0}", new string[] { "i1" }, new string[] { "i2" });
+            AddToolOptionDescription("s", "Specify settings for snapping/splitting with option i:\n" +
+                                          " - max snap distance for snapping (default: 100)\n" + 
+                                          " - min split distance to existing GEN-points for splitting (default: 1); to avoid very short lines", "/s:100,0.5",
+                                          "Max snap distance: {0}; Min split distance: {1}", new string[] { "s1" }, new string[] { "s2" }, new string[] { "1.0"});
         }
 
         /// <summary>
@@ -137,20 +149,31 @@ namespace Sweco.SIF.GENsplit
                     // split option parameter string into comma seperated substrings
                     string[] optionParameters = GetOptionParameters(optionParametersString);
                     // Parse substrings for this option
-                    if (optionParameters.Length == 1)
+                    if (optionParameters.Length >= 1)
                     {
                         try
                         {
-                            SnapTolerance = float.Parse(optionParameters[0], NumberStyles.Float, EnglishCultureInfo);
+                            MaxSnapDistance = float.Parse(optionParameters[0], NumberStyles.Float, EnglishCultureInfo);
                         }
                         catch (Exception)
                         {
-                            throw new ToolException("Could not parse snaptolerance for option '" + optionName + "':" + optionParametersString);
+                            throw new ToolException("Could not parse max snap distance for option '" + optionName + "':" + optionParametersString);
                         }
                     }
-                    else
+                    if (optionParameters.Length >= 2)
                     {
-                        throw new ToolException("Option s requires only 1 argument: " + optionParametersString);
+                        try
+                        {
+                            MinSplitDistance = float.Parse(optionParameters[1], NumberStyles.Float, EnglishCultureInfo);
+                        }
+                        catch (Exception)
+                        {
+                            throw new ToolException("Could not parse min split distance for option '" + optionName + "':" + optionParametersString);
+                        }
+                    }
+                    if ((optionParameters.Length < 1) || (optionParameters.Length > 2))
+                    {
+                        throw new ToolException("Option s requires 1 or 2 arguments: " + optionParametersString);
                     }
 
                 }
@@ -190,12 +213,12 @@ namespace Sweco.SIF.GENsplit
                     IPFFilename = optionParameters[0];
                     if (optionParameters.Length > 1)
                     {
-                        int colIdx;
-                        if (!int.TryParse(optionParameters[1], out colIdx))
+                        int colNr;
+                        if (!int.TryParse(optionParameters[1], out colNr))
                         {
                             throw new ToolException("Could not parse value for option 'i':" + optionParameters[1]);
                         }
-                        AddedIPFColIdx = colIdx;
+                        AddedIPFColNr = colNr;
                     }
                 }
                 else
@@ -246,7 +269,7 @@ namespace Sweco.SIF.GENsplit
                 throw new ToolException("IPF-file does not exist: " + IPFFilename);
             }
 
-            if (AddedIPFColIdx < -1)
+            if (AddedIPFColNr < -1)
             {
                 throw new ToolException("Value 1 or larger expected for option i");
             }
