@@ -20,6 +20,7 @@
 // You should have received a copy of the GNU General Public License
 // along with IPFreorder. If not, see <https://www.gnu.org/licenses/>.
 using Sweco.SIF.Common;
+using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD.IPF;
 using System;
 using System.Collections.Generic;
@@ -192,8 +193,11 @@ namespace Sweco.SIF.IPFreorder
                 }
 
 
-                Log.AddInfo("Reordering IPF-file " + sourceIPFFilename);
-                sourceIPFFile = ReadIPFFile(sourceIPFFilename, settings);
+                Log.AddInfo("Reading IPF-file " + FileUtils.GetRelativePath(sourceIPFFilename, settings.InputPath) + " ...");
+                bool isAssociatedRefRead = (settings.AssociatedFileColumnRef == null) || !settings.AssociatedFileColumnRef.Equals("0"); // settings.IsTimeseriesSkipped || 
+                sourceIPFFile = ReadIPFFile(sourceIPFFilename, isAssociatedRefRead, settings);
+
+                Log.AddInfo("Reordering IPF-file ...");
                 targetIPFFile = ReorderIPFFile(sourceIPFFile, targetIPFFilename, settings);
 
                 if (settings.TimeseriesPath != null)
@@ -219,11 +223,12 @@ namespace Sweco.SIF.IPFreorder
         /// Read IPF-file with specified settings
         /// </summary>
         /// <param name="sourceIPFFilename"></param>
+        /// <param name="isAssociatedRefRead"></param>
         /// <param name="basicSettings"></param>
         /// <returns></returns>
-        protected virtual IPFFile ReadIPFFile(string sourceIPFFilename, SIFToolSettings settings)
+        protected virtual IPFFile ReadIPFFile(string sourceIPFFilename, bool isAssociatedRefRead, SIFToolSettings settings)
         {
-            return IPFFile.ReadFile(sourceIPFFilename);
+            return IPFFile.ReadFile(sourceIPFFilename, false, isAssociatedRefRead);
         }
 
         protected virtual void ResetTimeseriesPath(IPFFile targetIPFFile, string timeseriesPath)
@@ -401,8 +406,12 @@ namespace Sweco.SIF.IPFreorder
                     idx = nr - 1;
                 }
 
-                // Set user specified column index
+                // Set user specified column index for target file
                 targetIPFFile.AssociatedFileColIdx = idx;
+                if (targetIPFFile.AssociatedFileExtension == null)
+                {
+                    targetIPFFile.AssociatedFileExtension = IPFFile.DefaultAssociatedFileExtension;
+                }
             }
             else
             {
@@ -420,7 +429,7 @@ namespace Sweco.SIF.IPFreorder
                     if (!isAssociatedColumnFound)
                     {
                         // Leave target AssociatedFileColIdx -1
-                        Log.AddWarning("Associated column number is reset to 0 since the referenced column is not selected as a result column: " + sourceIPFFile.ColumnNames[sourceIPFFile.AssociatedFileColIdx], 1);
+                        Log.AddWarning("Associated column number is reset to 0 since referenced column is not selected as result column: " + sourceIPFFile.ColumnNames[sourceIPFFile.AssociatedFileColIdx], 1);
                     }
                 }
             }
@@ -452,17 +461,30 @@ namespace Sweco.SIF.IPFreorder
                 {
                     if (targetIPFFile.AssociatedFileColIdx >= 0)
                     {
-                        if (ipfPoint.HasTimeseries())
+                        if (sourceIPFFile.AssociatedFileColIdx >= 0)
                         {
-                            targetIPFPoint.Timeseries = ipfPoint.Timeseries;
+                            if (ipfPoint.HasTimeseries())
+                            {
+                                targetIPFPoint.Timeseries = ipfPoint.Timeseries;
+                            }
+                            else
+                            {
+                                Log.AddWarning("Removing TS-reference; TS-file not found for IPF-point " + ipfPoint.ToString() + ": " + targetIPFPoint.ColumnValues[targetIPFFile.AssociatedFileColIdx], 1);
+                                targetIPFPoint.ColumnValues[targetIPFFile.AssociatedFileColIdx] = null;
+                            }
                         }
                         else
                         {
-                            Log.AddWarning("Removing TS-reference; TS-file not found for IPF-point " + ipfPoint.ToString() + ": " + targetIPFPoint.ColumnValues[targetIPFFile.AssociatedFileColIdx]);
-                            targetIPFPoint.ColumnValues[targetIPFFile.AssociatedFileColIdx] = null;
+                            if (!targetIPFPoint.HasTimeseries())
+                            {
+                                Log.AddWarning("Removing TS-reference; TS-file not found for IPF-point " + targetIPFPoint.ToString() + ": " + targetIPFPoint.ColumnValues[targetIPFFile.AssociatedFileColIdx], 1);
+                                targetIPFPoint.ColumnValues[targetIPFFile.AssociatedFileColIdx] = null;
+                            }
                         }
                     }
                 }
+
+                // Add point without checking for timeseries now
                 targetIPFFile.AddPoint(targetIPFPoint);
             }
 
