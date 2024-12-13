@@ -96,10 +96,9 @@ namespace Sweco.SIF.URLdownload
             SIFToolSettings settings = (SIFToolSettings) Settings;
 
             // Create output path if not yet existing
-            string resultPath = Path.GetDirectoryName(settings.Filename);
-            if (!resultPath.Equals(string.Empty) && !Directory.Exists(resultPath))
+            if (!settings.OutputPath.Equals(string.Empty) && !Directory.Exists(settings.OutputPath))
             {
-                Directory.CreateDirectory(resultPath);
+                Directory.CreateDirectory(settings.OutputPath);
             }
 
             int fileCount = 0;
@@ -131,25 +130,30 @@ namespace Sweco.SIF.URLdownload
             }
 
             // Start download
-            StartDownload(webClient, settings, Log, 0);
+            StartDownload(webClient, settings, ref fileCount, Log, 0);
 
             Log.AddInfo();
             if (fileCount > 1)
             {
                 ToolSuccessMessage = "Finished downloading " + fileCount + " files";
             }
-            else
+            else if (fileCount == 1)
             {
                 ToolSuccessMessage = "Finished downloading";
+            }
+            else if (fileCount == 0)
+            {
+                ToolSuccessMessage = "No files were downloaded";
             }
 
             return exitcode;
         }
 
-        protected virtual void StartDownload(WebClient webClient, SIFToolSettings settings, Log log, int v)
+        protected virtual void StartDownload(WebClient webClient, SIFToolSettings settings, ref int fileCount, Log log, int v)
         {
-            DownloadFile(webClient, settings.URL, settings.Filename, settings, Log, 0);
-            PerformPostprocessing(settings, settings.Filename, Log, 0);
+            string filename = Path.Combine(settings.OutputPath, settings.OutputFilename);
+            DownloadFile(webClient, settings.URL, filename, settings, Log, 0);
+            PerformPostprocessing(settings, filename, Log, 0);
         }
 
         protected virtual void PerformPostprocessing(SIFToolSettings settings, string filename, Log log, int logIndentLevel)

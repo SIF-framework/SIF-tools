@@ -43,7 +43,8 @@ namespace Sweco.SIF.URLdownload
     public class SIFToolSettings : SIFToolSettingsBase
     {
         public string URL { get; set; }
-        public string Filename { get; set; }
+        public string OutputPath { get; set; }
+        public string OutputFilename { get; set; }
         public string Accountname { get; set; }
         public string Password { get; set; }
         public string Domain { get; set; }
@@ -56,7 +57,8 @@ namespace Sweco.SIF.URLdownload
         {
             // Set default values for settings
             URL = null;
-            Filename = null;
+            OutputPath = null;
+            OutputFilename = null;
             Accountname = null;
             Password = null;
             Domain = null;
@@ -73,7 +75,7 @@ namespace Sweco.SIF.URLdownload
             AddToolParameterDescription("outPath", "Path and filename to write downloaded file", "C:\\Test\\Output\\download.zip");
             AddToolOptionDescription("c", "Add credentials with accountname (an) and password (pw). Optionally a domain (d) can be specified.\n" +
                                           "Note: both are NOT reported/stored by tool, but are send as text via URL", "/c:p.ersoon@hier.nl,X#$!21C&", "Credentials have been specified", new string[] { "an", "pw" }, new string[] { "d" }, new string[] { "N/A" } );
-            AddToolOptionDescription("sp", "Define security protocol p as one off the strings: 'ssl' for SSL 3.0, 'tls' for TLS1.2", "/sp:ssl", "Security protocol has been specified: {0}", new string[] { "p" });
+            AddToolOptionDescription("sp", "Define security protocol p with one of the following strings: 'ssl' for SSL 3.0, 'tls' for TLS1.2", "/sp:ssl", "Security protocol has been specified: {0}", new string[] { "p" });
         }
 
         /// <summary>
@@ -87,7 +89,9 @@ namespace Sweco.SIF.URLdownload
             {
                 // Parse syntax 1:
                 URL = parameters[0];
-                Filename = parameters[1];
+                this.SplitPathArgument(parameters[1], out string outputPath, out string outputFilename);
+                OutputPath = outputPath;
+                OutputFilename = outputFilename;
                 groupIndex = 0;
             }
             else
