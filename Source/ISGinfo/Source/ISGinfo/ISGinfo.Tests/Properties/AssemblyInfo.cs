@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Sweco Nederland B.V.")]
 [assembly: AssemblyProduct("ISGinfo.Tests")]
-[assembly: AssemblyCopyright("Copyright � 2016 Sweco Nederland B.V.")]
+[assembly: AssemblyCopyright("Copyright ? 2016 Sweco Nederland B.V.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -16,5 +16,5 @@ using System.Runtime.InteropServices;
 [assembly: Guid("7c8b1112-ce70-4f68-bded-faf68054c5b2")]
 
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("2.0.0.0")]
-[assembly: AssemblyFileVersion("2.0.0.0")]
+[assembly: AssemblyVersion("2.0.1.0")]
+[assembly: AssemblyFileVersion("2.0.1.0")]

@@ -123,10 +123,13 @@ namespace Sweco.SIF.ISGinfo
 
         private void RetrieveInfo(ISGFile isgFile, SIFToolSettings settings)
         {
+            System.Console.Out.WriteLine("#1: " + isgFile.Filename);
             if (settings.IsExtentRequested)
             {
-                // Force loading of segments
-                int count = isgFile.Segments.Count;
+                // Force loading of nodes
+                isgFile.ReadSegments();
+                isgFile.ReadISP();
+                isgFile.UpdateExtent();
 
                 System.Console.Out.WriteLine(GetExtentString(isgFile, settings));
             }
@@ -145,9 +148,16 @@ namespace Sweco.SIF.ISGinfo
         protected virtual string GetExtentString(ISGFile isgFile, SIFToolSettings settings)
         {
             Extent extent = isgFile.Extent;
-            if (!settings.SnapCellSize.Equals(float.NaN))
+            if (extent != null)
             {
-                extent = extent.Snap(settings.SnapCellSize, true);
+                if (!settings.SnapCellSize.Equals(float.NaN))
+                {
+                    extent = extent.Snap(settings.SnapCellSize, true);
+                }
+            }
+            else
+            {
+                extent = new Extent(0, 0, 0, 0);
             }
 
             string extentString1 = extent.llx.ToString("F3", EnglishCultureInfo) + "," + extent.lly.ToString("F3", EnglishCultureInfo) + "," + extent.urx.ToString("F3", EnglishCultureInfo) + "," + extent.ury.ToString("F3", EnglishCultureInfo);
