@@ -8,7 +8,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Sweco.SIF.GENSHPconvert</RootNamespace>
     <AssemblyName>GENSHPconvert</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
@@ -36,7 +36,8 @@
     <ApplicationIcon>Sweco.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="EGIS.ShapeFileLib">
+    <Reference Include="EGIS.ShapeFileLib, Version=4.5.9.0, Culture=neutral, PublicKeyToken=05b98c869b5ffe6a, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\Libraries\EGIS.ShapeFileLib.dll</HintPath>
     </Reference>
     <Reference Include="Sweco.SIF.Common">

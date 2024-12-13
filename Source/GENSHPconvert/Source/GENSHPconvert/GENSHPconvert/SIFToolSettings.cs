@@ -36,17 +36,21 @@ namespace Sweco.SIF.GENSHPconvert
     /// </summary>
     public class SIFToolSettings : SIFToolSettingsBase
     {
-        /// <summary>
-        /// Searchprefix for NoData-value #1. Note EGIS-library seems to return this value instead of 0-values in input shapefile
-        /// </summary>
-        public const string ShpNoData1Prefix = "*****";
-        public const string ShpNoData1ReplacementString = "0";
+        public const string NoDataSHPDateValue = "00000000";
 
         /// <summary>
-        /// Searchprefix for NoData-value #2. Note EGIS-library seems to return this value instead of Null-values in input shapefile
+        /// Array with recognized char values for first character of NULL-strings in values of numeric columns. 
+        /// If not defined and array equals null, the correction is skipped completely, which speeds up the conversion.
+        /// Note: EGIS-library returns a string value for each value regardless of type. Default '*'-symbols are returned for NULL-values
         /// </summary>
-        public const string ShpNoData2Prefix = "00000000";
-        public const string ShpNoData2ReplacementString = "NULL";
+        public char[] ShpNullNumericChars { get; set; }
+
+        /// <summary>
+        /// Replacement value for NULL
+        /// </summary>
+        public string ShpNullIntReplacementString { get; set; }
+        public string ShpNullDblReplacementString { get; set; }
+        public string ShpNullDateReplacementString { get; set; }
 
         public string InputPath { get; set; }
         public string InputFilter { get; set; }
@@ -55,6 +59,8 @@ namespace Sweco.SIF.GENSHPconvert
         public int MaxFeatureCount { get; set; }
         public bool IgnoreDuplicateIDs { get; set; }
         public bool IsClockwiseOrderForced { get; set; }
+
+        public string DateFormat { get; set; }
 
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
@@ -69,23 +75,38 @@ namespace Sweco.SIF.GENSHPconvert
             MaxFeatureCount = 0;
             IgnoreDuplicateIDs = false;
             IsClockwiseOrderForced = false;
-        }
 
-        /// <summary>
-        /// Define the syntax of the tool as shown in the tool usage block. 
-        /// Use one or more calls of the following methods: SetToolUsageHeader(), AddParameterDescription() and AddOptionDescription()
-        /// </summary>
-        protected override void DefineToolSyntax()
+            ShpNullNumericChars = new char[] { '*', '\0' };
+            ShpNullIntReplacementString = "NULL";
+            ShpNullDblReplacementString = "NaN";
+            ShpNullDateReplacementString = "NULL";
+
+            DateFormat = "dd-MM-yyyy";
+    }
+
+    /// <summary>
+    /// Define the syntax of the tool as shown in the tool usage block. 
+    /// Use one or more calls of the following methods: SetToolUsageHeader(), AddParameterDescription() and AddOptionDescription()
+    /// </summary>
+    protected override void DefineToolSyntax()
         {
             AddToolParameterDescription("inPath", "Path to search for input files", "C:\\Test\\Input");
             AddToolParameterDescription("filter", "Filter to select input files (e.g. *.shp or *.GEN)", "*.shp");
             AddToolParameterDescription("outPath", "Path to write results", "C:\\Test\\Output");
             AddToolOptionDescription("r", "Process input path recursively", "/r", "Subdirectories under input path are processed recursively ");
             AddToolOptionDescription("s", "Split result in files of maximum r features", "/s:1000000", "Split result in files of {0} features: {0}", new string[] { "r" });
-            AddToolOptionDescription("d", "�gnore errors for duplicate IDs in features/rows of GEN or DAT-file, otherwise an exception is thrown", "/d", "Errors on duplicate IDs in GEN/DAT-files are ignored");
+            AddToolOptionDescription("d", "Ignore errors for duplicate IDs in features/rows of GEN or DAT-file, otherwise an exception is thrown", "/d", "Errors on duplicate IDs in GEN/DAT-files are ignored");
             AddToolOptionDescription("c", "Force clockwise order of points. This effectively removes islands (or ring order errors in shapefiles)", null, "Clockwise point order is enforced");
-
-            AddToolUsageFinalRemark("When several feature types are present in a GEN-file, it is split in point, line and polygon and a postfix is added to the filename (resp. '" + Properties.Settings.Default.Point_postfix + "','" + Properties.Settings.Default.Line_postfix + "','" + Properties.Settings.Default.Polygon_postfix + "')");
+            AddToolOptionDescription("null", "Replace NULL-values in shapefiles by string s when converting to GEN-file\n" +
+                                             "As a default 'NULL' is used for integer and 'NaN' for decimal types\n" +
+                                             "To use empty string for NULL-values, use /null without parameter values\n" +
+                                             "To skip replacement, which may give one or more *-values (depending on field length), use s=*", null, "NULL-values are {0}", null, new string[] { "s" }, new string[] { "[empty string]" });
+            AddToolUsageOptionPostRemark("Note for GEN/DAT-files:\n" +
+                                    "- valid boolean values are 'True', 'False' (case-insensitive) or '?' (if undefined);\n" + 
+                                    "- valid date values have format 'dd-MM-yyyy';\n" +
+                                    "- valid numeric values can also have special values 'Infinity', 'Inf', '-Infinity', '-Inf' or 'NaN' (case-insensitive)\n" +
+                                    "  and scientific notation is allowed, e.g. '10.01E-6'; use empty value or NULL to create NULL-value in shapefile");
+            AddToolUsageOptionPostRemark("Note for shapefiles: When several feature types are present in a GEN-file, it is split in points, lines and polygons and a postfix is added to the filename (resp. '" + Properties.Settings.Default.Point_postfix + "','" + Properties.Settings.Default.Line_postfix + "','" + Properties.Settings.Default.Polygon_postfix + "')");
         }
 
         /// <summary>
@@ -106,6 +127,24 @@ namespace Sweco.SIF.GENSHPconvert
             else
             {
                 throw new ToolException("Invalid number of parameters (" + parameters.Length + "), check tool usage");
+            }
+        }
+
+        protected override string FormatLogStringParameter(string optionName, string parameter, string parameterValue, List<string> parameterValues)
+        {
+            switch (optionName)
+            {
+                case "null":
+                    if (parameterValue.Equals("*"))
+                    {
+                        return "not checked; asterisks may be returned";
+                    }
+                    else
+                    {
+                        return "replaced by: " + parameterValue;
+                    }
+                default:
+                    return base.FormatLogStringParameter(optionName, parameter, parameterValue, parameterValues);
             }
         }
 
@@ -143,6 +182,32 @@ namespace Sweco.SIF.GENSHPconvert
                 else
                 {
                     throw new ToolException("Parameter value expected for option '" + optionName + "'");
+                }
+            }
+            else if (optionName.ToLower().Equals("null"))
+            {
+                if (hasOptionParameters)
+                {
+                    if (optionParametersString.Equals("*"))
+                    {
+                        // Disable check/replacement of NULL-values completely
+                        ShpNullNumericChars = null;
+                        ShpNullDblReplacementString = null;
+                        ShpNullIntReplacementString = null;
+                        ShpNullDateReplacementString = null;
+                    }
+                    else
+                    {
+                        ShpNullDblReplacementString = optionParametersString;
+                        ShpNullIntReplacementString = optionParametersString;
+                        ShpNullDateReplacementString = optionParametersString;
+                    }
+                }
+                else
+                {
+                    ShpNullDblReplacementString = string.Empty;
+                    ShpNullIntReplacementString = string.Empty;
+                    ShpNullDateReplacementString = string.Empty;
                 }
             }
             else

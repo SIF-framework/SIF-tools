@@ -23,19 +23,27 @@ using EGIS.ShapeFileLib;
 using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD.GEN;
+using Sweco.SIF.iMOD.IPF;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.Eventing.Reader;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Schema;
 
 namespace Sweco.SIF.GENSHPconvert
 {
     public class SIFTool : SIFToolBase
     {
+        /// <summary>
+        /// If true, a warning for NULL-values has been issued already
+        /// </summary>
+        public bool isWarnedForNullValue;
+
         #region Constructor
 
         /// <summary>
@@ -76,7 +84,7 @@ namespace Sweco.SIF.GENSHPconvert
                 exitcode = 1;
             }
 
-             Environment.Exit(exitcode);
+            Environment.Exit(exitcode);
         }
 
         /// <summary>
@@ -99,15 +107,6 @@ namespace Sweco.SIF.GENSHPconvert
             // Retrieve tool settings that have been parsed from the command-line arguments 
             SIFToolSettings settings = (SIFToolSettings) Settings;
 
-            // Place worker code here
-            string outputPath = settings.OutputPath;
-
-            // Create output path if not yet existing
-            if (!Directory.Exists(outputPath))
-            {
-                Directory.CreateDirectory(outputPath);
-            }
-
             DATFile.IsErrorOnDuplicateID = !settings.IgnoreDuplicateIDs;
             GENFile.IsErrorOnDuplicateID = !settings.IgnoreDuplicateIDs;
 
@@ -118,13 +117,23 @@ namespace Sweco.SIF.GENSHPconvert
             int fileCount = 0;
             foreach (string inputFilename in inputFilenames)
             {
+                isWarnedForNullValue = false;
+                string relativeOutputpath = Path.GetDirectoryName(FileUtils.GetRelativePath(inputFilename, settings.InputPath));
+                string outputpath = Path.Combine(settings.OutputPath, relativeOutputpath);
+
+                // Create output path if not yet existing
+                if (!Directory.Exists(outputpath))
+                {
+                    Directory.CreateDirectory(outputpath);
+                }
+
                 if (Path.GetExtension(inputFilename).ToLower().Equals(".gen"))
                 {
-                    ConvertGENToShapefile(inputFilename, outputPath, settings);
+                    ConvertGENToShapefile(inputFilename, outputpath, settings);
                 }
                 else if (Path.GetExtension(inputFilename).ToLower().Equals(".shp"))
                 {
-                    ConvertShapefileToGEN(inputFilename, outputPath, settings);
+                    ConvertShapefileToGEN(inputFilename, outputpath, settings);
                 }
                 else
                 {
@@ -149,6 +158,9 @@ namespace Sweco.SIF.GENSHPconvert
                 sf = new EGIS.ShapeFileLib.ShapeFile(shapeFilename);
 
                 sf.RenderSettings = new EGIS.ShapeFileLib.RenderSettings(shapeFilename, string.Empty, new System.Drawing.Font(System.Drawing.FontFamily.GenericSerif, 6f));
+                // Note: encoding is read from shapefile's cpg-file, which contains just a text string with the name of the encoding; if not present, EGIS uses UTF8 as a default. This can be overruled with one of:
+                // sf.DbfReader.StringEncoding = Encoding.UTF8; // Encoding.ASCII; Encoding.GetEncoding("ISO8859-1"); // Latin-1 // Encoding.GetEncoding("Windows-1252"); // SBCS // Encoding.GetEncoding("UTF-8");
+
                 string[] record = sf.GetRecords(0);
                 if (record != null)
                 {
@@ -191,26 +203,21 @@ namespace Sweco.SIF.GENSHPconvert
                     // Fix existing ID or ID2 columnnames
                     if ((fieldName).ToUpper().Equals("ID"))
                     {
-                        string newIdColName = "ID_ORG";
-                        int idx = 2;
-                        while (datFile.GetColIdx(newIdColName) >= 0)
-                        {
-                            newIdColName = "ID_ORG" + idx;
-                        }
-                        fieldName = newIdColName;
+                        fieldName = "ID_ORG";
                     }
                     if ((fieldName).ToUpper().Equals("ID2"))
                     {
-                        string newIdColName = "ID2_ORG";
-                        int idx = 2;
-                        while (datFile.GetColIdx(newIdColName) >= 0)
-                        {
-                            newIdColName = "ID2_ORG" + idx;
-                        }
-                        fieldName = newIdColName;
+                        fieldName = "ID2_ORG";
                     }
-                    datFile.AddColumn(fieldName);
+                    datFile.AddColumn(fieldName, string.Empty, false);
+
+                    // Floating point values are stored/retrieved as Number with EGIS; overrule with FloatingPoint type if decimals are present
                     fieldTypes[fieldIdx] = fieldDesc.FieldType;
+                    if ((fieldDesc.FieldType == DbfFieldType.Number) && (fieldDesc.DecimalCount > 0))
+                    {
+                        // Override and use floating point when decimals are defined
+                        fieldTypes[fieldIdx] = DbfFieldType.FloatingPoint;
+                    }
                 }
 
                 // Calculate number of points between 5% logmessages, use multiple of 50
@@ -282,7 +289,7 @@ namespace Sweco.SIF.GENSHPconvert
                             }
                         }
 
-                        AddDatFileRow(datFile, fieldValues, fieldTypes, id, id2, false);
+                        AddDATFileRow(datFile, fieldValues, fieldTypes, id, id2, false, settings);
                         id++;
                     }
 
@@ -333,7 +340,7 @@ namespace Sweco.SIF.GENSHPconvert
             }
             catch (Exception ex)
             {
-                throw new Exception("Unexpected error when converting shapefile " + Path.GetFileName(shapeFilename), ex);
+                    throw new Exception("Unexpected error when converting shapefile " + Path.GetFileName(shapeFilename), ex);
             }
             finally
             {
@@ -371,26 +378,30 @@ namespace Sweco.SIF.GENSHPconvert
             List<GENPoint> genPoints = genFile.RetrieveGENPoints();
             List<GENLine> genLines = genFile.RetrieveGENLines();
             List<GENPolygon> genPolygons = genFile.RetrieveGENPolygons();
+
             if (genPoints.Count > 0)
             {
                 string shapeFilename = CreateShapeFilename(outputPath, genFilename, "_p", (genLines.Count > 0) || (genPolygons.Count > 0));
-                sfw = CreateShapeFileWriter(outputPath, shapeFilename, ShapeType.Point, fieldDefinitions, datFile);
+                Log.AddInfo("Writing point shapefile '" + Path.GetFileName(shapeFilename) + "' ...", 2);
+                sfw = CreateShapeFileWriter(outputPath, shapeFilename, ShapeType.Point, fieldDefinitions, datFile, Log, 2);
                 for (int i = 0; i < genPoints.Count; i++)
                 {
-                    ReadOnlyCollection<PointD[]> pointDArrays = pointDArrays = GetShapeFilePointData(genPoints[i]);
                     List<string> fieldData = datFile.GetRow(genPoints[i].ID);
-                    sfw.AddRecord(pointDArrays, fieldData.ToArray());
+                    CorrectSHPFieldData(fieldData, fieldDefinitions);
+                    sfw.AddRecord(new PointD[] { new PointD(genPoints[i].Point.X, genPoints[i].Point.Y) }, 1, fieldData.ToArray());
                 }
                 sfw.Close();
             }
             if (genLines.Count > 0)
             {
                 string shapeFilename = CreateShapeFilename(outputPath, genFilename, "_l", (genPoints.Count > 0) || (genPolygons.Count > 0));
-                sfw = CreateShapeFileWriter(outputPath, shapeFilename, ShapeType.PolyLine, fieldDefinitions, datFile);
+                Log.AddInfo("Writing line shapefile '" + Path.GetFileName(shapeFilename) + "' ...", 2);
+                sfw = CreateShapeFileWriter(outputPath, shapeFilename, ShapeType.PolyLine, fieldDefinitions, datFile, Log, 2);
                 for (int i = 0; i < genLines.Count; i++)
                 {
                     ReadOnlyCollection<PointD[]> pointDArrays = pointDArrays = GetShapeFilePointData(genLines[i]);
                     List<string> fieldData = datFile.GetRow(genLines[i].ID);
+                    CorrectSHPFieldData(fieldData, fieldDefinitions);
                     sfw.AddRecord(pointDArrays, fieldData.ToArray());
                 }
                 sfw.Close();
@@ -398,7 +409,8 @@ namespace Sweco.SIF.GENSHPconvert
             if (genPolygons.Count > 0)
             {
                 string shapeFilename = CreateShapeFilename(outputPath, genFilename, "_v", (genPoints.Count > 0) || (genLines.Count > 0));
-                sfw = CreateShapeFileWriter(outputPath, shapeFilename, ShapeType.Polygon, fieldDefinitions, datFile);
+                Log.AddInfo("Writing polygon shapefile '" + Path.GetFileName(shapeFilename) + "' ...", 2);
+                sfw = CreateShapeFileWriter(outputPath, shapeFilename, ShapeType.Polygon, fieldDefinitions, datFile, Log, 2);
                 for (int i = 0; i < genPolygons.Count; i++)
                 {
                     GENPolygon genPolygon = genPolygons[i];
@@ -409,22 +421,63 @@ namespace Sweco.SIF.GENSHPconvert
                       
                     ReadOnlyCollection<PointD[]> pointDArrays = pointDArrays = GetShapeFilePointData(genPolygon);
                     List<string> fieldData = datFile.GetRow(genPolygons[i].ID);
-                    string[] fieldDataArray = CreateStringArray(fieldData);
-                    sfw.AddRecord(pointDArrays, fieldDataArray);
+                    CorrectSHPFieldData(fieldData, fieldDefinitions);
+                    sfw.AddRecord(pointDArrays, fieldData.ToArray());
                 }
                 sfw.Close();
             }
         }
 
-        private string[] CreateStringArray(List<string> stringList)
+        private void CorrectSHPFieldData(List<string> fieldData, List<FieldDefinition> fieldDefinitions)
         {
-            string[] array = new string[stringList.Count];
-            for (int idx = 0; idx < stringList.Count; idx++)
+            for (int colIdx = 0; colIdx < fieldDefinitions.Count; colIdx++)
             {
-                string item = stringList[idx];
-                array[idx] = (item != null) ? item : string.Empty;
+                switch (fieldDefinitions[colIdx].Type)
+                {
+                    case DbfFieldType.Logical:
+                        if (!fieldData[colIdx].Equals("?"))
+                        {
+                            bool boolValue = bool.Parse(fieldData[colIdx]);
+                            fieldData[colIdx] = (boolValue) ? "T" : "F";
+                        }
+                        break;
+                    case DbfFieldType.Date:
+                        if (fieldData[colIdx].Equals(string.Empty))
+                        {
+                            fieldData[colIdx] = SIFToolSettings.NoDataSHPDateValue;
+                        }
+                        else
+                        {
+                            DateTime date = DateTime.Parse(fieldData[colIdx]);
+                            fieldData[colIdx] = date.ToString("yyyyMMdd");
+                        }
+                        break;
+                    case DbfFieldType.Number:
+                    case DbfFieldType.FloatingPoint:
+                        if (fieldData[colIdx].Equals(string.Empty))
+                        {
+                            fieldData[colIdx] = "\0";
+                        }
+                        break;
+                    case DbfFieldType.Character:
+                        if (fieldData[colIdx].Equals(string.Empty))
+                        {
+                            // An empty string doesn't seem to be allowed in a shapefile Character field, this is replaced by NULL.
+                            fieldData[colIdx] = "\0"; //string.Empty.PadLeft(fieldDefinitions[colIdx].FieldLength + 1);
+                        }
+                        break;
+                    default:
+                        if (fieldData[colIdx] == null)
+                        {
+                            fieldData[colIdx] = string.Empty;
+                        }
+                        else
+                        {
+                            // leave current string value
+                        }
+                        break;
+                }
             }
-            return array;
         }
 
         protected virtual GENFile ReadGENFile(string genFilename, SIFToolSettings settings)
@@ -441,38 +494,97 @@ namespace Sweco.SIF.GENSHPconvert
             extentGENFile.WriteFile(extentGENFilename);
         }
 
-        protected void AddDatFileRow(DATFile datFile, string[] fields, DbfFieldType[] fieldTypes, int id, string id2, bool checkDuplicateIDs = true)
+        protected void AddDATFileRow(DATFile datFile, string[] fields, DbfFieldType[] fieldTypes, int id, string id2, bool checkDuplicateIDs, SIFToolSettings settings)
         {
             List<string> rowValues = new List<string>();
             rowValues.Add(id.ToString());
             rowValues.Add(id2);
-            for (int fieldIdx = 0; fieldIdx < fields.Length; fieldIdx++)
-            {
-                string value = fields[fieldIdx].Trim();
 
-                // Peform corrections for 0 and null values which do not seem to be handled correctly by EGIS
-                switch (fieldTypes[fieldIdx])
+            if (settings.ShpNullNumericChars == null)
+            {
+                for (int fieldIdx = 0; fieldIdx < fields.Length; fieldIdx++)
                 {
-                    case DbfFieldType.Number:
-                    case DbfFieldType.FloatingPoint:
-                        if (value.StartsWith("\0"))
-                        {
-                            value = "0";
-                        }
-                        break;
-                    default:
-                        if (value.StartsWith(SIFToolSettings.ShpNoData1Prefix))
-                        {
-                            value = SIFToolSettings.ShpNoData1ReplacementString;
-                        }
-                        else if (value.StartsWith(SIFToolSettings.ShpNoData2Prefix))
-                        {
-                            value = SIFToolSettings.ShpNoData2ReplacementString;
-                        }
-                        break;
+                    rowValues.Add(fields[fieldIdx].Trim());
                 }
-                rowValues.Add(value);
             }
+            else
+            {
+                for (int fieldIdx = 0; fieldIdx < fields.Length; fieldIdx++)
+                {
+                    string value = fields[fieldIdx].Trim();
+                    DbfFieldType fieldType = fieldTypes[fieldIdx];
+
+                    if ((fieldType == DbfFieldType.FloatingPoint) || (fieldType == DbfFieldType.Number))
+                    {
+                        for (int charIdx = 0; charIdx < settings.ShpNullNumericChars.Length; charIdx++)
+                        {
+                            if (value[0].Equals(settings.ShpNullNumericChars[charIdx]))
+                            {
+                                string orgValue = value;
+
+                                if (fieldTypes[fieldIdx] == DbfFieldType.FloatingPoint)
+                                {
+                                    value = settings.ShpNullDblReplacementString;
+                                }
+                                else if (fieldTypes[fieldIdx] == DbfFieldType.Number)
+                                {
+                                    value = settings.ShpNullIntReplacementString;
+                                }
+
+                                if (!isWarnedForNullValue)
+                                {
+                                    Log.AddWarning("Native NULL-value '" + orgValue + "' found in row with id " + id + " for " + fieldTypes[fieldIdx] + "-column '" + datFile.ColumnNames[fieldIdx] + "'", 3);
+                                    Log.AddInfo("Value is replaced with '" + value + "'; Warnings for more native NULL-values in this shapefile are not shown", 3);
+                                    isWarnedForNullValue = true;
+                                }
+
+                                // Stop trying other NULL-characters in this for-loop 
+                                break;
+                            }
+                        }
+                    }
+                    else if (fieldType == DbfFieldType.Date)
+                    {
+                        if (!value.Equals(string.Empty))
+                        {
+                            if (value.Equals(SIFToolSettings.NoDataSHPDateValue))
+                            {
+                                value = settings.ShpNullDateReplacementString;
+                            }
+                            else
+                            {
+                                DateTime date = DateTime.ParseExact(value, "yyyyMMdd", EnglishCultureInfo, DateTimeStyles.None);
+                                value = date.ToString(settings.DateFormat);
+                            }
+                        }
+                    }
+                    else if (fieldType == DbfFieldType.Logical)
+                    {
+                        switch (value)
+                        {
+                            case "F":
+                                value = "False";
+                                break;
+                            case "T":
+                                value = "True";
+                                break;
+                            default:
+                                // leave value (which can be ? if undefined)
+                                break;
+                        }
+                    }
+                    else if (fieldType == DbfFieldType.Character)
+                    {
+                        if (value.Equals("NULL"))
+                        {
+                            value = string.Empty;
+                        }
+                    }
+
+                    rowValues.Add(value);
+                }
+            }
+
             datFile.AddRow(new DATRow(rowValues), checkDuplicateIDs);
         }
 
@@ -502,28 +614,40 @@ namespace Sweco.SIF.GENSHPconvert
             return Path.Combine(path, Path.GetFileNameWithoutExtension(genFilename) + postfix + ".shp");
         }
 
-        protected ShapeFileWriter CreateShapeFileWriter(string outputPath, string shapeFilename, ShapeType shapeType, List<FieldDefinition> fieldDefinitions, DATFile datFile)
+        protected ShapeFileWriter CreateShapeFileWriter(string outputPath, string shapeFilename, ShapeType shapeType, List<FieldDefinition> fieldDefinitions, DATFile datFile, Log log, int logIndentLevel = 0)
         {
             ShapeFileWriter sfw = null;
             if (datFile != null)
             {
                 List<DbfFieldDesc> fieldDescs = new List<DbfFieldDesc>();
+                List<string> columnNames = new List<string>();
                 for (int colIdx = 0; colIdx < datFile.ColumnNames.Count; colIdx++)
                 {
                     FieldDefinition fieldDefinition = fieldDefinitions[colIdx];
-                    if (fieldDefinition.Name.Length > 10)
-                    {
-                        throw new Exception("Column name too long for shapefile (max. 10 characters): " + fieldDefinition.Name);
-                    }
-
                     try
                     {
+                        if (fieldDefinition.Name.Length > 10)
+                        {
+                            fieldDefinition.Name = fieldDefinition.Name.Remove(10);
+
+                            Log.AddWarning("Columnname shortenend to 10 characters: " + fieldDefinition.Name, logIndentLevel);
+                        }
+
+                        fieldDefinition.Name = GetUniqueColumnName(fieldDefinition.Name, columnNames, 10);
+
+                        if (fieldDefinition.Decimalcount > 15)
+                        {
+                            // Maximum number of decimals for shapefiles is 15
+                            Log.AddWarning(fieldDefinition.Decimalcount + " decimals were found for field '" + fieldDefinition.Name + "', which is limited to 15, some accuracy may be lost");
+                            fieldDefinition.Decimalcount = 15;
+                        }
                         DbfFieldDesc fieldDesc = fieldDefinition.ToDbfFieldDesc();
                         fieldDescs.Add(fieldDesc);
+                        columnNames.Add(fieldDefinition.Name);
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
-                        throw new Exception("Could not create shapefile " + Path.GetFileName(shapeFilename));
+                        throw new Exception("Could not create shapefile " + Path.GetFileName(shapeFilename), ex);
                     }
                 }
                 sfw = ShapeFileWriter.CreateWriter(Path.GetFullPath(outputPath), Path.GetFileNameWithoutExtension(shapeFilename), shapeType, fieldDescs.ToArray());
@@ -537,17 +661,43 @@ namespace Sweco.SIF.GENSHPconvert
                 idFieldDesc.DecimalCount = 0;
                 fieldDescs.Add(idFieldDesc);
 
-                sfw = ShapeFileWriter.CreateWriter(outputPath, shapeFilename, shapeType, fieldDescs.ToArray());
+                sfw = ShapeFileWriter.CreateWriter(Path.GetFullPath(outputPath), Path.GetFileNameWithoutExtension(shapeFilename), shapeType, fieldDescs.ToArray());
             }
 
             return sfw;
         }
 
-        protected static List<FieldDefinition> GetFieldDefinitions(DATFile datFile)
+        /// <summary>
+        /// Adds postfix "i" to specified columnname if it exists already, where i is the lowest available index
+        /// </summary>
+        /// <param name="columnName"></param>
+        /// <returns></returns>
+        public static string GetUniqueColumnName(string columnName, List<string> columNames, int maxLength = 0)
         {
-            // Initialize fieldTypes to some initial valuee
+            int idx = 1;
+            string corrColumnName = columnName;
+
+            while (columNames.Contains(corrColumnName))
+            {
+                idx++;
+                if (maxLength != 0)
+                {
+                    corrColumnName = corrColumnName.Remove(10 - idx.ToString().Length) + idx.ToString();
+                }
+                else
+                {
+                    corrColumnName = columnName + idx.ToString();
+                }
+            }
+            return corrColumnName;
+        }
+
+        protected List<FieldDefinition> GetFieldDefinitions(DATFile datFile)
+        {
+            // Initialize fieldTypes to some initial value
             List<FieldDefinition> fieldDefinitions = new List<FieldDefinition>();
             List<bool> isFieldTypeDefined = new List<bool>();
+            bool hasScientificNotations = false;
             for (int colIdx = 0; colIdx < datFile.ColumnNames.Count; colIdx++)
             {
                 isFieldTypeDefined.Add(false);
@@ -561,111 +711,216 @@ namespace Sweco.SIF.GENSHPconvert
                 {
                     string columnName = datFile.ColumnNames[colIdx];
                     string value = row[colIdx];
-                    int valueLength = (value != null) ? value.Length : 0;
+                    value = CorrectStringValue(value);
 
-                    if (bool.TryParse(value, out bool boolValue))
+                    FieldDefinition fieldDefinition = fieldDefinitions[colIdx];
+                    int currFieldDefLength = fieldDefinition.FieldLength;
+                    int currFieldDefDecCount = fieldDefinition.Decimalcount;
+                    int valueLength = value.Length;
+
+                    if (!value.Equals(string.Empty) && !value.ToUpper().Equals("NULL"))
                     {
-                        // value is a boolean
-                        if (!isFieldTypeDefined[colIdx])
+                        if (value.Equals("?") || bool.TryParse(value, out bool boolValue))
                         {
-                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Logical, 1);
-                            isFieldTypeDefined[colIdx] = true;
+                            // value is a boolean
+                            if (!isFieldTypeDefined[colIdx])
+                            {
+                                fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Logical, 1);
+                                isFieldTypeDefined[colIdx] = true;
+                            }
+                            else if (!fieldDefinition.Type.Equals(DbfFieldType.Logical))
+                            {
+                                int fieldLength = (currFieldDefLength != 0) ? Math.Max((int)currFieldDefLength, Boolean.FalseString.Length) : Boolean.FalseString.Length;
+                                fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Character, fieldLength);
+                            }
+                            else
+                            {
+                                // leave fieldType to shpBool
+                            }
                         }
-                        else if (!fieldDefinitions[colIdx].Type.Equals(DbfFieldType.Logical))
+                        else if (long.TryParse(value, out long longValue))
                         {
-                            int length = (fieldDefinitions[colIdx].Length != 0) ? Math.Max((int)fieldDefinitions[colIdx].Length, Boolean.FalseString.Length) : Boolean.FalseString.Length;
-                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Character, length);
+                            int fieldLength;
+                            if (value.Contains("E"))
+                            {
+                                // Scientific format, retrieve number of digits
+                                fieldLength = (int)Math.Log10(longValue);
+                                hasScientificNotations = true;
+                            }
+                            else
+                            {
+                                fieldLength = value.Length;
+                            }
+
+                            // value is a long (or an integer, etc.)
+                            if (!isFieldTypeDefined[colIdx])
+                            {
+                                fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Number, fieldLength);
+                                isFieldTypeDefined[colIdx] = true;
+                            }
+                            else if (fieldDefinition.Type.Equals(DbfFieldType.FloatingPoint))
+                            {
+                                // a long-value was found, leave fieldType to FloatingPoint, but redefine length
+                                fieldLength = Math.Max(fieldLength + currFieldDefDecCount + 1, currFieldDefLength);
+                                if (fieldLength > currFieldDefLength)
+                                {
+                                    fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.FloatingPoint, fieldLength, currFieldDefDecCount);
+                                }
+                            }
+                            else if (!fieldDefinition.Type.Equals(DbfFieldType.Number))
+                            {
+                                // If the current type is other than double or long, a string will be used for this column
+                                if (currFieldDefLength > fieldLength)
+                                {
+                                    fieldLength = currFieldDefLength;
+                                }
+                                fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Character, fieldLength);
+                            }
+                            else
+                            {
+                                // leave fieldType to Number, but redefine length if necessary
+                                if (fieldLength > currFieldDefLength)
+                                {
+                                    fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Number, fieldLength);
+                                }
+                            }
+                        }
+                        else if (double.TryParse(value, NumberStyles.Float, EnglishCultureInfo, out double doubleValue))
+                        {
+                            if (value.Contains("E"))
+                            {
+                                // Scientific format, convert to standard format 
+                                value = doubleValue.ToString("0." + new string('#', 339), EnglishCultureInfo);
+                                hasScientificNotations = true;
+                            }
+
+                            int fieldLength = value.Length;
+                            int decimalCount = fieldLength - value.IndexOf(".") - 1;
+
+                            // value is a double (or a float)
+                            if (!isFieldTypeDefined[colIdx])
+                            {
+                                fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.FloatingPoint, fieldLength, decimalCount);
+                                isFieldTypeDefined[colIdx] = true;
+                            }
+                            else if (fieldDefinition.Type.Equals(DbfFieldType.Number))
+                            {
+                                // Current type was a long or integer, so current fieldlength refers to an integer fraction and current decimal count is zero
+                                // For new fieldlength check current fieldlength, including the new number of decimals (and decimal point)
+                                fieldLength = Math.Max(fieldLength, currFieldDefLength + decimalCount + 1);
+                                fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.FloatingPoint, fieldLength, decimalCount);
+                            }
+                            else if (!fieldDefinition.Type.Equals(DbfFieldType.FloatingPoint))
+                            {
+                                if (currFieldDefLength > fieldLength)
+                                {
+                                    fieldLength = currFieldDefLength;
+                                }
+                                fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Character, fieldLength);
+                            }
+                            else
+                            {
+                                // leave fieldType to FloatingPoint, but redefine length: note both new/old integer and decimal fraction have to be compared
+                                int intFractionLength = fieldLength - decimalCount - 1;
+                                int currIntFractionLength = currFieldDefLength - currFieldDefDecCount - 1;
+                                if (currIntFractionLength > intFractionLength)
+                                {
+                                    intFractionLength = currIntFractionLength;
+                                }
+                                if (currFieldDefDecCount > decimalCount)
+                                {
+                                    decimalCount = currFieldDefDecCount;
+                                }
+
+                                if ((intFractionLength > currIntFractionLength) || (decimalCount > currFieldDefDecCount))
+                                {
+                                    fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.FloatingPoint, intFractionLength + decimalCount + 1, decimalCount);
+                                }
+                            }
+                        }
+                        else if (DateTime.TryParse(value, out DateTime dateValue))
+                        {
+                            int fieldLength = valueLength;
+
+                            // value is a date
+                            if (!isFieldTypeDefined[colIdx])
+                            {
+                                fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Date, 8);
+                                isFieldTypeDefined[colIdx] = true;
+                            }
+                            else if (!fieldDefinition.Type.Equals(DbfFieldType.Date))
+                            {
+                                if (currFieldDefLength > fieldLength)
+                                {
+                                    fieldLength = currFieldDefLength;
+                                }
+                                fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Character, fieldLength);
+                            }
+                            else
+                            {
+                                // leave fieldType to Date
+                            }
                         }
                         else
                         {
-                            // leave fieldType to shpBool
-                        }
-                    }
-                    else if (long.TryParse(value, out long longValue))
-                    {
-                        int length = (fieldDefinitions[colIdx].Length != 0) ? Math.Max((int)fieldDefinitions[colIdx].Length, valueLength) : valueLength;
-
-                        // value is a long (or an integer, etc.)
-                        if (!isFieldTypeDefined[colIdx])
-                        {
-                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Number, length);
-                            isFieldTypeDefined[colIdx] = true;
-                        }
-                        else if (fieldDefinitions[colIdx].Type.Equals(DbfFieldType.FloatingPoint))
-                        {
-                            // leave fieldType to shpDouble, but redefine length
-                            int decimalCount = length - value.IndexOf(".") - 1;
-                            length = Math.Max(length, decimalCount + 8);
-                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.FloatingPoint, length, decimalCount);
-                        }
-                        else if (!fieldDefinitions[colIdx].Type.Equals(DbfFieldType.Number))
-                        {
-                            // If the current type is other than double or long, a string will be used for this column
-                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Character, length);
-                        }
-                        else
-                        {
-                            // leave fieldType to shpLong, but redefine length
-                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Number, length);
-                        }
-                    }
-                    else if (double.TryParse(value, NumberStyles.Float, EnglishCultureInfo, out double doubleValue))
-                    {
-                        int length = (fieldDefinitions[colIdx].Length != 0) ? Math.Max((int)fieldDefinitions[colIdx].Length, valueLength) : valueLength;
-                        int decimalCount = valueLength - value.IndexOf(".") - 1;
-                        if (decimalCount < 0)
-                        {
-                            decimalCount = 0;
-                        }
-                        length = Math.Max(length, decimalCount + 8);
-
-                        // value is a double (or a float)
-                        if (!isFieldTypeDefined[colIdx])
-                        {
-                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.FloatingPoint, length, decimalCount);
-                            isFieldTypeDefined[colIdx] = true;
-                        }
-                        else if (fieldDefinitions[colIdx].Type.Equals(DbfFieldType.Number))
-                        {
-                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.FloatingPoint, length, decimalCount);
-                        }
-                        else if (!fieldDefinitions[colIdx].Type.Equals(DbfFieldType.FloatingPoint))
-                        {
-                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Character, length);
-                        }
-                        else
-                        {
-                            // leave fieldType to shpDouble, but redefine length
-                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.FloatingPoint, length, decimalCount);
-                        }
-                    }
-                    else if (DateTime.TryParse(value, out DateTime dateValue))
-                    {
-                        int length = (fieldDefinitions[colIdx].Length != 0) ? Math.Max((int)fieldDefinitions[colIdx].Length, valueLength) : valueLength;
-
-                        // value is a date
-                        if (!isFieldTypeDefined[colIdx])
-                        {
-                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Date);
-                            isFieldTypeDefined[colIdx] = true;
-                        }
-                        else if (!fieldDefinitions[colIdx].Type.Equals(DbfFieldType.Date))
-                        {
-                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Character, length);
-                        }
-                        else
-                        {
-                            // leave fieldType to shpDate
+                            // Set (or leave) fieldType to character, but redefine length if necessary
+                            int fieldLength = value.Length;
+                            if (currFieldDefLength > fieldLength)
+                            {
+                                fieldLength = currFieldDefLength;
+                            }
+                            if (!isFieldTypeDefined[colIdx])
+                            {
+                                isFieldTypeDefined[colIdx] = true;
+                            }
+                            fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Character, fieldLength);
                         }
                     }
                     else
                     {
-                        int length = (fieldDefinitions[colIdx].Length != 0) ? Math.Max((int)fieldDefinitions[colIdx].Length, valueLength) : valueLength;
-                        fieldDefinitions[colIdx] = new FieldDefinition(columnName, DbfFieldType.Character, length);
+                        // Empty/NULL-value, leave current FieldType
                     }
                 }
             }
+
+            // Check if there are still undefined columns (which can happen if only empty/NULL-values are present
+            for (int colIdx = 0; colIdx < isFieldTypeDefined.Count; colIdx++)
+            {
+                if (!isFieldTypeDefined[colIdx])
+                {
+                    // Define simple character field with length 0
+                    fieldDefinitions[colIdx] = new FieldDefinition(datFile.ColumnNames[colIdx], DbfFieldType.Character);
+                }
+            }
+
+            if (hasScientificNotations)
+            {
+                Log.AddWarning("Scientific notations were found and converted to standard numeric format, which may have effected accuracy");
+            }
+
             return fieldDefinitions;
+        }
+
+        private static string CorrectStringValue(string value)
+        {
+            if (value == null)
+            {
+                return string.Empty;
+            }    
+            else if (value.ToLower().Equals("infinity") || value.ToLower().Equals("inf")) 
+            {
+                // For infinity, try Inf which is string that is recognized as a floating point value
+                return double.PositiveInfinity.ToString(EnglishCultureInfo);
+            }
+            else if (value.ToLower().Equals("-infinity") || value.ToLower().Equals("-inf"))
+            {
+                // For infinity, try Inf which is string that is recognized as a floating point value
+                return double.NegativeInfinity.ToString(EnglishCultureInfo);
+            }
+            else
+            {
+                return value;
+            }
         }
 
         protected static List<string> GetDefaultValues(List<FieldDefinition> fieldDefinitions)
@@ -696,32 +951,5 @@ namespace Sweco.SIF.GENSHPconvert
             }
             return defaultValues;
         }
-
-        protected object ParseValue(string value, DbfFieldType fieldType)
-        {
-            try
-            {
-                switch (fieldType)
-                {
-                    case DbfFieldType.Logical:
-                        return bool.Parse(value);
-                    case DbfFieldType.Date:
-                        return DateTime.Parse(value);
-                    case DbfFieldType.Number:
-                        return long.Parse(value);
-                    case DbfFieldType.FloatingPoint:
-                        return double.Parse(value, EnglishCultureInfo);
-                    case DbfFieldType.Character:
-                        return value;
-                   default:
-                        throw new Exception("Unexpected fieldType: " + fieldType.ToString());
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Unexpected value type in GEN-file row. Expected type: " + fieldType.ToString() + ", value: " + value, ex);
-            }
-        }
-
     }
 }
