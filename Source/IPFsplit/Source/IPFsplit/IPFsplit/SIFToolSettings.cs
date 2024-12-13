@@ -66,7 +66,7 @@ namespace Sweco.SIF.IPFsplit
         {
             AddToolParameterDescription("inPath", "Path to search for input files", "C:\\Test\\Input");
             AddToolParameterDescription("filter", "Filter to select input files (e.g. *.IPF)", "*.IPF");
-            AddToolParameterDescription("col", "column number (one-based) in IPF-file used for splitting rows", "10");
+            AddToolParameterDescription("col", "column number (one-based) or column name in IPF-file used for splitting rows (e.g. '10' or 'LayNr')", "LayNr");
             AddToolParameterDescription("outPath", "Path to write results", "C:\\Test\\Output");
             
             AddToolOptionDescription("r", "Process input path recursively", "/r", "Input files are searched recursively");

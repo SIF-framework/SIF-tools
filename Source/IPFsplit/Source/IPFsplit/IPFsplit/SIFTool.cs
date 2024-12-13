@@ -206,11 +206,19 @@ namespace Sweco.SIF.IPFsplit
 
         protected virtual int RetrieveColumnIndex(IPFFile sourceIPFFile, SIFToolSettings settings, Log log, int logIndentLevel = 0)
         {
-            if (!int.TryParse(settings.SplitColString, out int splitColumnNr))
+            if (int.TryParse(settings.SplitColString, out int splitColumnNr))
             {
-                throw new ToolException("Could not parse split column number, specify an integer value: " + settings.SplitColString);
+                return splitColumnNr - 1;
             }
-            return splitColumnNr - 1;
+            else
+            {
+                int splitColumnIdx = sourceIPFFile.FindColumnName(settings.SplitColString, true, false);
+                if (splitColumnIdx < 0)
+                {
+                    throw new ToolException("Could not parse split columnstring, specify an integer value or column name: " + settings.SplitColString);
+                }
+                return splitColumnIdx;
+            }
         }
     }
 }
