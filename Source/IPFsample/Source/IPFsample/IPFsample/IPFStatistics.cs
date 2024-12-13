@@ -148,9 +148,10 @@ namespace Sweco.SIF.IPFsample
                 if (measuredValue.Equals(float.NaN) || modeledValue.Equals(float.NaN) ||
                     measuredValue.Equals(IPFSampler.NoDataValue) || modeledValue.Equals(IPFSampler.NoDataValue))
                 {
-                    if (writeMessages)
+                    if (writeMessages && !modeledValue.Equals(float.NaN))
                     {
-                        log.AddInfo("Point " + pointCount + " (" + ipfPoint.XString + "," + ipfPoint.YString + ") skipped, NaN-value(s) found: " + ToString(columnValues), tabCount);
+                        // Show skip message, except for points outside extent
+                        log.AddInfo("Point " + pointCount + " (" + ipfPoint.XString + "," + ipfPoint.YString + ") inside extent skipped, NoData/NaN-value(s) found: " + ToString(columnValues), tabCount);
                     }
                 }
                 else
@@ -295,6 +296,18 @@ namespace Sweco.SIF.IPFsample
             try
             {
                 bool isNewCsvFile = (!File.Exists(csvFilename));
+                if (!Directory.Exists(Path.GetDirectoryName(csvFilename)))
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(csvFilename));
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new ToolException("Could not create directory for CSV-file: " + Path.GetDirectoryName(csvFilename));
+                    }
+                }
+
                 sw = new StreamWriter(csvFilename, true);
                 if (isNewCsvFile)
                 {

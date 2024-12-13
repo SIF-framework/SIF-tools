@@ -34,7 +34,7 @@ namespace Sweco.SIF.IPFsample
 {
     class IPFSampler 
     {
-        public static float NoDataValue { get; set; }
+        public static float NoDataValue { get; set; } = -9999f;
 
         protected const double ACCEPTED_ERROR = 0.0001;
         protected static CultureInfo dutchCultureInfo = new CultureInfo("nl-NL", false);
@@ -54,12 +54,12 @@ namespace Sweco.SIF.IPFsample
             {
                 if (!File.Exists(inputIPFFilename))
                 {
-                    throw new ToolException("IPF file doesn't exist: " + inputIPFFilename);
+                    throw new ToolException("IPF-file doesn't exist: " + inputIPFFilename);
                 }
 
                 if (!File.Exists(valueFilename))
                 {
-                    throw new ToolException("Value filedoesn't exist: " + valueFilename);
+                    throw new ToolException("Value file doesn't exist: " + valueFilename);
                 }
 
                 if (File.Exists(outputIPFFilename) && !settings.IsOverwrite)
@@ -72,7 +72,7 @@ namespace Sweco.SIF.IPFsample
                     Directory.CreateDirectory(Path.GetDirectoryName(outputIPFFilename));
                 }
 
-                log.AddInfo("Reading IPF file " + Path.GetFileName(inputIPFFilename) + "... ", logIndentLevel);
+                log.AddInfo("Reading IPF-file " + Path.GetFileName(inputIPFFilename) + "... ", logIndentLevel);
                 IPFFile inputIPFFile = IPFFile.ReadFile(inputIPFFilename, false, null);
                 int observationColNr = 0;
                 if (observationColString != null)
@@ -104,6 +104,7 @@ namespace Sweco.SIF.IPFsample
                     valueIDFFile = IDFFile.ReadFile(valueFilename);
                 }
 
+                NoDataValue = valueIDFFile.NoDataValue;
                 double measuredValue = NoDataValue;
                 double residual = NoDataValue;
                 double absResidual = NoDataValue;
@@ -152,13 +153,18 @@ namespace Sweco.SIF.IPFsample
                         // Check if points in NoData-cells should be skipped
                         if (!settings.IsSkippingNoDataCells || !value.Equals(valueIDFFile.NoDataValue))
                         {
-                            if ((value.Equals(float.NaN) || Math.Abs(value - valueIDFFile.NoDataValue) <= ACCEPTED_ERROR))
+                            if (value.Equals(float.NaN))
                             {
-                                // NoData-value or outside IDF-extent, set value and statistics to NoData
-                                value = NoDataValue;
-                                measuredValue = NoDataValue;
-                                residual = NoDataValue;
-                                absResidual = NoDataValue;
+                                // Point is outside IDF-extent, leave value to NaN and statistics to NaN/NoData
+                                residual = float.NaN;
+                                absResidual = float.NaN;
+                            }
+                            else if (value.Equals(valueIDFFile.NoDataValue))
+                            {
+                                // NoData-value, set value and statistics to NaN
+                                value = float.NaN;
+                                residual = float.NaN;
+                                absResidual = float.NaN;
                             }
                             else
                             {
@@ -173,16 +179,17 @@ namespace Sweco.SIF.IPFsample
                                         log.AddWarning("Invalid value in observation column (" + observationColNr + "): " + ipfPoint.ColumnValues[observationColNr - 1] + " for point (" + ipfPoint.X + "," + ipfPoint.Y + "): " + ex.GetBaseException().Message, logIndentLevel);
                                         measuredValue = float.NaN;
                                     }
+
                                     if (measuredValue.Equals(float.NaN))
                                     {
                                         nanPointCount++;
-                                        continue;
+                                        residual = float.NaN;
+                                        absResidual = float.NaN;
                                     }
-                                    if (Math.Abs(measuredValue - NoDataValue) <= ACCEPTED_ERROR)
+                                    if (measuredValue.Equals(NoDataValue))
                                     {
-                                        measuredValue = NoDataValue;
-                                        residual = NoDataValue;
-                                        absResidual = NoDataValue;
+                                        residual = float.NaN;
+                                        absResidual = float.NaN;
                                     }
                                     else
                                     {
@@ -234,17 +241,16 @@ namespace Sweco.SIF.IPFsample
 
                 if (!settings.IsCSVFileWritten)
                 {
-                    log.AddInfo("Writing output IPF file " + Path.GetFileName(outputIPFFilename) + " ...", logIndentLevel);
+                    log.AddInfo("Writing output IPF-file " + Path.GetFileName(outputIPFFilename) + " ...", logIndentLevel);
                     outputIPFFile.WriteFile(outputIPFFilename);
                 }
                 else
                 {
-                    log.AddInfo("Writing output CSV file " + Path.GetFileName(outputIPFFilename) + " ...", logIndentLevel);
+                    log.AddInfo("Writing output CSV-file " + Path.GetFileName(outputIPFFilename) + " ...", logIndentLevel);
                     string outputCSVFilename = Path.Combine(Path.GetDirectoryName(outputIPFFilename), Path.GetFileNameWithoutExtension(outputIPFFilename) + ".csv");
 
                     //TODO check if decimale seperator ',' is needed to define
                     outputIPFFile.WriteCSVFile(outputCSVFilename, ',');
-                    
                 }
 
                 if (settings.ObservationColString != null)
@@ -267,14 +273,16 @@ namespace Sweco.SIF.IPFsample
                     ipfStats.PValues = pvalues;
                     ipfStats.CalculateStatistics(observationColNr - 1, outputIPFFile.ColumnCount - 3, settings.StatOperator, log);
 
-                    if (csvStatsFilename == null)
+                    if ((csvStatsFilename != null) && !csvStatsFilename.Equals(string.Empty))
                     {
-                        csvStatsFilename = Path.Combine(Path.GetDirectoryName(outputIPFFilename), Path.GetFileNameWithoutExtension(outputIPFFilename) + "_stats.csv");
+                        if (!Path.IsPathRooted(csvStatsFilename))
+                        {
+                            csvStatsFilename = Path.Combine(settings.OutputPath, csvStatsFilename);
+                        }
+                        csvStatsFilename = Path.GetFullPath(csvStatsFilename);
+                        log.AddInfo("Writing statistics to CSV-file: " + csvStatsFilename, logIndentLevel);
+                        ipfStats.WriteCSV(csvStatsFilename, englishCultureInfo.TextInfo.ListSeparator, englishCultureInfo.NumberFormat.NumberDecimalSeparator, settings.DecimalCount, settings);
                     }
-
-                    //TODO remove line, old line
-                    //ipfStats.WriteCSV(Path.Combine(Path.GetDirectoryName(outputIPFFilename), Path.GetFileNameWithoutExtension(outputIPFFilename) + "_" + Properties.Settings.Default.StatFilePostfix + ".csv"), CultureInfo.CurrentCulture.TextInfo.ListSeparator, CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator, decimalCount);
-                    ipfStats.WriteCSV(csvStatsFilename, englishCultureInfo.TextInfo.ListSeparator, englishCultureInfo.NumberFormat.NumberDecimalSeparator, settings.DecimalCount, settings);
 
                     avgResidual = sumResiduals / outputIPFFile.PointCount;
                     avgAbsResidual = sumAbsResiduals / outputIPFFile.PointCount;

@@ -86,7 +86,7 @@ namespace Sweco.SIF.IPFsample
             
             ValueColumnname = null;
             IsCSVFileWritten = false;
-    }
+        }
 
         /// <summary>
         /// Define the syntax of the tool as shown in the tool usage block. 
@@ -107,11 +107,11 @@ namespace Sweco.SIF.IPFsample
             AddToolOptionDescription("o", "Overwrite existing outputfile; if not specified, existing files will be skipped", "/o", "Existing output files are overwritten");
             AddToolOptionDescription("s", "Calculate residual statistics (IDF-IPF) for (decimal) value in column s1 in IPF-file. Use (one-based)\n" + 
                                           "number or column name. The IDF-value, residual and absolute residual are added to the output IPF-file.\n" +
-                                          "Other statistics are written in CSV-filename s2 (if specified) or in CSV-file in outputpath.\n" +
+                                          "Other statistics are written in CSV-file with name s2 (if specified) relative to outputpath.\n" +
                                           "Optionally add substring s3 to use as prefix before residual column names.\n" +
                                           "Optionally add operator s4 to use for residual statistic (IDF s4 IPF), use one of: '-', '/'", "/s:6",
                                           "Residual statistics will be calculated relative to the values in column: {0};\n" + 
-                                          "    CSV-filename: {1}, postfix: {2}, operator: {3}", new string[] { "s1" }, new string[] { "s2", "s3", "s4" }, new string[] { "<IPF-file>_stats.csv", "\"\"", "-" });
+                                          "    CSV-filename: {1}, prefix: {2}, operator: {3}", new string[] { "s1" }, new string[] { "s2", "s3", "s4" }, new string[] { "<IPF-file>_stats.csv", "\"\"", "-" });
             AddToolOptionDescription("x", "Exclude points that have a NoData-value in the specified column for option s", "/x", "NoData values are excluded for option s");
             AddToolOptionDescription("csv", "Write output file in CSV-format instead of IPF-format", "/csv", "Output is written as csv-file");
         }
@@ -210,8 +210,14 @@ namespace Sweco.SIF.IPFsample
 
                     if (optionParameters.Length > 1)
                     {
-                        CSVStatsFilename = optionParameters[1];
-                        CSVStatsFilename = Path.ChangeExtension(CSVStatsFilename, "csv");
+                        if (optionParameters[1].Length > 0)
+                        {
+                            CSVStatsFilename = optionParameters[1].Trim();
+                            if (!CSVStatsFilename.Equals(string.Empty))
+                            {
+                                CSVStatsFilename = Path.ChangeExtension(CSVStatsFilename, "csv");
+                            }
+                        }
                     }
                     if (optionParameters.Length > 2)
                     {
