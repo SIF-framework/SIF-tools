@@ -47,6 +47,8 @@ namespace Sweco.SIF.IPFselect
     /// </summary>
     public class SIFToolSettings : SIFToolSettingsBase
     {
+        public static CultureInfo DutchCultureInfo = new CultureInfo("nl-NL", false);
+
         public string InputPath { get; set; }
         public string InputFilter { get; set; }
         public string OutputPath { get; set; }
@@ -70,8 +72,8 @@ namespace Sweco.SIF.IPFselect
         public bool IsEmptyTSPointRemoved { get; set; }
         public DateTime? TSPeriodStartDate { get; set; }
         public DateTime? TSPeriodEndDate { get; set; }
-        public bool IsTSClipped { get; set; }
-        public int ValueColIndex { get; set; }
+        public bool IsTSPeriodClipped { get; set; }
+        public int TSPeriodValueColIndex { get; set; }
         public bool IsMetadataAdded { get; set; }
 
         /// <summary>
@@ -87,7 +89,7 @@ namespace Sweco.SIF.IPFselect
 
             XColIdx = 0;
             YColIdx = 1;
-            ZColIdx = -1;
+            ZColIdx = -2; // try column index 2 for z-column, if name is equal to XY-columns
 
             TopLevelString = null;
             BotLevelString = null;
@@ -106,9 +108,9 @@ namespace Sweco.SIF.IPFselect
             IsTSSkipped = false;
             TSPeriodStartDate = null;
             TSPeriodEndDate = null;
-            IsTSClipped = false;
+            IsTSPeriodClipped = false;
             IsEmptyTSPointRemoved = false;
-            ValueColIndex = -1;
+            TSPeriodValueColIndex = -1;
             IsMetadataAdded = false;
         }
 
@@ -126,7 +128,7 @@ namespace Sweco.SIF.IPFselect
                                           "each column/exp-definition is specified by 'c1;c2;c3', where:\n" +
                                           "  'c1' is a (one-based) column index or a column name. If a column name is not found \n" +
                                           "    it is added, where non - selected points will receive an empty string as a value. \n" +
-                                          "  'c2' is a constant value, a mathetical expression or a string expression. \n" +
+                                          "  'c2' is a constant value, a mathetical expression or a string expression:\n" +
                                           "    a mathemetical expression is defined as an operator and value \n" +
                                           "      valid operators are: '*', '/', '+' and '-'. E.g. \"/c:3;*2.5,TOP;-1\" \n" +
                                           "      for the value a floating point value or a columnname can be specified. \n" +
@@ -163,14 +165,14 @@ namespace Sweco.SIF.IPFselect
                                           "Analysis volume zone defined within: {...}", new string[] { "z1" }, new string[] { "z2" }, new string[] { "NA" });
             AddToolOptionDescription("tse", "Remove IPF-points without timeseries or with empty timeseries (without any values)",
                                             "/tse", "IPF-points with empty timeseries are removed");
-            AddToolOptionDescription("tss", "Skip writing IPF-timeseries (and keep non-existing timeseries references in input file).",
+            AddToolOptionDescription("tss", "Skip reading/writing IPF-timeseries (and keep non-existing timeseries references in input file).",
                                             "/tss", "IPF-timeseries are not read/written");
-            AddToolOptionDescription("tsp", "Select points that have values in timeseries within specified period tsp1;tsp2 \n" +
-                                            "Use format yyyymmdd[hhmmss] for tsp1/tsp2. Use tsp3=1 to clip timeseries of selected points to \n" +
-                                            "specified period (default, tsp3=0, is not to clip). Optionally specify (zero-based) index tsp4 \n" +
+            AddToolOptionDescription("tsp", "Select points that have values in timeseries within specified period tsp1 - tsp2\n" +
+                                            "Use format yyyymmdd[hhmmss] for tsp1/tsp2. Use tsp3=1 to clip timeseries of selected points to\n" +
+                                            "specified period (default, tsp3=0, is not to clip). Optionally specify (zero-based) index tsp4\n" +
                                             "of the value column that should be checked for values. When tsp4=-1 (default), \n" +
                                             "all value columns should contain values for a point to be selected.",
-                                            "/tsp:20070101,20201231", "Period for timeseries selection: {0}-{1}", new string[] { "tsp1", "tsp2" }, new string[] { "tsp3", "tsp4" });
+                                            "/tsp:20070101,20201231", "Period for timeseries selection: {0}-{1}, with options (clip/NoData-columnidx): {...}", new string[] { "tsp1", "tsp2" }, new string[] { "tsp3", "tsp4" });
         }
 
         /// <summary>
@@ -429,14 +431,37 @@ namespace Sweco.SIF.IPFselect
                     {
                         try
                         {
+                            // force date time strings into dutch culture format (although this doesn't seem to be necessary if dd-MM-yyyy format is used)
                             string startDateString = optionParameters[0].Trim();
-                            startDateString = startDateString.Substring(6, 2) + "-" + startDateString.Substring(4, 2) + "-" + startDateString.Substring(0, 4);
-                            TSPeriodStartDate = optionParameters[0].Trim().Equals(string.Empty) ? null : (DateTime?)DateTime.Parse(startDateString, EnglishCultureInfo);
+                            if (startDateString.Length == 8)
+                            {
+                                // No time is present
+                                startDateString = startDateString.Substring(6, 2) + "-" + startDateString.Substring(4, 2) + "-" + startDateString.Substring(0, 4);
+                                TSPeriodStartDate = optionParameters[0].Trim().Equals(string.Empty) ? null : (DateTime?)DateTime.Parse(startDateString, DutchCultureInfo);
+                            }
+                            else
+                            {
+                                // Assume time is present
+                                startDateString = startDateString.Substring(6, 2) + "-" + startDateString.Substring(4, 2) + "-" + startDateString.Substring(0, 4)
+                                    + " " + startDateString.Substring(8, 2) + ":" + startDateString.Substring(10, 2) + ":" + startDateString.Substring(12, 2);
+                                TSPeriodStartDate = optionParameters[0].Trim().Equals(string.Empty) ? null : (DateTime?)DateTime.Parse(startDateString, DutchCultureInfo);
+                            }
                             if (optionParameters.Length >= 2)
                             {
                                 string endDateString = optionParameters[1].Trim();
-                                endDateString = endDateString.Substring(6, 2) + "-" + endDateString.Substring(4, 2) + "-" + endDateString.Substring(0, 4);
-                                TSPeriodEndDate = optionParameters[1].Trim().Equals(string.Empty) ? null : (DateTime?)DateTime.Parse(endDateString, EnglishCultureInfo);
+                                if (endDateString.Length == 8)
+                                {
+                                    // No time is present
+                                    endDateString = endDateString.Substring(6, 2) + "-" + endDateString.Substring(4, 2) + "-" + endDateString.Substring(0, 4);
+                                    TSPeriodEndDate= optionParameters[0].Trim().Equals(string.Empty) ? null : (DateTime?)DateTime.Parse(endDateString, DutchCultureInfo);
+                                }
+                                else
+                                {
+                                    // Assume time is present
+                                    endDateString = endDateString.Substring(6, 2) + "-" + endDateString.Substring(4, 2) + "-" + endDateString.Substring(0, 4)
+                                        + " " + endDateString.Substring(8, 2) + ":" + endDateString.Substring(10, 2) + ":" + endDateString.Substring(12, 2);
+                                    TSPeriodEndDate = optionParameters[0].Trim().Equals(string.Empty) ? null : (DateTime?)DateTime.Parse(endDateString, DutchCultureInfo);
+                                }
                             }
                         }
                         catch (Exception ex)
@@ -445,7 +470,7 @@ namespace Sweco.SIF.IPFselect
                         }
                         if (optionParameters.Length >= 3)
                         {
-                            IsTSClipped = optionParameters[2].Trim().Equals("1");
+                            IsTSPeriodClipped = optionParameters[2].Trim().Equals("1");
                         }
                         if (optionParameters.Length >= 4)
                         {
@@ -453,7 +478,7 @@ namespace Sweco.SIF.IPFselect
                             {
                                 throw new ToolException("Value column index could not be parsed as integer for option 'tsp': " + optionParameters[3]);
                             }
-                            ValueColIndex = valueColIndex;
+                            TSPeriodValueColIndex = valueColIndex;
                         }
                     }
                     else
@@ -532,7 +557,7 @@ namespace Sweco.SIF.IPFselect
                     throw new ToolException("Specified GEN-file does not exist: " + ZoneFilename);
                 }
             }
-            if ((XColIdx < 0) || (YColIdx < 0) || (ZColIdx < -1))
+            if ((XColIdx < 0) || (YColIdx < 0) || (ZColIdx < -2))
             {
                 throw new ToolException("xyz-column indices should be positive numbers: " + XColIdx.ToString() + "," + YColIdx.ToString() + "," + ZColIdx.ToString());
             }

@@ -125,7 +125,7 @@ namespace Sweco.SIF.IPFselect
 
             Log.AddInfo("Processing input files ...");
             int fileCount = 0;
-            string[] inputFilenames = Directory.GetFiles(settings.InputPath, settings.InputFilter);
+            string[] inputFilenames = GetInputFiles(settings);
             if ((inputFilenames.Length > 1) && (settings.OutputFilename != null))
             {
                 throw new ToolException("An output filename is specified, but more than one IPF-file is found for current filter: " + settings.InputFilter);
@@ -150,7 +150,6 @@ namespace Sweco.SIF.IPFselect
 
                 if (!settings.IsTSSkipped)
                 {
-
                     // Check for and remove invalid timeseries references (i.e. non-existing TS-files)
                     Log.AddInfo("Checking existance of associated timeseries files ...", logIndentLevel + 1);                    
                     foreach (IPFPoint ipfPoint in inputIPFFile.Points)
@@ -160,6 +159,10 @@ namespace Sweco.SIF.IPFselect
                             Log.AddWarning("Removing reference to unexisting TS-file for point " + ipfPoint.ToString() + ": " + ipfPoint.ColumnValues[inputIPFFile.AssociatedFileColIdx], (logIndentLevel + 2));
                             ipfPoint.ColumnValues[inputIPFFile.AssociatedFileColIdx] = null;
                             ipfPoint.Timeseries = null;
+                        }
+                        else
+                        {
+                            ipfPoint.EnsureTimeseriesIsLoaded();
                         }
                     }
                 }
@@ -204,6 +207,16 @@ namespace Sweco.SIF.IPFselect
         }
 
         /// <summary>
+        /// Retrieve array of filenames for specified input 
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <returns></returns>
+        protected virtual string[] GetInputFiles(SIFToolSettings settings)
+        {
+            return Directory.GetFiles(settings.InputPath, settings.InputFilter);
+        }
+
+        /// <summary>
         /// Reads input files depending on specified settings
         /// </summary>
         /// <param name="inputIPFFilename"></param>
@@ -213,7 +226,7 @@ namespace Sweco.SIF.IPFselect
         protected virtual void ReadInputFiles(string inputIPFFilename, SIFToolSettings settings, Log log, int logIndentLevel)
         {
             Log.AddInfo("Reading IPF-file " + Path.GetFileName(inputIPFFilename) + " ...", logIndentLevel);
-            inputIPFFile = IPFFile.ReadFile(inputIPFFilename, settings.XColIdx, settings.YColIdx, settings.ZColIdx, false, null, logIndentLevel);
+            inputIPFFile = IPFFile.ReadFile(inputIPFFilename, settings.XColIdx, settings.YColIdx, settings.ZColIdx, false, true, null, logIndentLevel); //  !settings.IsTSSkipped
             if ((settings.IsMetadataAdded) && File.Exists(Path.ChangeExtension(inputIPFFilename, "MET")))
             {
                 inputIPFFile.Metadata = Metadata.ReadMetaFile(inputIPFFilename);
@@ -302,6 +315,28 @@ namespace Sweco.SIF.IPFselect
                 {
                     log.AddInfo("Selecting points with " + (settings.UseRegExp ? "RegExp-" : string.Empty) + "expression: " + ipfFile.ColumnNames[colIdx] + " " 
                         + settings.ExpOperator.ToString() + " " + settings.ExpValue + " ...", logIndentLevel);
+
+                    // Check if column is a string column with string anomalies: values that can be parsed as another type
+                    FieldType fieldType = ipfFile.GetFieldType(colIdx, out bool hasNullValues, out bool hasScientificNotation, out 
+                        bool hasStringAnomalies,  out int stringAnomalies, out string stringAnomaly);
+                    if ((fieldType == FieldType.String) && (stringAnomalies > 0))
+                    {
+                        if (stringAnomalies > (ipfFile.PointCount / 2))
+                        {
+                            log.AddWarning("Column '" + ipfFile.ColumnNames[colIdx] + "' is parsed as string column, but has more than 50% string anomalies (" + stringAnomalies + "/" + ipfFile.PointCount + " points)!", logIndentLevel);
+                        }
+                        else if (stringAnomalies > (ipfFile.PointCount / 4))
+                        {
+                            log.AddInfo("Column '" + ipfFile.ColumnNames[colIdx] + "' is parsed as string column, but has more than 25% string anomalies (" + stringAnomalies + "/" + ipfFile.PointCount + " points)", logIndentLevel);
+                        }
+                        log.AddInfo("An example of an anomaly that was found is: " + stringAnomaly, logIndentLevel);
+                    }
+
+                    if (hasNullValues)
+                    {
+                        log.AddInfo("Note: Column '" + ipfFile.ColumnNames[colIdx] + "' contains empty and/or null-values", logIndentLevel);
+                    }
+
                     List<int> tmpPointIndices = new List<int>();
                     ipfFile = ipfFile.Select(colIdx, settings.ExpOperator, settings.ExpValue, tmpPointIndices, settings.UseRegExp);
                     selSourcePointIndices = ParseUtils.RetrieveIndexItems(tmpPointIndices, selSourcePointIndices);
@@ -325,7 +360,19 @@ namespace Sweco.SIF.IPFselect
             if (settings.BotLevelString != null || settings.TopLevelString != null)
             {
                 log.AddInfo("Selecting points with TOP- and BOT-levels ...", logIndentLevel);
+
+                // First check for and remove points NaN z-values
+                int prevPointCount = ipfFile.PointCount;
                 List<int> tmpPointIndices = new List<int>();
+                ipfFile = ipfFile.Select(ipfFile.ZColIdx, ValueOperator.Unequal, "NaN", tmpPointIndices);
+                int zValueNaNCount = prevPointCount - ipfFile.PointCount;
+                if (zValueNaNCount > 0)
+                {
+                    log.AddWarning(zValueNaNCount + " point(s) with NaN-values in Z-column cannot be evaluated and were not selected", logIndentLevel);
+                }
+                selSourcePointIndices = ParseUtils.RetrieveIndexItems(tmpPointIndices, selSourcePointIndices);
+
+                tmpPointIndices.Clear();
                 ipfFile = IPFUtils.SelectPoints(ipfFile, topIDFFile, botIDFFile, settings.SelectPointMethod, tmpPointIndices);
                 selSourcePointIndices = ParseUtils.RetrieveIndexItems(tmpPointIndices, selSourcePointIndices);
             }
@@ -351,7 +398,7 @@ namespace Sweco.SIF.IPFselect
                 log.AddInfo("Selecting points with timeseries in period: " + ((DateTime)settings.TSPeriodStartDate).ToString("dd-MM-yyyy HH:mm:ss") 
                     + ((settings.TSPeriodEndDate != null) ? (" - " + ((DateTime)settings.TSPeriodEndDate).ToString("dd-MM-yyyy HH:mm:ss")) : string.Empty) + " ...", logIndentLevel);
                 List<int> tmpPointIndices = new List<int>();
-                ipfFile = IPFUtils.SelectPoints(ipfFile, settings.TSPeriodStartDate, settings.TSPeriodEndDate, settings.ValueColIndex, settings.IsTSClipped, tmpPointIndices);
+                ipfFile = IPFUtils.SelectPoints(ipfFile, settings.TSPeriodStartDate, settings.TSPeriodEndDate, settings.TSPeriodValueColIndex, settings.IsTSPeriodClipped, tmpPointIndices);
                 selSourcePointIndices = ParseUtils.RetrieveIndexItems(tmpPointIndices, selSourcePointIndices);
             }
 
