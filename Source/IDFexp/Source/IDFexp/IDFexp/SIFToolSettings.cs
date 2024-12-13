@@ -164,7 +164,7 @@ namespace Sweco.SIF.IDFexp
                                    + "    for downscale: 0=Block (default), 1=Divide\n"
                                    + "    for upscale: 0=Mean (default), 1=Median, 2=Minimum, 3=Maximum, 4=MostOccurring, 5=Boundary, 6=Sum,\n"
                                    + "                 7=MostOccuringNoData (including NoData); For 1-6 NoData-values are excluded.\n"
-                                   + "                 Note for MostOcurring(NoData): if several vales have same occurance, the most upperleft value is used\n"
+                                   + "                 Note for MostOcurring(NoData): if several values have same occurance, the most upperleft value is used\n"
                                    + "                 Note for Boundary: retrieves most occuring minus value above most occuring positive value.\n"
                                    + "                                    when only zero and/or NoData-values are present, 0 is returned.\n"
                                    + "- bbox-function: bbox(<exp1>) \n "

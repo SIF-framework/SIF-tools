@@ -756,6 +756,10 @@ namespace Sweco.SIF.IDFexp
             {
                 Log.AddWarning("NoData-value of IDF-file '" + Path.GetFileName(idfFilename) + "' is NaN, this may produce unexpected results!");
             }
+            if ((resultIDF.NCols == 0) || (resultIDF.NRows == 0))
+            {
+                Log.AddWarning("Empty IDF-file (number of rows/columns is 0), this may produce unexpected results!");
+            }
             return resultIDF;
         }
     }
@@ -1463,12 +1467,12 @@ namespace Sweco.SIF.IDFexp
             }
             else
             {
-                float[][] values = new float[0][];
+                IDFExpParser.Log.AddWarning("Empty IDF-file after clipping, dummy 1x1 grid created", 1);
+                // float[][] values = new float[0][];
+                float[][] values = new float[1][];
+                values[0] = new float[1];
+                values[0][0] = 1;
 
-                if (values.Length > 0)
-                {
-                    values[0][0] = 1;
-                }
                 IDFFile emptyIDFFile = new IDFFile("Empty.IDF", new Extent(extent.llx, extent.lly, extent.llx, extent.lly), xCellsize, yCellsize, noData);
                 emptyIDFFile.values = values;
 
@@ -1622,6 +1626,7 @@ namespace Sweco.SIF.IDFexp
                 // Downscale
                 scaleTypeString = "downscaling";
                 DownscaleMethodEnum downscaleMethod = DownscaleMethodEnum.Block;
+                scaleMethodString = downscaleMethod.ToString();
                 if (hasThirdArg)
                 {
                     downscaleMethod = GetDownscaleMethod((int)((ConstantIDFFile)idfFile3).ConstantValue);
@@ -1634,6 +1639,7 @@ namespace Sweco.SIF.IDFexp
                 // Upscale
                 scaleTypeString = "upscaling";
                 UpscaleMethodEnum upscaleMethod = UpscaleMethodEnum.Mean;
+                scaleMethodString = upscaleMethod.ToString();
                 if (hasThirdArg)
                 {
                     upscaleMethod = GetUpscaleMethod((int)((ConstantIDFFile)(idfFile4 != null ? idfFile4 : idfFile3)).ConstantValue);

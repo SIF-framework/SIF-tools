@@ -283,7 +283,7 @@ namespace Sweco.SIF.IDFexp
             }
             catch (ToolException ex)
             {
-                throw new ToolException("Error in line " + lineIdx + ": " + ex.GetBaseException().Message); //  + "\nLine " + lineIdx + ": " + wholeLine);
+                throw new ToolException("Error in line " + lineIdx + ": " + ex.GetBaseException().Message);
             }
             catch (Exception ex)
             {
@@ -515,6 +515,11 @@ namespace Sweco.SIF.IDFexp
                     }
                     else
                     {
+                        if (expression.ToLower().Contains(".idf"))
+                        {
+                            throw new ToolException("IDF-files should be assigned to a variable, before using it in an expression: " + Environment.ExpandEnvironmentVariables(expression));
+                        }
+
                         // Parse IDF-expression (part after the '='-symbol and assign to IDF-variable
                         expressionType = IDFExpressionType.Undefined;
                         if (VariableDictionary.ContainsKey(expression))
