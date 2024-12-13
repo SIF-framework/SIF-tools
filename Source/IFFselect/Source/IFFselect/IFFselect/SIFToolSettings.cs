@@ -116,7 +116,8 @@ namespace Sweco.SIF.IFFSelect
                                      "  1) Select only pathlines inside specified volume (clip, the default); \n" +
                                      "  2) Select only pathlines outside specified volume (inverse clip); \n" +
                                      "  3) Select only pathlines before specified volume (start to just inside); \n" +
-                                     "  4) Select only pathlines before and inside specified volume (start to inside);",
+                                     "  4) Select only pathlines before and inside specified volume (start to inside);\n" + 
+                                     "  note: flowline is clipped, but individual linesegments are not clipped",
                                      "/c:1", "Volume/area method is: {0}", new string[] { "c1" });
             AddToolOptionDescription("s", "Instead of clipping flowlines, select whole pathline as specified by \n" +
                                      "  s1=the IFF-point Selection method. \n"+
