@@ -43,6 +43,8 @@ namespace Sweco.SIF.IPFmerge
         public bool IsRecursive { get; set; }
         public bool IsTSSkipped { get; set; }
 
+        public string GroupSpecifier { get; set; }
+
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
         /// </summary>
@@ -55,6 +57,7 @@ namespace Sweco.SIF.IPFmerge
 
             IsRecursive = false;
             IsTSSkipped = false;
+            GroupSpecifier = null;
         }
 
         /// <summary>
@@ -67,6 +70,8 @@ namespace Sweco.SIF.IPFmerge
             AddToolParameterDescription("filter", "Filter to select input files (e.g. *.IPF)", "*.IPF");
             AddToolParameterDescription("outPath", "Path to write results", "C:\\Test\\Output");
             AddToolOptionDescription("r", "Process input path recursively", "/r", "Input path is processed recursively");
+            AddToolOptionDescription("g", "Group input files by file prefix. Prefix can be defined as follows:\n" +
+                                          "- substring (case ignored) that follows prefix immediately, e.g. _L for layerfiles", "/g:_L", "Input files are grouped with prefix specifier: {0}", new string[] { "g1" });
             AddToolOptionDescription("tss", "Skip writing IPF-timeseries (and keep non-existing timeseries references in input file).",
                                             "/tss", "IPF-timeseries are not read/written");
         }
@@ -148,6 +153,17 @@ namespace Sweco.SIF.IPFmerge
             if (optionName.ToLower().Equals("r"))
             {
                 IsRecursive = true;
+            }
+            else if (optionName.ToLower().Equals("g"))
+            {
+                if (hasOptionParameters)
+                {
+                    GroupSpecifier = optionParametersString;
+                }
+                else
+                {
+                    throw new ToolException("Missing parameter for option '" + optionName + "'");
+                }
             }
             else if (optionName.ToLower().Equals("tss"))
             {

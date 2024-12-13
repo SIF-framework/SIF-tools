@@ -104,29 +104,101 @@ namespace Sweco.SIF.IPFmerge
             }
 
             // An example for reading files from a path and creating a new file...
-            string[] inputFilenames = Directory.GetFiles(settings.InputPath, settings.InputFilter, settings.IsRecursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly );
-            int fileCount = inputFilenames.Length;
+            string[] inputFilenames = Directory.GetFiles(settings.InputPath, settings.InputFilter, settings.IsRecursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+            CommonUtils.SortAlphanumericStrings(inputFilenames);
 
             Log.AddInfo("Processing input files ...");
+            int fileCount = inputFilenames.Length;
             if (fileCount == 0)
             {
                 Log.AddWarning("No IPF-files found for filter '" + settings.InputFilter + "' in path: " + settings.InputPath);
                 return 0;
             }
 
-            string outputFilename = (settings.OutputFilename == null) ? "mergedFile.IPF" : settings.OutputFilename;
-            outputFilename = Path.Combine(settings.OutputPath, outputFilename);
+            Dictionary<string, List<string>> groupDictionary = RetrieveGroups(inputFilenames, settings);
+            foreach (string prefix in groupDictionary.Keys)
+            {
+                string outputFilename = null;
+                if (groupDictionary.Keys.Count > 1)
+                {
+                    if (!prefix.Equals(string.Empty))
+                    {
+                        Log.AddInfo("Merging group '" + prefix + "' ...");
+                    }
+                    else
+                    {
+                        Log.AddInfo("Merging leftover group ...");
+                    }
 
-            IPFFile targetIPFFile = MergeIPFFiles(inputFilenames, outputFilename, settings);
+                    if (prefix.Equals(string.Empty))
+                    {
+                        outputFilename = (settings.OutputFilename == null) ? "mergedFile.IPF" : settings.OutputFilename;
+                    }
+                    else
+                    {
+                        outputFilename = prefix + ".IPF";
+                    }
+                }
+                else
+                {
+                    outputFilename = (settings.OutputFilename == null) ? "mergedFile.IPF" : settings.OutputFilename;
+                }
 
-            Log.AddInfo("Writing result IPF-file " + Path.GetFileName(outputFilename) + " ...");
-            targetIPFFile.WriteFile(outputFilename, null, !settings.IsTSSkipped);
+                IPFFile targetIPFFile = MergeIPFFiles(groupDictionary[prefix].ToArray(), outputFilename, settings);
+                outputFilename = Path.Combine(settings.OutputPath, outputFilename);
 
+                Log.AddInfo("Writing result IPF-file " + Path.GetFileName(outputFilename) + " ...", 1);
+                targetIPFFile.WriteFile(outputFilename, null, !settings.IsTSSkipped);
+
+            }
             System.Console.WriteLine();
 
-            ToolSuccessMessage = "Finished merging " + fileCount + " IPF - files";
+            ToolSuccessMessage = "Finished merging " + fileCount + " IPF-files" + ((settings.GroupSpecifier != null) ? " in " + groupDictionary.Keys.Count + " group(s)" : string.Empty);
 
             return exitcode;
+        }
+
+        private Dictionary<string, List<string>> RetrieveGroups(string[] filenames, SIFToolSettings settings)
+        {
+            Dictionary<string, List<string>> groupDictionary = new Dictionary<string, List<string>>();
+
+            if (settings.GroupSpecifier != null)
+            {
+                foreach (string filename in filenames)
+                {
+                    string name = Path.GetFileName(filename);
+                    int prefixIdx = name.ToUpper().IndexOf(settings.GroupSpecifier.ToUpper());
+                    if (prefixIdx >= 0)
+                    {
+                        string prefix = name.Substring(0, prefixIdx);
+                        if (!groupDictionary.ContainsKey(prefix))
+                        {
+                            groupDictionary.Add(prefix, new List<string>());
+                        }
+
+                        groupDictionary[prefix].Add(filename);
+                    }
+                    else
+                    {
+                        if (!groupDictionary.ContainsKey(string.Empty))
+                        {
+                            groupDictionary.Add(string.Empty, new List<string>());
+                        }
+                        groupDictionary[string.Empty].Add(filename);
+                    }
+                }
+            }
+            else
+            {
+                groupDictionary.Add(string.Empty, filenames.ToList());
+            }
+
+            if ((settings.GroupSpecifier != null) && (groupDictionary.Keys.Count == 1) && groupDictionary.Keys.ToList()[0].Equals(string.Empty))
+            {
+                Log.AddWarning("No groups found for group specifier: " + settings.GroupSpecifier);
+            }
+
+            return groupDictionary;
         }
 
         protected virtual IPFFile MergeIPFFiles(string[] inputFilenames, string outputFilename, SIFToolSettings settings)
