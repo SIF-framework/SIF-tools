@@ -418,8 +418,13 @@ namespace Sweco.SIF.iMODstats
             if ((zoneStatistics.ResultIPFFile != null) && (zoneStatistics.ResultIPFFile.PointCount > 0))
             {
                 // Write resulting IPF-file
-                string resultIPFFilename = Path.Combine(Path.GetDirectoryName(settings.OutputFile), Path.GetFileNameWithoutExtension(settings.OutputFile) + ".IPF");
+                string resultIPFFilename = Path.Combine(Path.GetDirectoryName(settings.OutputFile), FileUtils.GetRelativePath(ipfFile.Filename, settings.InputPath));
                 zoneStatistics.ResultIPFFile.WriteFile(resultIPFFilename);
+            }
+
+            if (zoneStatistics.StatValues == null)
+            {
+                Log.AddInfo("No IPF-points with results found for IPF-file, no results written: " + FileUtils.GetRelativePath(ipfFile.Filename, settings.InputPath), 2);
             }
 
             statList.Add(zoneStatistics);

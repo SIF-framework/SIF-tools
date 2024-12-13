@@ -108,6 +108,9 @@ namespace Sweco.SIF.iMODstats.Zones
                 idfStats = new IDFStatistics(IDFFile, new List<float>());
             }
 
+            idfStats.ComputeBasicStatistics(false, false);
+            idfStats.ComputePercentiles();
+
             // Store statistics over all points in the IPF-file, first add statistics that are specific for IDF-files and that should be shown in the first columns
             StatValues = new List<object>() { IDFFile.XCellsize };
 

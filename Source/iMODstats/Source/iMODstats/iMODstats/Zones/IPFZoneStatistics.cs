@@ -202,8 +202,14 @@ namespace Sweco.SIF.iMODstats.Zones
                 {
                     throw new ToolException("Specified IPF value column number (" + (settings.IPFValueColRef) + ") cannot be larger than number of colums in IPF-file (" + IPFFile.ColumnCount + ")");
                 }
-
-                CalculateValStats(ipfValueColIdx);
+                if (ipfValueColIdx >= 0)
+                {
+                    CalculateValStats(ipfValueColIdx);
+                }
+                else
+                {
+                    // ignore, specified column is not found for this IPF-file
+                }
             }
             else
             {
@@ -359,13 +365,14 @@ namespace Sweco.SIF.iMODstats.Zones
             float notSkippedFraction = (IPFFile.PointCount > 0) ? (((float)ipfFileMeanStats.Count) / (float)IPFFile.PointCount) : float.NaN;
             StatValues.AddRange(RetrieveCommonStats(ipfFileMeanStats, notSkippedFraction));
 
-            // Add statistics that are specific for IPF-files
+            // Add statistics that are specific for IPF-files with timeseries
             StatValues.AddRange(new List<object>() {
                 MinFirstDate.Equals(DateTime.MaxValue) ? null : MinFirstDate,
                 MaxFirstDate.Equals(DateTime.MinValue) ? null : MaxFirstDate,
                 MinLastDate.Equals(DateTime.MaxValue) ? null : MinLastDate,
                 MaxLasttDate.Equals(DateTime.MinValue) ? null : MaxLasttDate, ipfFileDateCountStats.Mean, ipfFileDateCountStats.SD });
 
+            // Add residual statistics
             AddZoneResidualValues(StatValues);
         }
 
@@ -383,9 +390,13 @@ namespace Sweco.SIF.iMODstats.Zones
             // Create statistics objects for the mean value
             Statistics.Statistics ipfFileMeanStats = new Statistics.Statistics();
 
-            // Loop through all IPF-points and create statistics
+            // Loop through all IPF-points and add values to statistics object
+            double xAverage = 0;
+            double yAverage = 0;
             foreach (IPFPoint ipfPoint in IPFFile.Points)
             {
+                xAverage += ipfPoint.X;
+                yAverage += ipfPoint.Y;
                 string valueString = CorrectStringValue(ipfPoint.ColumnValues[ipfValueColIdx]);
                 if (float.TryParse(valueString, NumberStyles.Float, englishCultureInfo, out float value))
                 { 
@@ -396,9 +407,25 @@ namespace Sweco.SIF.iMODstats.Zones
                     // skip points without timeseries
                 }
             }
+            xAverage /= IPFFile.PointCount;
+            yAverage /= IPFFile.PointCount;
 
+            // Calculate statistics
             ipfFileMeanStats.ComputeBasicStatistics(false, false);
             ipfFileMeanStats.ComputePercentiles();
+
+            // Store statistics for this zone object
+            if (ipfFileMeanStats.Count > 0)
+            {
+                // Store statistics over all points in the IPF-file; first add basic statistics
+                StatValues = new List<object>();
+                float notSkippedFraction = (IPFFile.PointCount > 0) ? (((float)ipfFileMeanStats.Count) / (float)IPFFile.PointCount) : float.NaN;
+                StatValues.AddRange(RetrieveCommonStats(ipfFileMeanStats, notSkippedFraction));
+            }
+            else
+            {
+                StatValues = null;
+            }
         }
 
         /// <summary>

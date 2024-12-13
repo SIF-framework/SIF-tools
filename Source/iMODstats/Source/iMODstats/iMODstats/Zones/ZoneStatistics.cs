@@ -67,7 +67,7 @@ namespace Sweco.SIF.iMODstats.Zones
             if (Settings.DecimalCount.Equals(int.MaxValue))
             {
                 decimalFormatString = "General";
-                percentageFormatString = "General";
+                percentageFormatString = "0.00%";
             }
             else if (Settings.DecimalCount > 0)
             {
@@ -78,8 +78,8 @@ namespace Sweco.SIF.iMODstats.Zones
                     decimalFormatString += "0";
                     percentageFormatString += "0";
                 }
+                percentageFormatString += "%";
             }
-            percentageFormatString += "%";
         }
 
         /// <summary>

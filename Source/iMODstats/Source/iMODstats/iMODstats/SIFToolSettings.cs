@@ -108,7 +108,7 @@ namespace Sweco.SIF.iMODstats
         {
             AddToolParameterDescription("inPath", "Path to search for input IDF-, ASC- or IPF-files", "C:\\Test\\Input");
             AddToolParameterDescription("filter", "Filter to select input IDF- or ASC-files (e.g. *.IDF)", "*.IDF");
-            AddToolParameterDescription("outFile", "Path and filename of Excel-file to write results to", "C:\\Test\\Output\\Statistics.xlsx");
+            AddToolParameterDescription("outFile", "Path and filename of Excel-file(s) to write results to", "C:\\Test\\Output\\Statistics.xlsx");
 
             AddToolOptionDescription("d", "Define decimal count (default:" + DefaultDecimalCount + ") for results or just use /d to show all decimals", 
                                           "/d:1", "Number of decimals: {0}", null, new string[] { "d1" }, new string[] { DefaultDecimalCount.ToString() });
