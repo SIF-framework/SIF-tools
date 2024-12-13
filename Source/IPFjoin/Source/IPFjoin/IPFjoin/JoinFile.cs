@@ -20,6 +20,7 @@
 // You should have received a copy of the GNU General Public License
 // along with IPFjoin. If not, see <https://www.gnu.org/licenses/>.
 using Sweco.SIF.Common;
+using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD;
 using Sweco.SIF.iMOD.IPF;
 using System;
@@ -52,14 +53,24 @@ namespace Sweco.SIF.IPFjoin
         public List<string > ColumnNames { get; protected set; }
 
         /// <summary>
+        /// Index of column with of associated files
+        /// </summary>
+        public int AssociatedFileColIdx { get; protected set; }
+
+        /// <summary>
         /// Table ([row][col]) with rows with a list of column values per row. Each row can contain an optional timeseries.
         /// </summary>
         public List<JoinRow> Rows { get; protected set; }
 
         /// <summary>
-        /// Tells if the object contains timeseries data
+        /// Column index for X-coordinate, or -1 if not existing
         /// </summary>
-        public bool HasTimeseries { get; protected set; }
+        public int XColIdx { get; set; }
+
+        /// <summary>
+        /// Column index for Y-coordinate, or -1 if not existing
+        /// </summary>
+        public int YColIdx { get; set; }
 
         protected JoinFile()
         {
@@ -67,15 +78,20 @@ namespace Sweco.SIF.IPFjoin
             FileObject = null;
             ColumnNames = null;
             Rows = null;
-            HasTimeseries = false;
+            XColIdx = -1;
+            YColIdx = -1;
+            AssociatedFileColIdx = -1;
         }
 
-        public JoinFile(string filename) : base()
+        public JoinFile(string filename, int xColIdx = -1, int yColIdx = -1) : base()
         {
             if (!File.Exists(filename))
             {
                 throw new ToolException("File not found: " + filename);
             }
+
+            XColIdx = xColIdx;
+            YColIdx = yColIdx;
 
             ImportFile(filename);
         }
@@ -107,7 +123,16 @@ namespace Sweco.SIF.IPFjoin
         /// <param name="filename"></param>
         protected void ImportIPFFile(string filename)
         {
-            IPFFile ipfFile = IPFFile.ReadFile(filename);
+            IPFFile ipfFile = null;
+            if ((XColIdx >= 0) && (YColIdx >= 0))
+            {
+                ipfFile = IPFFile.ReadFile(filename, XColIdx, YColIdx);
+            }
+            else
+            {
+                ipfFile = IPFFile.ReadFile(filename);
+            }
+            
             ImportIPFFile(ipfFile);
         }
 
@@ -120,6 +145,7 @@ namespace Sweco.SIF.IPFjoin
             Filename = ipfFile.Filename;
             FileObject = ipfFile;
             ColumnNames = ipfFile.ColumnNames;
+            AssociatedFileColIdx = ipfFile.AssociatedFileColIdx;
             Rows = new List<JoinRow>();
             foreach (IPFPoint ipfPoint in ipfFile.Points)
             {
@@ -187,6 +213,23 @@ namespace Sweco.SIF.IPFjoin
                 }
             }
             return -1;
+        }
+
+        /// <summary>
+        /// Retrieve Point object for specified xy-indices and column values or null if XY-indices are not defined
+        /// </summary>
+        /// <param name="row2"></param>
+        /// <returns>Point object with XY-coordinates or null if not defined</returns>
+        public Point RetrievePoint(JoinRow row2)
+        {
+            if ((XColIdx >= 0) && (YColIdx >= 0))
+            {
+                return new StringPoint(row2[XColIdx], row2[YColIdx]);
+            }
+            else
+            {
+                return null;
+            }
         }
     }
 

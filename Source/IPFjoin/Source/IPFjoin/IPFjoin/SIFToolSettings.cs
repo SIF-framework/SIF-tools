@@ -54,6 +54,12 @@ namespace Sweco.SIF.IPFjoin
         public bool IsRecursive { get; set; }
         public JoinType JoinType { get; set; }
 
+        // Column indices for XY-coordinates, or -1 if not defined
+        public int XColIdx1 { get; set; }
+        public int YColIdx1 { get; set; }
+        public int XColIdx2 { get; set; }
+        public int YColIdx2 { get; set; }
+
         public bool IsTSJoined { get; set; }
         public JoinType TSJoinType { get; set; }
         public bool IsTS2Interpolated { get; set; }
@@ -78,6 +84,11 @@ namespace Sweco.SIF.IPFjoin
             OutputFilename = null;
             IsRecursive = false;
             JoinType = JoinType.Natural;
+
+            XColIdx1 = 0;
+            YColIdx1 = 1;
+            XColIdx2 = 0;
+            YColIdx2 = 1;
 
             IsTSJoined = true;
             TSJoinType = JoinType.FullOuter;
@@ -105,6 +116,10 @@ namespace Sweco.SIF.IPFjoin
             AddToolOptionDescription("k2", "Specify key(s) for joined IPF-file as (comma-seperated) list of columns (name or number)\n" + 
                                            "Note: When k1 and k2 are not defined, all columns with equal names are used and a Natural join is forced.\n" + 
                                            "      When k1 or k2 is not defined, the other keys are used if specified columns exist.", "/k2:ID1,ID2", "Key2 columnstring(s): {...}", new string[] { "s" }, new string[] { "..." });
+            AddToolOptionDescription("x1", "Specify (one-based) column numbers for XY-coordinates for input IPF-file(s);\n" + 
+                                           "if not specified 1,2 is used as a default", "/x1:4,5", "XY-column numbers file1: {...}", new string[] { "x", "y" });
+            AddToolOptionDescription("x2", "Specify (one-based) column numbers for XY-coordinates for joined file;\n" +
+                                           "if not specified 1,2 is used as a default", null, "XY-column numbers file2: {...}", new string[] { "x", "y" });
 
             AddToolOptionDescription("tss", "Skip joining of timeseries from ipf2", "/tss", "Timeseries of ipf2 are not joined");
             AddToolOptionDescription("tst", "Specify join type for timeseries: 1: Inner 2: Full Outer (default), 3: Left Outer, 4: Right Outer", "/tst:3", "Specified join type for timeseries: {0}", new string[] { "t1" });
@@ -116,7 +131,6 @@ namespace Sweco.SIF.IPFjoin
                                             "/i:7", "Missing dates in timeseries of ipf2 are interpolated with maximum distance: {0}", null, new string[] { "i1" }, new string[] { "NaN" });
             AddToolOptionDescription("tsd", "Specify number of decimals for non NoData-values in joined timeseries TXT-file (default: no rounding)", "/d:2", "Timeseries values are rounded to {0} decimals", new string[] { "d1" });
             AddToolOptionDescription("tserr", "Ignore date errors when reading timeseries of IPF-points; date is skipped", "/err", "Ignore date errors when reading timeseries of IPF-files");
-
         }
 
         /// <summary>
@@ -200,6 +214,62 @@ namespace Sweco.SIF.IPFjoin
                 if (hasOptionParameters)
                 {
                     KeyString2 = optionParametersString;
+                }
+                else
+                {
+                    throw new ToolException("Parameter value expected for option '" + optionName + "'");
+                }
+            }
+            else if (optionName.ToLower().Equals("x1"))
+            {
+                if (hasOptionParameters)
+                {
+                    string[] optionParameters = GetOptionParameters(optionParametersString);
+                    if (optionParameters.Length >= 2)
+                    {
+                        if (!int.TryParse(optionParameters[0], out int xColNr))
+                        {
+                            throw new ToolException("Invalid column number for X-coordinate for option '" + optionName + "': " +optionParametersString);
+                        }
+                        if (!int.TryParse(optionParameters[1], out int yColNr))
+                        {
+                            throw new ToolException("Invalid column number for Y-coordinate for option '" + optionName + "': " + optionParametersString);
+                        }
+                        XColIdx1 = xColNr - 1;
+                        YColIdx1 = yColNr - 1;
+                    }
+                    else
+                    {
+                        throw new ToolException("column numbers for X,Y-coordinates expected for option '" + optionName + "': " + optionParametersString);
+                    }
+                }
+                else
+                {
+                    throw new ToolException("Parameter value expected for option '" + optionName + "'");
+                }
+            }
+            else if (optionName.ToLower().Equals("x2"))
+            {
+                if (hasOptionParameters)
+                {
+                    string[] optionParameters = GetOptionParameters(optionParametersString);
+                    if (optionParameters.Length >= 2)
+                    {
+                        if (!int.TryParse(optionParameters[0], out int xColNr))
+                        {
+                            throw new ToolException("Invalid column number for X-coordinate for option '" + optionName + "': " + optionParametersString);
+                        }
+                        if (!int.TryParse(optionParameters[1], out int yColNr))
+                        {
+                            throw new ToolException("Invalid column number for Y-coordinate for option '" + optionName + "': " + optionParametersString);
+                        }
+                        XColIdx2 = xColNr - 1;
+                        YColIdx2 = yColNr - 1;
+                    }
+                    else
+                    {
+                        throw new ToolException("column numbers for X,Y-coordinates expected for option '" + optionName + "': " + optionParametersString);
+                    }
                 }
                 else
                 {
@@ -406,6 +476,15 @@ namespace Sweco.SIF.IPFjoin
             {
                 SIFTool.Log.AddInfo("Because one or both keys are not defined, a natural join is enforced");
                 JoinType = JoinType.Natural;
+            }
+
+            if ((XColIdx1 < -1) || (YColIdx1 < -1))
+            {
+                throw new ToolException("Invalid column numbers for XY-coordinates for file1: " + XColIdx1 + ", " + YColIdx1);
+            }
+            if ((XColIdx2 < -1) || (YColIdx2 < -1))
+            {
+                throw new ToolException("Invalid column numbers for XY-coordinates for file2: " + XColIdx2 + ", " + YColIdx2);
             }
         }
     }

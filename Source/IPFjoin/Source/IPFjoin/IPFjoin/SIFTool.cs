@@ -20,15 +20,13 @@
 // You should have received a copy of the GNU General Public License
 // along with IPFjoin. If not, see <https://www.gnu.org/licenses/>.
 using Sweco.SIF.Common;
+using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD;
 using Sweco.SIF.iMOD.IPF;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Sweco.SIF.IPFjoin
 {
@@ -124,36 +122,70 @@ namespace Sweco.SIF.IPFjoin
             Log.AddInfo("Applying " + settings.TSJoinType.ToString() + "-join for dates in timeseries ...");
             Log.AddInfo();
 
-            // Retrieve file 2 and create datstructures for efficient handling
+            // Retrieve file 2 and create datastructures for efficient handling
             Log.AddInfo("Reading file '" + Path.GetFileName(settings.JoinFilename) + "' ...");
             Log.AddInfo();
+            JoinFile joinFile2 = ReadJoinFile(settings);
 
-            JoinFile joinFile2 = ReadJoinFile(settings.JoinFilename);
-
-            List<int> keyIndices2 = null;
-            IDictionary<string, List<int>> keyDictionary2 = null;
-            if (settings.KeyString2 != null)
-            {
-                keyIndices2 = RetrieveKeyIndices(joinFile2, settings.KeyString2);
-                keyDictionary2 = RetrieveKeyDictionary(joinFile2, keyIndices2);
-            }
-            List<int> selectedColIndices2 = RetrieveSelectedIndices2(joinFile2, keyIndices2, settings);
+            JoinInfo joinInfo = CreateJoinInfo(settings);
+            UpdateJoinInfo(joinInfo, null, joinFile2, settings, Log, 1);
 
             Log.AddInfo("Processing input files ...");
             int fileCount = 0;
             foreach (string inputFilename in inputFilenames)
             {
-                // Retrieve source IPF-file and create datstructures for efficient handling
+                // Retrieve source IPF-file and create datastructures for efficient handling
                 Log.AddInfo("Processing file '" + Path.GetFileName(inputFilename) + "' ...", 1);
-                IPFFile ipfFile1 = IPFFile.ReadFile(inputFilename);
+                IPFFile ipfFile1 = IPFFile.ReadFile(inputFilename, settings.XColIdx1, settings.YColIdx1);
                 JoinFile joinFile1 = CreateJoinFile(ipfFile1);
 
+                UpdateJoinInfo(joinInfo, joinFile1, joinFile2, settings, Log, 2);
+
+                string outputFilename = GetOutputFilename(inputFilename, inputFilenames, settings);
+                IPFFile resultIPFFile = JoinIPFFile(ipfFile1, joinFile2, joinInfo, outputFilename, settings);
+                Log.AddInfo("Joining file 1 (" + ipfFile1.Points.Count + " rows) to file 2 (" + joinFile2.Rows.Count + " rows) resulted in " + resultIPFFile.Points.Count + " rows", 2);
+
+                Log.AddInfo("Writing resulting IPF-file '" + Path.GetFileName(outputFilename) + "' ...", 2);
+                resultIPFFile.WriteFile();
+
+                fileCount++;
+            }
+
+            ToolSuccessMessage = "Finished processing " + fileCount + " file(s)";
+
+            return exitcode;
+        }
+
+        protected virtual JoinInfo CreateJoinInfo(SIFToolSettings settings)
+        {
+            return new JoinInfo();
+        }
+
+        protected virtual void UpdateJoinInfo(JoinInfo joinInfo, JoinFile joinFile1, JoinFile joinFile2, SIFToolSettings settings, Log log, int logIndentLevel)
+        {
+            List<int> keyIndices2 = null;
+            IDictionary<string, List<int>> keyDictionary2 = null;
+            if (joinFile1 == null)
+            {
+                if (settings.KeyString2 != null)
+                {
+                    keyIndices2 = RetrieveKeyIndices(joinFile2, settings.KeyString2);
+                    keyDictionary2 = RetrieveKeyDictionary(joinFile2, keyIndices2);
+
+                    joinInfo.keyDictionary2 = keyDictionary2;
+                    joinInfo.selectedColIndices2 = RetrieveSelectedIndices2(joinFile2, keyIndices2, settings);
+                }
+            }
+            else
+            {
                 List<int> keyIndices1 = null;
                 IDictionary<string, List<int>> keyDictionary1 = null;
                 if (settings.KeyString1 != null)
                 {
                     keyIndices1 = RetrieveKeyIndices(joinFile1, settings.KeyString1);
                     keyDictionary1 = RetrieveKeyDictionary(joinFile1, keyIndices1);
+
+                    joinInfo.keyDictionary1 = keyDictionary1;
                 }
                 else
                 {
@@ -167,27 +199,26 @@ namespace Sweco.SIF.IPFjoin
                             keyString += columnName1 + ",";
                         }
                     }
-                    keyString = keyString.Substring(0, keyString.Length - 1);
-                    keyIndices1 = RetrieveKeyIndices(joinFile1, keyString);
-                    keyIndices2 = RetrieveKeyIndices(joinFile2, keyString);
-                    keyDictionary1 = RetrieveKeyDictionary(joinFile1, keyIndices1);
-                    keyDictionary2 = RetrieveKeyDictionary(joinFile2, keyIndices2);
-                    Log.AddInfo("Automatically retrieved key(s) for file 1 and 2: " + keyString, 2);
+                    if (!keyString.Equals(string.Empty))
+                    {
+                        keyString = keyString.Substring(0, keyString.Length - 1);
+                        keyIndices1 = RetrieveKeyIndices(joinFile1, keyString);
+                        keyIndices2 = RetrieveKeyIndices(joinFile2, keyString);
+                        keyDictionary1 = RetrieveKeyDictionary(joinFile1, keyIndices1);
+                        keyDictionary2 = RetrieveKeyDictionary(joinFile2, keyIndices2);
+
+                        joinInfo.keyDictionary1 = keyDictionary1;
+                        joinInfo.keyDictionary2 = keyDictionary2;
+                        joinInfo.selectedColIndices2 = RetrieveSelectedIndices2(joinFile2, keyIndices2, settings);
+
+                        Log.AddInfo("Automatically retrieved key(s) for file 1 and 2: " + keyString, 2);
+                    }
+                    else
+                    {
+                        joinInfo.selectedColIndices2 = RetrieveSelectedIndices2(joinFile2, new List<int>(), settings);
+                    }
                 }
-
-                string outputFilename = GetOutputFilename(inputFilename, inputFilenames, settings);
-                IPFFile resultIPFFile = JoinIPFFile(ipfFile1, keyDictionary1, joinFile2, keyDictionary2, selectedColIndices2, outputFilename, settings);
-                Log.AddInfo("Joining file 1 (" + ipfFile1.Points.Count + " rows) to file 2 (" + joinFile2.Rows.Count + " rows) resulted in " + resultIPFFile.Points.Count + " rows", 2);
-
-                Log.AddInfo("Writing resulting IPF-file '" + Path.GetFileName(outputFilename) + "' ...", 2);
-                resultIPFFile.WriteFile();
-
-                fileCount++;
             }
-
-            ToolSuccessMessage = "Finished processing " + fileCount + " file(s)";
-
-            return exitcode;
         }
 
         /// <summary>
@@ -218,9 +249,9 @@ namespace Sweco.SIF.IPFjoin
             return new JoinFile(ipfFile);
         }
 
-        protected virtual JoinFile ReadJoinFile(string filename)
+        protected virtual JoinFile ReadJoinFile(SIFToolSettings settings)
         {
-            return new JoinFile(filename);
+            return new JoinFile(settings.JoinFilename, settings.XColIdx2, settings.YColIdx2);
         }
 
         /// <summary>
@@ -300,15 +331,17 @@ namespace Sweco.SIF.IPFjoin
         /// Join columns of joinFile2 to columns of ipfFile1, including timeseries if present, as specified by settings. Points are matched by specified key dictionaries.
         /// </summary>
         /// <param name="ipfFile1"></param>
-        /// <param name="keyDictionary1">list of key-values for each point in ipfFile1</param>
         /// <param name="joinFile2"></param>
-        /// <param name="keyDictionary2">list of key-values for each point in joinFile2</param>
-        /// <param name="selectedColIndices2"></param>
+        /// <param name="joinInfo"></param>
         /// <param name="outputIPFFilename"></param>
         /// <param name="settings"></param>
         /// <returns></returns>
-        protected IPFFile JoinIPFFile(IPFFile ipfFile1, IDictionary<string, List<int>> keyDictionary1, JoinFile joinFile2, IDictionary<string, List<int>> keyDictionary2, List<int> selectedColIndices2, string outputIPFFilename, SIFToolSettings settings)
+        protected virtual IPFFile JoinIPFFile(IPFFile ipfFile1, JoinFile joinFile2, JoinInfo joinInfo, string outputIPFFilename, SIFToolSettings settings)
         {
+            IDictionary<string, List<int>> keyDictionary1 = joinInfo.keyDictionary1;
+            IDictionary<string, List<int>> keyDictionary2 = joinInfo.keyDictionary2;
+            List<int> selectedColIndices2 = joinInfo.selectedColIndices2;
+
             IPFFile resultIPFFile = new IPFFile();
             resultIPFFile.CopyProperties(ipfFile1);
             resultIPFFile.Filename = outputIPFFilename;
@@ -329,6 +362,23 @@ namespace Sweco.SIF.IPFjoin
 
             // Create Copy of keyDictionary2 to use for Contains-check and which can be updated during process (for speed optimalization)
             List<string> keyDictionary2KeyList = keyDictionary2.Keys.ToList();
+
+            bool isTSJoined = settings.IsTSJoined && (joinFile2.AssociatedFileColIdx >= 0);
+            if (isTSJoined && (resultIPFFile.AssociatedFileColIdx == -1))
+            {
+                if ((joinFile2.AssociatedFileColIdx >= 0) && selectedColIndices2.Contains(joinFile2.AssociatedFileColIdx))
+                {
+                    // File1 has no associated files, but join file does: if column with associated files is joined, use that as associated file column in file1
+                    string associatedFileColName2 = joinFile2.ColumnNames[joinFile2.AssociatedFileColIdx];
+                    int resultColIdx = resultIPFFile.FindColumnIndex(associatedFileColName2);
+                    resultIPFFile.AssociatedFileColIdx = resultColIdx;
+                }
+                else
+                {
+                    Log.AddWarning("No timeseries column was copied from joined file, timeseries data is skipped", 2);
+                    isTSJoined = false;
+                }
+            }
 
             // Walk through keys and points of IPF-file 1 and check for corresponding row in file 2
             foreach (string keyString in keyDictionary1.Keys)
@@ -369,12 +419,22 @@ namespace Sweco.SIF.IPFjoin
                                 }
                             }
 
-                            if (settings.IsTSJoined && joinRow.HasTimeseries)
+                            if (isTSJoined && joinRow.HasTimeseries)
                             {
                                 IPFTimeseries ipfTimeseries1 = ipfPoint1.Timeseries;
+
                                 Log.AddInfo("Joining TXT-files for point '" + keyString.Replace(';', ',') + "' ...", 2);
-                                string tsRelSubdirPath = FileUtils.GetRelativePath(Path.GetDirectoryName(ipfTimeseries1.Filename), Path.GetDirectoryName(ipfFile1.Filename), false);
-                                string resultFilename = Path.Combine(Path.GetDirectoryName(outputIPFFilename), Path.Combine(tsRelSubdirPath, Path.GetFileNameWithoutExtension(ipfTimeseries1.Filename) + ".TXT"));
+                                string resultFilename = null;
+                                if (ipfTimeseries1 != null)
+                                {
+                                    string tsRelSubdirPath = FileUtils.GetRelativePath(Path.GetDirectoryName(ipfTimeseries1.Filename), Path.GetDirectoryName(ipfFile1.Filename), false);
+                                    resultFilename = Path.Combine(Path.GetDirectoryName(outputIPFFilename), Path.Combine(tsRelSubdirPath, Path.GetFileNameWithoutExtension(ipfTimeseries1.Filename) + ".TXT"));
+                                }
+                                else if (joinRow.Timeseries != null)
+                                {
+                                    string tsRelSubdirPath = FileUtils.GetRelativePath(Path.GetDirectoryName(joinRow.Timeseries.Filename), Path.GetDirectoryName(ipfFile1.Filename), false);
+                                    resultFilename = Path.Combine(Path.GetDirectoryName(outputIPFFilename), Path.Combine(tsRelSubdirPath, Path.GetFileNameWithoutExtension(joinRow.Timeseries.Filename) + ".TXT"));
+                                }
 
                                 JoinTimeseries(resultIPFPoint, ipfPoint1.Timeseries, joinRow.Timeseries, resultFilename, settings, Log);
                             }
@@ -406,7 +466,7 @@ namespace Sweco.SIF.IPFjoin
                                 // Now, assign copied IPF-point to result IPF-file
                                 resultIPFPoint.IPFFile = resultIPFFile;
 
-                                // Add column values from file 2
+                                // Add empty values for columns from file 2
                                 for (int colIdx2 = 0; colIdx2 < joinFile2.ColumnNames.Count; colIdx2++)
                                 {
                                     if (selectedColIndices2.Contains(colIdx2))
@@ -432,30 +492,40 @@ namespace Sweco.SIF.IPFjoin
             {
                 case JoinType.FullOuter:
                 case JoinType.RightOuter:
-                    // For full or right outer join also add remaing points from file 2
-                    foreach (string keyString2 in keyDictionary2KeyList)
+                    // Check if xyz is defined for joined file
+                    if ((settings.XColIdx2 < 0) || (settings.YColIdx2 < 0))
                     {
-                        List<int> pointIndices2 = keyDictionary2[keyString2];
-
-                        // Loop through all source IPF-points that have this key
-                        foreach (int pointIndex2 in pointIndices2)
+                        Log.AddWarning("XY-columnindices are not defined for joined file, rows from joined file cannot be added", 2);
+                    }
+                    else
+                    {
+                        // For full or right outer join also add remaing points from file 2
+                        foreach (string keyString2 in keyDictionary2KeyList)
                         {
-                            IPFPoint ipfPoint2 = ipfFile1.Points[pointIndex2];
-                            List<string> columnValues = new List<string>() { ipfPoint2.XString, ipfPoint2.YString };
-                            for (int colIdx1 = 2; colIdx1 < ipfFile1.ColumnCount; colIdx1++)
+                            List<int> pointIndices2 = keyDictionary2[keyString2];
+
+                            // Loop through all source IPF-points that have this key
+                            foreach (int pointIndex2 in pointIndices2)
                             {
-                                columnValues.Add("");
-                            }
-                            for (int colIdx2 = 0; colIdx2 < joinFile2.ColumnNames.Count; colIdx2++)
-                            {
-                                if (selectedColIndices2.Contains(colIdx2))
+                                JoinRow row2 = joinFile2.Rows[pointIndex2];
+                                //IPFPoint ipfPoint2 = ipfFile1.Points[pointIndex2];
+                                Point point2 = joinFile2.RetrievePoint(row2);
+                                List<string> columnValues = new List<string>() { point2.XString, point2.YString };
+                                for (int colIdx1 = 2; colIdx1 < ipfFile1.ColumnCount; colIdx1++)
                                 {
-                                    columnValues.Add(ipfPoint2.ColumnValues[colIdx2]);
+                                    columnValues.Add("");
                                 }
+                                for (int colIdx2 = 0; colIdx2 < joinFile2.ColumnNames.Count; colIdx2++)
+                                {
+                                    if (selectedColIndices2.Contains(colIdx2))
+                                    {
+                                        columnValues.Add(row2[colIdx2]);
+                                    }
+                                }
+                                IPFPoint resultingIPFPoint = new IPFPoint(resultIPFFile, point2, columnValues);
+                                // Note: optional timeseries data from IPF-file 2 is ignored
+                                resultIPFFile.AddPoint(resultingIPFPoint);
                             }
-                            IPFPoint resultingIPFPoint = new IPFPoint(resultIPFFile, ipfPoint2, columnValues);
-                            // Note: optional timeseries data from IPF-file 2 is ignored
-                            resultIPFFile.AddPoint(resultingIPFPoint);
                         }
                     }
                     break;
@@ -526,34 +596,40 @@ namespace Sweco.SIF.IPFjoin
                 List<float> resultNoDataValues = new List<float>();
 
                 // Retrieve resulting timeseries columns
-                for (int colIdx = 0; colIdx < selIPFtimeseries1.ColumnNames.Count; colIdx++)
+                if (selIPFtimeseries1 != null)
                 {
-                    resultColumnNames.Add(selIPFtimeseries1.ColumnNames[colIdx]);
-                    resultNoDataValues.Add(selIPFtimeseries1.NoDataValues[colIdx]);
-                }
-                for (int colIdx = 0; colIdx < selIPFtimeseries2.ColumnNames.Count; colIdx++)  // skip first (date) column
-                {
-                    string columnName = selIPFtimeseries2.ColumnNames[colIdx];
-                    if (resultColumnNames.Contains(columnName))
+                    for (int colIdx = 0; colIdx < selIPFtimeseries1.ColumnNames.Count; colIdx++)
                     {
-                        columnName += "2";
+                        resultColumnNames.Add(selIPFtimeseries1.ColumnNames[colIdx]);
+                        resultNoDataValues.Add(selIPFtimeseries1.NoDataValues[colIdx]);
                     }
+                }
+                if (selIPFtimeseries2 != null)
+                {
+                    for (int colIdx = 0; colIdx < selIPFtimeseries2.ColumnNames.Count; colIdx++)  // skip first (date) column
+                    {
+                        string columnName = selIPFtimeseries2.ColumnNames[colIdx];
+                        if (resultColumnNames.Contains(columnName))
+                        {
+                            columnName += "2";
+                        }
 
-                    resultColumnNames.Add(columnName);
-                    resultNoDataValues.Add(selIPFtimeseries2.NoDataValues[colIdx]);
+                        resultColumnNames.Add(columnName);
+                        resultNoDataValues.Add(selIPFtimeseries2.NoDataValues[colIdx]);
+                    }
                 }
 
                 // Initialize resulting timeseries
-                List<DateTime> dateList1 = selIPFtimeseries1.Timestamps;
-                List<DateTime> dateList2 = selIPFtimeseries2.Timestamps;
+                List<DateTime> dateList1 = (selIPFtimeseries1 != null) ? selIPFtimeseries1.Timestamps : new List<DateTime>();
+                List<DateTime> dateList2 = (selIPFtimeseries2 != null) ? selIPFtimeseries2.Timestamps : new List<DateTime>();
                 List<DateTime> resultDateList = new List<DateTime>();
                 List<List<float>> resultValueLists = new List<List<float>>();
                 for (int colIdx = 0; colIdx < resultColumnNames.Count; colIdx++)
                 {
                     resultValueLists.Add(new List<float>());
                 }
-                float noDataValue1 = selIPFtimeseries1.NoDataValue;
-                float noDataValue2 = selIPFtimeseries2.NoDataValue;
+                float noDataValue1 = (selIPFtimeseries1 != null) ? selIPFtimeseries1.NoDataValue : float.NaN;
+                float noDataValue2 = (selIPFtimeseries1 != null) ? selIPFtimeseries2.NoDataValue : float.NaN;
                 IPFTimeseries resultTimeseries = new IPFTimeseries(resultDateList, resultValueLists, resultColumnNames, resultNoDataValues);
 
                 // Retrieve first date from timeseries2 to start with
@@ -684,8 +760,11 @@ namespace Sweco.SIF.IPFjoin
         /// <returns></returns>
         protected virtual IPFTimeseries RetrieveSelectedTimeseries(JoinOperand joinOperand, IPFTimeseries ipfTimeseries, SIFToolSettings settings)
         {
-            IPFTimeseries selIPFTimeseries = ipfTimeseries.Select(settings.TSPeriodStartDate, settings.TSPeriodEndDate, -1, true);
-
+            IPFTimeseries selIPFTimeseries = null;
+            if (ipfTimeseries != null)
+            {
+                selIPFTimeseries = ipfTimeseries.Select(settings.TSPeriodStartDate, settings.TSPeriodEndDate, -1, true);
+            }
             return selIPFTimeseries;
         }
 
@@ -721,83 +800,91 @@ namespace Sweco.SIF.IPFjoin
             resultTimeseries.Timestamps.Add(resultDate);
 
             // Add base columnvalues
-            for (int colIdx = 0; colIdx < timeseries1.ValueColumns.Count; colIdx++)
+            int ts1ValueColumnCount = 0;
+            if (timeseries1 != null)
             {
-                if (dateTS1Idx >= 0)
+                ts1ValueColumnCount = timeseries1.ValueColumns.Count;
+                for (int colIdx = 0; colIdx < timeseries1.ValueColumns.Count; colIdx++)
                 {
-                    resultTimeseries.ValueColumns[colIdx].Add(timeseries1.ValueColumns[colIdx][dateTS1Idx]);
-                }
-                else
-                {
-                    resultTimeseries.ValueColumns[colIdx].Add(resultTimeseries.NoDataValues[colIdx]);
-                }
-            }
-
-            DateTime? prevDateTS2 = ((prevDateTS2Idx >= 0) && (prevDateTS2Idx < timeseries2.Timestamps.Count)) ? timeseries2.Timestamps[prevDateTS2Idx] : (DateTime?)null;
-            DateTime? nextDateTS2 = ((nextDateTS2Idx >= 0) && (nextDateTS2Idx < timeseries2.Timestamps.Count)) ? timeseries2.Timestamps[nextDateTS2Idx] : (DateTime?)null;
-
-            // Add joined columnvalues
-            if (nextDateTS2 != null)
-            {
-                for (int colIdx = 0; colIdx < timeseries2.ValueColumns.Count; colIdx++)
-                {
-                    float resultValue = float.NaN;
-
-                    float prevValueTS2 = timeseries2.ValueColumns[colIdx][prevDateTS2Idx];
-                    float nextValueTS2 = timeseries2.ValueColumns[colIdx][nextDateTS2Idx];
-                    if (resultDate.Equals(nextDateTS2))
+                    if (dateTS1Idx >= 0)
                     {
-                        if (!nextValueTS2.Equals(timeseries2.NoDataValues[colIdx]))
-                        {
-                            resultValue = nextValueTS2;
-                        }
-                        else
-                        {
-                            resultValue = timeseries2.NoDataValues[colIdx];
-                        }
-                    }
-                    else if (prevValueTS2.Equals(timeseries2.NoDataValues[colIdx]) || nextValueTS2.Equals(timeseries2.NoDataValues[colIdx]))
-                    {
-                        // No interpolation possible
-                        resultValue = timeseries2.NoDataValues[colIdx];
+                        resultTimeseries.ValueColumns[colIdx].Add(timeseries1.ValueColumns[colIdx][dateTS1Idx]);
                     }
                     else
                     {
-                        // Interpolate joined columnvalues
-                        try
-                        {
-                            if (settings.TSMaxInterpolationDistance.Equals(float.NaN) || (((DateTime)nextDateTS2).Subtract((DateTime)prevDateTS2).TotalDays < settings.TSMaxInterpolationDistance))
-                            {
-                                long prevDateTicks = ((DateTime)prevDateTS2).Ticks;
-                                long nextDateTicks = ((DateTime)nextDateTS2).Ticks;
-                                long dateTicks = resultDate.Ticks;
+                        resultTimeseries.ValueColumns[colIdx].Add(resultTimeseries.NoDataValues[colIdx]);
+                    }
+                }
+            }
 
-                                resultValue = prevValueTS2 + (nextValueTS2 - prevValueTS2) * (dateTicks - prevDateTicks) / (nextDateTicks - prevDateTicks);
-                                if (resultValue.Equals(float.NaN))
-                                {
-                                    throw new Exception("Interpolation error: NaN result");
-                                }
+            if (timeseries2 != null)
+            {
+                DateTime? prevDateTS2 = ((prevDateTS2Idx >= 0) && (prevDateTS2Idx < timeseries2.Timestamps.Count)) ? timeseries2.Timestamps[prevDateTS2Idx] : (DateTime?)null;
+                DateTime? nextDateTS2 = ((nextDateTS2Idx >= 0) && (nextDateTS2Idx < timeseries2.Timestamps.Count)) ? timeseries2.Timestamps[nextDateTS2Idx] : (DateTime?)null;
+
+                // Add joined columnvalues
+                if (nextDateTS2 != null)
+                {
+                    for (int colIdx = 0; colIdx < timeseries2.ValueColumns.Count; colIdx++)
+                    {
+                        float resultValue = float.NaN;
+
+                        float prevValueTS2 = timeseries2.ValueColumns[colIdx][prevDateTS2Idx];
+                        float nextValueTS2 = timeseries2.ValueColumns[colIdx][nextDateTS2Idx];
+                        if (resultDate.Equals(nextDateTS2))
+                        {
+                            if (!nextValueTS2.Equals(timeseries2.NoDataValues[colIdx]))
+                            {
+                                resultValue = nextValueTS2;
                             }
                             else
                             {
-                                // No interpolation possible, interpolation distance is too large
                                 resultValue = timeseries2.NoDataValues[colIdx];
                             }
                         }
-                        catch
+                        else if (prevValueTS2.Equals(timeseries2.NoDataValues[colIdx]) || nextValueTS2.Equals(timeseries2.NoDataValues[colIdx]))
                         {
-                            // no number (column might contain non-value strings): copy previous value
-                            resultValue = timeseries2.ValueColumns[colIdx][prevDateTS2Idx];
+                            // No interpolation possible
+                            resultValue = timeseries2.NoDataValues[colIdx];
                         }
+                        else
+                        {
+                            // Interpolate joined columnvalues
+                            try
+                            {
+                                if (settings.TSMaxInterpolationDistance.Equals(float.NaN) || (((DateTime)nextDateTS2).Subtract((DateTime)prevDateTS2).TotalDays < settings.TSMaxInterpolationDistance))
+                                {
+                                    long prevDateTicks = ((DateTime)prevDateTS2).Ticks;
+                                    long nextDateTicks = ((DateTime)nextDateTS2).Ticks;
+                                    long dateTicks = resultDate.Ticks;
+
+                                    resultValue = prevValueTS2 + (nextValueTS2 - prevValueTS2) * (dateTicks - prevDateTicks) / (nextDateTicks - prevDateTicks);
+                                    if (resultValue.Equals(float.NaN))
+                                    {
+                                        throw new Exception("Interpolation error: NaN result");
+                                    }
+                                }
+                                else
+                                {
+                                    // No interpolation possible, interpolation distance is too large
+                                    resultValue = timeseries2.NoDataValues[colIdx];
+                                }
+                            }
+                            catch
+                            {
+                                // no number (column might contain non-value strings): copy previous value
+                                resultValue = timeseries2.ValueColumns[colIdx][prevDateTS2Idx];
+                            }
+                        }
+                        resultTimeseries.ValueColumns[ts1ValueColumnCount + colIdx].Add(resultValue);
                     }
-                    resultTimeseries.ValueColumns[timeseries1.ValueColumns.Count + colIdx].Add(resultValue);
                 }
-            }
-            else
-            {
-                for (int colIdx = 0; colIdx < timeseries2.ValueColumns.Count; colIdx++)
+                else
                 {
-                    resultTimeseries.ValueColumns[timeseries1.ValueColumns.Count + colIdx].Add(timeseries2.NoDataValues[colIdx]);
+                    for (int colIdx = 0; colIdx < timeseries2.ValueColumns.Count; colIdx++)
+                    {
+                        resultTimeseries.ValueColumns[timeseries1.ValueColumns.Count + colIdx].Add(timeseries2.NoDataValues[colIdx]);
+                    }
                 }
             }
         }

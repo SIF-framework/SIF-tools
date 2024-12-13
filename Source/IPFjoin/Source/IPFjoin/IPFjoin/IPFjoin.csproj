@@ -8,7 +8,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Sweco.SIF.IPFjoin</RootNamespace>
     <AssemblyName>IPFjoin</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
@@ -56,6 +56,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="JoinFile.cs" />
+    <Compile Include="JoinInfo.cs" />
     <Compile Include="SIFTool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SIFToolSettings.cs" />
