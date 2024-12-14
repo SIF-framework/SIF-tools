@@ -25,6 +25,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -35,6 +36,9 @@ namespace Sweco.SIF.Common
     /// </summary>
     public abstract class SIFToolBase
     {
+        [DllImport("kernel32", CharSet = CharSet.Unicode)]
+        static extern IntPtr GetCommandLineW();
+
         /// <summary>
         /// Language definition for english culture as used in most tools
         /// </summary>
@@ -491,6 +495,22 @@ namespace Sweco.SIF.Common
                 System.Console.WriteLine("Press any key to close this window.");
                 System.Console.ReadKey();
             }
+        }
+
+        /// <summary>
+        /// Retrieve orginal command-line arguments before formatting by Environment.CommandLine for Windows .NET Framework
+        /// </summary>
+        /// <returns>array with arguments (after toolname) that werecomma-seperated</returns>
+        public static string[] GetFullArgs()
+        {
+            // code from: https://learn.microsoft.com/en-us/answers/questions/1179400/command-line-arguments-being-reformatted 
+            IntPtr command_line0 = GetCommandLineW();
+            string command_line = Marshal.PtrToStringUni(command_line0);
+            string[] args = command_line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            List<string> argList = new List<string>(args);
+            argList.RemoveAt(0);
+
+            return argList.ToArray();
         }
 
         /// <summary>

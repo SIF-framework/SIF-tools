@@ -181,7 +181,7 @@ namespace Sweco.SIF.Common
                 string tabs = string.Empty;
                 while (innerex != null)
                 {
-                    tabs += "\t";
+                    tabs += IndentString;
                     msg += "\r\n" + tabs + innerex.Message;
                     prevEx = innerex;
                     innerex = innerex.InnerException;
@@ -208,11 +208,11 @@ namespace Sweco.SIF.Common
                 string tabs = string.Empty;
                 for (int i = 0; i < indentLevel; i++)
                 {
-                    tabs += "\t";
+                    tabs += IndentString;
                 }
                 while (innerex != null)
                 {
-                    tabs += "\t";
+                    tabs += IndentString;
                     prevEx = innerex;
                     innerex = innerex.InnerException;
                 }

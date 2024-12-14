@@ -702,46 +702,49 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
+        /// Retrieve median value in list
+        /// </summary>
+        /// <param name="values"></param>
+        /// <returns></returns>
+        public static float Median(List<float> values)
+        {
+            values.Sort();
+            int n = values.Count;
+            if (n % 2 == 0)
+            {
+                return (values[n / 2 - 1] + values[n / 2]) / 2;
+            }
+            else
+            {
+                return values[n / 2];
+            }
+        }
+
+        /// <summary>
+        /// Retrieve median value in list; note: for an even number of elements the rounded average of the two middle elements is used.
+        /// </summary>
+        /// <param name="values"></param>
+        /// <returns></returns>
+        public static int Median(List<int> values)
+        {
+            values.Sort();
+            int n = values.Count;
+            if (n % 2 == 0)
+            {
+                return (values[n / 2 - 1] + values[n / 2]) / 2;
+            }
+            else
+            {
+                return values[n / 2];
+            }
+        }
+
+        /// <summary>
         /// The icon as used for SIF-tool forms and executables
         /// </summary>
         public static System.Drawing.Icon SIFIcon
         {
             get { return (System.Drawing.Icon)Resources.ResourceManager.GetObject("SwecoIcon"); }
-        }
-
-        /// <summary>
-        /// Retrieve indices of format items that are present in string for String.Format() method
-        /// </summary>
-        /// <param name="logString"></param>
-        /// <returns>list of found indices or empty list when no format items were found</returns>
-        public static List<int> GetFormatStringIndices(string logString)
-        {
-            List<int> indices = new List<int>();
-
-            int charIdx = 0;
-            while (charIdx < logString.Length)
-            {
-                if (logString[charIdx].Equals('{'))
-                {
-                    charIdx++;
-                    string indexString = string.Empty;
-                    while ((charIdx < logString.Length) && !logString[charIdx].Equals('}') && !logString[charIdx].Equals(',') && !logString[charIdx].Equals(':'))
-                    {
-                        // Parse format item and index
-                        indexString += logString[charIdx++];
-                    }
-                    if (int.TryParse(indexString, out int index))
-                    {
-                        indices.Add(index);
-                    }
-                }
-                else
-                {
-                    charIdx++;
-                }
-            }
-
-            return indices;
         }
 
         /// <summary>

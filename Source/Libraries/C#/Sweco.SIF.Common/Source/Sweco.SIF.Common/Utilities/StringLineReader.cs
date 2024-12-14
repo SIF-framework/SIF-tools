@@ -23,54 +23,48 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Sweco.SIF.Common.Tests
+namespace Sweco.SIF.Common.Utilities
 {
     /// <summary>
-    /// Unit Test class for SIF.Common library
+    /// Subclass of System.IO.StringReader that keeps track of the number of the line that was read
     /// </summary>
-    public class UnitTestBase
+    public class StringLineReader : StringReader
     {
         /// <summary>
-        /// Run SIF-tool object, write output to console and return exit code
+        /// Number of last line that has been read with ReadLine(sr) method
         /// </summary>
-        /// <param name="sifTool"></param>
-        /// <param name="outputLines"></param>
-        /// <returns></returns>
-        protected int RunAndGetOutput(SIFToolBase sifTool, out string[] outputLines)
+        public int LineNumber { get; private set; }
+
+        /// <summary>
+        /// Creates a new LineReader and its underlying StringReader object 
+        /// </summary>
+        /// <param name="s"></param>
+        public StringLineReader(string s) : base(s)
         {
-            // Store standard output stream
-            TextWriter defOut = Console.Out;
-            StringWriter sw = new StringWriter();
-
-            // Redirect standard output
-            Console.SetOut(sw);
-
-            // Run tool
-            int exitcode = sifTool.Run(true);
-
-            // Reset standard output
-            Console.SetOut(defOut);
-
-            // Write tool output to Console
-            Console.Write(sw.ToString());
-
-            // Split tool output to single lines
-            outputLines = sw.ToString().Replace("\r", string.Empty).Split(new char[] { '\n' });
-
-            return exitcode;
+            LineNumber = 0;
         }
 
         /// <summary>
-        /// Retrieve name of tool from assembly
+        /// Reads a line of characters from the current string, increases linenumber and returns the data as a string
         /// </summary>
-        /// <returns></returns>
-        public string GetToolName()
+        /// <returns>The next line from the current string, or null if the end of the string is reached</returns>
+        public override string ReadLine()
         {
-            return Assembly.GetCallingAssembly().GetName().Name.Replace(".Tests", string.Empty).Replace("Sweco.SIF.", string.Empty).Replace("Plus", string.Empty);
+            LineNumber++;
+            return base.ReadLine();
+        }
+
+        /// <summary>
+        /// Reads a line of characters from the current string asynchronously, increases linenumber and returns the data as a string
+        /// </summary>
+        /// <returns>The next line from the current string, or null if the end of the string is reached</returns>
+        public override Task<string> ReadLineAsync()
+        {
+            LineNumber++;
+            return base.ReadLineAsync();
         }
     }
 }

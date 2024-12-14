@@ -189,9 +189,9 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Creates the folders in the specified filename path if not yet existing, otherwise nothing is done
+        /// Creates the folders for the specified file path if not yet existing, otherwise nothing is done
         /// </summary>
-        /// <param name="path"></param>
+        /// <param name="filenamePath"></param>
         /// <returns>specified filenameName is returned</returns>
         public static string EnsureFolderExists(string filenamePath)
         {

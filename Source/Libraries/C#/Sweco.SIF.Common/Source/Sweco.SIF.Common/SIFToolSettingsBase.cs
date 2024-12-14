@@ -356,8 +356,18 @@ namespace Sweco.SIF.Common
                         if (logString.Contains("{...}"))
                         {
                             // replace with all optional parameters
-                            List<int> parIndices = CommonUtils.GetFormatStringIndices(logString);
-                            List<string> remainingParameters = CommonUtils.SelectItems<string>(optionParameterValues, parIndices, true);
+
+                            // first retrieve indices of parameter references that are used in log string: e.g. reference {2} has index 2
+                            List<int> usedParameterIndices = GetFormatStringIndices(logString);
+                            // Assume remaining references are after last used reference
+                            int lastUsedParIndex = (usedParameterIndices.Count > 0) ? usedParameterIndices[usedParameterIndices.Count - 1] : -1;
+                            usedParameterIndices.Clear();
+                            for (int parIdx = 0; parIdx <= lastUsedParIndex; parIdx++)
+                            {
+                                usedParameterIndices.Add(parIdx);
+                            }
+
+                            List<string> remainingParameters = CommonUtils.SelectItems<string>(optionParameterValues, usedParameterIndices, true);
                             logString = logString.Replace("{...}", CommonUtils.ToString(remainingParameters));
                             // remove optional parameters from option parameter values
                             for (int parIdx = 0; parIdx < remainingParameters.Count; parIdx++)
@@ -388,8 +398,6 @@ namespace Sweco.SIF.Common
                         if (argDescription.Value != null)
                         {
                             log.AddInfo("option '" + argDescription.Name + "' was specified with value(s): " + argDescription.Value, 1);
-
-                            // string a = string.Format()
                         }
                         else
                         {
@@ -400,6 +408,41 @@ namespace Sweco.SIF.Common
             }
 
             log.AddInfo();
+        }
+
+        /// <summary>
+        /// Retrieve indices of format items (e.g. {1}) that are present in string for String.Format() method
+        /// </summary>
+        /// <param name="logString"></param>
+        /// <returns>list of found indices or empty list when no format items were found</returns>
+        protected List<int> GetFormatStringIndices(string logString)
+        {
+            List<int> indices = new List<int>();
+
+            int charIdx = 0;
+            while (charIdx < logString.Length)
+            {
+                if (logString[charIdx].Equals('{'))
+                {
+                    charIdx++;
+                    string indexString = string.Empty;
+                    while ((charIdx < logString.Length) && !logString[charIdx].Equals('}') && !logString[charIdx].Equals(',') && !logString[charIdx].Equals(':'))
+                    {
+                        // Parse format item and index
+                        indexString += logString[charIdx++];
+                    }
+                    if (int.TryParse(indexString, out int index))
+                    {
+                        indices.Add(index);
+                    }
+                }
+                else
+                {
+                    charIdx++;
+                }
+            }
+
+            return indices;
         }
 
         /// <summary>
@@ -1038,7 +1081,7 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Replace the description of option name in the specified syntax group with the specified values
+        /// Replace or add the description of option name in the specified syntax group with the specified values
         /// </summary>
         /// <param name="name">option name to replace</param>
         /// <param name="description">short description, use '\n' for end-of-lines</param>
@@ -1054,7 +1097,7 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Replace the description of option name in all syntax groups with the specified values
+        /// Replace or add the description of option name in all syntax groups with the specified values
         /// </summary>
         /// <param name="name">option name to replace</param>
         /// <param name="description">short description, use '\n' for end-of-lines</param>
@@ -1082,6 +1125,15 @@ namespace Sweco.SIF.Common
                         // Replace option description
                         toolUsageOptionDescriptions[groupIndex][idx] = new ToolOptionDescription(name, description, parameters, optionalParameters, optionalParameterDefaults, example, logSettingsFormatString); 
                     }
+                    else
+                    {
+                        toolUsageOptionDescriptions[groupIndex].Add(new ToolOptionDescription(name, description, parameters, optionalParameters, optionalParameterDefaults, example, logSettingsFormatString));
+                    }
+                }
+                else
+                {
+                    toolUsageOptionDescriptions.Add(groupIndex, new List<ToolOptionDescription>());
+                    toolUsageOptionDescriptions[groupIndex].Add(new ToolOptionDescription(name, description, parameters, optionalParameters, optionalParameterDefaults, example, logSettingsFormatString));
                 }
             }
         }
