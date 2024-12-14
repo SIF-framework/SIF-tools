@@ -402,45 +402,33 @@ namespace Sweco.SIF.GIS
         }
 
         /// <summary>
-        /// Return the point on the specified linesegment that is closest to this point
+        /// Return the point on the specified linesegment that is closest to this point.
         /// </summary>
         /// <param name="P1"></param>
         /// <param name="P2"></param>
         /// <returns>the closest point on the line</returns>
         public Point SnapToLineSegment(Point P1, Point P2)
         {
-            Vector v = P2 - P1;
-            Vector w = this - P1;
+            // Note: algorithm is optimez, source algorithm is shown outcommented below; it uses Vector class and reads more easily
+            //Vector v = P2 - P1;
+            //Vector w = this - P1;
+            //double c1 = w * v;
+            //if (c1 <= 0)
+            //{
+            //    return P1;
+            //}
+            //double c2 = v * v;
+            //if (c2 <= c1)
+            //{
+            //    return P2;
+            //}
+            //double b = c1 / c2;
+            //Point Pb = P1 + b * v;
+            //return Pb;
 
-            double c1 = w * v;
-            if (c1 <= 0)
-            {
-                return P1;
-            }
-
-            double c2 = v * v;
-            if (c2 <= c1)
-            {
-                return P2;
-            }
-
-            double b = c1 / c2;
-
-            Point Pb = P1 + b * v;
-            return Pb;
-        }
-
-        /// <summary>
-        /// Return the point on the specified linesegment that is closest to this point
-        /// </summary>
-        /// <param name="P1"></param>
-        /// <param name="P2"></param>
-        /// <returns>the closest point on the line</returns>
-        public Point SnapToLineSegmentOptimized(Point P1, Point P2)
-        {
-            double dxV = P2.X - P1.X; // Vector v = P2 - P1;
+            double dxV = P2.X - P1.X;   // Vector v = P2 - P1;
             double dyV = P2.Y - P1.Y;
-            double dxW = X - P1.X; // Vector w = this - P1;
+            double dxW = X - P1.X;      // Vector w = this - P1;
             double dyW = Y - P1.Y;
 
             double c1 = dxV * dxW + dyV * dyW; // w * v;
@@ -458,17 +446,65 @@ namespace Sweco.SIF.GIS
             double b = c1 / c2;
 
             Point Pb = P1.Copy();
-            Pb.X = P1.X + b * dxV; // P1 + b * v;
+            Pb.X = P1.X + b * dxV;   // P1 + b * v;
             Pb.Y = P1.Y + b * dyV;
             return Pb;
         }
 
         /// <summary>
-        /// Checks if the perpendicular from this point to the specified segement intersects with that segment
+        /// Return the point on the specified linesegment that is closest and perpendicular to this point. 
+        /// Null is returned if the line from this point and the snapped point is not perpendicular to the specified line segment.
         /// </summary>
         /// <param name="P1"></param>
         /// <param name="P2"></param>
-        /// <returns>the closest point on the line</returns>
+        /// <returns>the closest point on the line or null if the snapped point is not perpendicular</returns>
+        public Point SnapPerpendicularToLineSegment(Point P1, Point P2)
+        {
+            double dxV = P2.X - P1.X; 
+            double dyV = P2.Y - P1.Y;
+            double dxW = X - P1.X; 
+            double dyW = Y - P1.Y;
+
+            double c1 = dxV * dxW + dyV * dyW; 
+            if (c1 <= 0)
+            {
+                if (c1 < 0)
+                {
+                    return null;
+                }
+                else
+                {
+                    return P1;
+                }
+            }
+
+            double c2 = dxV * dxV + dyV * dyV; 
+            if (c2 <= c1)
+            {
+                if (c2 < c1)
+                {
+                    return null;
+                }
+                else
+                {
+                    return P2;
+                }
+            }
+
+            double b = c1 / c2;
+
+            Point Pb = P1.Copy();
+            Pb.X = P1.X + b * dxV;
+            Pb.Y = P1.Y + b * dyV;
+            return Pb;
+        }
+
+        /// <summary>
+        /// Checks if the perpendicular from this point to the specified segment intersects with that segment
+        /// </summary>
+        /// <param name="P1"></param>
+        /// <param name="P2"></param>
+        /// <returns></returns>
         public bool HasPerpendicularIntersection(Point P1, Point P2)
         {
             double dxV = P2.X - P1.X; // Vector v = P2 - P1;
@@ -498,7 +534,7 @@ namespace Sweco.SIF.GIS
         /// <returns></returns>
         public double GetSnapDistance(LineSegment segment)
         {
-            Point snappedPoint = SnapToLineSegmentOptimized(segment.P1, segment.P2);
+            Point snappedPoint = SnapToLineSegment(segment.P1, segment.P2);
             return GetDistance(snappedPoint);
         }
 
@@ -522,7 +558,7 @@ namespace Sweco.SIF.GIS
         {
             if (HasPerpendicularIntersection(p1, p2))
             {
-                Point snappedPoint = SnapToLineSegmentOptimized(p1, p2);
+                Point snappedPoint = SnapToLineSegment(p1, p2);
                 return GetDistance(snappedPoint);
             }
             else
@@ -542,7 +578,7 @@ namespace Sweco.SIF.GIS
         {
             if (HasPerpendicularIntersection(p1, p2))
             {
-                Point snappedPoint = SnapToLineSegmentOptimized(p1, p2);
+                Point snappedPoint = SnapToLineSegment(p1, p2);
                 return GetDistance(snappedPoint, precision);
             }
             else

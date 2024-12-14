@@ -97,8 +97,8 @@ namespace Sweco.SIF.GIS
         /// Constructor for StringPoint object at (0,0)
         protected StringPoint()
         {
-            this.xString = "0";
-            this.yString = "0";
+            this.xString = "NaN";
+            this.yString = "NaN";
         }
 
         /// <summary>

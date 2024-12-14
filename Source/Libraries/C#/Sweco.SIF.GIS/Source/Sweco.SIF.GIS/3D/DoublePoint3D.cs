@@ -126,9 +126,9 @@ namespace Sweco.SIF.GIS
         /// </summary>
         public DoublePoint3D()
         {
-            this.x = 0;
-            this.y = 0;
-            this.z = 0;
+            this.x = double.NaN;
+            this.y = double.NaN;
+            this.z = double.NaN;
         }
 
         /// <summary>

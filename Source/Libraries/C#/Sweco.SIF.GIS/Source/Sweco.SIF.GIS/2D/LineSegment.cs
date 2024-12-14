@@ -175,10 +175,10 @@ namespace Sweco.SIF.GIS
             // 3) segment1 overlaps segment2 partly;        e.g. P1 = A - C, P2 = B - D  or  P1 = B - D, P2 = A - C     
             // 4) the two segment don't have any overlap;   e.g. P1 = A - B, P2 = B - D
 
-            Point seg1P1snapped = this.P1.SnapToLineSegmentOptimized(P1, P2);
-            Point seg1P2snapped = this.P2.SnapToLineSegmentOptimized(P1, P2);
-            Point seg2P1snapped = P1.SnapToLineSegmentOptimized(this.P1, this.P2);
-            Point seg2P2snapped = P2.SnapToLineSegmentOptimized(this.P1, this.P2);
+            Point seg1P1snapped = this.P1.SnapToLineSegment(P1, P2);
+            Point seg1P2snapped = this.P2.SnapToLineSegment(P1, P2);
+            Point seg2P1snapped = P1.SnapToLineSegment(this.P1, this.P2);
+            Point seg2P2snapped = P2.SnapToLineSegment(this.P1, this.P2);
             double seg1P1snapDistance = Math.Round(this.P1.GetDistance(seg1P1snapped), precision);
             double seg1P2snapDistance = Math.Round(this.P2.GetDistance(seg1P2snapped), precision);
             double seg2P1snapDistance = Math.Round(P1.GetDistance(seg2P1snapped), precision);
@@ -517,6 +517,33 @@ namespace Sweco.SIF.GIS
 
             close_p1 = new DoublePoint(P1.X + dx12 * t1, P1.Y + dy12 * t1);
             close_p2 = new DoublePoint(p3.X + dx34 * t2, p3.Y + dy34 * t2);
+        }
+
+        /// <summary>
+        /// Retrieve point from this segment (within tolerance) that is closest to specified point
+        /// </summary>
+        /// <param name="point"></param>
+        /// <param name="tolerance"></param>
+        /// <returns>nearest point from feature if within tolerance distance, otherwise null</returns>
+        public Point FindNearestPoint(Point point, double tolerance = double.MaxValue)
+        {
+            double minDistance = tolerance;
+            Point minPoint = null;
+
+            double distance = point.GetDistance(P1);
+            if (distance < minDistance)
+            {
+                minDistance = distance;
+                minPoint = P1;
+            }
+            distance = point.GetDistance(P2);
+            if (distance < minDistance)
+            {
+                minDistance = distance;
+                minPoint = P2;
+            }
+
+            return minPoint;
         }
 
         ///// <summary>

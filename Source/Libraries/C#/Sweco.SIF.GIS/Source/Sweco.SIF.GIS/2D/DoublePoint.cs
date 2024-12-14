@@ -97,8 +97,8 @@ namespace Sweco.SIF.GIS
         /// </summary>
         public DoublePoint()
         {
-            this.x = 0;
-            this.y = 0;
+            this.x = double.NaN;
+            this.y = double.NaN;
         }
 
         /// <summary>
