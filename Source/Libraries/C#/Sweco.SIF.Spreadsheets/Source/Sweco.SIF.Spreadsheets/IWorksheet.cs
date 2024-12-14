@@ -491,7 +491,7 @@ namespace Sweco.SIF.Spreadsheets
         void SetBorderInsideHorizontalColor(Range range, int themeColor, double tintAndShade);
 
         /// <summary>
-        /// Set color for horizontal inner border lines in specified range
+        /// Set color for horizontal bottom border line in specified range
         /// </summary>
         /// <param name="range"></param>
         /// <param name="themeColor">index of color in current theme</param>
@@ -499,15 +499,22 @@ namespace Sweco.SIF.Spreadsheets
         void SetBorderEdgeBottomColor(Range range, int themeColor, double tintAndShade);
 
         /// <summary>
-        /// Set color for horizontal inner border lines in specified range
+        /// Set color for horizontal bottom border line in specified range
         /// </summary>
         /// <param name="range"></param>
         /// <param name="color"></param>
         void SetBorderEdgeBottomColor(Range range, Color color);
 
+        /// <summary>
+        /// Set color for horizontal top border line in specified range
+        /// </summary>
+        /// <param name="range"></param>
+        /// <param name="color"></param>
+        void SetBorderEdgeTopColor(Range range, Color color);
+
+        //Color GetBorderEdgeTopColor(Range range);
         //Color GetBorderEdgeLeftColor(Range range);
         //Color GetBorderEdgeRightColor(Range range);
-        //Color GetBorderEdgeTopColor(Range range);
         //Color GetBorderEdgeBottomColor(Range range);
 
         /// <summary>

@@ -70,7 +70,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Activate this worksheet
+        /// Activate this worksheet (ignored for CSV)
         /// </summary>
         public void Activate()
         {
@@ -78,7 +78,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set the name of this sheet to the specified string
+        /// Set the name of this sheet to the specified string (ignored for CSV)
         /// </summary>
         /// <param name="sheetname"></param>
         public void SetSheetname(string sheetname)
@@ -206,7 +206,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set formula for specified cell
+        /// Set formula for specified cell (not available for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         /// <param name="colIdx">zero-based column index</param>
@@ -217,7 +217,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set R1C1-formula for specified cell
+        /// Set R1C1-formula for specified cell (not available for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         /// <param name="colIdx">zero-based column index</param>
@@ -326,7 +326,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Get formula in specified cell
+        /// Get formula in specified cell (not available for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         /// <param name="colIdx">zero-based column index</param>
@@ -579,7 +579,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Insert a column before specified column
+        /// Insert a column before specified column (not available for CSV)
         /// </summary>
         /// <param name="colIdx">zero-based column index</param>
         public void InsertColumn(int colIdx)
@@ -588,7 +588,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Insert a row before specified row
+        /// Insert a row before specified row (not available for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         public void InsertRow(int rowIdx)
@@ -597,7 +597,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Delete specified row
+        /// Delete specified row (not available for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         public void DeleteRow(int rowIdx)
@@ -606,7 +606,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Delete specified rows
+        /// Delete specified rows (not available for CSV)
         /// </summary>
         /// <param name="startRowIdx">zero-based row index</param>
         /// <param name="rowCount"></param>
@@ -616,7 +616,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Delete specified column
+        /// Delete specified column (not available for CSV)
         /// </summary>
         /// <param name="colIdx">zero-based column index</param>
         public void DeleteColumn(int colIdx)
@@ -625,7 +625,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Delete specified columns
+        /// Delete specified columns (not available for CSV)
         /// </summary>
         /// <param name="startColIdx">zero-based column index</param>
         /// <param name="colCount"></param>
@@ -634,17 +634,22 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
             throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// Clear cells in specified range (ignored for CSV)
+        /// </summary>
+        /// <param name="range"></param>
+        /// <exception cref="NotImplementedException"></exception>
         public void Clear(Range range = null)
         {
-            throw new NotImplementedException();
+            // ignore
         }
 
         /// <summary>
-        /// Remove all comments in sheet
+        /// Remove all comments in sheet (ignored for CSV)
         /// </summary>
         public void ClearComments()
         {
-            throw new NotImplementedException();
+            // ignore
         }
 
         /// <summary>
@@ -687,7 +692,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Merge cells in specified range
+        /// Merge cells in specified range (not available for CSV)
         /// </summary>
         /// <param name="rowIdx1">zero-based row index of upper left cell in range</param>
         /// <param name="colIdx1">zero-based column index of upper left cell in range</param>
@@ -699,7 +704,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Checks if cells in specified range are merged, but not if these cells are merged together
+        /// Checks if cells in specified range are merged (not available for CSV)
         /// </summary>
         /// <param name="rowIdx1">zero-based row index of upper left cell in range</param>
         /// <param name="colIdx1">zero-based column index of upper left cell in range</param>
@@ -712,7 +717,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Retrieves the unique address strings (R1C1-format) for  all merged cells in this sheet
+        /// Retrieves the unique address strings (not available for CSV)
         /// </summary>
         public string[] GetMergedCells()
         {
@@ -720,7 +725,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Retrieves the address string (R1C1-format) of the specified cell. For merged cells this will result in a range
+        /// Retrieves the address string  (not available for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         /// <param name="colIdx">zero-based column index</param>
@@ -780,7 +785,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set comment for specified cell
+        /// Set comment for specified cell (ignored for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         /// <param name="colIdx">zero-based column index</param>
@@ -791,7 +796,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Delete comment for specified cell
+        /// Delete comment for specified cell (ignored for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         /// <param name="colIdx">zero-based column index</param>
@@ -833,7 +838,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         //}
 
         /// <summary>
-        /// Set color for all border lines in this sheet 
+        /// Set color for all border lines in this sheet (ignored for CSV)
         /// </summary>
         /// <param name="color"></param>
         public void SetBorderColor(System.Drawing.Color color)
@@ -842,7 +847,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set color for all border lines in this sheet 
+        /// Set color for all border lines in this sheet (ignored for CSV)
         /// </summary>
         /// <param name="color"></param>
         /// <param name="weight"></param>
@@ -852,7 +857,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set color and weight for border lines in specified range
+        /// Set color and weight for border lines (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         /// <param name="color"></param>
@@ -864,7 +869,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set color for horizontal inner border lines in specified range (not available for EPPlus)
+        /// Set color for horizontal inner border lines (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         /// <param name="themeColor">index of color in current theme</param>
@@ -875,7 +880,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set color for horizontal inner border lines in specified range (not available for EPPlus)
+        /// Set color for horizontal bottom border line (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         /// <param name="themeColor">index of color in current theme</param>
@@ -886,7 +891,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set color for horizontal inner border lines in specified range
+        /// Set color for horizontal bottom border line (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         /// <param name="color"></param>
@@ -896,7 +901,17 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set number format for specified range
+        /// Set color for horizontal top border line (ignored for CSV)
+        /// </summary>
+        /// <param name="range"></param>
+        /// <param name="color"></param>
+        public void SetBorderEdgeTopColor(Range range, System.Drawing.Color color)
+        {
+            // ignore
+        }
+
+        /// <summary>
+        /// Set number format for specified range (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         /// <param name="numberFormatString">a format string for the used application</param>
@@ -906,7 +921,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set number format for specified cell
+        /// Set number format for specified cell (ignored for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         /// <param name="colIdx">zero-based column index</param>
@@ -917,7 +932,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Specify if text should be wrapped in specified cells
+        /// Specify if text should be wrapped in specified cells (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         /// <param name="isWrapped">if true, bold font will be set</param>
@@ -927,7 +942,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Specify if italic font should be used for specified cell
+        /// Specify if italic font should be used for specified cell (ignored for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         /// <param name="colIdx">zero-based column index</param>
@@ -938,7 +953,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Specify if bold font should be used for specified cell
+        /// Specify if bold font should be used for specified cell (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         /// <param name="isBold">if true, bold font will be set</param>
@@ -948,7 +963,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Specify if bold font should be used for specified cell
+        /// Specify if bold font should be used for specified cell (ignored for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         /// <param name="colIdx">zero-based column index</param>
@@ -959,7 +974,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Specify font size to given cell
+        /// Specify font size to given cell (ignored for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         /// <param name="colIdx">zero-based column index</param>
@@ -1031,7 +1046,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set font color for specified range
+        /// Set font color for specified range (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         /// <param name="color"></param>
@@ -1041,7 +1056,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set font color for specified cell
+        /// Set font color for specified cell (ignored for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         /// <param name="colIdx">zero-based column index</param>
@@ -1074,7 +1089,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set color of cell interior for specified range
+        /// Set color of cell interior for specified range (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         /// <param name="color"></param>
@@ -1084,7 +1099,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set color of cell interior for specified cell
+        /// Set color of cell interior for specified cell (ignored for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         /// <param name="colIdx">zero-based column index</param>
@@ -1095,7 +1110,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set vertical alignment to center of cells for specified range
+        /// Set vertical alignment to center of cells for specified range (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         public void SetVerticalAlignmentTop(Range range)
@@ -1104,7 +1119,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set vertical alignment to center of cells for specified range
+        /// Set vertical alignment to center of cells for specified range (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         public void SetVerticalAlignmentCenter(Range range)
@@ -1113,7 +1128,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set horizontal alignment to left of cells for specified range
+        /// Set horizontal alignment to left of cells for specified range (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         public void SetHorizontalAlignmentLeft(Range range)
@@ -1122,7 +1137,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set horizontal alignment to left of specified cell
+        /// Set horizontal alignment to left of specified cell (ignored for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         /// <param name="colIdx">zero-based column index</param>
@@ -1132,7 +1147,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set orientation of cell contents for specified range
+        /// Set orientation of cell contents for specified range (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         /// <param name="degrees"></param>
@@ -1142,7 +1157,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Turn auto filter on for specified range
+        /// Turn auto filter on for specified range (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         public void SetAutoFilter(Range range)
@@ -1151,7 +1166,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Freeze rows above specified row
+        /// Freeze rows above specified row (ignored for CSV)
         /// </summary>
         /// <param name="rowIdx">zero-based row index</param>
         public void FreezeRow(int rowIdx)
@@ -1160,7 +1175,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Auto fit column widths in specified range
+        /// Auto fit column widths in specified range (ignored for CSV)
         /// </summary>
         /// <param name="range">null to fit all column</param>
         public void AutoFitColumns(Range range = null)
@@ -1169,7 +1184,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Auto fit width of specified column
+        /// Auto fit width of specified column (ignored for CSV)
         /// </summary>
         /// <param name="colIdx">zero-based column index</param>
         public void AutoFitColumn(int colIdx)
@@ -1178,7 +1193,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set width of specified column
+        /// Set width of specified column (ignored for CSV)
         /// </summary>
         /// <param name="colIdx">zero-based column index</param>
         /// <param name="width"></param>
@@ -1188,7 +1203,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Hide columns in specified range
+        /// Hide columns in specified range (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         public void HideColumns(Range range)
@@ -1197,7 +1212,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Hide rows in specified range
+        /// Hide rows in specified range (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         public void HideRows(Range range)
@@ -1206,7 +1221,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Define hyperlink for specified cell. When address is an Excelsheet, use a subaddress as sheetname!cellref, where sheetname can be surrounded by '-symbols and cellref is an absolute celladdres (e.g. D10)
+        /// Define hyperlink for specified cell (ignored for CSV)
         /// </summary>
         /// <param name="rowIdx"></param>
         /// <param name="colIdx"></param>
@@ -1220,18 +1235,18 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Create chart object of given type inside this sheet at specified range
+        /// Create chart object of given type inside this sheet at specified range (ignored for CSV)
         /// </summary>
         /// <param name="range"></param>
         /// <param name="chartType"></param>
-        /// <returns></returns>
+        /// <returns>always null for CSV</returns>
         public IChart CreateChart(Range range, ChartType chartType)
         {
             return null;
         }
 
         /// <summary>
-        /// Copy characteristics and contents of specified source cell to specified target cell
+        /// Copy characteristics and contents of specified source cell to specified target cell (ignored for CSV)
         /// </summary>
         /// <param name="sourceRowIdx">zero-based row index of source cell</param>
         /// <param name="sourceColIdx">zero-based column index of source cell</param>
@@ -1243,7 +1258,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Copy characteristics and contents of specified source cell to specified target cell
+        /// Copy characteristics and contents of specified source cell to specified target cell (not available for CSV)
         /// </summary>
         /// <param name="sourceCell"></param>
         /// <param name="targetCell"></param>
@@ -1253,7 +1268,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Copy characteristics and contents of cells in specified source range to location defined by specified upper left target cell
+        /// Copy characteristics and contents of cells in specified source range (not available for CSV)
         /// </summary>
         /// <param name="range"></param>
         /// <param name="targetCell"></param>
@@ -1263,7 +1278,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Calculate formula's in sheet dynamically
+        /// Calculate formula's in sheet dynamically (not available for CSV)
         /// </summary>
         public void Calculate()
         {
@@ -1271,7 +1286,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Calculate specified Excel-formula dynamically
+        /// Calculate specified Excel-formula dynamically (not available for CSV)
         /// </summary>
         /// <param name="formula"></param>
         /// <returns>result of formula</returns>
@@ -1281,7 +1296,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Zoom in to the specified percentage of the current sheet
+        /// Zoom in to the specified percentage of the current sheet (ignored for CSV)
         /// </summary>
         /// <param name="percentage"></param>
         public void Zoom(int percentage)
@@ -1290,7 +1305,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Apply specified header, footer and bitmap to this sheet
+        /// Apply specified header, footer and bitmap to this sheet (ignored for CSV)
         /// </summary>
         /// <param name="leftHeader"></param>
         /// <param name="leftFooter"></param>
@@ -1301,7 +1316,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set page orientation of this sheet to landscape
+        /// Set page orientation of this sheet to landscape (ignored for CSV)
         /// </summary>
         public void SetPageOrientationLandscape()
         {
@@ -1309,7 +1324,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set page size of this sheet to specified size
+        /// Set page size of this sheet to specified size (ignored for CSV)
         /// </summary>
         /// <param name="papersize"></param>
         public void SetPapersize(PaperSize papersize)
@@ -1318,7 +1333,7 @@ namespace Sweco.SIF.Spreadsheets.Excel.CSV
         }
 
         /// <summary>
-        /// Set view mode of worksheet to page layout
+        /// Set view mode of worksheet to page layout (ignored for CSV)
         /// </summary>
         public void SetPageLayoutView()
         {

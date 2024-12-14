@@ -1124,6 +1124,27 @@ namespace Sweco.SIF.Spreadsheets.Excel.EPPLUS
         }
 
         /// <summary>
+        /// Set color for horizontal top border line in specified range
+        /// </summary>
+        /// <param name="range"></param>
+        /// <param name="color"></param>
+        public void SetBorderEdgeTopColor(Range range, System.Drawing.Color color)
+        {
+            ExcelRange epplusRange = epplusCells[range.RowIdx1 + 1, range.ColIdx1 + 1, range.RowIdx2 + 1, range.ColIdx2 + 1];
+            ExcelBorderStyle borderStyle = epplusRange.Style.Border.Bottom.Style;
+            if (borderStyle == ExcelBorderStyle.None)
+            {
+                borderStyle = ExcelBorderStyle.Thin;
+            }
+
+            // Force bottom style since it can happen that a borderstyle is only partially present in the range
+            epplusRange.Style.Border.Top.Style = borderStyle;
+
+            // Actually set color
+            epplusRange.Style.Border.Top.Color.SetColor(color);
+        }
+
+        /// <summary>
         /// Set number format for specified range
         /// </summary>
         /// <param name="range"></param>
