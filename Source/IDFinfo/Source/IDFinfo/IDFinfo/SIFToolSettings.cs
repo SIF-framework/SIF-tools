@@ -64,7 +64,7 @@ namespace Sweco.SIF.IDFinfo
         /// </summary>
         protected override void DefineToolSyntax()
         {
-            AddToolParameterDescription("inPath", "Path to directory or IDF-file, or a path with a filter,\n" 
+            AddToolParameterDescription("inPath", "Path to directory or IDF/ASC-file, or a path with a filter to IDF- or ASC-files,\n" 
                                                 + "in which case the first file (in some order) that matches the specified filter (default *.IDF) is used", "C:\\Test\\Input\\KHV_L1.IDF");
             AddToolOptionDescription("c", "Retrieve cellsize for specific dimension (1=x; 2=y)", null, "Retrieving cellsize for: {0} (1=x; 2=y)", new string[] { "c1" });
             AddToolOptionDescription("e", "Retrieve extent: xll,yll,xur,yur", null, "Retrieving extent");
@@ -90,7 +90,7 @@ namespace Sweco.SIF.IDFinfo
                 {
                     // A filename or filter is specified as well
                     InputFilter = Path.GetFileName(InputPath);
-                    InputFilter = Path.ChangeExtension(InputFilter, "IDF");
+                    InputFilter = InputFilter;
                     InputPath = Path.GetDirectoryName(InputPath);
                 }
                 else

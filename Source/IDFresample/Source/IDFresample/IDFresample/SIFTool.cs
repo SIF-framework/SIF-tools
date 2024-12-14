@@ -113,11 +113,11 @@ namespace Sweco.SIF.IDFresample
                 uniqueZoneIDFValues = uniqueZoneIDFValues = zoneIDFFile.RetrieveUniqueValues();
                 if (uniqueZoneIDFValues.Count < 10)
                 {
-                    Log.AddInfo(uniqueZoneIDFValues.Count.ToString() + " unique values found in zone IDF-file: " + CommonUtils.ToString<float>(uniqueZoneIDFValues), 1);
+                    Log.AddInfo(uniqueZoneIDFValues.Count.ToString() + " unique values found in zone IDF-file: " + CommonUtils.ToString(uniqueZoneIDFValues, null, EnglishCultureInfo), 1);
                 }
                 else
                 {
-                    Log.AddInfo(uniqueZoneIDFValues.Count.ToString() + " unique values found in zone IDF-file: " + CommonUtils.ToString<float>(uniqueZoneIDFValues.GetRange(0, 10)) + ",...", 1);
+                    Log.AddInfo(uniqueZoneIDFValues.Count.ToString() + " unique values found in zone IDF-file: " + CommonUtils.ToString(uniqueZoneIDFValues.GetRange(0, 10), null, EnglishCultureInfo) + ",...", 1);
                 }
             }
             else

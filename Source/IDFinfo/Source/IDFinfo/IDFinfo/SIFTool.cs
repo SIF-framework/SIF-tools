@@ -96,7 +96,7 @@ namespace Sweco.SIF.IDFinfo
             SIFToolSettings settings = (SIFToolSettings) Settings;
 
             string inputPath = settings.InputPath;
-            string filterString = Path.ChangeExtension(settings.InputFilter, ".IDF");
+            string filterString = settings.InputFilter;
 
             // Read files that match filter from inputpath 
             string[] inputFilenames = Directory.GetFiles(inputPath, filterString);

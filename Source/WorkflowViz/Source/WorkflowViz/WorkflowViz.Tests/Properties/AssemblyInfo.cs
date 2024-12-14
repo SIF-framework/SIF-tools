@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Sweco Nederland B.V.")]
 [assembly: AssemblyProduct("WorkflowViz.Tests")]
-[assembly: AssemblyCopyright("Copyright � 2016 Sweco Nederland B.V.")]
+[assembly: AssemblyCopyright("Copyright ? 2016 Sweco Nederland B.V.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -16,5 +16,5 @@ using System.Runtime.InteropServices;
 [assembly: Guid("42946027-d4bb-4fcf-9705-eff7af75c366")]
 
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("2.0.0.0")]
-[assembly: AssemblyFileVersion("2.0.0.0")]
+[assembly: AssemblyVersion("2.0.1.0")]
+[assembly: AssemblyFileVersion("2.0.1.0")]

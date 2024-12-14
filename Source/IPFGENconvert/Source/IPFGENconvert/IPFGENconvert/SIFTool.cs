@@ -42,6 +42,7 @@ namespace Sweco.SIF.IPFGENconvert
         /// </summary>
         public SIFTool(SIFToolSettingsBase settings) : base(settings)
         {
+            SetLicense(new SIFGPLLicense(this));
             settings.RegisterSIFTool(this);
         }
 

@@ -184,7 +184,7 @@ namespace Sweco.SIF.ExcelMapper
                 corrBaseStringLines = corrBaseStringLinesList.ToArray();
                 List<int> colMapping = RetrieveColumnMapping(settings, maxColIdx);
 
-                Log.AddInfo("Processing rows from Excelsheet ...");
+                Log.AddInfo("Processing rows from Excelsheet '" + sheet.GetSheetname() + "'...");
 
                 // Determine startrow
                 int startRowIdx = settings.StartRow - 1;
