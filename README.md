@@ -12,7 +12,8 @@ Contents of this README:
 1.  Licensing
 2.  Documentation
 3.  Build
-4.  Contacts
+4.  Usage
+5.  Contact
 
 
 # 1. Licensing
@@ -141,14 +142,13 @@ A release can be downloaded via: https://github.com/SIF-framework/SIF-tools/rele
 
 
 # 3. Build
-The tools are build and tested for Windows 10, 64bit (x64) with .NET Framework 4.5.
-For building the SIF-tools, Visual Studio Express 2017 was used. 
+The tools are build and tested for Windows 11, 64bit (x64) with .NET Framework 4.8.
+For building the SIF-tools, Microsoft Visual Studio Community 2022 (64bit) was used. 
 For each tool there is a subdirectory Source with the solution file for the tool.
 
-0. For VSE2017, see: https://visualstudio.microsoft.com/vs/express
-   Note: Microsoft removed VS2017 Express from its server, VS2013 Express is 
-         still available and (except for some new language constructs) should
-         work as well. Otherwise try the a Visual Studio Community version.
+0. For VSC2022, see: https://visualstudio.microsoft.com/vs/community
+   Note: This version is only free for students, open-source and individual developers
+         Check the details via the above url.
 1. The SIF-source can be downloaded from: https://github.com/SIF-framework/SIF-tools
 2. Build the library solutions Sweco.SIF.* under the Libraries\C# directory:
    - Build both the 'Any CPU' and 'x64' configurations.
@@ -178,7 +178,7 @@ The tools are developed to work within the SIF-framework and to be started via a
 This batchfile acts as a wrapper around the SIF-tool and adds logging, error-handling and support to be used in a workflow.
 The SIF-batchfiles can be downloaded from the SIF-basis section in GitHub: https://github.com/SIF-framework/SIF-basis
 
-# 5. Contacts
+# 5. Contact
 If you have a bug, other feedback or a question please share via:
 * [SIF-tool Issues](https://github.com/SIF-framework/SIF-tools/issues)
 * [SIF-tool Discussions](https://github.com/SIF-framework/SIF-tools/discussions)
