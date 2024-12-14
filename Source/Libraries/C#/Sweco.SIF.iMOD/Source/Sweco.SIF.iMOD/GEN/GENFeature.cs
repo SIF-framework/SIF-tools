@@ -582,6 +582,12 @@ namespace Sweco.SIF.iMOD.GEN
         /// <returns></returns>
         public abstract GENFeature SnapPart(int matchPointIdx, GENFeature otherFeature, double tolerance);
 
+        /// <summary>
+        /// Retrieve point from this feature (within tolerance) that is closest to specified point
+        /// </summary>
+        /// <param name="point"></param>
+        /// <param name="tolerance"></param>
+        /// <returns>nearest point from feature if within tolerance distance, otherwise null</returns>
         public Point FindNearestPoint(Point point, double tolerance)
         {
             double minDistance = tolerance;
@@ -634,7 +640,7 @@ namespace Sweco.SIF.iMOD.GEN
                         }
                         if (segment1 != null)
                         {
-                            snappedPoint = point.SnapToLineSegmentOptimized(segment1.P1, segment1.P2);
+                            snappedPoint = point.SnapToLineSegment(segment1.P1, segment1.P2);
                         }
                         if (snappedPoint != null)
                         {
@@ -651,7 +657,7 @@ namespace Sweco.SIF.iMOD.GEN
                         }
                         if (segment2 != null)
                         {
-                            snappedPrevPoint = prevPoint.SnapToLineSegmentOptimized(segment2.P1, segment2.P2);
+                            snappedPrevPoint = prevPoint.SnapToLineSegment(segment2.P1, segment2.P2);
                         }
                         if (snappedPrevPoint != null)
                         {
@@ -688,6 +694,39 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
+        /// Retrieves segment of this feature that is closest to specified point, where distance is defined as perpendicular distance from point to segment
+        /// P1 of the returned segment will be closest to P1 of the other segment 
+        /// </summary>
+        /// <param name="point"></param>
+        /// <param name="tolerance"></param>
+        /// <returns>the closed segment, or null if no segment is found within specified tolerance</returns>
+        public LineSegment FindNearestSegment(Point point, double tolerance = double.NaN)
+        {
+            LineSegment lineSegment = null;
+
+            double minSegmentDistance = (tolerance.Equals(double.NaN)) ? double.MaxValue : tolerance;
+
+            // Compare with all LineSegments of the given feature
+            Point startPoint = Points[0];
+            for (int pointIdx = 1; pointIdx < Points.Count; pointIdx++)
+            {
+                Point endPoint = Points[pointIdx];
+                Point snappedPoint = point.SnapToLineSegment(startPoint, endPoint);
+                double segmentDistance = (double)snappedPoint.GetDistance(point);
+
+                if (segmentDistance < minSegmentDistance)
+                {
+                    minSegmentDistance = segmentDistance;
+                    lineSegment = new LineSegment(startPoint, endPoint);
+                }
+
+                startPoint = endPoint;
+            }
+
+            return lineSegment;
+        }
+
+        /// <summary>
         /// Retrieves segment of this line that is closest to specified segment, where distance is defined as
         /// sum of snapdistances from lineSegment.P1 and lineSegment.P2 to this line. 
         /// P1 of the returned segment will be closest to P1 of the other segment 
@@ -704,13 +743,13 @@ namespace Sweco.SIF.iMOD.GEN
             double minSegmentDistance = (maxDistance.Equals(float.NaN)) ? float.MaxValue : maxDistance;
 
             Point startPoint = pointList[0];
-            Point snappedStartPoint = startPoint.SnapToLineSegmentOptimized(lineSegment.P1, lineSegment.P2);
+            Point snappedStartPoint = startPoint.SnapToLineSegment(lineSegment.P1, lineSegment.P2);
             double startPointDistance = snappedStartPoint.GetDistance(startPoint);
             for (int pointIdx = 1; pointIdx < pointList.Count; pointIdx++)
             {
                 Point endPoint = pointList[pointIdx];
 
-                Point snappedEndPoint = endPoint.SnapToLineSegmentOptimized(lineSegment.P1, lineSegment.P2);
+                Point snappedEndPoint = endPoint.SnapToLineSegment(lineSegment.P1, lineSegment.P2);
                 double endPointDistance = snappedEndPoint.GetDistance(endPoint);
                 double segmentDistance = startPointDistance + endPointDistance;
 

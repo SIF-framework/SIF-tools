@@ -245,7 +245,7 @@ namespace Sweco.SIF.iMOD
         /// <param name="isNoDataCompared">if true, NoData-values are compared using the defined NoDataCalculationValues</param>
         /// <param name="comparedExtent">the extent for which the difference should be calculated</param>
         /// <returns></returns>
-        public abstract IMODFile CreateDifferenceFile(IMODFile otherIMODFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null);
+        public abstract IMODFile CreateDifferenceFile(IMODFile otherIMODFile, string outputPath, float noDataCalculationValue = float.NaN, Extent comparedExtent = null);
 
         /// <summary>
         /// Return a legend with absolute difference that corresponds with this kind of iMOD-file

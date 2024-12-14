@@ -68,6 +68,11 @@ namespace Sweco.SIF.iMOD.IMF
         public Legend Legend { get; set; }
 
         /// <summary>
+        /// Alias for displaying Map files
+        /// </summary>
+        public string Alias { get; set; }
+
+        /// <summary>
         /// Specifies if file is selected
         /// </summary>
         public bool Selected { get; set; }
@@ -89,6 +94,7 @@ namespace Sweco.SIF.iMOD.IMF
         {
             Filename = null;
             Legend = null;
+            Alias = null;
             Selected = false;
             SColor = 4410933;
         }
@@ -98,10 +104,12 @@ namespace Sweco.SIF.iMOD.IMF
         /// </summary>
         /// <param name="legend"></param>
         /// <param name="filename"></param>
-        public Map(Legend legend, string filename)
+        /// <param name="alias"></param>
+        public Map(Legend legend, string filename, string alias = null)
         {
             Legend = legend;
             Filename = filename;
+            Alias = alias;
         }
 
         /// <summary>

@@ -191,10 +191,11 @@ namespace Sweco.SIF.iMOD.IPF
         /// </summary>
         /// <param name="filename"></param>
         /// <param name="isCommaCorrected">correct possible comma's (dutch decimal seperator, replace by english decimal seperator) in values when list seperator seems to be a space</param>
-        /// <param name="isNoDataValueSkipped">Skip timeseries entries that have a NoData-value</param>
+        /// <param name="isNoDataValueSkipped">Skip timeseries entries/timestamps that have a NoData-value in specified value column(s)</param>
+        /// <param name="noDataValueColIdx">zero-based value column index to check for NoData-value; a NoData-value is this column will skip timestamp; use -1 to skip if all columns have a NoData-value</param>
         /// <param name="listSeperators">string with possible list seperators, or leave null to use current default listseperators</param>
         /// <returns></returns>
-        public static IPFTimeseries ReadFile(string filename, bool isCommaCorrected = true, bool isNoDataValueSkipped = true, string listSeperators = null)
+        public static IPFTimeseries ReadFile(string filename, bool isCommaCorrected = true, bool isNoDataValueSkipped = false, int noDataValueColIdx = -1, string listSeperators = null)
         {
             IPFTimeseries ipfTimeseries = null;
 
@@ -366,7 +367,7 @@ namespace Sweco.SIF.iMOD.IPF
                                 }
                             }
 
-                            bool hasUnwantedNoDataValue = false;
+                            bool hasUnwantedNoDataValue = true;
                             List<float> columnValues = new List<float>();
                             for (int colNr = 1; colNr < columnCount; colNr++)
                             {
@@ -397,7 +398,10 @@ namespace Sweco.SIF.iMOD.IPF
                                 }
 
                                 columnValues.Add(value);
-                                hasUnwantedNoDataValue |= isNoDataValueSkipped && value.Equals(ipfTimeseries.NoDataValues[colNr - 1]);
+                                if (isNoDataValueSkipped && ((noDataValueColIdx == -1) || (noDataValueColIdx == (colNr - 1))))
+                                {
+                                    hasUnwantedNoDataValue &= value.Equals(ipfTimeseries.NoDataValues[colNr - 1]);
+                                }
                             }
 
                             if (isNoDataValueSkipped && hasUnwantedNoDataValue)

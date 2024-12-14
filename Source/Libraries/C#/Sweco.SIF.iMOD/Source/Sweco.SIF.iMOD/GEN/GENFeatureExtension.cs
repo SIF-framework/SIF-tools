@@ -149,8 +149,124 @@ namespace Sweco.SIF.iMOD.GEN
         }
 
         /// <summary>
-        /// Find feature with nearest segment to this point
-        /// This is the feature that has the segment that is closest to the specified point
+        /// Find feature that has the segment that is closest (perpendicular) to the specified point.
+        /// </summary>
+        /// <param name="point"></param>
+        /// <param name="genFeatures"></param>
+        /// <param name="tolerance">Maximum distance to closest point of other feature</param>
+        /// <returns></returns>
+        public static GENFeature FindNearestSegmentFeature(this Point point, List<GENFeature> genFeatures, double tolerance)
+        {
+            GENFeature nearestFeature = null;
+            double minSegmentDistance = double.MaxValue;
+
+            // Search within all features
+            for (int featureIdx = 0; featureIdx < genFeatures.Count; featureIdx++)
+            {
+                GENFeature feature = genFeatures[featureIdx];
+                Extent featureExtent = feature.RetrieveExtent();
+                if (point.GetDistance(featureExtent) < tolerance)
+                {
+                    // Compare with all LineSegments of the given feature
+                    Point startPoint = feature.Points[0];
+                    for (int pointIdx = 1; pointIdx < feature.Points.Count; pointIdx++)
+                    {
+                        Point endPoint = feature.Points[pointIdx];
+
+                        Point snappedPoint = point.SnapToLineSegment(startPoint, endPoint);
+                        float segmentDistance = (float)snappedPoint.GetDistance(point);
+
+                        if (segmentDistance < tolerance)
+                        {
+                            if (segmentDistance < minSegmentDistance)
+                            {
+                                minSegmentDistance = segmentDistance;
+                                nearestFeature = feature;
+                            }
+                        }
+                        startPoint = endPoint;
+                    }
+                }
+            }
+            return nearestFeature;
+        }
+
+        /// <summary>
+        /// Find (first) feature that has the closest segment (perpendicular) to the specified point; also return nearest segment.
+        /// </summary>
+        /// <param name="point"></param>
+        /// <param name="genFeatures"></param>
+        /// <param name="tolerance">Maximum distance to closest point of other feature</param>
+        /// <param name="nearestSegment"></param>
+        /// <returns></returns>
+        public static GENFeature FindNearestSegmentFeature(this Point point, List<GENFeature> genFeatures, double tolerance, out LineSegment nearestSegment)
+        {
+            List<GENFeature> nearestFeatures = FindNearestSegmentFeatures(point, genFeatures, tolerance, out List<LineSegment> nearestSegments);
+            if (nearestFeatures.Count > 0)
+            {
+                nearestSegment = nearestSegments[0];
+                return nearestFeatures[0];
+            }
+            else
+            {
+                nearestSegment = null;
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Find features that have the closest segment (perpendicular) to the specified point; also return nearest segments per feature.
+        /// </summary>
+        /// <param name="point"></param>
+        /// <param name="genFeatures"></param>
+        /// <param name="maxDistance">Maximum distance to closest point of other feature</param>
+        /// <param name="nearestSegments"></param>
+        /// <returns></returns>
+        public static List<GENFeature> FindNearestSegmentFeatures(this Point point, List<GENFeature> genFeatures, double maxDistance, out List<LineSegment> nearestSegments)
+        {
+            List<GENFeature> nearestFeatures = new List<GENFeature>();
+            nearestSegments = new List<LineSegment>();
+            double minSegmentDistance = maxDistance;
+
+            // Search within all features
+            for (int featureIdx = 0; featureIdx < genFeatures.Count; featureIdx++)
+            {
+                GENFeature feature = genFeatures[featureIdx];
+                Extent featureExtent = feature.RetrieveExtent();
+                if (point.GetDistance(featureExtent) < maxDistance)
+                {
+                    // Compare with all LineSegments of the given feature
+                    Point startPoint = feature.Points[0];
+                    for (int pointIdx = 1; pointIdx < feature.Points.Count; pointIdx++)
+                    {
+                        Point endPoint = feature.Points[pointIdx];
+
+                        Point snappedPoint = point.SnapToLineSegment(startPoint, endPoint);
+                        float segmentDistance = (float)snappedPoint.GetDistance(point);
+                        if (segmentDistance <= minSegmentDistance)
+                        {
+                            if (segmentDistance < minSegmentDistance)
+                            {
+                                minSegmentDistance = segmentDistance;
+                                nearestFeatures.Clear();
+                                nearestSegments.Clear();
+                            }
+
+                            if (!nearestFeatures.Contains(feature))
+                            {
+                                nearestFeatures.Add(feature);
+                                nearestSegments.Add(new LineSegment(startPoint, endPoint));
+                            }
+                        }
+                        startPoint = endPoint;
+                    }
+                }
+            }
+            return nearestFeatures;
+        }
+
+        /// <summary>
+        /// Find feature that has the segment that is closest (perpendicular) to the specified point. Excluded and preferred points can be defined to define result.
         /// </summary>
         /// <param name="point"></param>
         /// <param name="genFeatures"></param>
@@ -160,7 +276,7 @@ namespace Sweco.SIF.iMOD.GEN
         /// <param name="preferredFeature">Preferred feature in case a choice should be made between points less than Point.Tolerance distance apart. Normally this is the feature that was snapped to before.</param>
         /// <param name="preferredFeatureTolerance">Maximum distance to closest point of preferred feature, default (or when NaN is specified) is Point.Tolerance</param>
         /// <returns></returns>
-        public static GENFeature FindNearestSegmentFeature(this Point point, List<GENFeature> genFeatures, double tolerance, List<GENFeature> excludedFeatures = null, List<Point> excludedPoints = null, GENFeature preferredFeature = null, double preferredFeatureTolerance = double.NaN)
+        public static GENFeature FindNearestSegmentFeature(this Point point, List<GENFeature> genFeatures, double tolerance, List<GENFeature> excludedFeatures, List<Point> excludedPoints = null, GENFeature preferredFeature = null, double preferredFeatureTolerance = double.NaN)
         {
             GENFeature nearestFeature = null;
             double minSegmentDistance = double.MaxValue;
@@ -188,7 +304,7 @@ namespace Sweco.SIF.iMOD.GEN
                             // Skip excluded points
                             if ((excludedPoints == null) || !excludedPoints.HasSimilarPoint(startPoint) || !excludedPoints.HasSimilarPoint(endPoint))
                             {
-                                Point snappedPoint = point.SnapToLineSegmentOptimized(startPoint, endPoint);
+                                Point snappedPoint = point.SnapToLineSegment(startPoint, endPoint);
                                 float segmentDistance = (float)snappedPoint.GetDistance(point); // startPointDistance + endPointDistance;
 
                                 if (segmentDistance < tolerance)
@@ -232,6 +348,7 @@ namespace Sweco.SIF.iMOD.GEN
         /// <param name="thisFeature"></param>
         /// <param name="otherFeatures"></param>
         /// <param name="tolerance">Maximum distance to other feature</param>
+        /// <param name="excludedFeatures"></param>
         /// <returns></returns>
         public static GENFeature FindNearestFeature(this GENFeature thisFeature, List<GENFeature> otherFeatures, double tolerance, List<GENFeature> excludedFeatures = null)
         {
@@ -282,6 +399,7 @@ namespace Sweco.SIF.iMOD.GEN
                     }
                 }
 
+                // ToDo: Check if this is correct; loop will never be executed more than once now
                 return nearestFeature;
             }
 
@@ -294,7 +412,7 @@ namespace Sweco.SIF.iMOD.GEN
         /// <param name="thisGENPoint"></param>
         /// <param name="features"></param>
         /// <param name="tolerance"></param>
-        /// <param name="excludedFeatures">list of features to exclude from search</param>
+        /// <param name="excludedFeatures">list of features to exclude from search (note: currently not used)</param>
         /// <returns></returns>
         public static GENFeature FindNearestFeature(this GENPoint thisGENPoint, List<GENFeature> features, double tolerance, List<GENFeature> excludedFeatures = null)
         {

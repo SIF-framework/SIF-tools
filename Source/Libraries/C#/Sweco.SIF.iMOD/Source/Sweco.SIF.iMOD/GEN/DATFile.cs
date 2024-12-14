@@ -351,7 +351,7 @@ namespace Sweco.SIF.iMOD.GEN
 
         /// <summary>
         /// Add specified columnnames to this DAT-file. For all existing rows the specified default value is used.
-        /// Use <paramref name="ignoreExistingColumn"/>-setting to specify how to handle existing column names.
+        /// Use <paramref name="ignoreExistingColumns"/>-setting to specify how to handle existing column names.
         /// </summary>
         /// <param name="columnNames"></param>
         /// <param name="defaultValues">a value for each added column for all existing rows</param>
@@ -459,6 +459,39 @@ namespace Sweco.SIF.iMOD.GEN
                 idx++;
             }
             return colname;
+        }
+
+        /// <summary>
+        /// Retrieve maximum columnwidth (string value length) for each column over all available DAT-rows
+        /// </summary>
+        /// <returns></returns>
+        public List<int> GetMaxColumnWidths()
+        {
+            List<int> columnWidths = new List<int>(ColumnNames.Count);
+            for (int colIdx = 0; colIdx < ColumnNames.Count; colIdx++)
+            {
+                columnWidths.Add(0);
+            }
+
+            string value;
+            int length;
+            for (int rowIdx = 0; rowIdx < Rows.Count; rowIdx++)
+            {
+                for (int colIdx = 0; colIdx < ColumnNames.Count; colIdx++)
+                {
+                    value = Rows[rowIdx][colIdx];
+                    if (value != null)
+                    {
+                        length = value.Length;
+                        if (length > columnWidths[colIdx])
+                        {
+                            columnWidths[colIdx] = length;
+                        }
+                    }
+                }
+            }
+
+            return columnWidths;
         }
 
         /// <summary>

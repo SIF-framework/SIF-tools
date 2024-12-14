@@ -100,7 +100,7 @@ namespace Sweco.SIF.iMOD.IPF
                     if (ipfPoint.HasTimeseries())
                     {
                         // Select values in specified period. Here, always select/clip all value columns for this period
-                        IPFTimeseries clippedIPFTimeseries = (ipfPoint.Timeseries).Select(timeseriesStartDate, timeseriesEndDate, -1);
+                        IPFTimeseries clippedIPFTimeseries = ipfPoint.Timeseries.Select(timeseriesStartDate, timeseriesEndDate, -1);
 
                         // Now check for non-NoData-values only for specified value column(s)
                         List<int> selValueColIndices = new List<int>();

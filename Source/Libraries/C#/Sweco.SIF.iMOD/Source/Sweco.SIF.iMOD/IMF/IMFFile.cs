@@ -427,7 +427,6 @@ namespace Sweco.SIF.iMOD.IMF
 
             // Create IMF File
             int mapLegendCount = 0;
-            int ipfMapLegendCount = 0;
 
             // Add extent
             string imfString = string.Empty;
@@ -593,7 +592,14 @@ namespace Sweco.SIF.iMOD.IMF
             {
                 imfString += "IDFNAME=" + genMap.Filename.ToUpper() + "\r\n";
             }
-            imfString += "ALIAS=  " + Path.GetFileName(genMap.Filename).ToUpper() + "\r\n";
+            if (genMap.Alias != null)
+            {
+                imfString += "ALIAS=  " + genMap.Alias.ToUpper() + "\r\n";
+            }
+            else
+            {
+                imfString += "ALIAS=  " + Path.GetFileNameWithoutExtension(genMap.Filename).ToUpper() + "\r\n";
+            }
             if (isSelected == true)
             {
                 imfString += "ISEL=            T" + "\r\n";
@@ -670,7 +676,14 @@ namespace Sweco.SIF.iMOD.IMF
             {
                 imfString += "IDFNAME=" + isgMap.Filename.ToUpper() + "\r\n";
             }
-            imfString += "ALIAS=  " + Path.GetFileName(isgMap.Filename).ToUpper() + "\r\n";
+            if (isgMap.Alias != null)
+            {
+                imfString += "ALIAS=  " + isgMap.Alias.ToUpper() + "\r\n";
+            }
+            else
+            {
+                imfString += "ALIAS=  " + Path.GetFileNameWithoutExtension(isgMap.Filename).ToUpper() + "\r\n";
+            }
             if (legendIdx == 0)
             {
                 imfString += "ISEL=            T" + "\r\n";
@@ -725,7 +738,14 @@ namespace Sweco.SIF.iMOD.IMF
             {
                 imfString += "IDFNAME=" + ipfMap.Filename.ToUpper() + "\r\n";
             }
-            imfString += "ALIAS=  " + Path.GetFileName(ipfMap.Filename).ToUpper() + "\r\n";
+            if (ipfMap.Alias != null)
+            {
+                imfString += "ALIAS=  " + ipfMap.Alias.ToUpper() + "\r\n";
+            }
+            else
+            {
+                imfString += "ALIAS=  " + Path.GetFileNameWithoutExtension(ipfMap.Filename).ToUpper() + "\r\n";
+            }
             if (isSelected)
             {
                 imfString += "ISEL=            T" + "\r\n";
@@ -818,7 +838,13 @@ namespace Sweco.SIF.iMOD.IMF
             {
                 imfString += "IDFNAME=" + idfMap.Filename.ToUpper() + "\r\n";
             }
-            imfString += "ALIAS=  " + Path.GetFileNameWithoutExtension(idfMap.Filename).ToUpper() + "\r\n";
+            if (idfMap.Alias != null)
+            {
+                imfString += "ALIAS=  " + idfMap.Alias.ToUpper() + "\r\n";
+            } else
+            {
+                imfString += "ALIAS=  " + Path.GetFileNameWithoutExtension(idfMap.Filename).ToUpper() + "\r\n";
+            }
             if (isSelected)
             {
                 imfString += "ISEL=            T" + "\r\n";
@@ -870,11 +896,12 @@ namespace Sweco.SIF.iMOD.IMF
         }
 
         /// <summary>
-        /// Changes aspect ratio of current extent to specified ratio to ensure a correct display scale in IMF-file
+        /// Changes aspect ratio of current extent to specified ratio to ensure a correct display scale in IMF-file,
+        /// if relative difference between current and new extent is less than 2.5%
         /// </summary>
         /// <param name="imfXYRatio">new aspect ratio ((Xur-Xll)/(Yur-Yll)) of extent</param>
         /// <returns>true, when aspect ration is changed</returns>
-        public bool FixExtentAspectRatio(float imfXYRatio = 2.06f)
+        public bool FixExtentAspectRatio(float imfXYRatio = 1.85f)
         {
             bool isFixed = false;
             float dx = (Extent.urx - Extent.llx);

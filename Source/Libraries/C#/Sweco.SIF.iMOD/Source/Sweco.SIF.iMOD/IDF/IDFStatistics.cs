@@ -65,7 +65,8 @@ namespace Sweco.SIF.iMOD.IDF
         public IDFStatistics(IDFFile idfFile)
         {
             this.idfFile = idfFile;
-            this.values = CreateList(idfFile.NoDataValue);
+            this.Values = CreateList(idfFile.NoDataValue);
+            this.count = (this.Values != null) ? this.Values.Count : 0;
             hasIDFFileCopy = false;
             CalculateSkipFractions();
         }
@@ -82,7 +83,8 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 skippedValues.Add(idfFile.NoDataValue);
             }
-            this.values = CreateList(skippedValues);
+            this.Values = CreateList(skippedValues);
+            this.count = (this.Values != null) ? this.Values.Count : 0;
             hasIDFFileCopy = false;
             CalculateSkipFractions();
         }
@@ -97,7 +99,8 @@ namespace Sweco.SIF.iMOD.IDF
             IDFFile clippedIDFFile = idfFile.ClipIDF(extent);
             hasIDFFileCopy = true;
             this.idfFile = clippedIDFFile;
-            this.values = CreateList(clippedIDFFile.NoDataValue);
+            this.Values = CreateList(clippedIDFFile.NoDataValue);
+            this.count = (this.Values != null) ? this.Values.Count : 0;
             CalculateSkipFractions();
         }
 
@@ -116,7 +119,8 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 skippedValues.Add(outlierAreaHeadIDFFile.NoDataValue);
             }
-            this.values = CreateList(skippedValues);
+            this.Values = CreateList(skippedValues);
+            this.count = (this.Values != null) ? this.Values.Count : 0;
             CalculateSkipFractions();
         }
 
@@ -146,7 +150,6 @@ namespace Sweco.SIF.iMOD.IDF
         /// <summary>
         /// Create a 1D-list from 2D-array in defined IDF-file
         /// </summary>
-        /// <param name="values"></param>
         /// <param name="skippedValues"></param>
         /// <returns></returns>
         private List<float> CreateList(List<float> skippedValues = null)
@@ -188,7 +191,6 @@ namespace Sweco.SIF.iMOD.IDF
         /// <summary>
         /// Create a 1D-Listfrom 2D-array in IDF-files
         /// </summary>
-        /// <param name="values"></param>
         /// <param name="skippedValue"></param>
         /// <returns></returns>
         private List<float> CreateList(float skippedValue)

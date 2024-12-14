@@ -212,30 +212,32 @@ namespace Sweco.SIF.iMOD.GEN
                     if (!wholeLine.ToUpper().Equals("END") && !wholeLine.Equals(string.Empty))
                     {
                         string id = wholeLine;
-
-                        List<Point> points = new List<Point>();
-
-                        string[] lineValues; // = wholeLine.Trim().Split(new char[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
-                        wholeLine = (lineNumber < lines.Length) ? lines[lineNumber++].Trim() : null;
-                        while ((wholeLine != null) && !wholeLine.ToUpper().Equals("END"))
+                        string[] lineParts = CommonUtils.SplitQuoted(id, ',', '"', true, true);
+                        if (lineParts.Length >= 3)
                         {
-                            lineValues = wholeLine.Trim().Split(new char[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
-                            if ((lineValues.Length == 2) || (lineValues.Length == 3))
+                            // line contains a GEN-point definition, read until END-line is found
+                            while ((wholeLine != null) && !wholeLine.ToUpper().Equals("END"))
                             {
-                                if (!double.TryParse(lineValues[0], NumberStyles.Float, EnglishCultureInfo, out double x))
+                                lineParts = CommonUtils.SplitQuoted(wholeLine, ',', '"', true, true);
+                                if (lineParts.Length < 3)
                                 {
-                                    throw new ToolException("Invalid x-coordinate at line " + lineNumber + ": " + lineValues[0]);
+                                    throw new Exception("Invalid line in GEN-file, GEN-point definition expected (IDi, X, Y[, Z]): " + wholeLine);
                                 }
-                                if (!double.TryParse(lineValues[1], NumberStyles.Float, EnglishCultureInfo, out double y))
+                                id = lineParts[0];
+                                if (!double.TryParse(lineParts[1], NumberStyles.Float, EnglishCultureInfo, out double x))
                                 {
-                                    throw new ToolException("Invalid y-coordinate at line " + lineNumber + ": " + lineValues[1]);
+                                    throw new ToolException("Invalid x-coordinate at line " + lineNumber + ": " + lineParts[1]);
+                                }
+                                if (!double.TryParse(lineParts[2], NumberStyles.Float, EnglishCultureInfo, out double y))
+                                {
+                                    throw new ToolException("Invalid y-coordinate at line " + lineNumber + ": " + lineParts[2]);
                                 }
                                 Point point = null;
-                                if (lineValues.Length == 3)
+                                if (lineParts.Length == 4)
                                 {
-                                    if (!double.TryParse(lineValues[2], NumberStyles.Float, EnglishCultureInfo, out double z))
+                                    if (!double.TryParse(lineParts[3], NumberStyles.Float, EnglishCultureInfo, out double z))
                                     {
-                                        throw new ToolException("Invalid z-coordinate at line " + lineNumber + ": " + lineValues[2]);
+                                        throw new ToolException("Invalid z-coordinate at line " + lineNumber + ": " + lineParts[3]);
                                     }
                                     point = new DoublePoint3D(x, y, z);
                                 }
@@ -243,20 +245,64 @@ namespace Sweco.SIF.iMOD.GEN
                                 {
                                     point = new DoublePoint(x, y);
                                 }
-                                points.Add(point);
-                            }
-                            else
-                            {
-                                throw new ToolException("Unexpected coordinate count at line " + lineNumber + ": " + wholeLine);
-                            }
 
-                            wholeLine = (lineNumber < lines.Length) ? lines[lineNumber++].Trim() : null;
+                                genFile.AddFeature(new GENPoint(genFile, id, point), isIDRecalculated, currentStartID);
+                                if (isIDRecalculated)
+                                {
+                                    currentStartID = int.Parse(id) + 1;
+                                }
+
+                                wholeLine = (lineNumber < lines.Length) ? lines[lineNumber++].Trim() : null;
+                            }
                         }
-
-                        GENFeature addedFeature = genFile.AddFeature(points, id, isIDRecalculated, currentStartID);
-                        if (isIDRecalculated)
+                        else
                         {
-                            currentStartID = int.Parse(addedFeature.ID) + 1;
+                            List<Point> points = new List<Point>();
+
+                            string[] lineValues; // = wholeLine.Trim().Split(new char[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            wholeLine = (lineNumber < lines.Length) ? lines[lineNumber++].Trim() : null;
+                            while ((wholeLine != null) && !wholeLine.ToUpper().Equals("END"))
+                            {
+                                lineValues = wholeLine.Trim().Split(new char[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                                if ((lineValues.Length == 2) || (lineValues.Length == 3))
+                                {
+                                    if (!double.TryParse(lineValues[0], NumberStyles.Float, EnglishCultureInfo, out double x))
+                                    {
+                                        throw new ToolException("Invalid x-coordinate at line " + lineNumber + ": " + lineValues[0]);
+                                    }
+                                    if (!double.TryParse(lineValues[1], NumberStyles.Float, EnglishCultureInfo, out double y))
+                                    {
+                                        throw new ToolException("Invalid y-coordinate at line " + lineNumber + ": " + lineValues[1]);
+                                    }
+                                    Point point = null;
+                                    if (lineValues.Length == 3)
+                                    {
+                                        if (!double.TryParse(lineValues[2], NumberStyles.Float, EnglishCultureInfo, out double z))
+                                        {
+                                            throw new ToolException("Invalid z-coordinate at line " + lineNumber + ": " + lineValues[2]);
+                                        }
+                                        point = new DoublePoint3D(x, y, z);
+                                    }
+                                    else
+                                    {
+                                        point = new DoublePoint(x, y);
+                                    }
+                                    points.Add(point);
+                                }
+                                else
+                                {
+                                    throw new ToolException("Unexpected coordinate count at line " + lineNumber + ": " + wholeLine);
+                                }
+
+                                wholeLine = (lineNumber < lines.Length) ? lines[lineNumber++].Trim() : null;
+                            }
+
+
+                            GENFeature addedFeature = genFile.AddFeature(points, id, isIDRecalculated, currentStartID);
+                            if (isIDRecalculated)
+                            {
+                                currentStartID = int.Parse(addedFeature.ID) + 1;
+                            }
                         }
                     }
                     else if (lineNumber != lines.Length)
@@ -417,9 +463,15 @@ namespace Sweco.SIF.iMOD.GEN
                 // Add column names and add sequence number if name is present more than once
                 DATFile.AddColumns(columnNames, null, false);
             }
+            else
+            {
+                // Add default ID-column
+                DATFile.AddIDColumn();
+            }
 
             int pointCount = 0;
             int ITYPE = 0;
+            int currentDefaultId = 0;
             for (int featureIdx = 0; featureIdx < NPOL; featureIdx++)
             {
                 List<Point> pointList = new List<Point>();
@@ -431,15 +483,18 @@ namespace Sweco.SIF.iMOD.GEN
                 pointCount = br.ReadInt32();
                 ITYPE = br.ReadInt32();
 
-                // Skip control values
-                controlValue = br.ReadInt32();
-                controlValue = br.ReadInt32();
-
                 List<string> columnValues = new List<string>();
-                for (int idx = 0; idx < MAXCOL; idx++)
+                if (MAXCOL > 0)
                 {
-                    string columnValue = new string(br.ReadChars(LWIDTH[idx]));
-                    columnValues.Add(columnValue.Trim());
+                    // Skip control values
+                    controlValue = br.ReadInt32();
+                    controlValue = br.ReadInt32();
+
+                    for (int idx = 0; idx < MAXCOL; idx++)
+                    {
+                        string columnValue = new string(br.ReadChars(LWIDTH[idx]));
+                        columnValues.Add(columnValue.Trim());
+                    }
                 }
 
                 // Skip control values
@@ -465,15 +520,44 @@ namespace Sweco.SIF.iMOD.GEN
                     Point point = new FloatPoint((float)x, (float)y);
                     pointList.Add(point);
                 }
-                if ((ITYPE == 1025) || (ITYPE == 1026)) // polygons: 1025; lines (1028); rectangle (1026); circle (1025); points (1027)
+                if (ITYPE == 1025) // polygons: 1025; lines (1028); rectangle (1026); circle (1025); points (1027)
                 {
                     // Add first point again to close polygon
                     pointList.Add(pointList[0]);
                 }
+                else if (ITYPE == 1026)
+                {
+                    // Convert Rectangle to Polygon: rectangle is not suited for storing islands
+                    Point ul = pointList[0];
+                    Point lr = pointList[1];
+                    Point ur = new DoublePoint(lr.X, ul.Y);
+                    Point ll = new DoublePoint(ul.X, lr.Y);
 
-                string id = columnValues[0];
-                GENFeature genFeature = AddFeature(pointList, id, false);
-                
+                    pointList[1] = ur;
+                    pointList.Add(lr);
+                    pointList.Add(ll);
+                    pointList.Add(ul);
+                }
+
+                string id = (columnValues.Count < 0) ? columnValues[0] : string.Empty;
+                GENFeature genFeature = null;
+                if (id.Equals(string.Empty))
+                {
+                    genFeature = AddFeature(pointList, ++currentDefaultId, true, currentDefaultId);
+                    if (columnValues.Count == 0)
+                    {
+                        columnValues.Add(currentDefaultId.ToString());
+                    }
+                    else
+                    {
+                        columnValues[0] = currentDefaultId.ToString();
+                    }
+                }
+                else
+                {
+                    genFeature = AddFeature(pointList, id, false);
+                }
+
                 // Replace default DATRow-object with specified column values
                 DATFile.RemoveRow(id);
                 DATFile.AddRow(new DATRow(columnValues));
@@ -826,21 +910,34 @@ namespace Sweco.SIF.iMOD.GEN
 
                 // Write GEN-features
                 sw = new StreamWriter(filename, false, Encoding);
+                List<GENPoint> currentGENPoints = new List<GENPoint>();
                 for (int featureIdx = 0; featureIdx < Count; featureIdx++)
                 {
                     if ((log != null) && (featureIdx % logSnapPointMessageFrequency == 0))
                     {
                         log.AddInfo("Writing features " + (featureIdx + 1) + "-" + (int)Math.Min(this.Count, (featureIdx + logSnapPointMessageFrequency)) + " of " + this.Count + " ...", logIndentLevel + 1);
                     }
+                    GENFeature genFeature = Features[featureIdx];
 
-                    StringBuilder featureSB = CreateStringBuilder(Features[featureIdx]);
-                    if ((fileStringBuilder.Length + featureSB.Length) > MaxStringLength)
+                    if (genFeature is GENPoint)
                     {
-                        sw.Write(fileStringBuilder.ToString());
-                        fileStringBuilder.Clear();
+                        // Combine consecutive GEN-points in one entry
+                        currentGENPoints.Add((GENPoint)genFeature);
                     }
-                    fileStringBuilder.Append(featureSB);
+                    else
+                    {
+                        // Add pending GEN-points
+                        AppendGENPoints(sw, fileStringBuilder, currentGENPoints);
+                        currentGENPoints.Clear();
+
+                        AppendGENFeature(sw, fileStringBuilder, genFeature);
+                    }
                 }
+
+                // Add remaining, pending GEN-points
+                AppendGENPoints(sw, fileStringBuilder, currentGENPoints);
+                currentGENPoints.Clear();
+
                 fileStringBuilder.AppendLine("END");
 
                 sw.Write(fileStringBuilder.ToString());
@@ -881,6 +978,75 @@ namespace Sweco.SIF.iMOD.GEN
                 metadata.Resolution = "-";
                 metadata.WriteMetaFile();
             }
+        }
+
+        private void AppendGENPoints(StreamWriter sw, StringBuilder fileStringBuilder, List<GENPoint> genPoints)
+        {
+            if (genPoints.Count > 0)
+            {
+                StringBuilder pointsSB = CreateStringBuilder(genPoints);
+
+                if ((fileStringBuilder.Length + pointsSB.Length) > MaxStringLength)
+                {
+                    sw.Write(fileStringBuilder.ToString());
+                    fileStringBuilder.Clear();
+                }
+                fileStringBuilder.Append(pointsSB);
+            }
+        }
+
+        protected void AppendGENFeature(StreamWriter sw, StringBuilder fileStringBuilder, GENFeature genFeature)
+        {
+            StringBuilder featureSB = CreateStringBuilder(genFeature);
+
+            if ((fileStringBuilder.Length + featureSB.Length) > MaxStringLength)
+            {
+                sw.Write(fileStringBuilder.ToString());
+                fileStringBuilder.Clear();
+            }
+            fileStringBuilder.Append(featureSB);
+        }
+
+        /// <summary>
+        /// Create StringBuilder object for specified list of GEN-points
+        /// </summary>
+        /// <param name="genPoints"></param>
+        private StringBuilder CreateStringBuilder(List<GENPoint> genPoints)
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+
+            for (int idx = 0; idx < genPoints.Count; idx++)
+            {
+                GENPoint genPoint = genPoints[idx];
+
+                // Retrieve and (if necessary) corect id
+                string id = genPoint.ID;
+                if ((genPoint.GENFile != null) && (genPoint.GENFile.datFile != null))
+                {
+                    // When a DAT-file is written too, id's should match exactly and in a DAT-file comma's without quotes are not valid
+                    if (genPoint.ID.Contains(","))
+                    {
+                        id = GENUtils.CorrectString(genPoint.ID);
+                    }
+                }
+
+                stringBuilder.Append(id + ", ");
+
+                Point point = genPoint.Point;
+                stringBuilder.Append(point.XString + ", " + point.YString);
+                if ((point is Point3D) && !((Point3D)point).Z.Equals(double.NaN))
+                {
+                    stringBuilder.AppendLine(", " + ((Point3D)point).ZString);
+                }
+                else
+                {
+                    stringBuilder.AppendLine();
+                }
+            }
+
+            stringBuilder.AppendLine("END");
+
+            return stringBuilder;
         }
 
         /// <summary>
@@ -1243,7 +1409,7 @@ namespace Sweco.SIF.iMOD.GEN
             }
 
             // Compare segments of both files
-            GENFile diffGENFile = this.CreateDifferenceFile((GENFile)otherIMODFile, string.Empty, false, comparedExtent);
+            GENFile diffGENFile = this.CreateGENDifferenceFile((GENFile)otherIMODFile, string.Empty, 0, comparedExtent);
             return (diffGENFile == null);
         }
 
@@ -1272,16 +1438,21 @@ namespace Sweco.SIF.iMOD.GEN
             GENFile clippedGENFile = new GENFile(Features.Count);
             clippedGENFile.Filename = Filename;
             int sourceIDColIdx = -1;
-            if (this.HasDATFile() || (this.datFile != null))
+            DATFile clippedDATFile = null;
+            bool hasDATFile = this.HasDATFile() || (this.datFile != null);
+            if (hasDATFile)
             {
-                clippedGENFile.DATFile = new DATFile(clippedGENFile);
+                clippedDATFile = new DATFile(clippedGENFile);
+                clippedGENFile.DATFile = clippedDATFile;
                 clippedGENFile.DATFile.AddColumns(this.DATFile.ColumnNames);
                 string sourceIDColumnName = clippedGENFile.DATFile.GetUniqueColumnName(DATFile.SourceIDColumnName);
-                sourceIDColIdx = clippedGENFile.DATFile.AddColumn(DATFile.SourceIDColumnName);
+                sourceIDColIdx = clippedGENFile.DATFile.AddColumn(sourceIDColumnName);
             }
 
-            foreach (GENFeature genFeature in Features)
+            int currentClipID = 0;
+            for (int genFeatureIdx = 0; genFeatureIdx < Features.Count; genFeatureIdx++)
             {
+                GENFeature genFeature = Features[genFeatureIdx];
                 List<GENFeature> clippedFeatures = null;
                 if (genFeature is GENPoint)
                 {
@@ -1295,28 +1466,26 @@ namespace Sweco.SIF.iMOD.GEN
                 {
                     clippedFeatures = ((GENPolygon)genFeature).Clip(clipExtent);
                 }
-                if (clippedFeatures != null)
+                // Simplified version of: clippedGENFile.AddFeatures(clippedFeatures, true, clippedGENFile.Features.Count + 1);
+                for (int clippedFeatureIdx = 0; clippedFeatureIdx < clippedFeatures.Count; clippedFeatureIdx++)
                 {
-                    if (sourceIDColIdx > 0)
+                    // Simplified version of: AddFeature(genFeature, true, currentClipID++);
+                    GENFeature clippedGENFeature = clippedFeatures[clippedFeatureIdx];
+                    // string originalIdString = clippedGENFeature.ID;
+                    clippedGENFeature.ID = (++currentClipID).ToString();
+
+                    // Add new feature to this GENFile
+                    clippedGENFile.Features.Add(clippedGENFeature);
+
+                    if (hasDATFile)
                     {
-                        foreach (GENFeature clippedFeature in clippedFeatures)
-                        {
-                            DATRow datRow = clippedFeature.GENFile.DATFile.GetRow(clippedFeature.ID);
-                            if (datRow != null)
-                            {
-                                datRow[sourceIDColIdx] = genFeature.ID;
-                            }
-                            else
-                            {
-                                string clippedFeatureId = clippedFeature.ID;
-                                if (DATFile.ContainsID(clippedFeatureId))
-                                {
-                                    clippedGENFile.DATFile.AddRow(DATFile.GetRow(clippedFeatureId).Copy());
-                                }
-                            }
-                        }
+                        DATRow datRow = clippedGENFeature.GENFile.DATFile.Rows[clippedFeatureIdx];
+                        datRow[0] = clippedGENFeature.ID;
+                        datRow[sourceIDColIdx] = genFeature.ID;
+                        clippedGENFile.DATFile.AddRow(datRow);
                     }
-                    clippedGENFile.AddFeatures(clippedFeatures, true, clippedGENFile.Features.Count + 1);
+
+                    clippedGENFile.UpdateExtent(clippedGENFeature);
                 }
             }
 
@@ -1423,7 +1592,7 @@ namespace Sweco.SIF.iMOD.GEN
                                 }
                                 else
                                 {
-                                    if (columnValue.Equals(value))
+                                    if ((columnValue != null) && columnValue.Equals(value))
                                     {
                                         newGENFile.AddFeature(genFeature);
                                         srcPointIndices.Add(featureIdx);
@@ -1860,7 +2029,7 @@ namespace Sweco.SIF.iMOD.GEN
                             }
                             else if (fieldTypes[fieldColIdxIdx].Equals(FieldType.Double))
                             {
-                                // leave fieldType to shpDouble
+                                // leave fieldType to FloatingPoint
                             }
                             else if (!fieldTypes[fieldColIdxIdx].Equals(FieldType.Long))
                             {
@@ -1890,7 +2059,7 @@ namespace Sweco.SIF.iMOD.GEN
                             }
                             else
                             {
-                                // leave fieldType to shpDouble
+                                // leave fieldType to FloatingPoint
                             }
                         }
                         else if (DateTime.TryParse(value, out dateValue))
@@ -1964,14 +2133,14 @@ namespace Sweco.SIF.iMOD.GEN
         /// </summary>
         /// <param name="otherGENFile"></param>
         /// <param name="outputPath"></param>
-        /// <param name="isNoDataCompared"></param>
+        /// <param name="noDataCalculationValue"></param>
         /// <param name="comparedExtent"></param>
         /// <returns></returns>
-        public override IMODFile CreateDifferenceFile(IMODFile otherGENFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        public override IMODFile CreateDifferenceFile(IMODFile otherGENFile, string outputPath, float noDataCalculationValue = float.NaN, Extent comparedExtent = null)
         {
             if (otherGENFile is GENFile)
             {
-                return CreateDifferenceFile((GENFile)otherGENFile, outputPath, isNoDataCompared, comparedExtent);
+                return CreateGENDifferenceFile((GENFile)otherGENFile, outputPath, noDataCalculationValue, comparedExtent);
             }
             else
             {
@@ -1985,10 +2154,10 @@ namespace Sweco.SIF.iMOD.GEN
         /// </summary>
         /// <param name="otherGENFile"></param>
         /// <param name="outputPath"></param>
-        /// <param name="isNoDataCompared"></param>
+        /// <param name="noDataCalculationValue"></param>
         /// <param name="comparedExtent"></param>
         /// <returns>GEN-file with different features (without data), or null if GEN-files are equal</returns>
-        public GENFile CreateDifferenceFile(GENFile otherGENFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        public GENFile CreateGENDifferenceFile(GENFile otherGENFile, string outputPath, float noDataCalculationValue = float.NaN, Extent comparedExtent = null)
         {
             // If the objects are equal, there's no need to check the actual contents
             if (object.Equals(this, otherGENFile))
@@ -2020,17 +2189,18 @@ namespace Sweco.SIF.iMOD.GEN
                 clippedOtherGENFile = otherGENFile.ClipGEN(comparedExtent);
             }
 
-            Extent clippedISGExtent = clippedGENFile.Extent;
-            Extent clippedOtherISGExtent = clippedOtherGENFile.Extent;
-            if (!clippedISGExtent.Intersects(clippedOtherISGExtent))
+            Extent clippedGENExtent = clippedGENFile.Extent;
+            Extent clippedOtherGENExtent = clippedOtherGENFile.Extent;
+            if (!clippedGENExtent.Intersects(clippedOtherGENExtent))
             {
                 // No overlap, return all GEN-features
                 diffGENFile.AddFeatures(clippedGENFile.Features);
                 diffGENFile.AddFeatures(clippedOtherGENFile.Features);
             }
 
+            // Keep track of indices that haven't been processed yet; to start add indices for all other features
             HashSet<int> leftOverIndices2 = new HashSet<int>();
-            for (int featureIdx2 = 0; featureIdx2 < otherGENFile.Features.Count; featureIdx2++)
+            for (int featureIdx2 = 0; featureIdx2 < clippedOtherGENFile.Features.Count; featureIdx2++)
             {
                 leftOverIndices2.Add(featureIdx2);
             }

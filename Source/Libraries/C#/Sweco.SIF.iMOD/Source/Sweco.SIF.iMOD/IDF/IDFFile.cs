@@ -56,7 +56,7 @@ namespace Sweco.SIF.iMOD.IDF
         Maximum,
         /// <summary>
         /// Retrieve most occuring value fine value inside coarse cell (excluding NoData).
-        /// If several vales have same occurance, the most upperleft value is used.
+        /// If several values have same occurance, the most upperleft value is used.
         /// </summary>
         MostOccurring,
         /// <summary>
@@ -70,7 +70,7 @@ namespace Sweco.SIF.iMOD.IDF
         Sum,
         /// <summary>
         /// Retrieve most occuring value fine value inside coarse cell including NoData.
-        /// If several vales have same occurance, the most upperleft value is used.
+        /// If several values have same occurance, the most upperleft value is used.
         /// </summary>
         MostOccurringNoData
     }
@@ -208,7 +208,7 @@ namespace Sweco.SIF.iMOD.IDF
         /// <summary>
         /// BinaryReader object that is used for direct access of IDF-file. This is set by OpenFile()/CloseFile() methods
         /// </summary>
-        private BinaryReader idfReader;
+        protected BinaryReader idfReader;
 
         /// <summary>
         /// Create empty IDFFile object
@@ -2483,10 +2483,10 @@ namespace Sweco.SIF.iMOD.IDF
         /// <returns>1 if true, 0 if false</returns>
         public IDFFile IsEqual(float testValue)
         {
-            IDFFile resultIDFFile = this.CopyIDF(CreateFilename(this, "EQ", testValue));
-
             // Force (lazy) load of values
             EnsureLoadedValues();
+
+            IDFFile resultIDFFile = this.CopyIDF(CreateFilename(this, "EQ", testValue));
 
             float[][] resultValues = resultIDFFile.values;
             float noDataValue = this.NoDataValue;
@@ -2518,12 +2518,12 @@ namespace Sweco.SIF.iMOD.IDF
         /// </summary>
         /// <param name="testValue"></param>
         /// <returns>1 if true, 0 if false</returns>
-        public IDFFile IsNotEqual(float testValue)
+        public virtual IDFFile IsNotEqual(float testValue)
         {
-            IDFFile resultIDFFile = this.CopyIDF(CreateFilename(this, "UNEQ", testValue));
-
             // Force (lazy) load of values
             EnsureLoadedValues();
+
+            IDFFile resultIDFFile = this.CopyIDF(CreateFilename(this, "UNEQ", testValue));
 
             float[][] resultValues = resultIDFFile.values;
             float noDataValue = this.NoDataValue;
@@ -2555,12 +2555,12 @@ namespace Sweco.SIF.iMOD.IDF
         /// </summary>
         /// <param name="testValue"></param>
         /// <returns>1 if true, 0 if false</returns>
-        public IDFFile IsGreater(float testValue)
+        public virtual IDFFile IsGreater(float testValue)
         {
-            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "GT" + testValue.ToString("F3", EnglishCultureInfo) + ".IDF");
-
             // Force (lazy) load of values
             EnsureLoadedValues();
+
+            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "GT" + testValue.ToString("F3", EnglishCultureInfo) + ".IDF");
 
             float[][] resultValues = resultIDFFile.values;
             float noDataValue = this.NoDataValue;
@@ -2590,12 +2590,12 @@ namespace Sweco.SIF.iMOD.IDF
         /// </summary>
         /// <param name="testValue"></param>
         /// <returns>1 if true, 0 if false</returns>
-        public IDFFile IsGreaterEqual(float testValue)
+        public virtual IDFFile IsGreaterEqual(float testValue)
         {
-            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "GTE" + testValue.ToString("F3", EnglishCultureInfo) + ".IDF");
-
             // Force (lazy) load of values
             EnsureLoadedValues();
+
+            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "GTE" + testValue.ToString("F3", EnglishCultureInfo) + ".IDF");
 
             float[][] resultValues = resultIDFFile.values;
             float noDataValue = this.NoDataValue;
@@ -2625,12 +2625,12 @@ namespace Sweco.SIF.iMOD.IDF
         /// </summary>
         /// <param name="testValue"></param>
         /// <returns>1 if true, 0 if false</returns>
-        public IDFFile IsLesser(float testValue)
+        public virtual IDFFile IsLesser(float testValue)
         {
-            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "LT" + testValue.ToString("F3", EnglishCultureInfo) + ".IDF");
-
             // Force (lazy) load of values
             EnsureLoadedValues();
+
+            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "LT" + testValue.ToString("F3", EnglishCultureInfo) + ".IDF");
 
             float[][] resultValues = resultIDFFile.values;
             float noDataValue = this.NoDataValue;
@@ -2660,12 +2660,12 @@ namespace Sweco.SIF.iMOD.IDF
         /// </summary>
         /// <param name="testValue"></param>
         /// <returns>1 if true, 0 if false</returns>
-        public IDFFile IsLesserEqual(float testValue)
+        public virtual IDFFile IsLesserEqual(float testValue)
         {
-            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "LTE" + testValue.ToString("F3", EnglishCultureInfo) + ".IDF");
-
             // Force (lazy) load of values
             EnsureLoadedValues();
+
+            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + "LTE" + testValue.ToString("F3", EnglishCultureInfo) + ".IDF");
 
             float[][] resultValues = resultIDFFile.values;
             float noDataValue = this.NoDataValue;
@@ -2700,10 +2700,10 @@ namespace Sweco.SIF.iMOD.IDF
         /// <returns>1 if true, 0 if false</returns>
         public IDFFile IsBetween(float testValue1, float testValue2, bool isIncludedVal1 = true, bool isIncludedVal2 = true)
         {
-            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + testValue1.ToString("F3", EnglishCultureInfo) + "-" + testValue2.ToString("F3", EnglishCultureInfo) + ".IDF");
-
             // Force (lazy) load of values
             EnsureLoadedValues();
+
+            IDFFile resultIDFFile = this.CopyIDF(Path.GetFileNameWithoutExtension(this.Filename) + testValue1.ToString("F3", EnglishCultureInfo) + "-" + testValue2.ToString("F3", EnglishCultureInfo) + ".IDF");
 
             float[][] resultValues = resultIDFFile.values;
             float noDataValue = this.NoDataValue;
@@ -3417,7 +3417,11 @@ namespace Sweco.SIF.iMOD.IDF
                 {
                     for (int colIdx = 0; colIdx < NCols; colIdx++)
                     {
-                        baseValue = (values[rowIdx][colIdx].Equals(float.NaN) || value.Equals(NoDataValue)) ? NoDataCalculationValue : values[rowIdx][colIdx];
+                        baseValue = values[rowIdx][colIdx];
+                        if (baseValue.Equals(float.NaN) || baseValue.Equals(NoDataValue))
+                        {
+                            baseValue = NoDataCalculationValue;
+                        }
                         if (!baseValue.Equals(float.NaN))
                         {
                             values[rowIdx][colIdx] = baseValue + value;
@@ -4296,7 +4300,6 @@ namespace Sweco.SIF.iMOD.IDF
                 idfCellIterator.AddIDFFile(newValueIDF);
                 idfCellIterator.SetStepsize(this.XCellsize);
                 idfCellIterator.Reset();
-                bool isGlobalMinMaxUpdateNeeded = false;
                 while (idfCellIterator.IsInsideExtent())
                 {
                     float x = idfCellIterator.X;
@@ -4468,7 +4471,7 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Open IDF-file for direct access 
+        /// Open IDF-file for direct/random access and set position for reading to first cell (0,0). Use CloseFile() method to close IDF-file afterwards.
         /// </summary>
         public void OpenFile()
         {
@@ -4495,6 +4498,9 @@ namespace Sweco.SIF.iMOD.IDF
                 {
                     stream = File.OpenRead(Filename);
                     idfReader = new BinaryReader(stream);
+
+                    // Set current position to first cell (0,0)
+                    idfReader.BaseStream.Position = HeaderByteLength;
                 }
                 catch (EndOfStreamException ex)
                 {
@@ -4518,7 +4524,7 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Close IDF-file that was opened for direct access
+        /// Close IDF-file that was opened for direct/random access
         /// </summary>
         public void CloseFile()
         {
@@ -4530,8 +4536,7 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Reads a value directly from the IDF-file on disk. 
-        /// For this, the IDF-file should be opened before with the OpenFile () method.
+        /// Reads a value via direct/random access from the IDF-file on disk. For this, the IDF-file should be opened before with the OpenFile () method.
         /// </summary>
         /// <param name="x"></param>
         /// <param name="y"></param>
@@ -4542,9 +4547,8 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
-        /// Reads a value directly from the IDF-file on disk. For this, the IDF-file should be opened before with the OpenFile() method. 
-        /// For optimization purposes, no checking is done for unopened IDF-files. Use CloseFile() method to close IDF-file afterwards.
-        /// If row and/or column index is out-of-bound, a NoData-value is returned.
+        /// Reads a value via direct/random access from the IDF-file on disk. For this, the IDF-file should be opened before with the OpenFile() method. 
+        /// For optimization purposes, no checking is done for unopened IDF-files. If row and/or column index is out-of-bound, a NoData-value is returned.
         /// </summary>
         /// <param name="rowIdx"></param>
         /// <param name="colIdx"></param>
@@ -4567,6 +4571,43 @@ namespace Sweco.SIF.iMOD.IDF
             {
                 return NoDataValue;
             }
+        }
+
+        /// <summary>
+        /// Reads next cell value via direct/random access from the IDF-file on disk. Reading is done row-wise: per row (from top to bottom), all columns are read (from left to right).
+        /// Note: no checking is done, caller must keep track of maximum number of cells based on NRows*NCols
+        /// </summary>
+        /// <returns></returns>
+        public float ReadNextValue()
+        {
+            if (IsDoublePrecisionFile())
+            {
+                return (float)idfReader.ReadDouble();
+            }
+            else
+            {
+                return (float)idfReader.ReadSingle();
+            }
+        }
+
+        /// <summary>
+        /// Reads next single (float) cell value via direct/random access from the IDF-file on disk. Reading is done row-wise: per row (from top to bottom), all columns are read (from left to right).
+        /// Note: no checking is done, caller must check IsDoublePrecisionFile() for double/float values and keep track of maximum number of cells based on NRows*NCols
+        /// </summary>
+        /// <returns></returns>
+        public float ReadNextSingleValue()
+        {
+            return (float)idfReader.ReadSingle();
+        }
+
+        /// <summary>
+        /// Reads next double (float) cell value via directl/random access from the IDF-file on disk. Reading is done row-wise: per row (from top to bottom), all columns are read (from left to right).
+        /// Note: no checking is done, caller must check IsDoublePrecisionFile() for double/float values and keep track of maximum number of cells based on NRows*NCols
+        /// </summary>
+        /// <returns></returns>
+        public float ReadNextDoubleValue()
+        {
+            return (float)idfReader.ReadDouble();
         }
 
         /// <summary>
@@ -5102,28 +5143,21 @@ namespace Sweco.SIF.iMOD.IDF
         /// </summary>
         /// <param name="otherIDFFile"></param>
         /// <param name="outputPath"></param>
-        /// <param name="isNoDataCompared">if true the actual NoData-values are compared and may result in a difference</param>
+        /// <param name="noDataCalculationValue">value used instead oy NoData-value for comparison; IDFFile.NoDataCalculationValue is overruled in this method.
+        /// float.NaN will result in NoData in a cell when one of the IDF-files has a NoData-value in that cell.</param>
         /// <param name="comparedExtent"></param>
         /// <returns></returns>
-        public virtual IDFFile CreateDifferenceFile(IDFFile otherIDFFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        public virtual IDFFile CreateDifferenceFile(IDFFile otherIDFFile, string outputPath, float noDataCalculationValue = float.NaN, Extent comparedExtent = null)
         {
             try
             {
                 // If specified so, force comparison of cells with NoData, don't use NoDataCalculation-value, but save current value to restore later
                 float currentNoDataCalculationValue1 = this.NoDataCalculationValue;
                 float currentNoDataCalculationValue2 = otherIDFFile.NoDataCalculationValue;
-                if (!isNoDataCompared)
-                {
-                    // Force the noDataCalculaion values of both IDF-files to be equal, so it won't give a difference
-                    this.NoDataCalculationValue = 0;
-                    otherIDFFile.NoDataCalculationValue = 0;
-                }
-                else
-                {
-                    // use the NoData-value as the NoDataCalculation-value, so the actual value of NoData will be used in the comparison
-                    this.NoDataCalculationValue = this.NoDataValue;
-                    otherIDFFile.NoDataCalculationValue = otherIDFFile.NoDataValue;
-                }
+
+                // Force the noDataCalculaion values of both IDF-files to be equal (temporarily in this method), so it won't give a difference
+                this.NoDataCalculationValue = noDataCalculationValue;
+                otherIDFFile.NoDataCalculationValue = noDataCalculationValue;
 
                 // Actually compare IDF-files
                 IDFFile diffIDFFile = this - otherIDFFile;
@@ -5492,7 +5526,7 @@ namespace Sweco.SIF.iMOD.IDF
             }
             else if ((NRows == 0) && (NCols == 0))
             {
-                values = null; // new float[0][];
+                values = new float[0][];
             }
             else
             {
@@ -7254,14 +7288,14 @@ namespace Sweco.SIF.iMOD.IDF
         /// </summary>
         /// <param name="otherIDFFile"></param>
         /// <param name="outputPath"></param>
-        /// <param name="isNoDataCompared">if true the actual NoData-values are compared and may result in a difference</param>
+        /// <param name="noDataCalculationValue">if true the actual NoData-values are compared and may result in a difference</param>
         /// <param name="comparedExtent"></param>
         /// <returns></returns>
-        public override IMODFile CreateDifferenceFile(IMODFile otherIDFFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        public override IMODFile CreateDifferenceFile(IMODFile otherIDFFile, string outputPath, float noDataCalculationValue = float.NaN, Extent comparedExtent = null)
         {
             if (otherIDFFile is IDFFile)
             {
-                return CreateDifferenceFile((IDFFile)otherIDFFile, outputPath, isNoDataCompared, comparedExtent);
+                return CreateDifferenceFile((IDFFile)otherIDFFile, outputPath, noDataCalculationValue, comparedExtent);
             }
             else
             {
@@ -7274,29 +7308,22 @@ namespace Sweco.SIF.iMOD.IDF
         /// </summary>
         /// <param name="otherIDFFile"></param>
         /// <param name="outputPath"></param>
-        /// <param name="isNoDataCompared">use actual NoData-value for comparison instead of defined NoDataCalculationValue</param>
+        /// <param name="noDataCalculationValue">value used instead oy NoData-value for comparison; IDFFile.NoDataCalculationValue is overruled in this method.
+        /// float.NaN will result in NoData in a cell when one of the IDF-files has a NoData-value in that cell.</param>
         /// <param name="isFactorDiffChecked">if false, no factor difference is calculated; if true substraction and factordiff are tried</param>
         /// <param name="comparedExtent"></param>
         /// <returns></returns>
-        public IDFFile CreateDifferenceFile(IDFFile otherIDFFile, string outputPath, bool isNoDataCompared, bool isFactorDiffChecked = true, Extent comparedExtent = null)
+        public IDFFile CreateDifferenceFile(IDFFile otherIDFFile, string outputPath, float noDataCalculationValue = float.NaN, bool isFactorDiffChecked = true, Extent comparedExtent = null)
         {
             try
             {
                 // If specified so, force comparison of cells with NoData, don't use NoDataCalculation-value, but save current value to restore later
                 float currentNoDataCalculationValue1 = this.NoDataCalculationValue;
                 float currentNoDataCalculationValue2 = otherIDFFile.NoDataCalculationValue;
-                if (!isNoDataCompared)
-                {
-                    // Force the noDataCalculaion values of both IDF-files to be equal, so it won't give a difference
-                    this.NoDataCalculationValue = 0;
-                    otherIDFFile.NoDataCalculationValue = 0;
-                }
-                else
-                {
-                    // use the NoData-value as the NoDataCalculation-value, so the actual value of NoData will be used in the comparison
-                    this.NoDataCalculationValue = this.NoDataValue;
-                    otherIDFFile.NoDataCalculationValue = otherIDFFile.NoDataValue;
-                }
+
+                // Force the noDataCalculaion values of both IDF-files to be equal (temporarily in this method), so it won't give a difference
+                this.NoDataCalculationValue = noDataCalculationValue;
+                otherIDFFile.NoDataCalculationValue = noDataCalculationValue;
 
                 // Actually compare IDF-files
                 IDFFile diffIDFFile = this - otherIDFFile;

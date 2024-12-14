@@ -161,6 +161,7 @@ namespace Sweco.SIF.iMOD.GEN
         /// <returns></returns>
         public override List<GENFeature> Clip(Extent clipExtent)
         {
+            // Convert list with GENPolygons to list with GENFeatures
             List<GENFeature> clippedGENFeatures = new List<GENFeature>();
             clippedGENFeatures.AddRange(ClipPolygon(clipExtent));
             return clippedGENFeatures;
@@ -275,12 +276,18 @@ namespace Sweco.SIF.iMOD.GEN
             List<GENPolygon> clippedGENPolygons = new List<GENPolygon>();
             GENFile clippedGENFile = new GENFile();
 
+            // Check if feature is completely inside or outside specified extent
+            Extent featureExtent = this.RetrieveExtent();
+            if (!clipExtent.Intersects(featureExtent))
+            {
+                // Feature is completely outside specified extent, return empty list
+                return clippedGENPolygons;
+            }
+
             // Add DATFile
             DATFile clippedDATFile = clippedDATFile = CreateDATFile(clippedGENFile, this.GENFile, DATFile.SourceIDColumnName);
             int sourceIDColIdx = clippedDATFile.GetColIdx(DATFile.SourceIDColumnName);
 
-            // Check if feature is completely inside or outside specified extent
-            Extent featureExtent = this.RetrieveExtent();
             if (clipExtent.Contains(featureExtent))
             {
                 // Feature is completely inside clip extent, copy feature and data completely
@@ -289,10 +296,6 @@ namespace Sweco.SIF.iMOD.GEN
                 datRow[sourceIDColIdx] = this.ID;
                 clippedGENFile.AddFeature(clippedPolygon);
                 clippedGENPolygons.Add(clippedPolygon);
-            }
-            else if (!clipExtent.Intersects(featureExtent))
-            {
-                // Feature is completely outside specified extent, return empty list
             }
             else
             {

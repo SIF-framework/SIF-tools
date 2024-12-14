@@ -294,18 +294,18 @@ namespace Sweco.SIF.iMOD.ASC
                 sw = new StreamWriter(Filename, false);
 
                 // Write Definitions
-                sw.WriteLine("NCOLS\t" + NCols);
-                sw.WriteLine("NROWS\t" + NRows);
-                sw.WriteLine("XLLCORNER\t" + XLL);
-                sw.WriteLine("YLLCORNER\t" + YLL);
-                sw.WriteLine("CELLSIZE\t" + Cellsize);
-                sw.WriteLine("NODATA_VALUE\t" + NoDataValue);
+                sw.WriteLine("NCOLS        " + NCols);
+                sw.WriteLine("NROWS        " + NRows);
+                sw.WriteLine("XLLCORNER    " + XLL.ToString(formatProvider));
+                sw.WriteLine("YLLCORNER    " + YLL.ToString(formatProvider));
+                sw.WriteLine("CELLSIZE     " + Cellsize.ToString(formatProvider));
+                sw.WriteLine("NODATA_VALUE " + NoDataValue.ToString(formatProvider));
 
                 for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
                 {
                     for (int colIdx = 0; colIdx < NCols; colIdx++)
                     {
-                        sw.Write(Values[rowIdx][colIdx].ToString("E6", formatProvider) + " ");
+                        sw.Write(Values[rowIdx][colIdx].ToString(formatProvider) + " ");
                     }
                     sw.WriteLine();
                 }

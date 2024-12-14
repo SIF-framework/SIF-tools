@@ -233,17 +233,23 @@ namespace Sweco.SIF.iMOD.IPF
                 return false;
             }
 
-            if (IPFFile.AssociatedFileColIdx == 0)
+            if (IPFFile.AssociatedFileColIdx == -1)
             {
                 return false;
             }
 
-            if (!((IPFFile.AssociatedFileColIdx > 0) && (IPFFile.AssociatedFileColIdx < columnValues.Count())))
+            if ((IPFFile.AssociatedFileColIdx < 0) || (IPFFile.AssociatedFileColIdx >= columnValues.Count()))
             {
                 return false;
             }
 
-            string timeseriesFilename = columnValues[IPFFile.AssociatedFileColIdx] + ".txt";
+            // Reference in IPF-file to associated file should not have an extension, add it here
+            string timeseriesFilename = columnValues[IPFFile.AssociatedFileColIdx] + "." + IPFFile.AssociatedFileExtension;
+            if (timeseriesFilename == null)
+            {
+                return false;
+            }
+
             if (!Path.IsPathRooted(timeseriesFilename))
             {
                 timeseriesFilename = Path.Combine(basePath, timeseriesFilename);
@@ -290,13 +296,13 @@ namespace Sweco.SIF.iMOD.IPF
             {
                 throw new ToolException("IPF-file path not found: " + basePath);
             }
-            if (IPFFile.AssociatedFileColIdx <= 0)
+            if (IPFFile.AssociatedFileColIdx < 0)
             {
-                throw new ToolException("Column index for associated filenames is less than or equal to zero, timeseriesfile is not defined for IPF-file " + Path.GetFileName(IPFFile.Filename));
+                throw new ToolException("Column number for associated files is less than or equal to zero, timeseries file is not defined for IPF-file " + Path.GetFileName(IPFFile.Filename));
             }
-            if (!((IPFFile.AssociatedFileColIdx > 0) && (IPFFile.AssociatedFileColIdx < columnValues.Count())))
+            if (IPFFile.AssociatedFileColIdx >= columnValues.Count)
             {
-                throw new ToolException("Invalid column index for associated filenames: " + IPFFile.AssociatedFileColIdx + " for IPF-file " + Path.GetFileName(IPFFile.Filename));
+                throw new ToolException("Column number for associated files (" + (IPFFile.AssociatedFileColIdx + 1) + ") is larger than number of columns (" + columnValues.Count + ") for IPF-file: " + Path.GetFileName(IPFFile.Filename));
             }
             string timeseriesFilename = columnValues[IPFFile.AssociatedFileColIdx];
             if ((timeseriesFilename == null) || timeseriesFilename.Equals(string.Empty))
@@ -313,7 +319,7 @@ namespace Sweco.SIF.iMOD.IPF
             {
                 throw new ToolException("Timeseries file not found: " + timeseriesFilename + " for point " + this.ToString() + " in IPFFile " + Path.GetFileName(IPFFile.Filename));
             }
-            this.timeseries = IPFTimeseries.ReadFile(timeseriesFilename, IPFFile.IsCommaCorrectedInTimeseries, IPFFile.SkipTimeseriesNoDataValues);
+            this.timeseries = IPFTimeseries.ReadFile(timeseriesFilename, IPFFile.IsCommaCorrectedInTimeseries, IPFFile.IsTSNoDataTimestampSkipped, IPFFile.TSNoDataSkipValColIdx);
         }
 
         /// <summary>
@@ -331,13 +337,13 @@ namespace Sweco.SIF.iMOD.IPF
             {
                 throw new ToolException("IPF-file path not found: " + basePath);
             }
-            if (IPFFile.AssociatedFileColIdx == 0)
+            if (IPFFile.AssociatedFileColIdx == -1)
             {
-                throw new ToolException("Column index for associated filenames  is zero, timeseries file is not defined for IPF-file " + Path.GetFileName(IPFFile.Filename));
+                throw new ToolException("Column number for associated files  is zero, timeseries file is not defined for IPF-file " + Path.GetFileName(IPFFile.Filename));
             }
-            if (!((IPFFile.AssociatedFileColIdx > 0) && (IPFFile.AssociatedFileColIdx < columnValues.Count())))
+            if ((IPFFile.AssociatedFileColIdx < 0) || (IPFFile.AssociatedFileColIdx >= columnValues.Count()))
             {
-                throw new ToolException("Invalid column index for associated filenames: " + IPFFile.AssociatedFileColIdx + " for IPF-file " + Path.GetFileName(IPFFile.Filename));
+                throw new ToolException("Invalid column number for associated file: " + (IPFFile.AssociatedFileColIdx + 1) + " for IPF-file " + Path.GetFileName(IPFFile.Filename));
             }
             string timeseriesFilename = columnValues[IPFFile.AssociatedFileColIdx];
             if ((timeseriesFilename != null) && !timeseriesFilename.Equals(string.Empty))

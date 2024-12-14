@@ -229,12 +229,12 @@ namespace Sweco.SIF.iMOD.Utils
                     string numericString = string.Empty;
                     // skip non-numeric values
                     idx = idx + layerNrPrefix.Length;
-                    while ((idx < fname.Length) && (fname[idx] < '0') && (fname[idx] > '9'))
+                    while ((idx < fname.Length) && (fname[idx] < '0') || (fname[idx] > '9'))
                     {
                         idx++;
                     }
 
-                    //take remaing numeric values
+                    // take remaing numeric values
                     while ((idx < fname.Length) && (fname[idx] >= '0') && (fname[idx] <= '9'))
                     {
                         numericString += fname[idx];
@@ -610,6 +610,15 @@ namespace Sweco.SIF.iMOD.Utils
             return isgGENFile;
         }
 
+        /// <summary>
+        /// Convert specified IPF-file to an IDF-file with given extent, cellsize and NoData-value
+        /// </summary>
+        /// <param name="ipfFile"></param>
+        /// <param name="extent"></param>
+        /// <param name="cellSize"></param>
+        /// <param name="noDataValue"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public static IDFFile ConvertIPFToIDF(IPFFile ipfFile, Extent extent, float cellSize, float noDataValue)
         {
             string idfFilename = Path.Combine(Path.GetDirectoryName(ipfFile.Filename), Path.GetFileNameWithoutExtension(ipfFile.Filename) + ".IDF");
@@ -623,7 +632,7 @@ namespace Sweco.SIF.iMOD.Utils
                     float x = (float) ipfPoint.X;
                     float y = (float) ipfPoint.Y;
                     float value = 1;
-                    if ((ipfFile.AssociatedFileColIdx > 0) && (ipfFile.AssociatedFileColIdx < ipfFile.ColumnNames.Count))
+                    if ((ipfFile.AssociatedFileColIdx >= 0) && (ipfFile.AssociatedFileColIdx < ipfFile.ColumnNames.Count))
                     {
                         if (ipfPoint.ColumnValues.Count < ipfFile.AssociatedFileColIdx)
                         {
@@ -779,6 +788,10 @@ namespace Sweco.SIF.iMOD.Utils
         /// <param name="currCellStartDistance"></param>
         /// <param name="processedLineDistance"></param>
         /// <param name="lineLength"></param>
+        /// <param name="genValue"></param>
+        /// <param name="genValue2"></param>
+        /// <param name="valueIDFfile"></param>
+        /// <param name="lengthIDFFile"></param>
         private static void CalculateCellLineValue(float currCellX, float currCellY,  int cellIdx, double currCellStartDistance, double processedLineDistance, double lineLength, float genValue, float genValue2, IDFFile valueIDFfile, IDFFile lengthIDFFile)
         {
             if (cellIdx == 0)
@@ -804,6 +817,7 @@ namespace Sweco.SIF.iMOD.Utils
         /// <param name="currCellEndDistance"></param>
         /// <param name="lineLength"></param>
         /// <param name="valueIDFFile"></param>
+        /// <param name="lengthIDFFile"></param>
         /// <param name="maxIntDist"></param>
         private static void InterpolateCurrentCellValue(float currCellX, float currCellY, float val1, float val2, double currCellStartDistance, double currCellEndDistance, double lineLength, IDFFile valueIDFFile, IDFFile lengthIDFFile, float maxIntDist = float.NaN)
         {
@@ -878,6 +892,8 @@ namespace Sweco.SIF.iMOD.Utils
         /// <param name="emptySegmentCount"></param>
         /// <param name="segmentLength"></param>
         /// <param name="processedSegmentLength"></param>
+        /// <param name="log"></param>
+        /// <param name="warningIPFFile"></param>
         private static void HandleMissingSegment(float currCellX, float currCellY, int emptySegmentCount, double segmentLength, double processedSegmentLength, Log log = null, IPFFile warningIPFFile = null)
         {
             if (emptySegmentCount > 2)
@@ -896,6 +912,7 @@ namespace Sweco.SIF.iMOD.Utils
         /// <summary>
         /// Retrieves the rowindex into the values-array for the given y-value
         /// </summary>
+        /// <param name="idfFile"></param>
         /// <param name="y"></param>
         /// <returns></returns>
         public static int GetRowIdx(IDFFile idfFile, double y)
@@ -930,6 +947,8 @@ namespace Sweco.SIF.iMOD.Utils
         /// <summary>
         /// Retrieves the x-value for the given columnindex into the extent
         /// </summary>
+        /// <param name="extent"></param>
+        /// <param name="xCellsize"></param>
         /// <param name="colIdx"></param>
         /// <returns></returns>
         public static float GetX(Extent extent, float xCellsize, int colIdx)
@@ -940,6 +959,8 @@ namespace Sweco.SIF.iMOD.Utils
         /// <summary>
         /// Retrieves the y-value for the given rowindex into the extent
         /// </summary>
+        /// <param name="extent"></param>
+        /// <param name="yCellsize"></param>
         /// <param name="rowIdx"></param>
         /// <returns></returns>
         public static float GetY(Extent extent, float yCellsize, int rowIdx)

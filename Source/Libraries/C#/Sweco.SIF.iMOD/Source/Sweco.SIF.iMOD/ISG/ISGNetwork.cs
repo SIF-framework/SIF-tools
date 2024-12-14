@@ -57,13 +57,13 @@ namespace Sweco.SIF.iMOD.ISG
 
         public long RetrieveNetworkSegmentCount(double llx, double lly, double urx, double ury)
         {
-            Extent extent = new Extent((float)llx, (float)lly, (float)ury, (float)ury);
+            Extent extent = new Extent((float)llx, (float)lly, (float)urx, (float)ury);
             return RetrieveNetworkSegmentCount(extent);
         }
 
         public long RetrieveNetworkSegmentCount(float llx, float lly, float urx, float ury)
         {
-            Extent extent = new Extent(llx, lly, ury, ury);
+            Extent extent = new Extent(llx, lly, urx, ury);
             return RetrieveNetworkSegmentCount(extent);
         }
 
@@ -87,7 +87,7 @@ namespace Sweco.SIF.iMOD.ISG
         /// </summary>
         public void BuildNetwork(double llx, double lly, double urx, double ury)
         {
-            Extent extent = new Extent((float)llx, (float)lly, (float)ury, (float)ury);
+            Extent extent = new Extent((float)llx, (float)lly, (float)urx, (float)ury);
             BuildNetwork(extent);
         }
 
@@ -97,7 +97,7 @@ namespace Sweco.SIF.iMOD.ISG
         /// </summary>
         public void BuildNetwork(float llx, float lly, float urx, float ury)
         {
-            Extent extent = new Extent(llx, lly, ury, ury);
+            Extent extent = new Extent(llx, lly, urx, ury);
             BuildNetwork(extent);
         }
 
@@ -208,7 +208,7 @@ namespace Sweco.SIF.iMOD.ISG
         /// If no buffer is specified the nodes at the given location are returned. 
         /// Note: the xy-coordinates in the network are stored with an accuracy of 1cm
         /// </summary>
-        /// <param name="?"></param>
+        /// <param name="isgNode"></param>
         /// <param name="rectangleBuffersize"></param>
         /// <returns></returns>
         public List<ISGNode> GetOtherNodes(ISGNode isgNode, float rectangleBuffersize = 0)

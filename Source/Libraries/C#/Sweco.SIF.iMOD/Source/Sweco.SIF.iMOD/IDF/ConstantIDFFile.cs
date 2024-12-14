@@ -164,6 +164,121 @@ namespace Sweco.SIF.iMOD.IDF
         }
 
         /// <summary>
+        /// Checks (for non-NoData-value) in this constant IDF-file if it is greater than or equal to the given value
+        /// </summary>
+        /// <param name="testValue"></param>
+        /// <returns>1 if true, 0 if false</returns>
+        public override IDFFile IsGreaterEqual(float testValue)
+        {
+            float value = this.ConstantValue;
+            if (value.Equals(this.NoDataValue))
+            {
+                value = this.NoDataCalculationValue;
+            }
+
+            if (value >= testValue)
+            {
+                return new ConstantIDFFile(1);
+            }
+            else
+            {
+                return new ConstantIDFFile(0);
+            }
+        }
+
+        /// <summary>
+        /// Checks for all non-NoData-values in this IDF if they are greater than the given value
+        /// </summary>
+        /// <param name="testValue"></param>
+        /// <returns>1 if true, 0 if false</returns>
+        public override IDFFile IsGreater(float testValue)
+        {
+            float value = this.ConstantValue;
+            if (value.Equals(this.NoDataValue))
+            {
+                value = this.NoDataCalculationValue;
+            }
+
+            if (value > testValue)
+            {
+                return new ConstantIDFFile(1);
+            }
+            else
+            {
+                return new ConstantIDFFile(0);
+            }
+        }
+
+        /// <summary>
+        /// Checks for all non-NoData-values in this IDF if they are lesser than the given value
+        /// </summary>
+        /// <param name="testValue"></param>
+        /// <returns>1 if true, 0 if false</returns>
+        public override IDFFile IsLesser(float testValue)
+        {
+            float value = this.ConstantValue;
+            if (value.Equals(this.NoDataValue))
+            {
+                value = this.NoDataCalculationValue;
+            }
+
+            if (value < testValue)
+            {
+                return new ConstantIDFFile(1);
+            }
+            else
+            {
+                return new ConstantIDFFile(0);
+            }
+        }
+
+        /// <summary>
+        /// Checks for all non-NoData-values in this IDF if they are lesser than or equal to the given value
+        /// </summary>
+        /// <param name="testValue"></param>
+        /// <returns>1 if true, 0 if false</returns>
+        public override IDFFile IsLesserEqual(float testValue)
+        {
+            float value = this.ConstantValue;
+            if (value.Equals(this.NoDataValue))
+            {
+                value = this.NoDataCalculationValue;
+            }
+
+            if (value <= testValue)
+            {
+                return new ConstantIDFFile(1);
+            }
+            else
+            {
+                return new ConstantIDFFile(0);
+            }
+        }
+
+        /// <summary>
+        /// Checks for all values in this IDF if they are not equal to the given value
+        /// </summary>
+        /// <param name="testValue"></param>
+        /// <returns>1 if true, 0 if false</returns>
+        public override IDFFile IsNotEqual(float testValue)
+        {
+            float value = this.ConstantValue;
+            if (value.Equals(this.NoDataValue))
+            {
+                value = this.NoDataCalculationValue;
+            }
+
+            if (value != testValue)
+            {
+                return new ConstantIDFFile(1);
+            }
+            else
+            {
+                return new ConstantIDFFile(0);
+            }
+        }
+
+        /// <summary>
         /// Allocate the constantvalue of this object to a new IDF-file with the same characteristics as the specified IDF-file. 
         /// When the constantvalue is NoData, is set to the NoDataCalculationValue of this ConstantIDFFile if it was defined, or otherwise to the NoData-value of the specified IDF-file.
         /// </summary>

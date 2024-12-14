@@ -61,7 +61,7 @@ namespace Sweco.SIF.iMOD.IPF
         public IPFTSStatistics(IPFTimeseries ipfTimeseries, int valueColIdx = 0)
         {
             this.IPFTimeseries = ipfTimeseries;
-            this.values = CreateList(valueColIdx, new List<float>() { ipfTimeseries.NoDataValues[valueColIdx] } );
+            this.Values = CreateList(valueColIdx, new List<float>() { ipfTimeseries.NoDataValues[valueColIdx] } );
             //hasIDFFileCopy = false;
             // CalculateCellPercentages();
         }
@@ -79,7 +79,7 @@ namespace Sweco.SIF.iMOD.IPF
             {
                 skippedValues.Add(ipfTimeseries.NoDataValues[valueColIdx]);
             }
-            this.values = CreateList(valueColIdx, skippedValues);
+            this.Values = CreateList(valueColIdx, skippedValues);
             //hasIDFFileCopy = false;
             //CalculateCellPercentages();
         }

@@ -234,6 +234,14 @@ namespace Sweco.SIF.iMOD.GEN
             return clippedGENLines;
         }
 
+        /// <summary>
+        /// Snap this GEN-line feature to closest line in specified GEN-file. If some points of this GEN-line are beyond specified snapSettings.SnapTolerance of the closest line, these point will not be snapped.
+        /// If the closest line from the specified GEN-file has a distance larger than snapSettings.SnapTolerance, the line is not snapped at all and null is returned.
+        /// </summary>
+        /// <param name="genFile2"></param>
+        /// <param name="snapSettings"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public GENFeature Snap(GENFile genFile2, SnapSettings snapSettings = null)
         {
             if (snapSettings == null)
@@ -330,10 +338,10 @@ namespace Sweco.SIF.iMOD.GEN
                 Point currentPoint = Points[currentPointIdx];
 
                 // First find the feature that is closest to this feature
-                nearestFeature = genFile2.FindNearestSegmentFeature(currentPoint, (float)snapTolerance, null, snappedLine.Points, nearestFeature, Point.Tolerance);
+                nearestFeature = currentPoint.FindNearestSegmentFeature(genFile2.Features, (float)snapTolerance, out LineSegment nearestSegment);
                 if (nearestFeature != null)
                 {
-                    Point nearestP1 = nearestFeature.FindNearestPoint(currentPoint, float.MaxValue);
+                    Point nearestP1 = nearestSegment.FindNearestPoint(currentPoint);
                     int nearestP1Idx = nearestFeature.IndexOf(nearestP1);
 
                     // Check if the current point is within equality tolerance distance of the found nearest point of the other feature
@@ -356,7 +364,7 @@ namespace Sweco.SIF.iMOD.GEN
                     Point nextOtherPoint = null;
 
                     // First check if the current point (or actually the snapped line from it) is perpendicular to the segment 
-                    // from the nearest point (in the other feature) to the previous point in the pointlist (in the other feature) .
+                    // from the nearest point (in the other feature) to the previous point in the pointlist (in the other feature)
                     if (nearestP1Idx > 0)
                     {
                         prevOtherPointIdx = nearestP1Idx - 1;
@@ -365,7 +373,7 @@ namespace Sweco.SIF.iMOD.GEN
                         {
                             nearestP2 = prevOtherPoint;
                             nearestP2Idx = prevOtherPointIdx;
-                            snappedCurrentPoint = currentPoint.SnapToLineSegmentOptimized(prevOtherPoint, nearestP1);
+                            snappedCurrentPoint = currentPoint.SnapToLineSegment(prevOtherPoint, nearestP1);
                         }
                     }
 
@@ -378,7 +386,7 @@ namespace Sweco.SIF.iMOD.GEN
                         {
                             nearestP2b = nextOtherPoint;
                             nearestP2bIdx = nextOtherPointIdx;
-                            snappedCurrentPointb = currentPoint.SnapToLineSegmentOptimized(nearestP1, nextOtherPoint);
+                            snappedCurrentPointb = currentPoint.SnapToLineSegment(nearestP1, nextOtherPoint);
                         }
                     }
 
@@ -400,13 +408,13 @@ namespace Sweco.SIF.iMOD.GEN
                         {
                             nearestP2 = prevOtherPoint;
                             nearestP2Idx = prevOtherPointIdx;
-                            snappedCurrentPoint = currentPoint.SnapToLineSegmentOptimized(prevOtherPoint, nearestP1);
+                            snappedCurrentPoint = currentPoint.SnapToLineSegment(prevOtherPoint, nearestP1);
                         }
                         else
                         {
                             nearestP2 = nextOtherPoint;
                             nearestP2Idx = nextOtherPointIdx;
-                            snappedCurrentPoint = currentPoint.SnapToLineSegmentOptimized(nearestP1, nextOtherPoint);
+                            snappedCurrentPoint = currentPoint.SnapToLineSegment(nearestP1, nextOtherPoint);
                         }
 
                     }
@@ -679,16 +687,16 @@ namespace Sweco.SIF.iMOD.GEN
             {
                 currentSegment1 = new LineSegment(currentSegmentP1, currentSegmentP21);
                 nearestSegment1 = otherLine.FindNearestSegment(currentSegment1, float.MaxValue);
-                snappedCurrentP11 = currentSegmentP1.SnapToLineSegmentOptimized(nearestSegment1.P1, nearestSegment1.P2);
-                snappedCurrentP21 = currentSegmentP21.SnapToLineSegmentOptimized(nearestSegment1.P1, nearestSegment1.P2);
+                snappedCurrentP11 = currentSegmentP1.SnapToLineSegment(nearestSegment1.P1, nearestSegment1.P2);
+                snappedCurrentP21 = currentSegmentP21.SnapToLineSegment(nearestSegment1.P1, nearestSegment1.P2);
                 distance1 = currentSegmentP1.GetDistance(snappedCurrentP11) + currentSegmentP21.GetDistance(snappedCurrentP21);
             }
             if (currentSegmentP22 != null)
             {
                 currentSegment2 = new LineSegment(currentSegmentP1, currentSegmentP22);
                 nearestSegment2 = otherLine.FindNearestSegment(currentSegment1, float.MaxValue);
-                snappedCurrentP12 = currentSegmentP1.SnapToLineSegmentOptimized(nearestSegment2.P1, nearestSegment2.P2);
-                snappedCurrentP22 = currentSegmentP22.SnapToLineSegmentOptimized(nearestSegment2.P1, nearestSegment2.P2);
+                snappedCurrentP12 = currentSegmentP1.SnapToLineSegment(nearestSegment2.P1, nearestSegment2.P2);
+                snappedCurrentP22 = currentSegmentP22.SnapToLineSegment(nearestSegment2.P1, nearestSegment2.P2);
                 distance2 = currentSegmentP1.GetDistance(snappedCurrentP21) + currentSegmentP21.GetDistance(snappedCurrentP22);
             }
             // determine iteration direction for the points of this feature
@@ -745,7 +753,7 @@ namespace Sweco.SIF.iMOD.GEN
                 if (currentSegmentP2.HasPerpendicularIntersection(nearestSegmentP1, nearestSegmentP2))
                 {
                     // Situaton A: P12 snaps perpendicular to S2, snap P12 to S2 and continue with the next segment from the snappedLine
-                    Point snappedP12 = currentSegmentP2.SnapToLineSegmentOptimized(nearestSegmentP1, nearestSegmentP2);
+                    Point snappedP12 = currentSegmentP2.SnapToLineSegment(nearestSegmentP1, nearestSegmentP2);
                     double snapDistance = currentSegmentP2.GetDistance(snappedP12);
                     if (snapDistance < tolerance)
                     {
@@ -765,7 +773,7 @@ namespace Sweco.SIF.iMOD.GEN
                 else if (nearestSegmentP2.HasPerpendicularIntersection(currentSegmentP1, currentSegmentP2))
                 {
                     // SituationB1: P22 snaps perpendicular to S1: if close enough, add P22 to the snappedLine and continue with the next segment from the snapLine
-                    Point snappedP22 = nearestSegmentP2.SnapToLineSegmentOptimized(currentSegmentP1, currentSegmentP2);
+                    Point snappedP22 = nearestSegmentP2.SnapToLineSegment(currentSegmentP1, currentSegmentP2);
                     double snapDistance = nearestSegmentP2.GetDistance(snappedP22);
                     if (snapDistance < tolerance)
                     {
@@ -879,7 +887,7 @@ namespace Sweco.SIF.iMOD.GEN
             // to the linesegment from the last snapped point to the current (not yet snapped) point
             if (skippedPoint.HasPerpendicularIntersection(previousSnappedPoint, snappedCurrentPoint))
             {
-                Point snappedSkippedPoint = skippedPoint.SnapToLineSegmentOptimized(previousSnappedPoint, currentPoint);
+                Point snappedSkippedPoint = skippedPoint.SnapToLineSegment(previousSnappedPoint, currentPoint);
                 double snappedSkippedPointDistance = snappedSkippedPoint.GetDistance(skippedPoint);
                 if (snappedSkippedPointDistance < snapTolerance)
                 {
@@ -891,41 +899,6 @@ namespace Sweco.SIF.iMOD.GEN
                 }
             }
             return 0;
-        }
-
-        /// <summary>
-        /// Retrieves segment of this line that is closest to specified segment, where distance is defined as
-        /// sum of snapdistances from lineSegment.P1 and lineSegment.P2 to this line. 
-        /// P1 of the returned segment will be closest to P1 of the other segment 
-        /// </summary>
-        /// <param name="pointList"></param>
-        /// <param name="lineSegment"></param>
-        /// <param name="maxDistance"></param>
-        /// <returns></returns>
-        public LineSegment FindNearestSegment(Point point, double tolerance = double.NaN)
-        {
-            LineSegment lineSegment = null;
-
-            // Compare with all LineSegments of the given feature
-            double minSegmentDistance = (tolerance.Equals(double.NaN)) ? double.MaxValue : tolerance;
-
-            Point startPoint = Points[0];
-            for (int pointIdx = 1; pointIdx < Points.Count; pointIdx++)
-            {
-                Point endPoint = Points[pointIdx];
-                Point snappedPoint = point.SnapToLineSegmentOptimized(startPoint, endPoint);
-                double segmentDistance = (double)snappedPoint.GetDistance(point);
-
-                if (segmentDistance < minSegmentDistance)
-                {
-                    minSegmentDistance = segmentDistance;
-                    lineSegment = new LineSegment(startPoint, endPoint);
-                }
-
-                startPoint = endPoint;
-            }
-
-            return lineSegment;
         }
 
         /// <summary>

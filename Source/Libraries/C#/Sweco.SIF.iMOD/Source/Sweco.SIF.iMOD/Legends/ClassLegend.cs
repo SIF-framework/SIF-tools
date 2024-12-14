@@ -116,7 +116,9 @@ namespace Sweco.SIF.iMOD.Legends
         {
             // Make simple lineair legend from minValue to maxValue
             float classRange = (maxValue - minValue) / 24;
-            int d = (int) CommonUtils.Max(0, -1 * (int)Math.Floor(Math.Log(classRange))) + 1;
+            int d = CommonUtils.Max(0, -1 * (int)Math.Floor(Math.Log(classRange))) + 1;
+            // Since Math.Round only allows maximum 15 decimals, limit to 15
+            d = CommonUtils.Min(d, 15);
 
             AddClass(new RangeLegendClass(Round(minValue, d), Round(minValue + classRange, d), Round(minValue, d) + " - " + Round((minValue + classRange), d), Color.FromArgb(0, 77, 169)));
             AddClass(new RangeLegendClass(Round(minValue + 1 * classRange, d), Round(minValue + 2 * classRange, d), Round((minValue + 1 * classRange), d) + " - " + Round((minValue + 2 * classRange), d), Color.FromArgb(0, 125, 192)));
@@ -283,9 +285,9 @@ namespace Sweco.SIF.iMOD.Legends
             AddClass(new RangeLegendClass(-0.50f, -0.25f, "-0.50 - -0.25", diffColors[5]));
             AddClass(new RangeLegendClass(-0.25f, -0.10f, "-0.25 - -0.10", diffColors[6]));
             AddClass(new RangeLegendClass(-0.10f, -0.05f, "-0.10 - -0.05", diffColors[7]));
-            AddClass(new RangeLegendClass(-0.05f, -0.005f, "-0.05 - -0.005", diffColors[8]));
-            AddClass(new RangeLegendClass(-0.005f, 0.005f, "-0.005 - 0.005", diffColors[9]));
-            AddClass(new RangeLegendClass(0.005f, 0.05f, "0.005 - 0.05", diffColors[10]));
+            AddClass(new RangeLegendClass(-0.05f, -0.0000001f, "-0.05 - -1E-7", diffColors[8]));
+            AddClass(new RangeLegendClass(-0.0000001f, 0.0000001f, "-1E-7 - 1E-7", diffColors[9]));
+            AddClass(new RangeLegendClass(0.0000001f, 0.05f, "1E-7 - 0.05", diffColors[10]));
             AddClass(new RangeLegendClass(0.05f, 0.10f, "0.05 - 0.10", diffColors[11]));
             AddClass(new RangeLegendClass(0.10f, 0.25f, "0.10 - 0.25", diffColors[12]));
             AddClass(new RangeLegendClass(0.25f, 0.50f, "0.25 - 0.50", diffColors[13]));
@@ -318,8 +320,8 @@ namespace Sweco.SIF.iMOD.Legends
                 diffColors.Reverse();
             }
 
-            AddClass(new RangeLegendClass(-9999999f, -0.999999f, "< 0.0", diffColors[0]));
-            AddClass(new RangeLegendClass(-0.999999f, 0.01f, "0.00 - 0.01", diffColors[1]));
+            AddClass(new RangeLegendClass(-9999999f, 0f, "< 0.0", diffColors[0]));
+            AddClass(new RangeLegendClass(0f, 0.01f, "0.00 - 0.01", diffColors[1]));
             AddClass(new RangeLegendClass(0.01f, 0.05f, "0.01 - 0.05", diffColors[2]));
             AddClass(new RangeLegendClass(0.05f, 0.10f, "0.05 - 0.10", diffColors[3]));
             AddClass(new RangeLegendClass(0.10f, 0.25f, "0.10 - 0.25", diffColors[4]));
@@ -337,7 +339,7 @@ namespace Sweco.SIF.iMOD.Legends
             AddClass(new RangeLegendClass(4.0f, 5.0f, "4.0 - 5.0", diffColors[16]));
             AddClass(new RangeLegendClass(5.0f, 10.0f, "5.0 - 10.0", diffColors[17]));
             AddClass(new RangeLegendClass(10.0f, 100.00f, "10.0 - 100.0", diffColors[18]));
-            AddClass(new RangeLegendClass(100.00f, 9999999f, "> 50.0", diffColors[19]));
+            AddClass(new RangeLegendClass(100.00f, 9999999f, "> 100.0", diffColors[19]));
             Description = "Differences";
         }
         /// <summary>

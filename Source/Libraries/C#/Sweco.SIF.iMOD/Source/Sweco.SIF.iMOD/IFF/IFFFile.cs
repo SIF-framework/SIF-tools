@@ -151,7 +151,7 @@ namespace Sweco.SIF.iMOD.IFF
                 {
                     xll = x;
                 }
-                else if (x > xur)
+                if (x > xur)
                 {
                     xur = x;
                 }
@@ -159,7 +159,7 @@ namespace Sweco.SIF.iMOD.IFF
                 {
                     yll = y;
                 }
-                else if (y > yur)
+                if (y > yur)
                 {
                     yur = y;
                 }
@@ -443,7 +443,17 @@ namespace Sweco.SIF.iMOD.IFF
             bool isTimeIntervalDefined = (!minTime.Equals(float.NaN) && !maxTime.Equals(float.NaN));
 
             List<string> seperatorsList = new List<string>() { ",", ";", " ", "	" };
-            List<GENPolygon> genPolygons = genFile.RetrieveGENPolygons();
+            List<GENPolygon> genPolygons = null;
+            if (genFile != null)
+            {
+                genPolygons = genFile.RetrieveGENPolygons();
+            }
+            else
+            {
+                // No polygons are specified, use buffer of 10% around IFF-extent to ensure all IFF-points are selected
+                genPolygons = new List<GENPolygon>();
+                genPolygons.Add(new GENPolygon(null, 1, RetrieveExtent().Enlarge(1.1f).ToPointList()));
+            }
             Dictionary<int, string> particleSourceIdDictionary = new Dictionary<int, string>();
             Dictionary<int, int> particleSourceIdxDictionary = new Dictionary<int, int>();
             HashSet<int> particleNumbers = new HashSet<int>();
@@ -670,12 +680,41 @@ namespace Sweco.SIF.iMOD.IFF
             int spIRow = 0;
             int spICol = 0;
 
+            IFFPoint prevIFFPoint = null;
             foreach (IFFPoint iffPoint in particlePoints)
             {
                 if ((particleList == null) || particleNumbersHashset.Contains(iffPoint.ParticleNumber))
                 {
                     if (iffPoint.PointType == IFFPointEnum.StartPoint)
                     {
+                        // A new particle is started, check if previous particle is saved
+                        if (prevIFFPoint != null)
+                        {
+                            if (prevIFFPoint.PointType != IFFPointEnum.EndPoint)
+                            {
+                                // This was a single point within selected volume, no line, store it with distance/time 0
+                                Point3D xyzPoint = new DoublePoint3D(prevIFFPoint.X, prevIFFPoint.Y, prevIFFPoint.Z);
+                                List<string> valueList = new List<string>() { spX.ToString("F3", englishCultureInfo), spY.ToString("F3", englishCultureInfo), spZ.ToString("F3", englishCultureInfo), spILAY.ToString(), spIRow.ToString(), spICol.ToString(),
+                                    prevIFFPoint.X.ToString("F3", englishCultureInfo), prevIFFPoint.Y.ToString("F3", englishCultureInfo), prevIFFPoint.Z.ToString("F3", englishCultureInfo), prevIFFPoint.ILAY.ToString(), prevIFFPoint.IRow.ToString(), prevIFFPoint.ICol.ToString(),
+                                    minILAY.ToString(), maxILAY.ToString(), float.NaN.ToString(), float.NaN.ToString(), prevIFFPoint.Time.ToString("F3", englishCultureInfo), currentDistance.ToString("F3", englishCultureInfo), prevIFFPoint.ParticleNumber.ToString()};
+                                if (particleSourceIdDictionary != null)
+                                {
+                                    int sourceIdx = 0;
+                                    string sourceId = "0";
+                                    if (particleSourceIdDictionary.ContainsKey(prevIFFPoint.ParticleNumber))
+                                    {
+                                        sourceIdx = particleSourceIdxDictionary[prevIFFPoint.ParticleNumber];
+                                        sourceId = particleSourceIdDictionary[prevIFFPoint.ParticleNumber];
+                                    }
+                                    valueList.Add(sourceIdx.ToString());
+                                    valueList.Add(sourceId);
+                                }
+                                string[] columnValues = valueList.ToArray();
+                                IPFPoint ipfPoint = new IPFPoint(ipfFile, xyzPoint, columnValues);
+                                ipfFile.AddPoint(ipfPoint);
+                            }
+                        }
+
                         spX = iffPoint.X;
                         spY = iffPoint.Y;
                         spZ = iffPoint.Z;
@@ -689,6 +728,7 @@ namespace Sweco.SIF.iMOD.IFF
                         maxILAY = iffPoint.ILAY;
 
                         currentParticleNumber = iffPoint.ParticleNumber;
+
                         currentDistance = 0;
                         cpX = spX;
                         cpY = spY;
@@ -743,6 +783,35 @@ namespace Sweco.SIF.iMOD.IFF
                         IPFPoint ipfPoint = new IPFPoint(ipfFile, xyzPoint, columnValues);
                         ipfFile.AddPoint(ipfPoint);
                     }
+                }
+
+                prevIFFPoint = iffPoint;
+            }
+            // Check if last particle is saved
+            if (prevIFFPoint != null)
+            {
+                if (prevIFFPoint.PointType != IFFPointEnum.EndPoint)
+                {
+                    // This was a single point within selected volume, no line, store it with distance/time 0
+                    Point3D xyzPoint = new DoublePoint3D(prevIFFPoint.X, prevIFFPoint.Y, prevIFFPoint.Z);
+                    List<string> valueList = new List<string>() { spX.ToString("F3", englishCultureInfo), spY.ToString("F3", englishCultureInfo), spZ.ToString("F3", englishCultureInfo), spILAY.ToString(), spIRow.ToString(), spICol.ToString(),
+                                    prevIFFPoint.X.ToString("F3", englishCultureInfo), prevIFFPoint.Y.ToString("F3", englishCultureInfo), prevIFFPoint.Z.ToString("F3", englishCultureInfo), prevIFFPoint.ILAY.ToString(), prevIFFPoint.IRow.ToString(), prevIFFPoint.ICol.ToString(),
+                                    minILAY.ToString(), maxILAY.ToString(), float.NaN.ToString(), float.NaN.ToString(), prevIFFPoint.Time.ToString("F3", englishCultureInfo), currentDistance.ToString("F3", englishCultureInfo), prevIFFPoint.ParticleNumber.ToString()};
+                    if (particleSourceIdDictionary != null)
+                    {
+                        int sourceIdx = 0;
+                        string sourceId = "0";
+                        if (particleSourceIdDictionary.ContainsKey(prevIFFPoint.ParticleNumber))
+                        {
+                            sourceIdx = particleSourceIdxDictionary[prevIFFPoint.ParticleNumber];
+                            sourceId = particleSourceIdDictionary[prevIFFPoint.ParticleNumber];
+                        }
+                        valueList.Add(sourceIdx.ToString());
+                        valueList.Add(sourceId);
+                    }
+                    string[] columnValues = valueList.ToArray();
+                    IPFPoint ipfPoint = new IPFPoint(ipfFile, xyzPoint, columnValues);
+                    ipfFile.AddPoint(ipfPoint);
                 }
             }
 
@@ -832,6 +901,8 @@ namespace Sweco.SIF.iMOD.IFF
         /// <param name="botLevelIDFFile"></param>
         /// <param name="minTime"></param>
         /// <param name="maxTime"></param>
+        /// <param name="minVelocity"></param>
+        /// <param name="maxVelocity"></param>
         /// <param name="selectMethod">method for selecting flowlines</param>
         /// <returns></returns>
         public IFFFile SelectFlowLines(GENFile genFile, IDFFile topLevelIDFFile, IDFFile botLevelIDFFile = null, float minTime = float.NaN, float maxTime = float.NaN, float minVelocity = float.NaN, float maxVelocity = float.NaN, SelectFlowLinesMethod selectMethod = SelectFlowLinesMethod.Inside)
@@ -859,7 +930,6 @@ namespace Sweco.SIF.iMOD.IFF
             }
 
             List<GENPolygon> genPolygons = genFile.RetrieveGENPolygons();
-            long p = 0;
             for (int genPolygonIdx = 0; genPolygonIdx < genPolygons.Count; genPolygonIdx++)
             {
                 GENPolygon genPolygon = genPolygons[genPolygonIdx];
@@ -868,17 +938,17 @@ namespace Sweco.SIF.iMOD.IFF
 
                 // Add IFF-points either before, inside or outside specified volume
                 // Store IFF-points of each particle, until it enters the specified volume. Then add IFF-points up to there and skip following points
-                List<IFFPoint> currentIFFPoints = new List<IFFPoint>(); ;
+                List<IFFPoint> currentlyAddedIFFPoints = new List<IFFPoint>(); ;
                 bool isAdding = false;
                 bool isAddingBefore = false;
                 bool isAddingInside = false;
-                int currentParticleNumber = -1;
+                int currentlyAddedParticleNumber = -1;
                 IFFPoint previousPoint = null;
                 for (int iffPointIdx = 0; iffPointIdx < particlePoints.Count; iffPointIdx++)
                 {
                     IFFPoint iffPoint = particlePoints[iffPointIdx].CopyIFFPoint();
 
-                    if (isAdding || (currentParticleNumber != iffPoint.ParticleNumber))
+                    if (isAdding || (currentlyAddedParticleNumber != iffPoint.ParticleNumber))
                     {
                         //  0. check velocity constraints
                         bool isInsideVelolocityInterval = (minVelocity.Equals(float.NaN) || (iffPoint.Velocity >= minVelocity)) && (maxVelocity.Equals(float.NaN) || (iffPoint.Velocity <= maxVelocity));
@@ -907,12 +977,12 @@ namespace Sweco.SIF.iMOD.IFF
                                             bool isInsidePolygon = isInsidePolygonBoundingBox && genPolygon.Contains(iffPoint);
                                             if (isSelectBefore || (isInsidePolygon && isSelectInside) || (!isInsidePolygon && isSelectOutside))
                                             {
-                                                if (iffPoint.ParticleNumber != currentParticleNumber)
+                                                if (iffPoint.ParticleNumber != currentlyAddedParticleNumber)
                                                 {
                                                     // A new particle is started, add stored flowpath up to here when the flowline finished inside the specified volume
                                                     if (isAddingInside && (isSelectBeforeAndInside || isSelectInside))
                                                     {
-                                                        foreach (IFFPoint selIFFPoint in currentIFFPoints)
+                                                        foreach (IFFPoint selIFFPoint in currentlyAddedIFFPoints)
                                                         {
                                                             newIFFFile.particlePoints.Add(selIFFPoint);
                                                             if (!newIFFFile.particleSourceIdDictionary.ContainsKey(selIFFPoint.ParticleNumber))
@@ -921,19 +991,19 @@ namespace Sweco.SIF.iMOD.IFF
                                                                 newIFFFile.particleSourceIdxDictionary.Add(selIFFPoint.ParticleNumber, genPolygonIdx + 1);
                                                             }
                                                         }
-                                                        currentIFFPoints.Clear();
+                                                        currentlyAddedIFFPoints.Clear();
                                                     }
 
                                                     // make last point of previous particle an endpoint, make this point a startpoint
                                                     previousPoint = (newIFFFile.particlePoints.Count > 0) ? newIFFFile.particlePoints[newIFFFile.particlePoints.Count - 1] : null;
-                                                    if ((previousPoint != null) && (previousPoint.ParticleNumber == currentParticleNumber) && (previousPoint.PointType != IFFPointEnum.StartPoint))
+                                                    if ((previousPoint != null) && (previousPoint.ParticleNumber == currentlyAddedParticleNumber) && (previousPoint.PointType != IFFPointEnum.StartPoint))
                                                     {
                                                         previousPoint.PointType = IFFPointEnum.EndPoint;
                                                     }
 
                                                     // reset stats for new particle
-                                                    currentParticleNumber = iffPoint.ParticleNumber;
-                                                    currentIFFPoints = new List<IFFPoint>();
+                                                    currentlyAddedParticleNumber = iffPoint.ParticleNumber;
+                                                    currentlyAddedIFFPoints = new List<IFFPoint>();
                                                     isAdding = true;
                                                     isAddingBefore = true;
                                                     isAddingInside = false;
@@ -954,16 +1024,22 @@ namespace Sweco.SIF.iMOD.IFF
                                                             isAddingInside = true;
                                                         }
 
-                                                        if (isAddingInside && (isSelectBeforeOnly || !(isInsidePolygon && isInsideLevels && isInsideTimeInterval && isInsideVelolocityInterval)))
+                                                        bool isLastLinePoint = ((iffPointIdx == (particlePoints.Count - 1)) || (currentlyAddedParticleNumber != particlePoints[iffPointIdx + 1].ParticleNumber));
+                                                        if (isAddingInside && (isSelectBeforeOnly || isLastLinePoint || !(isInsidePolygon && isInsideLevels && isInsideTimeInterval && isInsideVelolocityInterval)))
                                                         {
+                                                            if (isLastLinePoint)
+                                                            {
+                                                                isCurrentIFFPointAdded = true;
+                                                            }
+
                                                             // The specified volume is entered (beforeonly) or left (before and inside)
                                                             if (isCurrentIFFPointAdded)
                                                             {
-                                                                currentIFFPoints.Add(iffPoint);
+                                                                currentlyAddedIFFPoints.Add(iffPoint);
                                                             }
 
                                                             // write flowline up to here to result but stop adding points
-                                                            foreach (IFFPoint selIFFPoint in currentIFFPoints)
+                                                            foreach (IFFPoint selIFFPoint in currentlyAddedIFFPoints)
                                                             {
                                                                 newIFFFile.particlePoints.Add(selIFFPoint);
                                                                 if (!newIFFFile.particleSourceIdDictionary.ContainsKey(selIFFPoint.ParticleNumber))
@@ -978,7 +1054,7 @@ namespace Sweco.SIF.iMOD.IFF
                                                         }
                                                         else
                                                         {
-                                                            currentIFFPoints.Add(iffPoint);
+                                                            currentlyAddedIFFPoints.Add(iffPoint);
                                                         }
                                                     }
                                                 }
@@ -1018,7 +1094,7 @@ namespace Sweco.SIF.iMOD.IFF
                     }
                 }
                 previousPoint = (newIFFFile.particlePoints.Count > 0) ? newIFFFile.particlePoints[newIFFFile.particlePoints.Count - 1] : null;
-                if ((previousPoint != null) && (previousPoint.ParticleNumber == currentParticleNumber) && (previousPoint.PointType != IFFPointEnum.StartPoint))
+                if ((previousPoint != null) && (previousPoint.ParticleNumber == currentlyAddedParticleNumber) && (previousPoint.PointType != IFFPointEnum.StartPoint))
                 {
                     previousPoint.PointType = IFFPointEnum.EndPoint;
                 }
@@ -1182,7 +1258,7 @@ namespace Sweco.SIF.iMOD.IFF
                     float topValue = (topLevelIDFFile != null) ? topLevelIDFFile.GetValue((float)iffPoint.X, (float)iffPoint.Y) : float.NaN;
                     float botValue = (botLevelIDFFile != null) ? botLevelIDFFile.GetValue((float)iffPoint.X, (float)iffPoint.Y) : float.NaN;
                     bool isContained = !(iffPointZ > topValue) && !(iffPointZ < botValue); // Use inverse expressions for top and bot to cope with possible NaN-value
-                    if (isSelectBefore || isContained)
+                    if (isSelectBefore || (isContained && !isSelectOutside) || (!isContained && isSelectOutside))
                     {
                         if (iffPoint.ParticleNumber != currentParticleNumber)
                         {
@@ -1225,6 +1301,23 @@ namespace Sweco.SIF.iMOD.IFF
                 }
                 else if (isSelectOutside)
                 {
+                    if (iffPoint.ParticleNumber != currentParticleNumber)
+                    {
+                        // A new particle is started, reset stats, make last point of previous particle an endpoint, make this point a startpoint
+                        previousPoint = (newIFFFile.particlePoints.Count > 0) ? newIFFFile.particlePoints[newIFFFile.particlePoints.Count - 1] : null;
+                        if ((previousPoint != null) && (previousPoint.ParticleNumber == currentParticleNumber) && (previousPoint.PointType != IFFPointEnum.StartPoint))
+                        {
+                            previousPoint.PointType = IFFPointEnum.EndPoint;
+                        }
+
+                        // A new particle is started, reset stats
+                        currentParticleNumber = iffPoint.ParticleNumber;
+                        currentIFFPoints = new List<IFFPoint>();
+                        isAdding = true;
+
+                        iffPoint.PointType = IFFPointEnum.StartPoint;
+                    }
+
                     newIFFFile.particlePoints.Add(iffPoint);
                 }
             }

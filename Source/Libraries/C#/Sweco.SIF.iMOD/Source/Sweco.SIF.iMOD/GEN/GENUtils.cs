@@ -156,6 +156,42 @@ namespace Sweco.SIF.iMOD.GEN
                 return (int)Math.Round(-Math.Log10(tolerance), 0);
             }
         }
+
+        // iMOD ITYPES for GEN-features: currently only polygon, line and point are supported
+        public const int ITYPE_Circle = 1024;
+        public const int ITYPE_Polygon = 1025;
+        public const int ITYPE_Rectangle = 1026;
+        public const int ITYPE_Point = 1027;
+        public const int ITYPE_Line = 1028;
+
+        /// <summary>
+        /// Retrieve iMOD ITYPE for specified feature
+        /// </summary>
+        /// <param name="feature"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public static int GetITYPE(GENFeature feature)
+        {
+            // iMOD-manual: points (ITYPE=1027), polygons (ITYPE=1025), rectangles (ITYPE=1026), circle(ITYPE = 1024) and lines(ITYPE= 1028)
+            // Note: Whenever ITYPE=1024 (circle), the first point if the midpoint of the circle, the second point is any point on the circle.iMOD uses this point to set the radius.
+
+            if (feature is GENPolygon)
+            {
+                return ITYPE_Polygon;
+            }
+            else if (feature is GENLine)
+            {
+                return ITYPE_Line;
+            }
+            else if (feature is GENPoint)
+            {
+                return ITYPE_Point;
+            }
+            else
+            {
+                throw new Exception("Unsupported GEN-feature type: " + feature.GetType().Name);
+            }
+        }
     }
 
     /// <summary>
@@ -166,11 +202,12 @@ namespace Sweco.SIF.iMOD.GEN
         /// <summary>
         /// Return the point on the specified line that is closest to this point
         /// </summary>
+        /// <param name="point"></param>
         /// <param name="L"></param>
         /// <returns>the closest point on the line</returns>
         public static Point SnapToLineSegment(this Point point, LineSegment L)
         {
-            return point.SnapToLineSegmentOptimized(L.P1, L.P2);
+            return point.SnapToLineSegment(L.P1, L.P2);
         }
 
         //public static Point Snap(this Point point, GENLine genLine, SnapSettings snapSettings = null)
@@ -181,6 +218,7 @@ namespace Sweco.SIF.iMOD.GEN
         /// <summary>
         /// Check if the specified point is present in this feature
         /// </summary>
+        /// <param name="pointList"></param>
         /// <param name="point"></param>
         /// <returns></returns>
         public static bool HasSimilarPoint(this List<Point> pointList, Point point)
@@ -191,6 +229,7 @@ namespace Sweco.SIF.iMOD.GEN
         /// <summary>
         /// Retrieves the index of the first similar point in the list of points of this feature
         /// </summary>
+        /// <param name="pointList"></param>
         /// <param name="point"></param>
         /// <returns>-1 if not found</returns>
         public static int IndexOfSimilarPoint(this List<Point> pointList, Point point)

@@ -57,13 +57,19 @@ namespace Sweco.SIF.iMOD.ISG
             get { return "ISG"; }
         }
 
+        /// <summary>
+        /// List of segments that are actually loaded in memory or null if an existing ISG-file is lazy-loaded
+        /// </summary>
+        protected List<ISGSegment> segments;
 
-        private List<ISGSegment> segments;
+        /// <summary>
+        /// List of segments of this ISG-file; in case of lazy-loading, calling this property will ensure segments are loaded from file.
+        /// </summary>
         public List<ISGSegment> Segments
         {
             get
             {
-                if ((segments == null) || ((segments.Count == 0) && (segmentCount > 0)))
+                if (segments == null)
                 {
                     LoadSegments();
                 }
@@ -73,7 +79,14 @@ namespace Sweco.SIF.iMOD.ISG
             set { segments = value; }
         }
 
-        private int segmentCount = -1;
+        /// <summary>
+        /// Number of segments in ISG-file which is (only) set after reading an ISG-file (with or without lazy-loading)
+        /// </summary>
+        private int segmentCount;
+
+        /// <summary>
+        /// Number of segments that are available for this ISG-file in memory or on disk (in case of lazy-loading)
+        /// </summary>
         public int SegmentCount
         {
             get
@@ -86,10 +99,6 @@ namespace Sweco.SIF.iMOD.ISG
                 {
                     return segmentCount;
                 }
-            }
-            private set
-            {
-                segmentCount = value;
             }
         }
 
@@ -107,12 +116,12 @@ namespace Sweco.SIF.iMOD.ISG
         }
 
         /// <summary>
-        /// Specifies that the actual values are only loaded at first access
+        /// Specifies that the actual segments/data are only loaded at first access
         /// </summary>
         protected bool useLazyLoading;
 
         /// <summary>
-        /// Specifies that the actual values are only loaded at first access
+        /// Specifies that the actual segments/data are only loaded at first access
         /// </summary>
         public override bool UseLazyLoading
         {
@@ -123,14 +132,25 @@ namespace Sweco.SIF.iMOD.ISG
         /// <summary>
         /// Creates empty ISGFile object
         /// </summary>
-        /// <param name="Filename"></param>
-        public ISGFile(string Filename)
+        /// <param name="filename"></param>
+        public ISGFile(string filename = null)
         {
-            this.Filename = Filename;
+            this.Filename = filename;
             this.segments = new List<ISGSegment>();
+            this.segmentCount = -1;
             this.UseLazyLoading = false;
         }
 
+        /// <summary>
+        /// Read ISG-file from file into memory
+        /// </summary>
+        /// <param name="Filename"></param>
+        /// <param name="useLazyLoading"></param>
+        /// <param name="log"></param>
+        /// <param name="logIndentLevel"></param>
+        /// <returns></returns>
+        /// <exception cref="ToolException"></exception>
+        /// <exception cref="Exception"></exception>
         public static ISGFile ReadFile(string Filename, bool useLazyLoading = false, Log log = null, int logIndentLevel = 0)
         {
             if (!File.Exists(Filename))
@@ -151,6 +171,9 @@ namespace Sweco.SIF.iMOD.ISG
                 if (useLazyLoading)
                 {
                     isgFile.ReadISGSegmentCount();
+
+                    // Set segments to null to indicate current object is lazy loaded and segments are not yet loaded
+                    isgFile.segments = null;
                 }
                 else
                 {
@@ -166,11 +189,11 @@ namespace Sweco.SIF.iMOD.ISG
         }
 
         /// <summary>
-        /// Ensure that segment data is loaded, which is postponed for lazy-loaded ISG-files
+        /// Ensure that all ISG-data is loaded, which is postponed for lazy-loaded ISG-files
         /// </summary>
         public virtual void EnsureLoadedSegments()
         {
-            if ((segments == null) || ((segments.Count == 0) && (segmentCount > 0)))
+            if (segments == null)
             {
                 LoadSegments();
             }
@@ -185,56 +208,26 @@ namespace Sweco.SIF.iMOD.ISG
 
             try
             {
-                ReadISG();
+                ReadSegments();
                 ReadISP();
+
                 ReadISD1();
                 ReadISD2();
+
                 ReadISC1();
                 ReadISC2();
+
                 ReadIST1();
                 ReadIST2();
-
+                
                 UpdateExtent();
+
             }
             catch (Exception ex)
             {
                 throw new Exception("Could not read ISG-file " + Filename, ex);
             }
         }
-
-        //protected int ReadISGSegmentCount()
-        //{
-        //    segmentCount = 0;
-        //    Stream stream = null;
-        //    StreamReader sr = null;
-        //    string line = null;
-        //    try
-        //    {
-        //        stream = File.OpenRead(Filename);
-        //        sr = new StreamReader(stream);
-
-        //        // Parse first line with number of points
-        //        line = sr.ReadLine();
-        //        segmentCount = int.Parse(line.Trim());
-
-        //        return segmentCount;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        throw new ToolException("Could not read number of segments in line \"" + line + "\"", ex);
-        //    }
-        //    finally
-        //    {
-        //        if (sr != null)
-        //        {
-        //            sr.Close();
-        //        }
-        //        if (stream != null)
-        //        {
-        //            stream.Close();
-        //        }
-        //    }
-        //}
 
         protected void ReadISGSegmentCount()
         {
@@ -277,7 +270,13 @@ namespace Sweco.SIF.iMOD.ISG
             }
         }
 
-        protected void ReadISG()
+        /// <summary>
+        /// Read ISG-file with names of segments
+        /// Warning: Care must be taken that only loaded data is referenced. Use EnsureLoadedSegment() to load all data if necessary (for lazy loading)
+        /// </summary>
+        /// <exception cref="Exception"></exception>
+        /// <exception cref="ToolException"></exception>
+        public void ReadSegments()
         {
             Stream stream = null;
             StreamReader sr = null;
@@ -300,7 +299,7 @@ namespace Sweco.SIF.iMOD.ISG
                     // check for erroneous extra zero or other numbers and remove
                     segmentCount = int.Parse(line);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     throw new Exception("Could not read number of segments in line \"" + line + "\"");
                 }
@@ -343,7 +342,7 @@ namespace Sweco.SIF.iMOD.ISG
         {
             extent = null;
 
-            if (segments.Count() > 0)
+            if ((segments != null) && (segments.Count() > 0))
             {
                 extent = segments[0].GetExtent().Copy();
                 for (int segmentIdx = 0; segmentIdx < segments.Count(); segmentIdx++)
@@ -388,8 +387,17 @@ namespace Sweco.SIF.iMOD.ISG
             return new ISGSegment(values[0].Replace("\"", "").Trim(), int.Parse(values[1]), int.Parse(values[2]), int.Parse(values[3]), int.Parse(values[4]), int.Parse(values[5]), int.Parse(values[6]), int.Parse(values[7]), int.Parse(values[8]), int.Parse(values[9]), int.Parse(values[10]));
         }
 
-        private void ReadISP()
+        /// <summary>
+        /// Read ISP-file with ISG-nodes; this is the minimum requirement to retrieve the extent.
+        /// Warning: Care must be taken that only loaded data is referenced. Use EnsureLoadedSegment() to load all data if necessary (for lazy loading)
+        /// </summary>
+        public void ReadISP()
         {
+            if (segments == null)
+            {
+                throw new Exception("segments is null, ensure data is loaded before calling ReadXXX()-methods");
+            }
+
             string ispFilename = Path.Combine(Path.GetDirectoryName(Filename), Path.GetFileNameWithoutExtension(Filename) + ".ISP");
             if (!File.Exists(ispFilename))
             {
@@ -403,15 +411,38 @@ namespace Sweco.SIF.iMOD.ISG
                 stream = File.OpenRead(ispFilename);
                 br = new BinaryReader(stream);
                 int recordLength = br.ReadInt32();   // is always 2295 for ISP-files
+                int byteLength;
+                bool isDoublePrecision;
+                switch (recordLength)
+                {
+                    case 2295:
+                        isDoublePrecision = false;
+                        byteLength = ISGNode.SingleByteLength;
+                        break;
+                    case 4343:
+                        isDoublePrecision = true;
+                        byteLength = ISGNode.DoubleByteLength;
+                        break;
+                    default:
+                        throw new Exception("Unknown record length for ISP-file: " + recordLength);
+                }
                 foreach (ISGSegment segment in segments)
                 {
-                    br.BaseStream.Seek(segment.ISEG * ISGNode.ByteLength, SeekOrigin.Begin);
+                    br.BaseStream.Seek(segment.ISEG * byteLength, SeekOrigin.Begin);
                     List<ISGNode> isgNodeList = new List<ISGNode>();
                     for (int subIdx = 0; subIdx < segment.NSEG; subIdx++)
                     {
                         try
                         {
-                            ISGNode node = new ISGNode(segment, br.ReadSingle(), br.ReadSingle());
+                            ISGNode node = null;
+                            if (isDoublePrecision)
+                            {
+                                node = new ISGNode(segment, (float)br.ReadDouble(), (float)br.ReadDouble());
+                            }
+                            else
+                            {
+                                node = new ISGNode(segment, br.ReadSingle(), br.ReadSingle());
+                            }
                             isgNodeList.Add(node);
                         }
                         catch (Exception ex)
@@ -443,8 +474,17 @@ namespace Sweco.SIF.iMOD.ISG
             }
         }
 
-        private void ReadISD1()
+        /// <summary>
+        /// Read ISD1-file with calculation point locations and names
+        /// Warning: Care must be taken that only loaded data is referenced. Use EnsureLoadedSegment() to load all ISG-data if necessary (for lazy loading)
+        /// </summary>
+        public void ReadISD1()
         {
+            if (segments == null)
+            {
+                throw new Exception("segments is null, ensure data is loaded before calling ReadXXX()-methods");
+            }
+
             string isd1Filename = Path.Combine(Path.GetDirectoryName(Filename), Path.GetFileNameWithoutExtension(Filename) + ".ISD1");
             if (!File.Exists(isd1Filename))
             {
@@ -502,8 +542,17 @@ namespace Sweco.SIF.iMOD.ISG
             }
         }
 
-        private void ReadISD2()
+        /// <summary>
+        /// Read ISD2-file with calculation calculation point details (level, etc.) 
+        /// Warning: Care must be taken that only loaded data is referenced. Use EnsureLoadedSegment() to load all ISG-data if necessary (for lazy loading)
+        /// </summary>
+        public void ReadISD2()
         {
+            if (segments == null)
+            {
+                throw new Exception("segments is null, ensure data is loaded before calling ReadXXX()-methods");
+            }
+
             string isd2Filename = Path.Combine(Path.GetDirectoryName(Filename), Path.GetFileNameWithoutExtension(Filename) + ".ISD2");
             if (!File.Exists(isd2Filename))
             {
@@ -570,8 +619,17 @@ namespace Sweco.SIF.iMOD.ISG
             }
         }
 
-        private void ReadISC1()
+        /// <summary>
+        /// Read ISC1-file with cross section locations and names
+        /// Warning: Care must be taken that only loaded data is referenced. Use EnsureLoadedSegment() to load all ISG-data if necessary (for lazy loading)
+        /// </summary>
+        public void ReadISC1()
         {
+            if (segments == null)
+            {
+                throw new Exception("segments is null, ensure data is loaded before calling ReadXXX()-methods");
+            }
+
             string isc1Filename = Path.Combine(Path.GetDirectoryName(Filename), Path.GetFileNameWithoutExtension(Filename) + ".ISC1");
             if (!File.Exists(isc1Filename))
             {
@@ -629,8 +687,17 @@ namespace Sweco.SIF.iMOD.ISG
             }
         }
 
-        private void ReadISC2()
+        /// <summary>
+        /// Read ISC2-file with cross section details (levels, etc.) are loaded
+        /// Warning: Care must be taken that only loaded data is referenced. Use EnsureLoadedSegment() to load all ISG-data if necessary (for lazy loading)
+        /// </summary>
+        public void ReadISC2()
         {
+            if (segments == null)
+            {
+                throw new Exception("segments is null, ensure data is loaded before calling ReadXXX()-methods");
+            }
+
             string isc2Filename = Path.Combine(Path.GetDirectoryName(Filename), Path.GetFileNameWithoutExtension(Filename) + ".ISC2");
             if (!File.Exists(isc2Filename))
             {
@@ -676,7 +743,6 @@ namespace Sweco.SIF.iMOD.ISG
                             br.BaseStream.Seek(4, SeekOrigin.Current);
                             for (int subIdx = 1; subIdx < (-cs.N); subIdx++)
                             {
-                                int a = 0;
                                 try
                                 {
                                     ISGCrossSectionData2 isc2Record = new ISGCrossSectionData2();
@@ -718,8 +784,17 @@ namespace Sweco.SIF.iMOD.ISG
             }
         }
 
-        private void ReadIST1()
+        /// <summary>
+        /// Read IST1-file with structure locations and names 
+        /// Warning: Care must be taken that only loaded data is referenced. Use EnsureLoadedSegment() to load all ISG-data if necessary (for lazy loading)
+        /// </summary>
+        public void ReadIST1()
         {
+            if (segments == null)
+            {
+                throw new Exception("segments is null, ensure data is loaded before calling ReadXXX()-methods");
+            }
+
             string ist1Filename = Path.Combine(Path.GetDirectoryName(Filename), Path.GetFileNameWithoutExtension(Filename) + ".IST1");
             if (!File.Exists(ist1Filename))
             {
@@ -777,8 +852,17 @@ namespace Sweco.SIF.iMOD.ISG
             }
         }
 
-        private void ReadIST2()
+        /// <summary>
+        /// Read IST2-file with structure details
+        /// Warning: Care must be taken that only loaded data is referenced. Use EnsureLoadedSegment() to load all ISG-data if necessary (for lazy loading)
+        /// </summary>
+        public void ReadIST2()
         {
+            if (segments == null)
+            {
+                throw new Exception("segments is null, ensure data is loaded before calling ReadXXX()-methods");
+            }
+
             string ist2Filename = Path.Combine(Path.GetDirectoryName(Filename), Path.GetFileNameWithoutExtension(Filename) + ".IST2");
             if (!File.Exists(ist2Filename))
             {
@@ -839,14 +923,24 @@ namespace Sweco.SIF.iMOD.ISG
             }
         }
 
+        /// <summary>
+        /// Copy contents (segments) of this ISGFile object to new object
+        /// </summary>
+        /// <param name="copiedFilename"></param>
+        /// <returns></returns>
         public ISGFile CopyISG(string copiedFilename)
         {
-            ISGFile isgFileCopy = new ISGFile(FileUtils.AddFilePostFix(this.Filename, "_clipped"));
-            for (int segmentIdx = 0; segmentIdx < this.segments.Count(); segmentIdx++)
+            ISGFile isgFileCopy = new ISGFile(this.Filename);
+
+            if (segments != null)
             {
-                ISGSegment segment = segments[segmentIdx];
-                isgFileCopy.AddSegment(segment.Copy());
+                for (int segmentIdx = 0; segmentIdx < this.segments.Count(); segmentIdx++)
+                {
+                    ISGSegment segment = segments[segmentIdx];
+                    isgFileCopy.AddSegment(segment.Copy());
+                }
             }
+
             return isgFileCopy;
         }
 
@@ -860,9 +954,17 @@ namespace Sweco.SIF.iMOD.ISG
             return ClipISG(clipExtent);
         }
 
+        /// <summary>
+        /// Clip ISG-file segmentwise: If one of the segmentnodes is inside the specified extent, add the whole segment
+        /// </summary>
+        /// <param name="extent"></param>
+        /// <returns></returns>
         public ISGFile ClipISG(Extent extent)
         {
-            ISGFile clippedISGFile = new ISGFile(FileUtils.AddFilePostFix(this.Filename, "_clipped"));
+            ISGFile clippedISGFile = new ISGFile(this.Filename);
+
+            EnsureLoadedSegments();
+
             for (int segmentIdx = 0; segmentIdx < this.segments.Count(); segmentIdx++)
             {
                 ISGSegment segment = segments[segmentIdx];
@@ -1070,7 +1172,7 @@ namespace Sweco.SIF.iMOD.ISG
             }
 
             // Compare segments of both files
-            ISGFile diffISGFile = this.CreateDifferenceFile((ISGFile) otherIMODFile, string.Empty, false, comparedExtent);
+            ISGFile diffISGFile = this.CreateDifferenceFile((ISGFile) otherIMODFile, string.Empty, 0, comparedExtent);
             return (diffISGFile == null);
         }
 
@@ -1079,14 +1181,14 @@ namespace Sweco.SIF.iMOD.ISG
         /// </summary>
         /// <param name="otherISGFile"></param>
         /// <param name="outputPath"></param>
-        /// <param name="isNoDataCompared"></param>
+        /// <param name="noDataCalculationValue">Currently ignored for ISG-files</param>
         /// <param name="comparedExtent"></param>
         /// <returns></returns>
-        public override IMODFile CreateDifferenceFile(IMODFile otherISGFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        public override IMODFile CreateDifferenceFile(IMODFile otherISGFile, string outputPath, float noDataCalculationValue = float.NaN, Extent comparedExtent = null)
         {
             if (otherISGFile is ISGFile)
             {
-                return CreateDifferenceFile((ISGFile)otherISGFile, outputPath, isNoDataCompared, comparedExtent);
+                return CreateDifferenceFile((ISGFile)otherISGFile, outputPath, noDataCalculationValue, comparedExtent);
             }
             else
             {
@@ -1101,10 +1203,10 @@ namespace Sweco.SIF.iMOD.ISG
         /// </summary>
         /// <param name="otherISGFile"></param>
         /// <param name="outputPath"></param>
-        /// <param name="isNoDataCompared"></param>
+        /// <param name="noDataCalculationValue">currently ignored for ISG-files</param>
         /// <param name="comparedExtent"></param>
         /// <returns>ISG-file with different segment (without data), or null if ISG-files are equal</returns>
-        public ISGFile CreateDifferenceFile(ISGFile otherISGFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        public ISGFile CreateDifferenceFile(ISGFile otherISGFile, string outputPath, float noDataCalculationValue, Extent comparedExtent = null)
         {
             // If the objects are equal, there's no need to check the actual contents
             if (object.Equals(this, otherISGFile))
@@ -1140,7 +1242,7 @@ namespace Sweco.SIF.iMOD.ISG
                 leftOverIndices2.Add(segmentIdx2);
             }
 
-            for (int segmentIdx1 = 0; segmentIdx1 < segmentCount; segmentIdx1++)
+            for (int segmentIdx1 = 0; segmentIdx1 < segments.Count; segmentIdx1++)
             {
                 ISGSegment isgSegment1 = segments[segmentIdx1];
                 int segmentIdx2 = otherISGFile.RetrieveSegmentIndex(isgSegment1, leftOverIndices2);
@@ -1171,7 +1273,7 @@ namespace Sweco.SIF.iMOD.ISG
         {
             Extent searchedExtent = searchedSegment.GetExtent();
 
-            for (int segmentIdx = 0; segmentIdx < segmentCount; segmentIdx++)
+            for (int segmentIdx = 0; segmentIdx < segments.Count; segmentIdx++)
             {
                 ISGSegment isgSegment = segments[segmentIdx];
                 if (isgSegment.HasOverlap(searchedExtent))

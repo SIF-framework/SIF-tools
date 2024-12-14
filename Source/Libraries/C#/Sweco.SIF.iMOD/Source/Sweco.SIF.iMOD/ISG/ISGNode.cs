@@ -29,7 +29,9 @@ namespace Sweco.SIF.iMOD.ISG
 {
     public class ISGNode : ISGCoordinate
     {
-        public const int ByteLength = 8;
+        public const int SingleByteLength = 8;
+        public const int DoubleByteLength = 16;
+
         public ISGSegment ISGSegment = null;
 
         protected ISGNode(ISGSegment isgSegment)

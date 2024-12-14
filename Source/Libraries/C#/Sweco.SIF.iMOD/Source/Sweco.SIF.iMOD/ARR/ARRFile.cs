@@ -210,35 +210,45 @@ namespace Sweco.SIF.iMOD.ARR
 
                 // Read values
                 line = sr.ReadLine().Trim();
-                while (!sr.EndOfStream && !line.Equals("DIMENSIONS") && !line.Equals("# DIMENSIONS"))
+                string[] lineValues = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (lineValues.Length > 1)
                 {
-                    if (!line[0].Equals('#'))
+                    // File has multicolumn format, which is not yet supported
+                    throw new Exception("ARR-format with multicolumns is not yet supoported: " + filename);
+                }
+                else
+                {
+                    // File has single value format and contains all values, including NoData
+                    while (!sr.EndOfStream && !line.Equals("DIMENSIONS") && !line.Equals("# DIMENSIONS"))
                     {
-                        lineIdx++;
-                        idx = line.IndexOf('*');
-                        count = 1;
-                        if (idx > 0)
+                        if (!line[0].Equals('#'))
                         {
-                            count = int.Parse(line.Substring(0, idx));
-                            value = double.Parse(line.Substring(idx + 1, line.Length - idx - 1), englishCultureInfo);
-                        }
-                        else
-                        {
-                            value = double.Parse(line, englishCultureInfo);
-                        }
-
-                        for (int valueIdx = 0; valueIdx < count; valueIdx++)
-                        {
-                            values.Add(value);
-                            colIdx++;
-                            if (colIdx == arrFile.NCols)
+                            lineIdx++;
+                            idx = line.IndexOf('*');
+                            count = 1;
+                            if (idx > 0)
                             {
-                                colIdx = 0;
-                                rowIdx++;
+                                count = int.Parse(line.Substring(0, idx));
+                                value = double.Parse(line.Substring(idx + 1, line.Length - idx - 1), englishCultureInfo);
+                            }
+                            else
+                            {
+                                value = double.Parse(line, englishCultureInfo);
+                            }
+
+                            for (int valueIdx = 0; valueIdx < count; valueIdx++)
+                            {
+                                values.Add(value);
+                                colIdx++;
+                                if (colIdx == arrFile.NCols)
+                                {
+                                    colIdx = 0;
+                                    rowIdx++;
+                                }
                             }
                         }
+                        line = sr.ReadLine().Trim();
                     }
-                    line = sr.ReadLine().Trim();
                 }
 
                 if (line[0].Equals('#'))
@@ -430,7 +440,7 @@ namespace Sweco.SIF.iMOD.ARR
                 sw.WriteLine("   " + YLL.ToString("F1", englishCultureInfo));
                 sw.WriteLine("   " + XUR.ToString("F1", englishCultureInfo));
                 sw.WriteLine("   " + YUR.ToString("F1", englishCultureInfo));
-                sw.WriteLine(NoDataValue.ToString("E7", englishCultureInfo).PadLeft(15));
+                sw.WriteLine(" "+ NoDataValue.ToString("E7", englishCultureInfo).PadLeft(15));
                 sw.WriteLine("0".PadLeft(12));
                 sw.WriteLine(XCellsize.ToString("F4", englishCultureInfo).PadLeft(11));
                 sw.WriteLine(YCellsize.ToString("F4", englishCultureInfo).PadLeft(11));

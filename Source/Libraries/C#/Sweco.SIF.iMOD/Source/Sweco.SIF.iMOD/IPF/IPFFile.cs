@@ -40,6 +40,9 @@ namespace Sweco.SIF.iMOD.IPF
     /// </summary>
     public class IPFFile : IMODFile, IEquatable<IPFFile>
     {
+
+        private const int MaxStringLength = 10000000; // 1000000000;
+
         /// <summary>
         /// Definition of empty column value 
         /// </summary>
@@ -137,7 +140,7 @@ namespace Sweco.SIF.iMOD.IPF
                 {
                     if (UseLazyLoading)
                     {
-                        this.ReadIPFFile(true);
+                        this.ReadIPFFile(true, (AssociatedFileColIdx >= 0));
                     }
                     return points;
                 }
@@ -202,22 +205,27 @@ namespace Sweco.SIF.iMOD.IPF
         /// <summary>
         /// Specifies which (zero-based) column index is used for the x-coordinate of this IPF-file when (lazy) loading IPF-file data
         /// </summary>
-        private int XColIdx;
+        public int XColIdx { get; private set; }
 
         /// <summary>
         /// Specifies which (zero-based) column index is used for the y-coordinate of this IPF-file when (lazy) loading IPF-file data
         /// </summary>
-        private int YColIdx;
+        public int YColIdx { get; private set; }
 
         /// <summary>
-        /// Specifies which (zero-based) column index is used for the z-coordinate of this IPF-file when (lazy) loading IPF-file data, use -1 if not defined
+        /// Specifies which (zero-based) column index is used for the z-coordinate of this IPF-file when (lazy) loading IPF-file data; use -1 if not defined, use -2 to try column index 2 if Z-columname corresponds with XY-columns.
         /// </summary>
-        private int ZColIdx;
+        public int ZColIdx { get; private set; }
 
         /// <summary>
-        /// If true, timestamps in timeseries are skipped when a NoData-value is present in one of the value columns
+        /// If true, timestamps in timeseries are skipped when a NoData-value is present in the specified value column(s) via TSNoDataSkipValColIdx-property
         /// </summary>
-        public bool SkipTimeseriesNoDataValues { get; set; }
+        public bool IsTSNoDataTimestampSkipped { get; set; }
+
+        /// <summary>
+        /// Zero-based index of value column that is checked for NoData; NoData in this column will skip the timestamp; use -1 to skip if all columns have a NoData-value
+        /// </summary>
+        public int TSNoDataSkipValColIdx { get; set; }
 
         /// <summary>
         /// Creates empty IPFFile object
@@ -247,29 +255,52 @@ namespace Sweco.SIF.iMOD.IPF
             this.LogIndentLevel = logIndentLevel;
             this.XColIdx = 0;
             this.YColIdx = 1;
-            this.ZColIdx = 2;
-            this.SkipTimeseriesNoDataValues = false;
+            this.ZColIdx = -2;
+            this.IsTSNoDataTimestampSkipped = false;
+            this.TSNoDataSkipValColIdx = -1;
         }
 
         /// <summary>
-        /// Reads an IPF-file into memory. The decimalseperator is assumed to be a point ('.'). 
+        /// Reads an IPF-file into memory. The decimalseperator is assumed to be a point ('.'). Column indices for X, Y and Z are 0, 1 and 2 (if Z-columname corresponds with XY-columns).
         /// The used list seperator is the first one from DefaultListSeperators that matches with number of columns and column values in first row, and is stored in the ListSeperatorRead property.
+        /// Timeseries are not yet loaded, these will be loaded when requested via the IPFFile.EnsureTimeseriesAreLoaded() method, IPFPoint.Timeseries Property or IPFPoint.EnsureTimeseriesIsLoaded() method.
         /// </summary>
         /// <param name="filename"></param>
         /// <param name="useLazyLoading">if true, point data is only loaded when Points-property is referenced</param>
         /// <param name="log"></param>
         /// <param name="logIndentLevel"></param>
         /// <param name="extent">extent to clip IPF-file to</param>
-        /// <param name="skipTimeseriesNoDataValues">if true, skips NoData-values in timeseries. Default is not to skip.</param>
+        /// <param name="isTSNoDataTimestampSkipped">if true, timestamps with NoData-values are marked to be skipped when loaded. Default is not to skip.</param>
+        /// <param name="tsNoDataSkipValColIdx">zero-based index of value column that is checked for NoData; NoData in this column will skip timestamp; use -1 to skip if all columns have a NoData-value</param>
         /// <returns></returns>
-        public static IPFFile ReadFile(string filename, bool useLazyLoading = false, Log log = null, int logIndentLevel = 0, Extent extent = null, bool skipTimeseriesNoDataValues = false)
+        public static IPFFile ReadFile(string filename, bool useLazyLoading = false, Log log = null, int logIndentLevel = 0, Extent extent = null, bool isTSNoDataTimestampSkipped = false, int tsNoDataSkipValColIdx = -1)
         {
-            return ReadFile(filename, 0, 1, 2, useLazyLoading, log, logIndentLevel, extent, skipTimeseriesNoDataValues);
+            return ReadFile(filename, 0, 1, -2, useLazyLoading, log, logIndentLevel, extent, isTSNoDataTimestampSkipped, tsNoDataSkipValColIdx);
         }
 
         /// <summary>
-        /// Reads an IPF-file into memory. The decimalseperator is assumed to be a point ('.'). 
+        /// Reads an IPF-file into memory. The decimalseperator is assumed to be a point ('.'). Column indices for X, Y and Z are 0, 1 and 2 (if Z-columname corresponds with XY-columns).
         /// The used list seperator is the first one from DefaultListSeperators that matches with number of columns and column values in first row, and is stored in the ListSeperatorRead property.
+        /// Timeseries are not yet loaded, these will be loaded when requested via the IPFFile.EnsureTimeseriesAreLoaded() method, IPFPoint.Timeseries Property or IPFPoint.EnsureTimeseriesIsLoaded() method.
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <param name="useLazyLoading">if true, point data is only loaded when Points-property is referenced</param>
+        /// <param name="isAssociatedRefRead">if true, definition of associated files is read from the IPF-file; if false, no associated files will be defined nor read</param>
+        /// <param name="log"></param>
+        /// <param name="logIndentLevel"></param>
+        /// <param name="extent">extent to clip IPF-file to</param>
+        /// <param name="isTSNoDataTimestampSkipped">if true, timestamps with NoData-values are marked to be skipped when loaded. Default is not to skip.</param>
+        /// <param name="tsNoDataSkipValColIdx">zero-based index of value column that is checked for NoData; NoData in this column will skip timestamp; use -1 to skip if all columns have a NoData-value</param>
+        /// <returns></returns>
+        public static IPFFile ReadFile(string filename, bool useLazyLoading, bool isAssociatedRefRead, Log log = null, int logIndentLevel = 0, Extent extent = null, bool isTSNoDataTimestampSkipped = false, int tsNoDataSkipValColIdx = -1)
+        {
+            return ReadFile(filename, 0, 1, -2, useLazyLoading, isAssociatedRefRead, log, logIndentLevel, extent, isTSNoDataTimestampSkipped, tsNoDataSkipValColIdx);
+        }
+
+        /// <summary>
+        /// Reads an IPF-file into memory. The decimalseperator is assumed to be a point ('.'). Z-coordinate is not defined for this method.
+        /// The used list seperator is the first one from DefaultListSeperators that matches with number of columns and column values in first row, and is stored in the ListSeperatorRead property.
+        /// Timeseries are not yet loaded, these will be loaded when requested via the IPFFile.EnsureTimeseriesAreLoaded() method, IPFPoint.Timeseries Property or IPFPoint.EnsureTimeseriesIsLoaded() method.
         /// </summary>
         /// <param name="filename"></param>
         /// <param name="xColIdx">zero-based column index of x-coordinate</param>
@@ -278,16 +309,18 @@ namespace Sweco.SIF.iMOD.IPF
         /// <param name="log"></param>
         /// <param name="logIndentLevel"></param>
         /// <param name="clipExtent"></param>
-        /// <param name="skipTimeseriesNoDataValues">if true, skips NoData-values in timeseries. Default is not to skip.</param>
+        /// <param name="isTSNoDataTimestampSkipped">if true, timestamps with NoData-values are marked to be skipped when loaded. Default is not to skip.</param>
+        /// <param name="tsNoDataSkipValColIdx">zero-based index of value column that is checked for NoData; NoData in this column will skip timestamp; use -1 to skip if all columns have a NoData-value</param>
         /// <returns></returns>
-        public static IPFFile ReadFile(string filename, int xColIdx, int yColIdx, bool useLazyLoading = true, Log log = null, int logIndentLevel = 0, Extent clipExtent = null, bool skipTimeseriesNoDataValues = false)
+        public static IPFFile ReadFile(string filename, int xColIdx, int yColIdx, bool useLazyLoading = true, Log log = null, int logIndentLevel = 0, Extent clipExtent = null, bool isTSNoDataTimestampSkipped = false, int tsNoDataSkipValColIdx = -1)
         {
-            return ReadFile(filename, xColIdx, yColIdx, -1, useLazyLoading, log, logIndentLevel, clipExtent, skipTimeseriesNoDataValues);
+            return ReadFile(filename, xColIdx, yColIdx, -1, useLazyLoading, log, logIndentLevel, clipExtent, isTSNoDataTimestampSkipped, tsNoDataSkipValColIdx);
         }
 
         /// <summary>
         /// Reads an IPF-file into memory. The decimalseperator is assumed to be a point ('.'). 
         /// The used list seperator is the first one from DefaultListSeperators that matches with number of columns and column values in first row, and is stored in the ListSeperatorRead property.
+        /// Timeseries are not yet loaded, these will be loaded when requested via the IPFFile.EnsureTimeseriesAreLoaded() method, IPFPoint.Timeseries Property or IPFPoint.EnsureTimeseriesIsLoaded() method.
         /// </summary>
         /// <param name="filename"></param>
         /// <param name="xColIdx"></param>
@@ -297,9 +330,32 @@ namespace Sweco.SIF.iMOD.IPF
         /// <param name="log"></param>
         /// <param name="logIndentLevel"></param>
         /// <param name="clipExtent"></param>
-        /// <param name="skipTimeseriesNoDataValues">if true, skips NoData-values in timeseries. Default is not to skip.</param>
+        /// <param name="isTSNoDataTimestampSkipped">if true, timestamps with NoData-values are marked to be skipped when loaded. Default is not to skip.</param>
+        /// <param name="tsNoDataSkipValColIdx">zero-based index of value column that is checked for NoData; NoData in this column will skip timestamp; use -1 to skip if all columns have a NoData-value</param>
         /// <returns></returns>
-        public static IPFFile ReadFile(string filename, int xColIdx, int yColIdx, int zColIdx, bool useLazyLoading = false, Log log = null, int logIndentLevel = 0, Extent clipExtent = null, bool skipTimeseriesNoDataValues = false)
+        public static IPFFile ReadFile(string filename, int xColIdx, int yColIdx, int zColIdx, bool useLazyLoading = false, Log log = null, int logIndentLevel = 0, Extent clipExtent = null, bool isTSNoDataTimestampSkipped = false, int tsNoDataSkipValColIdx = -1)
+        {
+            return ReadFile(filename, xColIdx, yColIdx, zColIdx, useLazyLoading, true, log, logIndentLevel, clipExtent, isTSNoDataTimestampSkipped, tsNoDataSkipValColIdx);
+        }
+
+        /// <summary>
+        /// Reads an IPF-file into memory. The decimalseperator is assumed to be a point ('.'). 
+        /// The used list seperator is the first one from DefaultListSeperators that matches with number of columns and column values in first row, and is stored in the ListSeperatorRead property.
+        /// Timeseries are not yet loaded, these will be loaded when requested via the IPFFile.EnsureTimeseriesAreLoaded() method, IPFPoint.Timeseries Property or IPFPoint.EnsureTimeseriesIsLoaded() method.
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <param name="xColIdx"></param>
+        /// <param name="yColIdx"></param>
+        /// <param name="zColIdx">if -1, z-coordinate is not read/used; if -1, column index 2 is tried if name corresponds with XY-columns</param>
+        /// <param name="useLazyLoading">if true, point data is only loaded when Points-property is referenced</param>
+        /// <param name="isAssociatedRefRead">if true, definition of associated files is read from the IPF-file; if false, no associated files will be defined nor read</param>
+        /// <param name="log"></param>
+        /// <param name="logIndentLevel"></param>
+        /// <param name="clipExtent"></param>
+        /// <param name="isTSNoDataTimestampSkipped">if true, timestamps with NoData-values are marked to be skipped when loaded. Default is not to skip.</param>
+        /// <param name="tsNoDataSkipValColIdx">zero-based index of value column that is checked for NoData; NoData in this column will skip timestamp; use -1 to skip if all columns have a NoData-value</param>
+        /// <returns></returns>
+        public static IPFFile ReadFile(string filename, int xColIdx, int yColIdx, int zColIdx, bool useLazyLoading, bool isAssociatedRefRead, Log log = null, int logIndentLevel = 0, Extent clipExtent = null, bool isTSNoDataTimestampSkipped = false, int tsNoDataSkipValColIdx = -1)
         {
             IPFFile ipfFile = new IPFFile(log, logIndentLevel);
             ipfFile.Filename = filename;
@@ -313,10 +369,28 @@ namespace Sweco.SIF.iMOD.IPF
                 // Specify the modified extent, which will force clipping after reading the IPF-file 
                 ipfFile.modifiedExtent = clipExtent.Copy();
             }
-            ipfFile.SkipTimeseriesNoDataValues = skipTimeseriesNoDataValues;
-            ipfFile.ReadIPFFile(!useLazyLoading);
+            ipfFile.IsTSNoDataTimestampSkipped = isTSNoDataTimestampSkipped;
+            ipfFile.TSNoDataSkipValColIdx = tsNoDataSkipValColIdx;
+            ipfFile.ReadIPFFile(!useLazyLoading, isAssociatedRefRead);
+
+            if (!isAssociatedRefRead)
+            {
+                ipfFile.AssociatedFileColIdx = -1;
+                ipfFile.AssociatedFileExtension = null;
+            }
 
             return ipfFile;
+        }
+
+        /// <summary>
+        /// Ensures that all available timeseries all loaded for all IPF-points in this IPF-file
+        /// </summary>
+        public void EnsureTimeseriesAreLoaded()
+        {
+            foreach (IPFPoint ipfPoint in Points)
+            {
+                ipfPoint.EnsureTimeseriesIsLoaded();
+            }
         }
 
         /// <summary>
@@ -324,9 +398,10 @@ namespace Sweco.SIF.iMOD.IPF
         /// The used list seperator is the first one from DefaultListSeperators that matches with number of columns and column values in first row, and is stored in the ListSeperatorRead property.
         /// If the first line does not contain an integer, CSV-format is tried with the defined DefaultListSeperators.
         /// </summary>
-        /// <param name="arePointsLoaded">specifies that the pointdata (including timeseries) should be loaded now</param>
+        /// <param name="arePointsLoaded">if true, pointdata is loaded now; if false, otherwise pointdata is loaded when attribute Points is used</param>
+        /// <param name="isAssociatedRefRead">if true, definition of associated files is read from the IPF-file; if false, it is ignored and left as it is</param>
         /// <returns></returns>
-        private void ReadIPFFile(bool arePointsLoaded)
+        private void ReadIPFFile(bool arePointsLoaded, bool isAssociatedRefRead)
         {
             Stream stream = null;
             StreamReader sr = null;
@@ -403,6 +478,10 @@ namespace Sweco.SIF.iMOD.IPF
                 {
                     throw new ToolException("Specified y-columnindex (" + YColIdx + ") is larger than number of columns (" + this.ColumnCount + ")");
                 }
+                if (ZColIdx >= this.ColumnCount)
+                {
+                    throw new ToolException("Specified z-columnindex (" + ZColIdx + ") is larger than number of columns (" + this.ColumnCount + ")");
+                }
 
                 // retrieve TXT-columnindex
                 string associatedFileDefString = string.Empty;
@@ -415,13 +494,20 @@ namespace Sweco.SIF.iMOD.IPF
                     throw new ToolException("Could not read line with associated file index at line \"" + line + "\" for IPF-file " + Filename, ex);
                 }
 
-                ParseAssociatedFileDef(associatedFileDefString, DefaultListSeperators, out int associatedFileColIdx, out string associatedFileExtension);
-                if (associatedFileColIdx >= columnCount)
+                if (isAssociatedRefRead)
                 {
-                    throw new ToolException("One-based index (" + (associatedFileColIdx + 1) + ") of column with associated filename is larger than defined number of columns (" + columnCount + ")");
+                    ParseAssociatedFileDef(associatedFileDefString, DefaultListSeperators, out int associatedFileColIdx, out string associatedFileExtension);
+                    if (associatedFileColIdx >= columnCount)
+                    {
+                        throw new ToolException("One-based index (" + (associatedFileColIdx + 1) + ") of column with associated filename is larger than defined number of columns (" + columnCount + ")");
+                    }
+                    this.AssociatedFileColIdx = associatedFileColIdx;
+                    this.AssociatedFileExtension = associatedFileExtension;
                 }
-                this.AssociatedFileColIdx = associatedFileColIdx;
-                this.AssociatedFileExtension = associatedFileExtension;
+                else
+                {
+                    // Just leave definition of associated files as it is
+                }
 
                 // Read points from file
                 this.ReadPoints(sr, arePointsLoaded, XColIdx, YColIdx, ZColIdx, pointCount);
@@ -456,7 +542,7 @@ namespace Sweco.SIF.iMOD.IPF
         private void ReadPoints(StreamReader sr, bool arePointsLoaded, int xColIdx, int yColIdx, int zColIdx, int pointCount = -1)
         {
             int columnCount = ColumnNames.Count;
-            bool hasZCoordinate = HasZColumn() && zColIdx >= 0;
+            bool hasZCoordinate = zColIdx >= 0;
             ListSeperatorRead = null;
             char listSeperator = char.MinValue;
 
@@ -508,7 +594,7 @@ namespace Sweco.SIF.iMOD.IPF
 
                                 string x = columnValues[xColIdx];
                                 string y = columnValues[yColIdx];
-                                string z = "0";
+                                string z = "NaN";
 
                                 Point point = null;
                                 if (hasZCoordinate)
@@ -584,7 +670,7 @@ namespace Sweco.SIF.iMOD.IPF
         /// <param name="log"></param>
         /// <param name="logIndentLevel"></param>
         /// <returns></returns>
-        public static IPFFile ReadCSVFile(string filename, char? listSeperator, int xColIdx = 0, int yColIdx = 1, int zColIdx = 2, Log log = null, int logIndentLevel = 0)
+        public static IPFFile ReadCSVFile(string filename, char? listSeperator, int xColIdx = 0, int yColIdx = 1, int zColIdx = -2, Log log = null, int logIndentLevel = 0)
         {
             IPFFile ipfFile = null;
             Stream stream = null;
@@ -947,7 +1033,6 @@ namespace Sweco.SIF.iMOD.IPF
                     Log.AddWarning("Point (" + point.ToString() + " is already existing in IPF-file '" + Path.GetFileName(this.Filename) + "'", LogIndentLevel);
                 }
             }
-            point.EnsureTimeseriesIsLoaded();
             point.IPFFile = this;
             points.Add(point);
         }
@@ -1202,6 +1287,7 @@ namespace Sweco.SIF.iMOD.IPF
         {
             string sourceIPFFilename = this.Filename;
             StreamWriter sw = null;
+            StringBuilder fileStringBuilder = new StringBuilder();
             try
             {
                 if ((filename == null) || filename.Equals(string.Empty))
@@ -1222,18 +1308,19 @@ namespace Sweco.SIF.iMOD.IPF
                 sw = new StreamWriter(filename, false, Encoding);
 
                 // Write column definitions
-                sw.WriteLine(points.Count);
+
+                fileStringBuilder.AppendLine(points.Count.ToString());
                 if (ITYPE > 0)
                 {
-                    sw.WriteLine(ColumnCount + ListSeperatorWrite.ToString() + ITYPE);
+                    fileStringBuilder.AppendLine(ColumnCount + ListSeperatorWrite.ToString() + ITYPE);
                 }
                 else
                 {
-                    sw.WriteLine(ColumnCount);
+                    fileStringBuilder.AppendLine(ColumnCount.ToString());
                 }
                 for (int i = 0; i < ColumnCount; i++)
                 {
-                    sw.WriteLine(ColumnNames[i]);
+                    fileStringBuilder.AppendLine(ColumnNames[i]);
                 }
 
                 // Write column definition for associated files
@@ -1242,17 +1329,9 @@ namespace Sweco.SIF.iMOD.IPF
                     AssociatedFileExtension = DefaultAssociatedFileExtension;
                 }
 
-                sw.WriteLine((AssociatedFileColIdx + 1) + ListSeperatorWrite.ToString() + AssociatedFileExtension);
-
-                // Write points
-                if (points != null)
-                {
-                    foreach (IPFPoint ipfPoint in points)
-                    {
-                        WriteIPFPointRecord(sw, ipfPoint, ListSeperatorWrite);
-                    }
-                }
-
+                fileStringBuilder.AppendLine((AssociatedFileColIdx + 1) + ListSeperatorWrite.ToString() + AssociatedFileExtension);
+                AppendIPFPoints(sw, fileStringBuilder, points);
+                sw.Write(fileStringBuilder.ToString());
                 this.Filename = filename;
 
                 // Update pointCount
@@ -1333,6 +1412,68 @@ namespace Sweco.SIF.iMOD.IPF
                     }
                 }
             }
+        }
+
+        private void AppendIPFPoints(StreamWriter sw, StringBuilder fileStringBuilder, List<IPFPoint> points)
+        {
+            if (points != null)
+            {
+                foreach (IPFPoint ipfPoint in points)
+                {
+                    StringBuilder pointSB = CreateStringBuilder(ipfPoint, ListSeperatorWrite);
+                    if ((fileStringBuilder.Length + pointSB.Length) > MaxStringLength)
+                    {
+                        sw.Write(fileStringBuilder.ToString());
+                        fileStringBuilder.Clear();
+                    }
+                    fileStringBuilder.Append(pointSB);
+                }
+            }
+        }
+
+        private StringBuilder CreateStringBuilder(IPFPoint ipfPoint, char listseperator)
+        {
+            StringBuilder sb = new StringBuilder();
+            List<string> columnValues = ipfPoint.ColumnValues;
+            // int lastCoordinateIdx = HasZColumn() ? 3 : 2;
+
+            // Assume at least two column's are present (normally at least x and y)
+            for (int colIdx = 0; colIdx < ipfPoint.ColumnValues.Count; colIdx++)
+            {
+                string value = columnValues[colIdx];
+                if (value != null && !value.Equals(string.Empty))
+                {
+                    value = value.Trim();
+                    if ((DecimalCount >= 0) && !int.TryParse(value, out int intValue)
+                        && double.TryParse(value.Replace(",", "."), System.Globalization.NumberStyles.Float, EnglishCultureInfo, out double dblValue))
+                    {
+                        value = Math.Round(dblValue, DecimalCount).ToString(EnglishCultureInfo);
+                    }
+                    else if (columnValues[colIdx].Contains(" ") || columnValues[colIdx].Contains(",") || columnValues[colIdx].Contains("\t") || ((colIdx == AssociatedFileColIdx) && columnValues[colIdx].Contains("/")))
+                    {
+                        value = CommonUtils.EnsureDoubleQuotes(columnValues[colIdx]);
+                    }
+                }
+                else
+                {
+                    // For last column value, write empty string as two double quotes, since iMOD will raise an error for a final empty string
+                    if (colIdx == columnValues.Count - 1)
+                    {
+                        value = "\"\"";
+                    }
+                }
+
+                if (colIdx == 0)
+                {
+                    sb.Append(value);
+                }
+                else
+                {
+                    sb.Append(listseperator.ToString() + value);
+                }
+            }
+            sb.AppendLine();
+            return sb;
         }
 
         /// <summary>
@@ -1464,7 +1605,7 @@ namespace Sweco.SIF.iMOD.IPF
                 try
                 {
                     string txtFilenameWithoutExtension = Path.Combine(Path.GetDirectoryName(filename), Path.Combine(Path.GetFileNameWithoutExtension(filename), id.Replace("\"", "")));
-                    string txtFilename = txtFilenameWithoutExtension + ".txt";
+                    string txtFilename = Path.ChangeExtension(txtFilenameWithoutExtension, (this.AssociatedFileExtension != null) ? this.AssociatedFileExtension : IPFFile.DefaultAssociatedFileExtension);
                     string txtString = levelColIndices.Count.ToString() + "\n";
                     txtString += "5,2\n";
                     txtString += "\"Grensvlak(m-mv)\",-99999\n";
@@ -1501,7 +1642,7 @@ namespace Sweco.SIF.iMOD.IPF
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception("Could not write level file: " + Path.GetDirectoryName(filename) + "\\" + id.Replace("\"", "") + ".txt", ex);
+                    throw new Exception("Could not write level file: " + Path.GetDirectoryName(filename) + "\\" + id.Replace("\"", "") + "." + this.AssociatedFileExtension, ex);
                 }
             }
         }
@@ -1731,9 +1872,9 @@ namespace Sweco.SIF.iMOD.IPF
                 }
                 else
                 {
-                    if ((clippedTextFilenames != null) && (AssociatedFileColIdx > 0))
+                    if ((clippedTextFilenames != null) && (AssociatedFileColIdx >= 0))
                     {
-                        string textFilename = Path.Combine(Path.GetDirectoryName(clippedIPFFile.Filename), ipfPoint.ColumnValues[AssociatedFileColIdx].Replace("\"", "") + ".TXT");
+                        string textFilename = Path.Combine(Path.GetDirectoryName(clippedIPFFile.Filename), ipfPoint.ColumnValues[AssociatedFileColIdx].Replace("\"", "") + "." + this.AssociatedFileExtension);
                         clippedTextFilenames.Add(textFilename.ToLower());
                     }
                 }
@@ -1749,12 +1890,12 @@ namespace Sweco.SIF.iMOD.IPF
 
             // Note: do not modify pointCount, this represents the number of points in the actual IPF-file
 
-            if ((clippedTextFilenames != null) && (AssociatedFileColIdx > 0))
+            if ((clippedTextFilenames != null) && (AssociatedFileColIdx >= 0))
             {
                 // Check for skipped/clipped TXT-files that are referenced in one of the remaining point (which may occur when several IPF-point refer to one single TXT-file)
                 foreach (IPFPoint ipfPoint in clippedIPFFile.Points)
                 {
-                    string txtFilename = Path.Combine(Path.GetDirectoryName(clippedIPFFile.Filename), ipfPoint.ColumnValues[AssociatedFileColIdx].Replace("\"", "") + ".TXT");
+                    string txtFilename = Path.Combine(Path.GetDirectoryName(clippedIPFFile.Filename), ipfPoint.ColumnValues[AssociatedFileColIdx].Replace("\"", "") + "." + this.AssociatedFileExtension);
                     if (clippedTextFilenames.Contains(txtFilename.ToLower()))
                     {
                         clippedTextFilenames.Remove(txtFilename.ToLower());
@@ -1797,20 +1938,20 @@ namespace Sweco.SIF.iMOD.IPF
         }
 
         /// <summary>
-        /// Check if a z-coordinate is defined for the points in this IPF-file
+        /// Check if specified column index is valid and has the same name structure as XY-columns for the points in this IPF-file, e.g. X_NAP, Y_NAP and Z_NAP
         /// </summary>
         /// <returns></returns>
-        protected bool HasZColumn()
+        protected bool IsZColumn(int zColIdx)
         {
             bool hasZCoordinate = false;
 
-            if ((ColumnNames.Count > 2) && (ColumnNames[0].ToLower().Contains("x")))
+            if ((zColIdx >= 0) && (zColIdx < ColumnNames.Count) && (ColumnNames[XColIdx].ToLower().Contains("x")))
             {
                 // retrieve part of coordinate-columnname without the coordinate name (e.g. x) itself
                 // assume the (y- and) z-coordinate have the same name structure
-                string coordinateStringPart = ColumnNames[0].ToLower().Replace("x", string.Empty);
+                string coordinateStringPart = ColumnNames[XColIdx].ToLower().Replace("x", string.Empty);
 
-                hasZCoordinate = (ColumnNames[2].ToLower().Replace("z", string.Empty).Equals(coordinateStringPart));
+                hasZCoordinate = (ColumnNames[zColIdx].ToLower().Replace("z", string.Empty).Equals(coordinateStringPart));
             }
             return hasZCoordinate;
         }
@@ -1832,6 +1973,12 @@ namespace Sweco.SIF.iMOD.IPF
                 {
                     throw new ToolException("Empty columnname at zero-based index " + colIdx + " is not allowed");
                 }
+            }
+
+            if (ZColIdx == -2)
+            {
+                // Try column index 2 for z-column if name structure is is similar to XY-columnnames
+                ZColIdx = IsZColumn(2) ? 2 : -1;
             }
         }
 
@@ -2005,7 +2152,7 @@ namespace Sweco.SIF.iMOD.IPF
         private void WriteIPFPointRecord(StreamWriter sw, IPFPoint ipfPoint, char listseperator)
         {
             List<string> columnValues = ipfPoint.ColumnValues;
-            int lastCoordinateIdx = HasZColumn() ? 3 : 2;
+            // int lastCoordinateIdx = HasZColumn() ? 3 : 2;
 
             // Assume at least two column's are present (normally at least x and y)
             for (int colIdx = 0; colIdx < ipfPoint.ColumnValues.Count; colIdx++)
@@ -2014,15 +2161,16 @@ namespace Sweco.SIF.iMOD.IPF
                 if (value != null && !value.Equals(string.Empty))
                 {
                     value = value.Trim();
-                    if (colIdx < lastCoordinateIdx)
-                    {
-                        // Check for and commas and points in XY-coordinates
-                        if (value.Contains(',') && !value.Contains('.'))
-                        {
-                            // Only commas are present, assumme it is dutch format and replace y decimal point
-                            value = value.Replace(",", ".");
-                        }
-                    }
+                    // ToDo: the following seems to be obsolete and should not happen anymore, remove in next release
+                    //if (colIdx < lastCoordinateIdx)
+                    //{
+                    //    // Check for and commas and points in XY-coordinates
+                    //    if (value.Contains(',') && !value.Contains('.'))
+                    //    {
+                    //        // Only commas are present, assumme it is dutch format and replace y decimal point
+                    //        value = value.Replace(",", ".");
+                    //    }
+                    //}
 
                     if ((DecimalCount >= 0) && !int.TryParse(value, out int intValue)
                         && double.TryParse(value.Replace(",", "."), System.Globalization.NumberStyles.Float, EnglishCultureInfo, out double dblValue))
@@ -2170,7 +2318,6 @@ namespace Sweco.SIF.iMOD.IPF
             {
                 // When either col type or value type is a string, then compare values like string values
                 fieldType = FieldType.String;
-
             }
             else if ((colFieldType == FieldType.Double) || (valFieldType == FieldType.Double))
             {
@@ -2204,7 +2351,15 @@ namespace Sweco.SIF.iMOD.IPF
                         }
                         if (!srcPointIndices.Contains(pointIdx))
                         {
-                            if ((useRegExp) && (pointValue is string) && (value is string))
+                            if ((pointValue == null) || (value == null))
+                            {
+                                if (pointValue == value)
+                                {
+                                    newIPFFile.AddPoint(ipfPoint);
+                                    srcPointIndices.Add(pointIdx);
+                                }
+                            }
+                            else if ((useRegExp) && (pointValue is string) && (value is string))
                             {
                                 if (Regex.IsMatch((string)pointValue, (string)value))
                                 {
@@ -2224,239 +2379,311 @@ namespace Sweco.SIF.iMOD.IPF
                     }
                     break;
                 case ValueOperator.GreaterThan:
-                    switch (fieldType)
+                    if (!value.Equals(string.Empty))
                     {
-                        case FieldType.Long:
-                            longValue = (long)value;
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                long pointValue = long.Parse(ipfPoint.ColumnValues[colIdx]);
-                                if ((pointValue > longValue) && !srcPointIndices.Contains(pointIdx))
+                        switch (fieldType)
+                        {
+                            case FieldType.Long:
+                                longValue = (long)value;
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    string stringValue = CorrectStringValue(ipfPoint.ColumnValues[colIdx]);
+                                    if (!stringValue.Equals(string.Empty))
+                                    {
+                                        long pointValue = long.Parse(stringValue);
+                                        if ((pointValue > longValue) && !srcPointIndices.Contains(pointIdx))
+                                        {
+                                            newIPFFile.AddPoint(ipfPoint);
+                                            srcPointIndices.Add(pointIdx);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // do not add, null value always results in a false comparison
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.Double:
-                            dblValue = (double)value;
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                double pointValue = double.Parse(ipfPoint.ColumnValues[colIdx], EnglishCultureInfo);
-                                if ((pointValue > dblValue) && !srcPointIndices.Contains(pointIdx))
+                                break;
+                            case FieldType.Double:
+                                dblValue = (double)value;
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    string stringValue = CorrectStringValue(ipfPoint.ColumnValues[colIdx]);
+                                    if (!stringValue.Equals(string.Empty))
+                                    {
+                                        double pointValue = double.Parse(stringValue, EnglishCultureInfo);
+                                        if ((pointValue > dblValue) && !srcPointIndices.Contains(pointIdx))
+                                        {
+                                            newIPFFile.AddPoint(ipfPoint);
+                                            srcPointIndices.Add(pointIdx);
+                                        }
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.String:
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                if ((ipfPoint.ColumnValues[colIdx].CompareTo(valueString) > 0) && !srcPointIndices.Contains(pointIdx))
+                                break;
+                            case FieldType.String:
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    string stringValue2 = ipfPoint.ColumnValues[colIdx];
+                                    if (stringValue2 != null)
+                                    {
+                                        if ((stringValue2.CompareTo(valueString) > 0) && !srcPointIndices.Contains(pointIdx))
+                                        {
+                                            newIPFFile.AddPoint(ipfPoint);
+                                            srcPointIndices.Add(pointIdx);
+                                        }
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.DateTime:
-                            datetimeValue = (DateTime)value;
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                DateTime pointValue = DateTime.Parse(ipfPoint.ColumnValues[colIdx]);
-                                if ((pointValue > datetimeValue) && !srcPointIndices.Contains(pointIdx))
+                                break;
+                            case FieldType.DateTime:
+                                datetimeValue = (DateTime)value;
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    string stringValue = CorrectStringValue(ipfPoint.ColumnValues[colIdx]);
+                                    if (!stringValue.Equals(string.Empty))
+                                    {
+                                        DateTime pointValue = DateTime.Parse(stringValue);
+                                        if ((pointValue > datetimeValue) && !srcPointIndices.Contains(pointIdx))
+                                        {
+                                            newIPFFile.AddPoint(ipfPoint);
+                                            srcPointIndices.Add(pointIdx);
+                                        }
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.Boolean:
-                            throw new Exception("Operator GreaterThan is not defined for fieldType Boolean");
-                        default:
-                            throw new Exception("Select not defined for fieldtype " + fieldType.ToString());
+                                break;
+                            case FieldType.Boolean:
+                                throw new Exception("Operator GreaterThan is not defined for fieldType Boolean");
+                            default:
+                                throw new Exception("Select not defined for fieldtype " + fieldType.ToString());
+                        }
                     }
                     break;
                 case ValueOperator.GreaterThanOrEqual:
-                    switch (fieldType)
+                    if (!value.Equals(string.Empty))
                     {
-                        case FieldType.Long:
-                            longValue = (long)value;
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                long pointValue = long.Parse(ipfPoint.ColumnValues[colIdx]);
-                                if ((pointValue >= longValue) && !srcPointIndices.Contains(pointIdx))
+                        switch (fieldType)
+                        {
+                            case FieldType.Long:
+                                longValue = (long)value;
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    string stringValue = CorrectStringValue(ipfPoint.ColumnValues[colIdx]);
+                                    if (!stringValue.Equals(string.Empty))
+                                    {
+                                        long pointValue = long.Parse(stringValue);
+                                        if ((pointValue >= longValue) && !srcPointIndices.Contains(pointIdx))
+                                        {
+                                            newIPFFile.AddPoint(ipfPoint);
+                                            srcPointIndices.Add(pointIdx);
+                                        }
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.Double:
-                            dblValue = (double)value;
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                double pointValue = double.Parse(ipfPoint.ColumnValues[colIdx], EnglishCultureInfo);
-                                if ((pointValue >= dblValue) && !srcPointIndices.Contains(pointIdx))
+                                break;
+                            case FieldType.Double:
+                                dblValue = (double)value;
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    string stringValue = CorrectStringValue(ipfPoint.ColumnValues[colIdx]);
+                                    if (!stringValue.Equals(string.Empty))
+                                    {
+                                        double pointValue = double.Parse(stringValue, EnglishCultureInfo);
+                                        if ((pointValue >= dblValue) && !srcPointIndices.Contains(pointIdx))
+                                        {
+                                            newIPFFile.AddPoint(ipfPoint);
+                                            srcPointIndices.Add(pointIdx);
+                                        }
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.String:
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                if ((ipfPoint.ColumnValues[colIdx].CompareTo(valueString) >= 0) && !srcPointIndices.Contains(pointIdx))
+                                break;
+                            case FieldType.String:
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    if ((ipfPoint.ColumnValues[colIdx].CompareTo(valueString) >= 0) && !srcPointIndices.Contains(pointIdx))
+                                    {
+                                        newIPFFile.AddPoint(ipfPoint);
+                                        srcPointIndices.Add(pointIdx);
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.DateTime:
-                            datetimeValue = (DateTime)value;
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                DateTime pointValue = DateTime.Parse(ipfPoint.ColumnValues[colIdx]);
-                                if ((pointValue >= datetimeValue) && !srcPointIndices.Contains(pointIdx))
+                                break;
+                            case FieldType.DateTime:
+                                datetimeValue = (DateTime)value;
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    string stringValue = CorrectStringValue(ipfPoint.ColumnValues[colIdx]);
+                                    if (!stringValue.Equals(string.Empty))
+                                    {
+                                        if (!DateTime.TryParse(stringValue, out DateTime result))
+                                        {
+                                            stringValue = null;
+                                        }
+                                        DateTime pointValue = DateTime.Parse(stringValue);
+                                        if ((pointValue >= datetimeValue) && !srcPointIndices.Contains(pointIdx))
+                                        {
+                                            newIPFFile.AddPoint(ipfPoint);
+                                            srcPointIndices.Add(pointIdx);
+                                        }
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.Boolean:
-                            throw new Exception("Operator GreaterThanOrEqual is not defined for fieldType Boolean");
-                        default:
-                            throw new Exception("Select not defined for fieldtype " + fieldType.ToString());
+                                break;
+                            case FieldType.Boolean:
+                                throw new Exception("Operator GreaterThanOrEqual is not defined for fieldType Boolean");
+                            default:
+                                throw new Exception("Select not defined for fieldtype " + fieldType.ToString());
+                        }
                     }
                     break;
                 case ValueOperator.LessThan:
-                    switch (fieldType)
+                    if (!value.Equals(string.Empty))
                     {
-                        case FieldType.Long:
-                            longValue = (long)value;
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                long pointValue = long.Parse(ipfPoint.ColumnValues[colIdx]);
-                                if ((pointValue < longValue) && !srcPointIndices.Contains(pointIdx))
+                        switch (fieldType)
+                        {
+                            case FieldType.Long:
+                                longValue = (long)value;
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    string stringValue = CorrectStringValue(ipfPoint.ColumnValues[colIdx]);
+                                    if (!stringValue.Equals(string.Empty))
+                                    {
+                                        long pointValue = long.Parse(stringValue);
+                                        if ((pointValue < longValue) && !srcPointIndices.Contains(pointIdx))
+                                        {
+                                            newIPFFile.AddPoint(ipfPoint);
+                                            srcPointIndices.Add(pointIdx);
+                                        }
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.Double:
-                            dblValue = (double)value;
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                double pointValue = double.Parse(ipfPoint.ColumnValues[colIdx], EnglishCultureInfo);
-                                if ((pointValue < dblValue) && !srcPointIndices.Contains(pointIdx))
+                                break;
+                            case FieldType.Double:
+                                dblValue = (double)value;
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    string stringValue = CorrectStringValue(ipfPoint.ColumnValues[colIdx]);
+                                    if (!stringValue.Equals(string.Empty))
+                                    {
+                                        double pointValue = double.Parse(stringValue, EnglishCultureInfo);
+                                        if ((pointValue < dblValue) && !srcPointIndices.Contains(pointIdx))
+                                        {
+                                            newIPFFile.AddPoint(ipfPoint);
+                                            srcPointIndices.Add(pointIdx);
+                                        }
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.String:
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                if ((ipfPoint.ColumnValues[colIdx].CompareTo(valueString) < 0) && !srcPointIndices.Contains(pointIdx))
+                                break;
+                            case FieldType.String:
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    if ((ipfPoint.ColumnValues[colIdx].CompareTo(valueString) < 0) && !srcPointIndices.Contains(pointIdx))
+                                    {
+                                        newIPFFile.AddPoint(ipfPoint);
+                                        srcPointIndices.Add(pointIdx);
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.DateTime:
-                            datetimeValue = (DateTime)value;
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                DateTime pointValue = DateTime.Parse(ipfPoint.ColumnValues[colIdx]);
-                                if ((pointValue < datetimeValue) && !srcPointIndices.Contains(pointIdx))
+                                break;
+                            case FieldType.DateTime:
+                                datetimeValue = (DateTime)value;
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    string stringValue = CorrectStringValue(ipfPoint.ColumnValues[colIdx]);
+                                    if (!stringValue.Equals(string.Empty))
+                                    {
+                                        DateTime pointValue = DateTime.Parse(stringValue);
+                                        if ((pointValue < datetimeValue) && !srcPointIndices.Contains(pointIdx))
+                                        {
+                                            newIPFFile.AddPoint(ipfPoint);
+                                            srcPointIndices.Add(pointIdx);
+                                        }
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.Boolean:
-                            throw new Exception("Operator LessThan is not defined for fieldType Boolean");
-                        default:
-                            throw new Exception("Select not defined for fieldtype " + fieldType.ToString());
+                                break;
+                            case FieldType.Boolean:
+                                throw new Exception("Operator LessThan is not defined for fieldType Boolean");
+                            default:
+                                throw new Exception("Select not defined for fieldtype " + fieldType.ToString());
+                        }
                     }
                     break;
                 case ValueOperator.LessThanOrEqual:
-                    switch (fieldType)
+                    if (!value.Equals(string.Empty))
                     {
-                        case FieldType.Long:
-                            longValue = (long)value;
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                long pointValue = long.Parse(ipfPoint.ColumnValues[colIdx]);
-                                if ((pointValue <= longValue) && !srcPointIndices.Contains(pointIdx))
+                        switch (fieldType)
+                        {
+                            case FieldType.Long:
+                                longValue = (long)value;
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    string stringValue = CorrectStringValue(ipfPoint.ColumnValues[colIdx]);
+                                    if (!stringValue.Equals(string.Empty))
+                                    {
+                                        long pointValue = long.Parse(stringValue);
+                                        if ((pointValue <= longValue) && !srcPointIndices.Contains(pointIdx))
+                                        {
+                                            newIPFFile.AddPoint(ipfPoint);
+                                            srcPointIndices.Add(pointIdx);
+                                        }
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.Double:
-                            dblValue = (double)value;
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                double pointValue = double.Parse(ipfPoint.ColumnValues[colIdx], EnglishCultureInfo);
-                                if ((pointValue <= dblValue) && !srcPointIndices.Contains(pointIdx))
+                                break;
+                            case FieldType.Double:
+                                dblValue = (double)value;
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    string stringValue = CorrectStringValue(ipfPoint.ColumnValues[colIdx]);
+                                    if (!stringValue.Equals(string.Empty))
+                                    {
+                                        double pointValue = double.Parse(stringValue, EnglishCultureInfo);
+                                        if ((pointValue <= dblValue) && !srcPointIndices.Contains(pointIdx))
+                                        {
+                                            newIPFFile.AddPoint(ipfPoint);
+                                            srcPointIndices.Add(pointIdx);
+                                        }
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.String:
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                if ((ipfPoint.ColumnValues[colIdx].CompareTo(valueString) <= 0) && !srcPointIndices.Contains(pointIdx))
+                                break;
+                            case FieldType.String:
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    if ((ipfPoint.ColumnValues[colIdx].CompareTo(valueString) <= 0) && !srcPointIndices.Contains(pointIdx))
+                                    {
+                                        newIPFFile.AddPoint(ipfPoint);
+                                        srcPointIndices.Add(pointIdx);
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.DateTime:
-                            datetimeValue = (DateTime)value;
-                            for (; pointIdx < PointCount; pointIdx++)
-                            {
-                                IPFPoint ipfPoint = points[pointIdx];
-                                DateTime pointValue = DateTime.Parse(ipfPoint.ColumnValues[colIdx]);
-                                if ((pointValue <= datetimeValue) && !srcPointIndices.Contains(pointIdx))
+                                break;
+                            case FieldType.DateTime:
+                                datetimeValue = (DateTime)value;
+                                for (; pointIdx < PointCount; pointIdx++)
                                 {
-                                    newIPFFile.AddPoint(ipfPoint);
-                                    srcPointIndices.Add(pointIdx);
+                                    IPFPoint ipfPoint = points[pointIdx];
+                                    string stringValue = CorrectStringValue(ipfPoint.ColumnValues[colIdx]);
+                                    if (!stringValue.Equals(string.Empty))
+                                    {
+                                        DateTime pointValue = DateTime.Parse(stringValue);
+                                        if ((pointValue <= datetimeValue) && !srcPointIndices.Contains(pointIdx))
+                                        {
+                                            newIPFFile.AddPoint(ipfPoint);
+                                            srcPointIndices.Add(pointIdx);
+                                        }
+                                    }
                                 }
-                            }
-                            break;
-                        case FieldType.Boolean:
-                            throw new Exception("Operator LessThanThanOrEqual is not defined for fieldType Boolean");
-                        default:
-                            throw new Exception("Select not defined for fieldtype " + fieldType.ToString());
+                                break;
+                            case FieldType.Boolean:
+                                throw new Exception("Operator LessThanThanOrEqual is not defined for fieldType Boolean");
+                            default:
+                                throw new Exception("Select not defined for fieldtype " + fieldType.ToString());
+                        }
                     }
                     break;
                 case ValueOperator.Unequal:
@@ -2470,7 +2697,15 @@ namespace Sweco.SIF.iMOD.IPF
                         }
                         if (!srcPointIndices.Contains(pointIdx))
                         {
-                            if ((useRegExp) && (pointValue is string) && (value is string))
+                            if ((pointValue == null) || (value == null))
+                            {
+                                if (pointValue != value)
+                                {
+                                    newIPFFile.AddPoint(ipfPoint);
+                                    srcPointIndices.Add(pointIdx);
+                                }
+                            }
+                            else if ((useRegExp) && (pointValue is string) && (value is string))
                             {
                                 if (!Regex.IsMatch((string)pointValue, (string)value))
                                 {
@@ -2503,20 +2738,62 @@ namespace Sweco.SIF.iMOD.IPF
         /// <returns></returns>
         public FieldType GetFieldType(int fieldColIdx)
         {
-            List<FieldType> fieldTypes = GetFieldTypes(new List<int>() { fieldColIdx });
+            List<FieldType> fieldTypes = GetFieldTypes(new List<int>() { fieldColIdx }, out bool hasNullValues, out bool hasScientificNotation, out bool hasStringAnomalies);
             return fieldTypes[0];
+        }
+
+        /// <summary>
+        /// Retieves field type (boolean, integer, long, double, string or date) of specified column
+        /// </summary>
+        /// <param name="fieldColIdx">a (zero based) index for one specific column</param>
+        /// <param name="hasNullvalues"></param>
+        /// <param name="hasScientificNotation"></param>
+        /// <param name="hasStringAnomalies"></param>
+        /// <param name="stringAnomalyCount">number of string-anomalies for specified column, i.e. number of non-string values in a (resulting) string column</param>
+        /// <param name="stringAnomaly">example non-string value that was reported as anomaly</param>
+        /// <returns></returns>
+        public FieldType GetFieldType(int fieldColIdx, out bool hasNullvalues, out bool hasScientificNotation, out bool hasStringAnomalies, out int stringAnomalyCount, out string stringAnomaly)
+        {
+            List<int> stringAnomalyCounts = new List<int>();
+            List<string> stringAnomalies = new List<string>();
+
+            List<FieldType> fieldTypes = GetFieldTypes(new List<int>() { fieldColIdx }, out hasNullvalues, out hasScientificNotation, out hasStringAnomalies, stringAnomalyCounts, stringAnomalies);
+            stringAnomalyCount = stringAnomalyCounts[0];
+            stringAnomaly = stringAnomalies[0];
+            return fieldTypes[0];
+        }
+
+        /// <summary>
+        /// Retieves field types (boolean, integer, long, double, string or date) for current column values for all columns
+        /// </summary>
+        /// <param name="hasNullValues"></param>
+        /// <param name="hasScientificNotation"></param>
+        /// <param name="hasStringAnomalies"></param>
+        /// <param name="stringAnomalyCount">when not null, the list is filled with the number of string-anomalies found per column, which are the number of non-string (i.e. long) values in a (resulting) string column</param>
+        /// <param name="stringAnomalies">example per column of a non-string value that was reported as anomaly</param>
+        /// <returns></returns>
+        public List<FieldType> GetFieldTypes(out bool hasNullValues, out bool hasScientificNotation, out bool hasStringAnomalies, List<int> stringAnomalyCount = null, List<string> stringAnomalies = null)
+        {
+            return GetFieldTypes(null, out hasNullValues, out hasScientificNotation, out hasStringAnomalies, stringAnomalyCount, stringAnomalies);
         }
 
         /// <summary>
         /// Retieves field types (boolean, integer, long, double, string or date) for current column values
         /// </summary>
         /// <param name="fieldColIndices">null for all columns, or a list of (zero based) indices for specific columns</param>
+        /// <param name="hasNullValues"></param>
+        /// <param name="hasScientificNotation"></param>
+        /// <param name="hasStringAnomalies"></param>
+        /// <param name="stringAnomalyCounts">when not null, the list is filled with the number of string-anomalies found per column, which are the number of non-string (i.e. long) values in a (resulting) string column</param>
+        /// <param name="stringAnomalies">example per column of a non-string value that was reported as anomaly</param>
         /// <returns></returns>
-        public List<FieldType> GetFieldTypes(List<int> fieldColIndices = null)
+        public List<FieldType> GetFieldTypes(List<int> fieldColIndices, out bool hasNullValues, out bool hasScientificNotation, out bool hasStringAnomalies, List<int> stringAnomalyCounts = null, List<string> stringAnomalies = null)
         {
             // Initialize fieldTypes to some type
             List<FieldType> fieldTypes = new List<FieldType>();
             List<bool> isFieldTypeDefined = new List<bool>();
+            List<int> stringAnomalyCountList = new List<int>();
+            List<string> stringAnomalyList = new List<string>();
 
             if (fieldColIndices == null)
             {
@@ -2530,9 +2807,13 @@ namespace Sweco.SIF.iMOD.IPF
             foreach (int colIdx in fieldColIndices)
             {
                 isFieldTypeDefined.Add(false);
-                fieldTypes.Add(FieldType.Boolean);
+                fieldTypes.Add(FieldType.Undefined);
+                stringAnomalyCountList.Add(0);
+                stringAnomalyList.Add(null);
             }
 
+            hasNullValues = false;
+            hasScientificNotation = false;
             for (int pointIdx = 0; pointIdx < PointCount; pointIdx++)
             {
                 IPFPoint ipfPoint = points[pointIdx];
@@ -2540,97 +2821,225 @@ namespace Sweco.SIF.iMOD.IPF
                 {
                     int colIdx = fieldColIndices[fieldColIdxIdx];
                     string value = ipfPoint.ColumnValues[colIdx];
+                    value = CorrectStringValue(value);
 
-                    // Check what type the current value has
                     DateTime dateValue;
                     bool boolValue;
                     double doubleValue;
                     long longValue;
-                    if (bool.TryParse(value, out boolValue))
+
+                    // Check if current value is empty or null
+                    if (!value.Equals(string.Empty) && !value.ToUpper().Equals("NULL"))
                     {
-                        // value is a boolean
-                        if (!isFieldTypeDefined[fieldColIdxIdx])
+                        // Check what type the current value has
+                        if (value.Equals("?") || bool.TryParse(value, out boolValue))
                         {
-                            fieldTypes[fieldColIdxIdx] = FieldType.Boolean;
-                            isFieldTypeDefined[fieldColIdxIdx] = true;
+                            // value is a boolean
+                            if (!isFieldTypeDefined[fieldColIdxIdx])
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.Boolean;
+                                isFieldTypeDefined[fieldColIdxIdx] = true;
+                            }
+                            else if (!fieldTypes[fieldColIdxIdx].Equals(FieldType.Boolean))
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.String;
+
+                                // Field is already defined, but not as a boolean
+                                if (stringAnomalyList[fieldColIdxIdx] == null)
+                                {
+                                    // Add previous string value as an example
+                                    stringAnomalyList[fieldColIdxIdx] = Points[pointIdx - 1].ColumnValues[colIdx];
+                                }
+                                stringAnomalyCountList[fieldColIdxIdx]++;
+                            }
+                            else
+                            {
+                                // leave fieldtype to Bool
+                            }
                         }
-                        else if (!fieldTypes[fieldColIdxIdx].Equals(FieldType.Boolean))
+                        else if (long.TryParse(value, out longValue))
                         {
-                            fieldTypes[fieldColIdxIdx] = FieldType.String;
+                            if (value.Contains("E"))
+                            {
+                                hasScientificNotation = true;
+                            }
+
+                            // value is a long (or an integer, etc.)
+                            if (!isFieldTypeDefined[fieldColIdxIdx])
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.Long;
+                                isFieldTypeDefined[fieldColIdxIdx] = true;
+                            }
+                            else if (fieldTypes[fieldColIdxIdx].Equals(FieldType.Double))
+                            {
+                                // leave fieldType to shpDouble
+                            }
+                            else if (!fieldTypes[fieldColIdxIdx].Equals(FieldType.Long))
+                            {
+                                // If the current type is other than double or long, a string will be used for this column
+                                fieldTypes[fieldColIdxIdx] = FieldType.String;
+
+                                // Field is already defined, but not as a long or double
+                                if (stringAnomalyList[fieldColIdxIdx] == null)
+                                {
+                                    // Add previous string value as an example
+                                    stringAnomalyList[fieldColIdxIdx] = Points[pointIdx - 1].ColumnValues[colIdx];
+                                }
+                                stringAnomalyCountList[fieldColIdxIdx]++;
+                            }
+                            else
+                            {
+                                // leave fieldType to shpLong
+                            }
+                        }
+                        else if (double.TryParse(value, NumberStyles.Float, EnglishCultureInfo, out doubleValue))
+                        {
+                            if (value.Contains("E"))
+                            {
+                                hasScientificNotation = true;
+                            }
+
+                            // value is a double (or a float)
+                            if (!isFieldTypeDefined[fieldColIdxIdx])
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.Double;
+                                isFieldTypeDefined[fieldColIdxIdx] = true;
+                            }
+                            else if (fieldTypes[fieldColIdxIdx].Equals(FieldType.Long))
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.Double;
+                            }
+                            else if (!fieldTypes[fieldColIdxIdx].Equals(FieldType.Double))
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.String;
+
+                                // Field is already defined, but not as a long or double
+                                if (stringAnomalyList[fieldColIdxIdx] == null)
+                                {
+                                    // Add previous string value as an example
+                                    stringAnomalyList[fieldColIdxIdx] = Points[pointIdx - 1].ColumnValues[colIdx];
+                                }
+                                stringAnomalyCountList[fieldColIdxIdx]++;
+                            }
+                            else
+                            {
+                                // leave fieldType to Double
+                            }
+                        }
+                        else if (DateTime.TryParse(value, out dateValue))
+                        {
+                            // value is a date
+                            if (!isFieldTypeDefined[fieldColIdxIdx])
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.DateTime;
+                                isFieldTypeDefined[fieldColIdxIdx] = true;
+                            }
+                            else if (!fieldTypes[fieldColIdxIdx].Equals(FieldType.DateTime))
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.String;
+
+                                // Field is already defined, but not as a DateTime
+                                if (stringAnomalyList[fieldColIdxIdx] == null)
+                                {
+                                    // Add previous string value as an example
+                                    stringAnomalyList[fieldColIdxIdx] = Points[pointIdx - 1].ColumnValues[colIdx];
+                                }
+                                stringAnomalyCountList[fieldColIdxIdx]++;
+                            }
+                            else
+                            {
+                                // leave fieldType to DateTime
+                            }
                         }
                         else
                         {
-                            // leave fieldtype to Bool
-                        }
-                    }
-                    else if (long.TryParse(value, out longValue))
-                    {
-                        // value is a long (or an integer, etc.)
-                        if (!isFieldTypeDefined[fieldColIdxIdx])
-                        {
-                            fieldTypes[fieldColIdxIdx] = FieldType.Long;
-                            isFieldTypeDefined[fieldColIdxIdx] = true;
-                        }
-                        else if (fieldTypes[fieldColIdxIdx].Equals(FieldType.Double))
-                        {
-                            // leave fieldType to shpDouble
-                        }
-                        else if (!fieldTypes[fieldColIdxIdx].Equals(FieldType.Long))
-                        {
-                            // If the current type is other than double or long, a string will be used for this column
-                            fieldTypes[fieldColIdxIdx] = FieldType.String;
-                        }
-                        else
-                        {
-                            // leave fieldType to shpLong
-                        }
-                    }
-                    else if (double.TryParse(value, NumberStyles.Float, EnglishCultureInfo, out doubleValue))
-                    {
-                        // value is a double (or a float)
-                        if (!isFieldTypeDefined[fieldColIdxIdx])
-                        {
-                            fieldTypes[fieldColIdxIdx] = FieldType.Double;
-                            isFieldTypeDefined[fieldColIdxIdx] = true;
-                        }
-                        else if (fieldTypes[fieldColIdxIdx].Equals(FieldType.Long))
-                        {
-                            fieldTypes[fieldColIdxIdx] = FieldType.Double;
-                        }
-                        else if (!fieldTypes[fieldColIdxIdx].Equals(FieldType.Double))
-                        {
-                            fieldTypes[fieldColIdxIdx] = FieldType.String;
-                        }
-                        else
-                        {
-                            // leave fieldType to shpDouble
-                        }
-                    }
-                    else if (DateTime.TryParse(value, out dateValue))
-                    {
-                        // value is a date
-                        if (!isFieldTypeDefined[fieldColIdxIdx])
-                        {
-                            fieldTypes[fieldColIdxIdx] = FieldType.DateTime;
-                            isFieldTypeDefined[fieldColIdxIdx] = true;
-                        }
-                        else if (!fieldTypes[fieldColIdxIdx].Equals(FieldType.DateTime))
-                        {
-                            fieldTypes[fieldColIdxIdx] = FieldType.String;
-                        }
-                        else
-                        {
-                            // leave fieldType to shpDate
+                            // Value is not a known type, assume it is textual
+                            if (!isFieldTypeDefined[fieldColIdxIdx])
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.String;
+                                isFieldTypeDefined[fieldColIdxIdx] = true;
+                            }
+                            else if (fieldTypes[fieldColIdxIdx] != FieldType.String)
+                            {
+                                fieldTypes[fieldColIdxIdx] = FieldType.String;
+
+                                // all previoulsy parsed values had a different type, add as an anomly
+                                if (stringAnomalyList[fieldColIdxIdx] == null)
+                                {
+                                    // Add previous string value as an example
+                                    stringAnomalyList[fieldColIdxIdx] = Points[pointIdx - 1].ColumnValues[colIdx];
+                                }
+                                stringAnomalyCountList[fieldColIdxIdx] = pointIdx;
+                            }
                         }
                     }
                     else
                     {
-                        fieldTypes[fieldColIdxIdx] = FieldType.String;
+                        // Empty/NULL-value, leave current FieldType
+                        hasNullValues = true;
                     }
                 }
             }
 
+            // Check if there are still undefined columns (which can happen if only empty/NULL-values are present
+            for (int colIdx = 0; colIdx < isFieldTypeDefined.Count; colIdx++)
+            {
+                if (!isFieldTypeDefined[colIdx])
+                {
+                    // Define simple character field with length 0
+                    fieldTypes[colIdx] = FieldType.String;
+                }
+            }
+
+            if (hasScientificNotation)
+            {
+                Log.AddWarning("Scientific notations were found and converted to standard numeric format, which may have effected accuracy");
+            }
+
+            if (stringAnomalyCounts != null)
+            {
+                stringAnomalyCounts.Clear();
+                stringAnomalyCounts.AddRange(stringAnomalyCountList);
+            }
+
+            if (stringAnomalies != null)
+            {
+                stringAnomalies.Clear();
+                stringAnomalies.AddRange(stringAnomalyList);
+            }
+
+            hasStringAnomalies = false;
+            foreach (int stringAnomalyCount in stringAnomalyCountList)
+            {
+                if (stringAnomalyCount > 0)
+                {
+                    hasStringAnomalies = true;
+                }
+            }
+
             return fieldTypes;
+        }
+
+        private static string CorrectStringValue(string value)
+        {
+            if (value == null)
+            {
+                return string.Empty;
+            }
+            else if (value.ToLower().Equals("infinity") || value.ToLower().Equals("inf"))
+            {
+                // For infinity, try Inf which is string that is recognized as a floating point value
+                return double.PositiveInfinity.ToString(EnglishCultureInfo);
+            }
+            else if (value.ToLower().Equals("-infinity") || value.ToLower().Equals("-inf"))
+            {
+                // For infinity, try Inf which is string that is recognized as a floating point value
+                return double.NegativeInfinity.ToString(EnglishCultureInfo);
+            }
+            else
+            {
+                return value;
+            }
         }
 
         /// <summary>
@@ -2652,14 +3061,14 @@ namespace Sweco.SIF.iMOD.IPF
         /// </summary>
         /// <param name="otherIPFFile"></param>
         /// <param name="outputPath"></param>
-        /// <param name="isNoDataCompared">if true, NoData-values are compared using the defined NoDataCalculationValues</param>
+        /// <param name="noDataCalculationValue">Currently ignored for IPF-files</param>
         /// <param name="comparedExtent">the extent for which the difference should be calculated</param>
         /// <returns>IPF-file with differences or an Exception if orher IMODFile is not an IPFFile objecty</returns>
-        public override IMODFile CreateDifferenceFile(IMODFile otherIPFFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        public override IMODFile CreateDifferenceFile(IMODFile otherIPFFile, string outputPath, float noDataCalculationValue = float.NaN, Extent comparedExtent = null)
         {
             if (otherIPFFile is IPFFile)
             {
-                return CreateDifferenceFile((IPFFile)otherIPFFile, outputPath, isNoDataCompared, comparedExtent);
+                return CreateDifferenceFile((IPFFile)otherIPFFile, outputPath, noDataCalculationValue, comparedExtent);
             }
             else
             {
@@ -2672,10 +3081,10 @@ namespace Sweco.SIF.iMOD.IPF
         /// </summary>
         /// <param name="otherIPFFile"></param>
         /// <param name="outputPath"></param>
-        /// <param name="isNoDataCompared"></param>
+        /// <param name="noDataCalculationValue">Currently ignored for IPF-files</param>
         /// <param name="comparedExtent"></param>
         /// <returns></returns>
-        public IPFFile CreateDifferenceFile(IPFFile otherIPFFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        public IPFFile CreateDifferenceFile(IPFFile otherIPFFile, string outputPath, float noDataCalculationValue = float.NaN, Extent comparedExtent = null)
         {
             string equalString = "equal";
             string modifiedString = "modified";

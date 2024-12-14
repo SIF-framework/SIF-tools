@@ -266,26 +266,27 @@ namespace Sweco.SIF.iMOD.Utils
         /// <returns>zero-based columnindex or -1 if not found</returns>
         public static int FindColumnName(List<string> ColumnNames, string columnName, bool isMatchWhole = true, bool isMatchCase = false)
         {
-            int colIdx = -1;
-
-            for (colIdx = 0; colIdx < ColumnNames.Count(); colIdx++)
+            if (columnName != null)
             {
-                string currentColumnname = ColumnNames[colIdx];
-                if (!isMatchCase)
+                for (int colIdx = 0; colIdx < ColumnNames.Count(); colIdx++)
                 {
-                    currentColumnname = currentColumnname.ToLower();
-                    columnName = columnName.ToLower();
-                }
-                if (isMatchWhole)
-                {
-                    if (currentColumnname.Equals(columnName))
+                    string currentColumnname = ColumnNames[colIdx];
+                    if (!isMatchCase)
+                    {
+                        currentColumnname = currentColumnname.ToLower();
+                        columnName = columnName.ToLower();
+                    }
+                    if (isMatchWhole)
+                    {
+                        if (currentColumnname.Equals(columnName))
+                        {
+                            return colIdx;
+                        }
+                    }
+                    else if (currentColumnname.Contains(columnName))
                     {
                         return colIdx;
                     }
-                }
-                else if (currentColumnname.Contains(columnName))
-                {
-                    return colIdx;
                 }
             }
             return -1;
@@ -368,12 +369,24 @@ namespace Sweco.SIF.iMOD.Utils
         /// <returns></returns>
         public static object ParseStringValue(string value, FieldType fieldType)
         {
+            if ((value == null) || value.Equals(string.Empty))
+            {
+                return null;
+            }
+
             try
             {
                 switch (fieldType)
                 {
                     case FieldType.Boolean:
-                        return bool.Parse(value);
+                        if (value.Equals("?"))
+                        {
+                            return null;
+                        }
+                        else
+                        {
+                            return bool.Parse(value);
+                        }
                     case FieldType.DateTime:
                         return DateTime.Parse(value);
                     case FieldType.Long:

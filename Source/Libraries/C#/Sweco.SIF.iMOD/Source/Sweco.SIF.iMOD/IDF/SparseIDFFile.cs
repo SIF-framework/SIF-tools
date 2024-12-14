@@ -426,10 +426,10 @@ namespace Sweco.SIF.iMODPlus.IDF
         /// </summary>
         /// <param name="otherIDFFile"></param>
         /// <param name="outputPath"></param>
-        /// <param name="isNoDataCompared"></param>
+        /// <param name="noDataCalculationValue"></param>
         /// <param name="comparedExtent"></param>
         /// <returns></returns>
-        public override IDFFile CreateDifferenceFile(IDFFile otherIDFFile, string outputPath, bool isNoDataCompared, Extent comparedExtent = null)
+        public override IDFFile CreateDifferenceFile(IDFFile otherIDFFile, string outputPath, float noDataCalculationValue = float.NaN, Extent comparedExtent = null)
         {
             // Not implemented in basic version
             throw new NotImplementedException();
