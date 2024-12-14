@@ -28,7 +28,7 @@ using System.Threading.Tasks;
 namespace Sweco.SIF.Statistics
 {
     /// <summary>
-    /// This class stores a series of float values and offers methods to compute several basic statistics 
+    /// This class stores a series of float values (with an array) and offers methods to compute several basic statistics 
     /// </summary>
     public class Series
     {

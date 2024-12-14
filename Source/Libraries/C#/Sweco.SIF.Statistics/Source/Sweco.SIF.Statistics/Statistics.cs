@@ -56,12 +56,12 @@ namespace Sweco.SIF.Statistics
         /// <summary>
         /// List of values to calculate statistics for
         /// </summary>
-        protected List<float> values;
+        public List<float> Values { get; protected set; }
 
         /// <summary>
         /// List of values that are excluded from statistics
         /// </summary>
-        protected List<float> skippedValuesList;
+        public List<float> SkippedValuesList { get; protected set; }
 
         /// <summary>
         /// Number of values for which statistics were calculated (acfter optional removal(s) of skipped values)
@@ -97,6 +97,11 @@ namespace Sweco.SIF.Statistics
         /// Calculated (arithmetic) mean of values
         /// </summary>
         protected float mean;
+
+        /// <summary>
+        /// Calculated variance of values
+        /// </summary>
+        protected float variance;
 
         /// <summary>
         /// Calculated standard deviation of values
@@ -189,6 +194,14 @@ namespace Sweco.SIF.Statistics
         public float Mean
         {
             get { return mean; }
+        }
+
+        /// <summary>
+        /// Calculated variance of values
+        /// </summary>
+        public float Variance
+        {
+            get { return variance; }
         }
 
         /// <summary>
@@ -308,9 +321,7 @@ namespace Sweco.SIF.Statistics
         public Statistics()
         {
             ResetStatistics();
-            this.values = null;
-            this.totalCount = 0;
-            this.skippedValuesList = new List<float>();
+            ResetValues();
             percentiles = new float[101];
         }
 
@@ -320,22 +331,28 @@ namespace Sweco.SIF.Statistics
         public Statistics(float[] values)
         {
             ResetStatistics();
-            this.values = new List<float>(values);
-            this.totalCount = this.values.Count;
-            this.skippedValuesList = new List<float>();
+            ResetValues();
             percentiles = new float[101];
         }
 
         /// <summary>
-        /// Create new Statistics object with specified values
+        /// Create new Statistics object with specified values (a reference to the source is stored, values in the list are not copied)
         /// </summary>
         public Statistics(List<float> values)
         {
             ResetStatistics();
-            this.values = values;
-            this.totalCount = this.values.Count;
-            this.skippedValuesList = new List<float>();
+            ResetValues();
             percentiles = new float[101];
+        }
+
+        /// <summary>
+        /// clear values and skipped values lists
+        /// </summary>
+        public void ResetValues()
+        {
+            this.Values = null;
+            this.totalCount = 0;
+            this.SkippedValuesList = new List<float>();
         }
 
         /// <summary>
@@ -349,6 +366,7 @@ namespace Sweco.SIF.Statistics
             max = float.NaN;
             sum = float.NaN;
             mean = float.NaN;
+            variance = float.NaN;
             sd = float.NaN;
             median = float.NaN;
             q1 = float.NaN;
@@ -367,11 +385,11 @@ namespace Sweco.SIF.Statistics
         /// <param name="value"></param>
         public void AddValue(float value)
         {
-            if (values == null)
+            if (Values == null)
             {
-                values = new List<float>();
+                Values = new List<float>();
             }
-            values.Add(value);
+            Values.Add(value);
             totalCount++;
         }
 
@@ -384,7 +402,7 @@ namespace Sweco.SIF.Statistics
         public virtual void ComputeBasicStatistics(bool isMinMaxComputed = true, bool areValuesReleased = true, bool isMemoryCollected = false)
         {
             RemoveSkippedValues();
-            if ((values != null) && (values.Count() > 0))
+            if ((Values != null) && (Values.Count() > 0))
             {
 
                 DoComputeBasicStatistics(isMinMaxComputed);
@@ -401,7 +419,7 @@ namespace Sweco.SIF.Statistics
         public void ComputePercentiles(bool areValuesReleased = true, bool isMemoryCollected = false)
         {
             RemoveSkippedValues();
-            if ((values != null) && (values.Count() > 0))
+            if ((Values != null) && (Values.Count() > 0))
             {
                 List<float> sortedList;
                 DoComputePercentileStatistics(out sortedList);
@@ -418,7 +436,7 @@ namespace Sweco.SIF.Statistics
         public virtual void ComputeOutlierStatistics(OutlierMethodEnum outlierMethod, OutlierBaseRangeEnum outlierBaseRange, float multiplier, bool areValuesReleased = true, bool isMemoryCollected = false)
         {
             RemoveSkippedValues();
-            if ((values != null) && (values.Count() > 3))
+            if ((Values != null) && (Values.Count() > 3))
             {
                 DoComputeOutlierStatistics(outlierMethod, outlierBaseRange, multiplier);
                 if (areValuesReleased)
@@ -434,7 +452,7 @@ namespace Sweco.SIF.Statistics
         public virtual SortedDictionary<float, int> ComputeHistogramClasses(float binsize, bool areValuesReleased = true, bool isMemoryCollected = false)
         {
             RemoveSkippedValues();
-            if ((values != null) && (values.Count() > 3))
+            if ((Values != null) && (Values.Count() > 3))
             {
                 SortedDictionary<float, int> classDictionary = DoComputeHistogramClasses(binsize);
                 if (areValuesReleased)
@@ -455,7 +473,7 @@ namespace Sweco.SIF.Statistics
         {
             ResetStatistics();
 
-            if ((values != null) && (values.Count() > 0))
+            if ((Values != null) && (Values.Count() > 0))
             {
                 RemoveSkippedValues();
                 DoComputeBasicStatistics();
@@ -473,22 +491,23 @@ namespace Sweco.SIF.Statistics
         /// <param name="isMinMaxComputed"></param>
         protected void DoComputeBasicStatistics(bool isMinMaxComputed = false)
         {
-            this.count = values.Count();
+            this.count = Values.Count();
             this.countPercentage = totalCount.Equals(0) ? 0f : ((float) count / (float)totalCount);
             this.sum = 0;
-            foreach (float value in values)
+            foreach (float value in Values)
             {
                 this.sum += value;
             }
             this.mean = this.sum / count;
 
             float diffSum = 0;
-            this.sd = float.NaN; //  dm.StandardDeviation;
+            this.variance = float.NaN;
+            this.sd = float.NaN;
             if (isMinMaxComputed)
             {
                 min = float.MaxValue;
                 max = float.MinValue;
-                foreach (float value in values)
+                foreach (float value in Values)
                 {
                     if (value < min)
                     {
@@ -504,12 +523,15 @@ namespace Sweco.SIF.Statistics
             }
             else
             {
-                foreach (float value in values)
+                float diff;
+                foreach (float value in Values)
                 {
-                    diffSum += (mean - value) * (mean - value);
+                    diff = (mean - value);
+                    diffSum += diff * diff;
                 }
             }
-            this.sd = (float)Math.Sqrt(diffSum / count);
+            this.variance = diffSum / count;
+            this.sd = (float)Math.Sqrt(variance);
             this.sampleSD = (float)Math.Sqrt(diffSum / (count - 1.0f));
         }
 
@@ -518,8 +540,8 @@ namespace Sweco.SIF.Statistics
         /// </summary>
         protected void DoComputePercentileStatistics(out List<float> sortedValues)
         {
-            this.count = values.Count;
-            sortedValues = new List<float>(values);
+            this.count = Values.Count;
+            sortedValues = new List<float>(Values);
             sortedValues.Sort();
             percentiles = new float[101];
             for (int p = 0; p <= 100; p++)
@@ -545,7 +567,7 @@ namespace Sweco.SIF.Statistics
         protected virtual SortedDictionary<float, int> DoComputeHistogramClasses(float binsize)
         {
             SortedDictionary<float, int> classDictionary = new SortedDictionary<float, int>();
-            List<float> sortedValues = new List<float>(values);
+            List<float> sortedValues = new List<float>(Values);
             sortedValues.Sort();
 
             float minValue = sortedValues[0];
@@ -642,7 +664,7 @@ namespace Sweco.SIF.Statistics
                     break;
                 case OutlierMethodEnum.HistogramGap:
                     // Calculate binsize
-                    histogramGapBinSize = multiplier * baseRange * ((float)Math.Pow(values.Count(), -1.0 / 3.0));
+                    histogramGapBinSize = multiplier * baseRange * ((float)Math.Pow(Values.Count(), -1.0 / 3.0));
                     float margin = (histogramGapBinSize / 100);
 
                     // Calculate lower- and upperrange values (initialize to extreme defaults)
@@ -680,7 +702,7 @@ namespace Sweco.SIF.Statistics
         /// <param name="skippedValue"></param>
         public void AddSkippedValue(float skippedValue)
         {
-            skippedValuesList.Add(skippedValue);
+            SkippedValuesList.Add(skippedValue);
         }
 
         /// <summary>
@@ -688,17 +710,17 @@ namespace Sweco.SIF.Statistics
         /// </summary>
         public void RemoveSkippedValues()
         {
-            if ((skippedValuesList != null) && (values != null) && (skippedValuesList.Count() > 0) && (values.Count() > 0))
+            if ((SkippedValuesList != null) && (Values != null) && (SkippedValuesList.Count() > 0) && (Values.Count() > 0))
             {
-                List<float> newList = new List<float>(values.Count());
-                foreach (float value in values)
+                List<float> newList = new List<float>(Values.Count());
+                foreach (float value in Values)
                 {
-                    if (!skippedValuesList.Contains(value))
+                    if (!SkippedValuesList.Contains(value))
                     {
                         newList.Add(value);
                     }
                 }
-                this.values = newList;
+                this.Values = newList;
             }
         }
 
@@ -708,12 +730,85 @@ namespace Sweco.SIF.Statistics
         /// <param name="isMemoryCollected"></param>
         public virtual void ReleaseValuesMemory(bool isMemoryCollected = true)
         {
-            values = null;
+            Values = null;
             totalCount = 0;
             if (isMemoryCollected)
             {
                 GC.Collect();
             }
+        }
+
+        /// <summary>
+        /// Calculates sum over all values
+        /// </summary>
+        /// <returns>return sum and write sum in Sum class property</returns>
+        public float CalculateSum()
+        {
+            List<float> values = Values;
+
+            sum = 0;
+            for (int i = 0; i < values.Count; i++)
+            {
+                sum += values[i];
+            }
+            return sum;
+        }
+
+        /// <summary>
+        /// Calculates average/mean over all values
+        /// </summary>
+        /// <returns>return average/mean and write mean in Mean class property</returns>
+        public float CalculateMean()
+        {
+            mean = CalculateSum() / Values.Count;
+            return mean;
+        }
+
+        /// <summary>
+        /// Calculates variance of all values
+        /// </summary>
+        /// <returns>return variance and write variance in Variance class property</returns>
+        public float CalculateVariance()
+        {
+            List<float> values = Values;
+            mean = mean.Equals(float.NaN) ? CalculateMean() : mean;
+
+            float sum = 0;
+            for (int i = 0; i < values.Count; i++)
+            {
+                sum += (values[i] - mean) * (values[i] - mean);
+            }
+            variance = sum / values.Count;
+            return variance;
+        }
+
+        /// <summary>
+        /// Calculates autocovariance statistic of all values for given lag
+        /// </summary>
+        /// <returns></returns>
+        public float CalculateAutoCovariance(int lag)
+        {
+            List<float> values = Values;
+            mean = mean.Equals(float.NaN) ? CalculateMean() : mean;
+
+            float sum = 0;
+            float count = values.Count - lag;
+            for (int i = 0; i < count; i++)
+            {
+                sum += (values[i] - mean) * (values[i + lag] - mean);
+            }
+
+            return sum / count;
+        }
+
+        /// <summary>
+        /// Calculates autocorrelaton (and sum, mean and variance) statistic of all values for given lag: autocovariance / variance
+        /// </summary>
+        public float CalculateAutocorrelation(int lag)
+        {
+            float variance = CalculateVariance();
+            float autoCovariance = CalculateAutoCovariance(lag);
+            return autoCovariance / variance;
         }
     }
 }
