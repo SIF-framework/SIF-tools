@@ -25,6 +25,7 @@ using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD.GEN;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -175,7 +176,7 @@ namespace Sweco.SIF.GENbuffer
                         genLine.ReversePoints();
                         genLine.Points.RemoveAt(0);
                         pointList.AddRange(genLine.Points);
-                        GENPolygon genPolygon = new GENPolygon(genFile, "L" + genLine.ID, pointList);
+                        GENPolygon genPolygon = new GENPolygon(genFile, genLine.ID, pointList);
                         genPolygons.Add(genPolygon);
                     }
                 }
