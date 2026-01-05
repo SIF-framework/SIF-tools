@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Text;
 using System.Threading.Tasks;
 using Sweco.SIF.Common;
@@ -68,13 +69,20 @@ namespace Sweco.SIF.IPFselect
         public string ExpValue { get; set; }
         public bool UseRegExp { get; set; }
         public List<ColumnExpressionDef> ColumnExpressionDefs { get; set; }
+        public string Postfix { get; set; }
+        public bool IsMetadataAdded { get; set; }
+
         public bool IsTSSkipped { get; set; }
         public bool IsEmptyTSPointRemoved { get; set; }
         public DateTime? TSPeriodStartDate { get; set; }
         public DateTime? TSPeriodEndDate { get; set; }
+        public bool IsTSPeriodSelected { get; set; }
         public bool IsTSPeriodClipped { get; set; }
         public int TSPeriodValueColIndex { get; set; }
-        public bool IsMetadataAdded { get; set; }
+        public List<int> TSValueColIndices { get; set; }
+        public List<float> TSValueColFactors { get; set; }
+        public bool IsTSNoDataRemoved { get; set; }
+        public int TSNoDataValColIdx { get; set; }
 
         /// <summary>
         /// Create SIFToolSettings object for specified command-line arguments
@@ -105,13 +113,20 @@ namespace Sweco.SIF.IPFselect
 
             ColumnExpressionDefs = null;
 
+            Postfix = null;
+            IsMetadataAdded = false;
+
             IsTSSkipped = false;
             TSPeriodStartDate = null;
             TSPeriodEndDate = null;
+            IsTSPeriodSelected = true;
             IsTSPeriodClipped = false;
             IsEmptyTSPointRemoved = false;
             TSPeriodValueColIndex = -1;
-            IsMetadataAdded = false;
+            TSValueColIndices = new List<int>();
+            TSValueColFactors = new List<float>();
+            IsTSNoDataRemoved = false;
+            TSNoDataValColIdx = -1;
         }
 
         /// <summary>
@@ -148,14 +163,16 @@ namespace Sweco.SIF.IPFselect
                                           "between top/bot-levels by values/IDFFile l1 and l2",
                                           "/l:3,5", "Analysis volume levels defined: {0},{1}", new string[] { "l1" }, new string[] { "l2" });
             AddToolOptionDescription("m", "Add metadata and including existing metadata from source file", "/m", "Metadata is added");
+            AddToolOptionDescription("p", "Add postfix p1 to result filename", "/p:_sel", "Postfix for result filenames: {0}", new string[] { "p1" });
             AddToolOptionDescription("r", "Use regular expressions for strings values and (un)equal operator \n" +
                                           "expressions are embedded between Regex-symbols (^$) to get an exact match",
                                           "/r", "Regular expressions are used for string values and operators");
             AddToolOptionDescription("v", "Specify volume/area method, v1: 1=inside (default); 2=outside specified volume/area",
                                           "/v:1", "Volume/area method is: {0}", new string[] { "v1" });
-            AddToolOptionDescription("x", "Select expression on values of column with (one based) column number or name x1;\n" +
-                                          "with operator x2 against specified value x3. Supported logical operators: eq: equal; gt: greater than;\n" +
-                                          "gteq: greater than or equal; lt: lower than; lteq: lower than or equal; uneq: unequal\n" +
+            AddToolOptionDescription("x", "Select expression on values of column with (one based) column number or name x1; with logical\n" +
+                                          "operator x2 against specified value x3 (constant or string expression as defined for option c).\n" + 
+                                          "Supported logical operators: eq: equal; gt: greater than; gteq: greater than or equal;\n" + 
+                                          "                             lt: lower than; lteq: lower than or equal; uneq: unequal\n" +
                                           "NoData- or string-values are valid for (un)equality, otherwise result in false",
                                           "/x:3,eq,5.5", "Condition for selection: {0} {1} {2}", new string[] { "x1", "x2", "x3" });
             AddToolOptionDescription("y", "Specify (one based) columnindices for x-, y- and (optionally) z-coordinates",
@@ -163,16 +180,25 @@ namespace Sweco.SIF.IPFselect
             AddToolOptionDescription("z", "Selection volume within zone(s) in IDF/GEN-file z1\n" +
                                           "For IDF-file also specify (semicolon-seperated) zone-values z2", "/p:somecountour.GEN",
                                           "Analysis volume zone defined within: {...}", new string[] { "z1" }, new string[] { "z2" }, new string[] { "NA" });
+            AddToolOptionDescription("tsc", "Select value columns in associated files. Specify comma-seperated list of (one-based) numbers.\n" +
+                                             "First value column has numnber 1. When option c1 is not used, all value columns are selected.\n" +
+                                             "Optionally for each column, after a semicolon, specify a factor f1 to multiply all column values with.",
+                                             "/tsc:1;0.1,3;100", "Selected timeseries value column numbers (and optional factor): {...}", new string[] { "v1" }, new string[] { "..." });
             AddToolOptionDescription("tse", "Remove IPF-points without timeseries or with empty timeseries (without any values)",
                                             "/tse", "IPF-points with empty timeseries are removed");
+            AddToolOptionDescription("tsn", "Remove timestamps from timeseries with NoData-value in value column with (one-based) column number v\n" +
+                                             "Use 0 to only remove timestamp if all row values have a NoData-value; check is done before other selections",
+                                            "/tsn:1", "Timestamps with NoData-values in value column number {0} are removed", new string[] { "v" });
+            AddToolOptionDescription("tsp", "Select points that have values in timeseries within specified period p1 - p2\n" +
+                                            "Use format yyyymmdd[hhmmss] for p1 and p2. With p3 selection/clipping can be defined:\n" +
+                                            "p3 = 0: remove points without dates in specified period; do not clip timeseries (default)\n" +
+                                            "p3 = 1: remove points without dates in specified period; clip timeseries\n" +
+                                            "p3 = 2: do not remove points without dates in specified period; clip timeseries\n" +
+                                            "Optionally, specify (one-based) number p4 of value column to check for values.\n" +
+                                            "Use p4=0 (default) if all value columns should contain values for points to be selected.",
+                                            "/tsp:20070101,20201231", "Period for timeseries selection: {0}-{1}, with options (clip/NoData-columnnr): {...}", new string[] { "p1", "p2" }, new string[] { "p3", "p4" }, new string[] { "0", "0" } );
             AddToolOptionDescription("tss", "Skip reading/writing IPF-timeseries (and keep non-existing timeseries references in input file).",
                                             "/tss", "IPF-timeseries are not read/written");
-            AddToolOptionDescription("tsp", "Select points that have values in timeseries within specified period tsp1 - tsp2\n" +
-                                            "Use format yyyymmdd[hhmmss] for tsp1/tsp2. Use tsp3=1 to clip timeseries of selected points to\n" +
-                                            "specified period (default, tsp3=0, is not to clip). Optionally specify (zero-based) index tsp4\n" +
-                                            "of the value column that should be checked for values. When tsp4=-1 (default), \n" +
-                                            "all value columns should contain values for a point to be selected.",
-                                            "/tsp:20070101,20201231", "Period for timeseries selection: {0}-{1}, with options (clip/NoData-columnidx): {...}", new string[] { "tsp1", "tsp2" }, new string[] { "tsp3", "tsp4" });
         }
 
         /// <summary>
@@ -232,7 +258,7 @@ namespace Sweco.SIF.IPFselect
                     ColumnExpressionDefs = new List<ColumnExpressionDef>();
                     for (int defIdx = 0; defIdx < optionParameters.Length; defIdx++)
                     {
-                        string[] defValues = optionParameters[defIdx].Split(new char[] { ';' });
+                        string[] defValues = CommonUtils.SplitQuoted(optionParameters[defIdx], ';', '{', '}');
                         defValues = FixSeperators(defValues);
                         if (defValues.Length == 2)
                         {
@@ -295,6 +321,17 @@ namespace Sweco.SIF.IPFselect
             else if (optionName.ToLower().Equals("m"))
             {
                 IsMetadataAdded = true;
+            }
+            else if (optionName.ToLower().Equals("p"))
+            {
+                if (hasOptionParameters)
+                {
+                    Postfix = optionParametersString;
+                }
+                else
+                {
+                    throw new ToolException("Postfix string expected for option '" + optionName + "' : " + optionParametersString);
+                }
             }
             else if (optionName.ToLower().Equals("r"))
             {
@@ -470,15 +507,31 @@ namespace Sweco.SIF.IPFselect
                         }
                         if (optionParameters.Length >= 3)
                         {
-                            IsTSPeriodClipped = optionParameters[2].Trim().Equals("1");
+                            switch (optionParameters[2].Trim())
+                            {
+                                case "0":
+                                    IsTSPeriodSelected = true;
+                                    IsTSPeriodClipped = false;
+                                    break;
+                                case "1":
+                                    IsTSPeriodSelected = true;
+                                    IsTSPeriodClipped = true;
+                                    break;
+                                case "2":
+                                    IsTSPeriodSelected = false;
+                                    IsTSPeriodClipped = true;
+                                    break;
+                                default:
+                                    throw new ToolException("Undefined value for tsp3 of option '/tsp'");
+                            }
                         }
                         if (optionParameters.Length >= 4)
                         {
-                            if (!int.TryParse(optionParameters[3].Trim(), out int valueColIndex))
+                            if (!int.TryParse(optionParameters[3].Trim(), out int valueColNr))
                             {
-                                throw new ToolException("Value column index could not be parsed as integer for option 'tsp': " + optionParameters[3]);
+                                throw new ToolException("Value column number could not be parsed as integer for option 'tsp': " + optionParameters[3]);
                             }
-                            TSPeriodValueColIndex = valueColIndex;
+                            TSPeriodValueColIndex = (valueColNr - 1);
                         }
                     }
                     else
@@ -489,6 +542,57 @@ namespace Sweco.SIF.IPFselect
                 else
                 {
                     throw new ToolException("Parameter value expected for option '" + optionName + "'");
+                }
+            }
+            else if (optionName.ToLower().Equals("tsc"))
+            {
+                TSValueColIndices.Clear();
+                TSValueColFactors.Clear();
+                if (hasOptionParameters)
+                {
+                    // split option parameter string into comma seperated substrings
+                    string[] optionParameters = GetOptionParameters(optionParametersString);
+
+                    for (int idx = 0; idx < optionParameters.Length; idx++)
+                    {
+                        string colfctPairString = optionParameters[idx];
+                        string[] colfctStrings = colfctPairString.Split(new char[] { ';' });
+
+                        if (!int.TryParse(colfctStrings[0], out int colnr))
+                        {
+                            throw new ToolException("Could not parse column number v1 for option '" + optionName + "':" + optionParameters[0]);
+                        }
+                        TSValueColIndices.Add(colnr - 1);
+
+                        if (colfctStrings.Length > 1)
+                        {
+                            if (!float.TryParse(colfctStrings[1], NumberStyles.Float, EnglishCultureInfo, out float factor))
+                            {
+                                throw new ToolException("Could not parse factor f1 for option '" + optionName + "':" + optionParameters[0]);
+                            }
+                            TSValueColFactors.Add(factor);
+                        }
+                        else
+                        {
+                            TSValueColFactors.Add(1f);
+                        }
+                    }
+                }
+                else
+                {
+                    throw new ToolException("Parameter value expected for option '" + optionName + "'");
+                }
+            }
+            else if (optionName.ToLower().Equals("tsn"))
+            {
+                IsTSNoDataRemoved = true;
+                if (hasOptionParameters)
+                {
+                    if (!int.TryParse(optionParametersString, out int colNr))
+                    {
+                        throw new ToolException("Invalid value column number specified for option '" + optionName + "'");
+                    }
+                    TSNoDataValColIdx = (colNr - 1);
                 }
             }
             else
@@ -560,6 +664,16 @@ namespace Sweco.SIF.IPFselect
             if ((XColIdx < 0) || (YColIdx < 0) || (ZColIdx < -2))
             {
                 throw new ToolException("xyz-column indices should be positive numbers: " + XColIdx.ToString() + "," + YColIdx.ToString() + "," + ZColIdx.ToString());
+            }
+
+            if (IsTSNoDataRemoved && ((TSNoDataValColIdx + 1) < 0))
+            {
+                throw new ToolException("Invalid (negative) value column number for tsn-option: " + (TSNoDataValColIdx + 1));
+            }
+
+            if ((TSPeriodStartDate != null) && ((TSPeriodValueColIndex  + 1) < 0))
+            {
+                throw new ToolException("Invalid (negative) value column number for tsp-option: " + (TSPeriodValueColIndex + 1));
             }
         }
 

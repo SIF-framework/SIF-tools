@@ -138,15 +138,7 @@ namespace Sweco.SIF.IPFselect
 
                 Metadata resultIPFMetadata = settings.IsMetadataAdded ? CreateMetadata(inputIPFFile, settings) : null;
 
-                string outputIPFFilename = null;
-                if (settings.OutputFilename == null)
-                {
-                    outputIPFFilename = Path.Combine(settings.OutputPath, Path.GetFileName(inputIPFFilename));
-                }
-                else
-                {
-                    outputIPFFilename = Path.Combine(settings.OutputPath, settings.OutputFilename);
-                }
+                string outputIPFFilename = RetrieveOutputFilename(inputIPFFilename, settings);
 
                 if (!settings.IsTSSkipped)
                 {
@@ -204,6 +196,26 @@ namespace Sweco.SIF.IPFselect
             ToolSuccessMessage = "Finished processing " + fileCount + " file(s)";
 
             return exitcode;
+        }
+
+        protected virtual string RetrieveOutputFilename(string inputIPFFilename, SIFToolSettings settings)
+        {
+            string outputIPFFilename;
+            if (settings.OutputFilename == null)
+            {
+                outputIPFFilename = Path.Combine(settings.OutputPath, Path.GetFileName(inputIPFFilename));
+            }
+            else
+            {
+                outputIPFFilename = Path.Combine(settings.OutputPath, settings.OutputFilename);
+            }
+
+            if (settings.Postfix != null)
+            {
+                outputIPFFilename = FileUtils.AddFilePostFix(outputIPFFilename, settings.Postfix);
+            }
+
+            return outputIPFFilename;
         }
 
         /// <summary>
@@ -282,6 +294,13 @@ namespace Sweco.SIF.IPFselect
                     default:
                         throw new Exception("Unknown extension for zone-file:" + Path.GetFileName(settings.ZoneFilename));
                 }
+            }
+
+            inputIPFFile.IsTSNoDataTimestampSkipped = settings.IsTSNoDataRemoved;
+            inputIPFFile.TSNoDataSkipValColIdx = settings.TSNoDataValColIdx;
+            if (settings.IsTSNoDataRemoved)
+            {
+                Log.AddInfo("timestamps will be skipped with NoData-values in " + ((settings.TSNoDataValColIdx == -1) ? "all value columns" : ("value column " + (settings.TSNoDataValColIdx + 1))), 2);
             }
         }
 
@@ -398,7 +417,7 @@ namespace Sweco.SIF.IPFselect
                 log.AddInfo("Selecting points with timeseries in period: " + ((DateTime)settings.TSPeriodStartDate).ToString("dd-MM-yyyy HH:mm:ss") 
                     + ((settings.TSPeriodEndDate != null) ? (" - " + ((DateTime)settings.TSPeriodEndDate).ToString("dd-MM-yyyy HH:mm:ss")) : string.Empty) + " ...", logIndentLevel);
                 List<int> tmpPointIndices = new List<int>();
-                ipfFile = IPFUtils.SelectPoints(ipfFile, settings.TSPeriodStartDate, settings.TSPeriodEndDate, settings.TSPeriodValueColIndex, settings.IsTSPeriodClipped, tmpPointIndices);
+                ipfFile = IPFUtils.SelectPoints(ipfFile, settings.TSPeriodStartDate, settings.TSPeriodEndDate, settings.TSPeriodValueColIndex, settings.IsTSPeriodSelected, settings.IsTSPeriodClipped, tmpPointIndices);
                 selSourcePointIndices = ParseUtils.RetrieveIndexItems(tmpPointIndices, selSourcePointIndices);
             }
 
@@ -408,6 +427,12 @@ namespace Sweco.SIF.IPFselect
                 List<int> tmpPointIndices = new List<int>();
                 ipfFile = RemoveEmptyTSPoints(ipfFile, tmpPointIndices, log, logIndentLevel);
                 selSourcePointIndices = ParseUtils.RetrieveIndexItems(tmpPointIndices, selSourcePointIndices);
+            }
+
+            if ((settings.TSValueColIndices != null) && (settings.TSValueColIndices.Count > 0))
+            {
+                log.AddInfo("Selecting value columns for timeseries ...", logIndentLevel);
+                SelectTSValueColumns(ipfFile, settings, log, logIndentLevel + 1);
             }
 
             return ipfFile;
@@ -677,6 +702,104 @@ namespace Sweco.SIF.IPFselect
             }
 
             return newIPFMetadata;
+        }
+
+        /// <summary>
+        /// Select specified columns in associated timeseries file
+        /// </summary>
+        /// <param name="ipfFile"></param>
+        /// <param name="settings"></param>
+        /// <param name="log"></param>
+        /// <param name="logIndentLevel"></param>
+        protected void SelectTSValueColumns(IPFFile ipfFile, SIFToolSettings settings, Log log, int logIndentLevel)
+        {
+            List<int> tsValueColIndices = settings.TSValueColIndices;
+            List<float> tsValueColFactors = settings.TSValueColFactors;
+
+            if (tsValueColIndices.Count == 0)
+            {
+                return;
+            }
+
+
+            bool isWarnedForInvalidColumnIndex = false;
+
+            bool hasColFactors;
+            Dictionary<int, float> colFactorDictionary = new Dictionary<int, float>();
+            for (int idx = 0; idx < tsValueColFactors.Count; idx++)
+            {
+                int colIdx = tsValueColIndices[idx];
+                float factor = tsValueColFactors[idx];
+                if (!factor.Equals(1f))
+                {
+                    colFactorDictionary.Add(colIdx, factor);
+                }
+            }
+            hasColFactors = (colFactorDictionary.Count > 0);
+
+            int maxSelColIndex = tsValueColIndices.Max();
+
+            // Loop through points with timeseries and select timeseries columns
+            List<IPFPoint> ipfPoints = ipfFile.Points;
+            for (int pointIdx = 0; pointIdx < ipfFile.PointCount; pointIdx++)
+            {
+                IPFPoint ipfPoint = ipfPoints[pointIdx];
+                if (ipfPoint.HasTimeseries())
+                {
+                    IPFTimeseries ts = ipfPoint.Timeseries;
+
+                    if (!isWarnedForInvalidColumnIndex && (maxSelColIndex > ts.ValueColumns.Count - 1))
+                    {
+                        log.AddWarning("Specified column number for selection (" + (maxSelColIndex + 1) + ") is larger than number of value columns (" + ts.ValueColumns.Count + ")", logIndentLevel);
+                        isWarnedForInvalidColumnIndex = true;
+                    }
+
+                    // Remove columnnames that are not selected: loop backwards to prevent invalid indices for removed columns
+                    for (int colIdx = ts.ColumnNames.Count - 1; colIdx >= 0; colIdx--)
+                    {
+                        if (!tsValueColIndices.Contains(colIdx))
+                        {
+                            ts.ColumnNames.RemoveAt(colIdx);
+                        }
+                    }
+
+                    // Remove value columns that are not selected
+                    for (int colIdx = ts.ValueColumns.Count - 1; colIdx >= 0; colIdx--)
+                    {
+                        if (!tsValueColIndices.Contains(colIdx))
+                        {
+                            ts.ValueColumns.RemoveAt(colIdx);
+                        }
+                        else
+                        {
+                            // Apply optional factor
+                            if (hasColFactors && colFactorDictionary.ContainsKey(colIdx))
+                            {
+                                // Retrieve factor for selected column
+                                float factor = colFactorDictionary[colIdx];
+                                List<float> values = ts.ValueColumns[colIdx];
+                                float noDataValue = ts.NoDataValues[colIdx];
+                                for (int valIdx = 0; valIdx < values.Count; valIdx++)
+                                {
+                                    if (!values[valIdx].Equals(noDataValue))
+                                    {
+                                        values[valIdx] *= factor;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Remove NoData-values of columns that are not selected
+                    for (int colIdx = ts.NoDataValues.Count - 1; colIdx >= 0; colIdx--)
+                    {
+                        if (!tsValueColIndices.Contains(colIdx))
+                        {
+                            ts.NoDataValues.RemoveAt(colIdx);
+                        }
+                    }
+                }
+            }
         }
     }
 }
