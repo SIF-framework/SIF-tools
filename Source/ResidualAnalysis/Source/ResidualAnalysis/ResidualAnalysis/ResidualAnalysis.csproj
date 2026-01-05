@@ -64,7 +64,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CalSetModelDef.cs" />
+    <Compile Include="ResidualSetDef.cs" />
     <Compile Include="IPFFileListComparer.cs" />
     <Compile Include="SIFTool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -28,16 +28,16 @@ using System.Threading.Tasks;
 
 namespace Sweco.SIF.ResidualAnalysis
 {
-    public class CalSetModelDef
+    public class ResidualSetDef
     {
-        public string CalibrationsetName;
-        public string ModelName;
+        public string ResidualSetName;
+        public string GroupName;
         public IWorksheet Worksheet;
 
-        public CalSetModelDef(string calsetName, string modelName, IWorksheet worksheet)
+        public ResidualSetDef(string modelName, string groupName, IWorksheet worksheet)
         {
-            this.CalibrationsetName = calsetName;
-            this.ModelName = modelName;
+            this.ResidualSetName = modelName;
+            this.GroupName = groupName;
             this.Worksheet = worksheet;
         }
     }

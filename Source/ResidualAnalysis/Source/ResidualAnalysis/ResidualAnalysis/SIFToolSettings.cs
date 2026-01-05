@@ -64,11 +64,11 @@ namespace Sweco.SIF.ResidualAnalysis
         public bool IsBackupSkipped { get; set; }
         public List<string> ColStrings { get; set; }
         public List<string> ColNames { get; set; }
-        public string Modelname { get; set; }
-        public string Calibrationsetname { get; set; }
+        public string ResSetName { get; set; }
+        public string GroupName { get; set; }
         public Extent Extent { get; set; }
-        public string IPFPath { get; set; }
         public bool IsDiffIPFCreated { get; set; }
+        public string DiffIPFResultPath { get; set; }
         public bool IsOverwrite { get; set; }
         public List<float> SkippedValues { get; set; }
         public bool UseWeights { get; set; }
@@ -100,11 +100,11 @@ namespace Sweco.SIF.ResidualAnalysis
             IsBackupSkipped = false;
             ColStrings = new List<string>();
             ColNames = new List<string>();
-            Modelname = null;
-            Calibrationsetname = null;
+            ResSetName = null;
+            GroupName = null;
             Extent = null;
-            IPFPath = null;
             IsDiffIPFCreated = false;
+            DiffIPFResultPath = DefaultDiffResIPFPath;
             IsOverwrite = false;
             SkippedValues = new List<float>();
             UseWeights = false;
@@ -124,39 +124,39 @@ namespace Sweco.SIF.ResidualAnalysis
         /// </summary>
         protected override void DefineToolSyntax()
         {
-            AddToolParameterDescription("inPath", "Path to search for input IPF-files", "C:\\Test\\Input");
-            AddToolParameterDescription("filter", "Filter to select input files (e.g. *.ipf)", "*.ipf");
-            AddToolParameterDescription("idColNr", "number (1-based) of column with ID in IPFs", "3");
-            AddToolParameterDescription("layColNr", "number (1-based) of column with layer in IPFs\n" +
+            AddToolParameterDescription("inPath", "Path to search for input IPF-files of some residual set (e.g. a calibration set)", "C:\\Test\\Input");
+            AddToolParameterDescription("filter", "Filter to select input files of the residual set (e.g. *.IPF)", "*.IPF");
+            AddToolParameterDescription("idColNr", "name or number (one-based) of column with ID in IPF-files", "3");
+            AddToolParameterDescription("layColNr", "name or number (one-based) of column with layer in IPF-files\n" +
                                         "use 0 to take the last filename digits (after '_L')", "4");
-            AddToolParameterDescription("obsColNr", "number (1-based) of column with observed values in IPFs. Use 0 to skip.", "5");
-            AddToolParameterDescription("simColNr", "number (1-based) of column with computed values in IPFs. Use 0 to skip.", "6");
-            AddToolParameterDescription("resColNr", "number (1-based) of column with residuals in IPFs \n"+
+            AddToolParameterDescription("obsColNr", "name or number (one-based) of column with observed values in IPF-files. Use 0 to skip.", "5");
+            AddToolParameterDescription("simColNr", "name or number (one-based) of column with computed values in IPF-files. Use 0 to skip.", "6");
+            AddToolParameterDescription("resColNr", "name or number (one-based) of column with residuals in IPF-files. Use 0 to calculate.\n" +
                                         "use negative obs/sim/resColNr to get relative to last column \n"+
                                         "use zero obs/simColNr to skip observation and/or simulation column \n" +
                                         "note: x- and y-coordinates should be in IPF-columns 1 an 2", "7");
             AddToolParameterDescription("outPath", "Path or Excel-filename (XLSX) to write results", "C:\\Test\\Output");
 
             AddToolOptionDescription("b", "Skip backup when (re)adding summary to existing Excelfile", "/b", "Backup is skipped when adding to existing Excelfile");
-            AddToolOptionDescription("c", "Comma seperated list of (1-based) column numbers to add", "/c:5", "The following columns are added: {...} ", new string[] { "..." });
+            AddToolOptionDescription("c", "Comma seperated list of (1-based) column numbers or names to add", "/c:5", "The following columns are added: {...} ", new string[] { "..." });
             AddToolOptionDescription("n", "Comma seperated list of names of the added columns (in option c)", "/n:Weight", "The following column names are added: {...}", new string[] { "..." });
-            AddToolOptionDescription("d", "Define modelname and calibrationset name for input files \n"+
-                                     "if not specified, these are derived from the filenames", "/d:ORG_BAS,test1", "Modelname for input file is defined: {0}", new string[] {"d1", "d2" });
-            AddToolOptionDescription("e", "Extent (within specified IPFs) for residual analysis", "/e:184000,352500,200500,371000", "Extent is defined as: {0},{1},{2},{3}",
+            AddToolOptionDescription("d", "Define name n for of current residual set and group name g that results should be added to in summary sheet.\n"+
+                                          "If not specified, these are derived from the filenames", "/d:ORG_BAS,Test1", "Residual set is named '{0}' and grouped under '{1}'", new string[] {"n", "g" });
+            AddToolOptionDescription("e", "Extent (within specified IPF-files) for residual analysis", "/e:184000,352500,200500,371000", "Extent is defined as: {0},{1},{2},{3}",
                                      new string[] { "e1", "e2", "e3", "e4" });
-            AddToolOptionDescription("i", "Create IPF-files with model residual-differences per calibrationset \n"+
-                                     "a (relative) path can be specified for these files (default: " + DefaultDiffResIPFPath + ")\n" +
-                                     "The following columns in the resulting IPF-file can be used for visualization:\n" +
-                                     "- ID:         the ID of the point for which the residual difference is calculated\n" +
-                                     "- RES(1):     residual from first/reference model\n" +
-                                     "- RES(2):     residual from second/modified model\n" +
-                                     "- dABSRES1-2: ABS(res1) - ABS(res2), with resi the residual of model i\n" +
-                                     "                a positive value indicates an improvement by model 2\n" +
-                                     "- CLASS:      number of class in legend of absolute residuals (which currently cannot be changed)\n" +
-                                     "                5: > 1.0; 4: > 0.5; 3: > 0.2; 2: > 0.1; 1: <= 0.1\n" +
-                                     "- dSGN        difference in sign: -1 indicates the sign has changed\n" +
-                                     "note: in case of mismatches, only the matched points of model 1 are reported",
-                                     "/i:test.ipf", "IPF-file is created with residual-differences: {0}", new string[] { "i1" });
+            AddToolOptionDescription("i", "Create IPF-files with residual-differences per residual set under (relative) path p (default: " + DefaultDiffResIPFPath + ")\n" +
+                                          "Note: IPF-files are written in subdirectory with name of group as defined by option 'd'\n" +
+                                          "The following columns in the resulting IPF-file can be used for visualization:\n" +
+                                          "- ID:         the ID of the point for which the residual difference is calculated\n" +
+                                          "- RES(1):     residual from first/reference residual set\n" +
+                                          "- RES(2):     residual from second/modified residual set\n" +
+                                          "- dABSRES1-2: ABS(res1) - ABS(res2), with resi the residual of residual set i\n" +
+                                          "                a positive value indicates an improvement by residual set 2\n" +
+                                          "- CLASS:      number of class in legend of absolute residuals (which currently cannot be changed)\n" +
+                                          "                5: > 1.0; 4: > 0.5; 3: > 0.2; 2: > 0.1; 1: <= 0.1\n" +
+                                          "- dSGN        difference in sign: -1 indicates the sign has changed\n" +
+                                          "note: in case of mismatches, only the matched points of residual set 1 are reported",
+                                     "/i:DiffRes", "IPF-file(s) created with residual-differences in subdir: {0}", null, new string[] { "p" }, new string[] { DefaultDiffResIPFPath });
             AddToolOptionDescription("k", "Use mask IDF-file (k1) and (comma-seperated) mask values (kx) \n" +
                                      "IPF-points in cells with IDF-value equal to any ki-value (default NoData) are skipped in results",
                                      "/k", "Mask IDF-file is used with mask values: {...}", new string[] { "k1" }, new string[] { "..." });
@@ -217,7 +217,7 @@ namespace Sweco.SIF.ResidualAnalysis
         protected override bool ParseOption(string optionName, bool hasOptionParameters, string optionParametersString = null)
         {
 
-            if      (optionName.ToLower().Equals("b"))
+            if (optionName.ToLower().Equals("b"))
             {
                 IsBackupSkipped = true;
             }
@@ -256,8 +256,8 @@ namespace Sweco.SIF.ResidualAnalysis
 
                     if (optionParameters.Length == 2)
                     {
-                        Modelname = optionParameters[0];
-                        Calibrationsetname = optionParameters[1];
+                        ResSetName = optionParameters[0];
+                        GroupName = optionParameters[1];
                     }
                     else
                     {
@@ -313,7 +313,7 @@ namespace Sweco.SIF.ResidualAnalysis
                     // Parse substrings for this option
                     if (optionParameters.Length == 1)
                     {
-                        IPFPath = optionParameters[0];
+                        DiffIPFResultPath = optionParameters[0];
                     }
                     else
                     {
@@ -422,8 +422,8 @@ namespace Sweco.SIF.ResidualAnalysis
                         }
                         catch (Exception)
                         {
-                            //ignore string can be a column name
-                            //throw new ToolException("Could not parse values for option '" + optionName + "':" + optionParametersString);
+                            // ignore string can be a column name
+                            // throw new ToolException("Could not parse values for option '" + optionName + "':" + optionParametersString);
                         }
                     }
                     else
@@ -506,6 +506,11 @@ namespace Sweco.SIF.ResidualAnalysis
             if (SkipIDMismatches && (IdColString == null))
             {
                 throw new ToolException("For sim-option it is required that an ID-column is defined via option i");
+            }
+
+            if (ObservedColString.Equals("0") && SimulatedColString.Equals("0") && ResidualColString.Equals("0"))
+            {
+                throw new ToolException("Either observed/simulated column references or residual column reference can be zero, but not all.");
             }
         }
     }
