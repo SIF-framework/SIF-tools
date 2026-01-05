@@ -112,6 +112,10 @@ namespace Sweco.SIF.GENSHPconvert
 
             // An example for reading files from a path and creating a new file...
             string[] inputFilenames = Directory.GetFiles(settings.InputPath, settings.InputFilter, settings.IsRecursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+            if ((inputFilenames.Length > 1) && (settings.OutputFilename != null))
+            {
+                throw new ToolException("An output filename is specified, but more than one input file is found for current filter: " + settings.InputFilter);
+            }
 
             Log.AddInfo("Processing input files ...");
             int fileCount = 0;
@@ -324,7 +328,16 @@ namespace Sweco.SIF.GENSHPconvert
                 {
                     genFile = genFiles[fileIdx];
                     datFile = datFiles[fileIdx];
-                    string genFilename = Path.Combine(outputPath, Path.GetFileNameWithoutExtension(shapeFilename) + ((genFiles.Count > 1) ? " #" + (fileIdx + 1).ToString() : string.Empty) + ".GEN");
+                    string baseOutputFilename;
+                    if (settings.OutputFilename == null)
+                    {
+                        baseOutputFilename = Path.Combine(settings.OutputPath, Path.GetFileName(shapeFilename));
+                    }
+                    else
+                    {
+                        baseOutputFilename = Path.Combine(settings.OutputPath, settings.OutputFilename);
+                    }
+                    string genFilename = Path.Combine(outputPath, Path.GetFileNameWithoutExtension(baseOutputFilename) + ((genFiles.Count > 1) ? " #" + (fileIdx + 1).ToString() : string.Empty) + ".GEN");
                     genFile.Filename = genFilename;
                     if (datFile.Rows.Count > 0)
                     {
@@ -381,7 +394,16 @@ namespace Sweco.SIF.GENSHPconvert
 
             if (genPoints.Count > 0)
             {
-                string shapeFilename = CreateShapeFilename(outputPath, genFilename, "_p", (genLines.Count > 0) || (genPolygons.Count > 0));
+                string baseOutputFilename;
+                if (settings.OutputFilename == null)
+                {
+                    baseOutputFilename = Path.Combine(settings.OutputPath, Path.GetFileName(genFilename));
+                }
+                else
+                {
+                    baseOutputFilename = Path.Combine(settings.OutputPath, settings.OutputFilename);
+                }
+                string shapeFilename = CreateShapeFilename(outputPath, baseOutputFilename, "_p", (genLines.Count > 0) || (genPolygons.Count > 0));
                 Log.AddInfo("Writing point shapefile '" + Path.GetFileName(shapeFilename) + "' ...", 2);
                 sfw = CreateShapeFileWriter(outputPath, shapeFilename, ShapeType.Point, fieldDefinitions, datFile, Log, 2);
                 for (int i = 0; i < genPoints.Count; i++)
@@ -518,7 +540,7 @@ namespace Sweco.SIF.GENSHPconvert
                     {
                         for (int charIdx = 0; charIdx < settings.ShpNullNumericChars.Length; charIdx++)
                         {
-                            if (value[0].Equals(settings.ShpNullNumericChars[charIdx]))
+                            if ((value.Length > 0) && value[0].Equals(settings.ShpNullNumericChars[charIdx]))
                             {
                                 string orgValue = value;
 
@@ -704,9 +726,10 @@ namespace Sweco.SIF.GENSHPconvert
                 fieldDefinitions.Add(new FieldDefinition(datFile.ColumnNames[colIdx], DbfFieldType.Logical));
             }
 
+            List<DATRow> datRows = datFile.RowList;
             for (int rowIdx = 0; rowIdx < datFile.Rows.Count; rowIdx++)
             {
-                List<string> row = datFile.Rows[rowIdx];
+                List<string> row = datRows[rowIdx];
                 for (int colIdx = 0; colIdx < datFile.ColumnNames.Count; colIdx++)
                 {
                     string columnName = datFile.ColumnNames[colIdx];

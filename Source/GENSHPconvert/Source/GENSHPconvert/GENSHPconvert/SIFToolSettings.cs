@@ -55,6 +55,8 @@ namespace Sweco.SIF.GENSHPconvert
         public string InputPath { get; set; }
         public string InputFilter { get; set; }
         public string OutputPath { get; set; }
+        public string OutputFilename { get; set; }
+
         public bool IsRecursive { get; set; }
         public int MaxFeatureCount { get; set; }
         public bool IgnoreDuplicateIDs { get; set; }
@@ -71,6 +73,8 @@ namespace Sweco.SIF.GENSHPconvert
             InputPath = null;
             InputFilter = null;
             OutputPath = null;
+            OutputFilename = null;
+
             IsRecursive = false;
             MaxFeatureCount = 0;
             IgnoreDuplicateIDs = false;
@@ -92,7 +96,7 @@ namespace Sweco.SIF.GENSHPconvert
         {
             AddToolParameterDescription("inPath", "Path to search for input files", "C:\\Test\\Input");
             AddToolParameterDescription("filter", "Filter to select input files (e.g. *.shp or *.GEN)", "*.shp");
-            AddToolParameterDescription("outPath", "Path to write results", "C:\\Test\\Output");
+            AddToolParameterDescription("outPath", "Path or filename (for single input) to write results", "C:\\Test\\Output");
             AddToolOptionDescription("r", "Process input path recursively", "/r", "Subdirectories under input path are processed recursively ");
             AddToolOptionDescription("s", "Split result in files of maximum r features", "/s:1000000", "Split result in files of {0} features: {0}", new string[] { "r" });
             AddToolOptionDescription("d", "Ignore errors for duplicate IDs in features/rows of GEN or DAT-file, otherwise an exception is thrown", "/d", "Errors on duplicate IDs in GEN/DAT-files are ignored");
@@ -122,6 +126,16 @@ namespace Sweco.SIF.GENSHPconvert
                 InputPath = parameters[0];
                 InputFilter = parameters[1];
                 OutputPath = parameters[2];
+                if (Path.HasExtension(OutputPath))
+                {
+                    OutputFilename = Path.GetFileName(OutputPath);
+                    OutputPath = Path.GetDirectoryName(OutputPath);
+                }
+                else
+                {
+                    // Leave null for now
+                    OutputFilename = null;
+                }
                 groupIndex = 0;
             }
             else
@@ -245,6 +259,17 @@ namespace Sweco.SIF.GENSHPconvert
             }
 
             // Check tool option values
+            if (OutputFilename != null)
+            {
+                if (Path.GetExtension(InputFilter).ToLower().Equals(".shp") && !Path.GetExtension(OutputFilename).ToLower().Equals(".gen"))
+                {
+                    throw new ToolException("For input SHP-files, the output filename should have extension GEN:" + OutputFilename);
+                }
+                else if (Path.GetExtension(InputFilter).ToLower().Equals(".gen") && !Path.GetExtension(OutputFilename).ToLower().Equals(".shp"))
+                {
+                    throw new ToolException("For input GEN-files, the output filename should have extension SHP:" + OutputFilename);
+                }
+            }
         }
     }
 }

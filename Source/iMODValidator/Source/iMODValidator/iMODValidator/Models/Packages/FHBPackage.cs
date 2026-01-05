@@ -19,22 +19,46 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with iMODValidator. If not, see <https://www.gnu.org/licenses/>.
+using Sweco.SIF.Common;
+using Sweco.SIF.iMODValidator.Models.Runfiles;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Sweco.SIF.iMODValidator.Models.Runfiles
+namespace Sweco.SIF.iMODValidator.Models.Packages
 {
-    /// <summary>
-    ///  Currently V5.x is the only supported RUN-file version, so it's implementation equals the RUNFile base class implementation
-    /// </summary>
-    public class V5RUNFile : RUNFile
+    public class FHBPackage : Package
     {
-        public V5RUNFile(string runfilename)
-            : base(runfilename)
+        public const int HeadPartIdx = 0;
+        public const int FlowPartIdx = 1;
+        public override string[] PartAbbreviations
         {
+            get { return new string[] { "LEVEL", "FLOW" }; }
+        }
+        public static string DefaultKey
+        {
+            get { return "FHB"; }
+        }
+
+        public FHBPackage(string packageKey)
+            : base(packageKey)
+        {
+            alternativeKeys.AddRange(new string[] { "FLOW AND HEAD BOUNDARY" });
+        }
+
+        public override int MaxPartCount
+        {
+            get
+            {
+                return 2;   // FHB-package has 2 files per entry
+            }
+        }
+
+        public override Package CreateInstance()
+        {
+            return new ANIPackage(key);
         }
     }
 }

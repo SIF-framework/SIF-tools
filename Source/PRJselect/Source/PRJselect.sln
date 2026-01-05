@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 15 for Windows Desktop
+VisualStudioVersion = 15.0.28307.1622
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PRJselect", "PRJselect\PRJselect\PRJselect.csproj", "{029E23A5-C3B4-4778-98D4-364BDB4A0D6D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PRJselect.Tests", "PRJselect\PRJselect.Tests\PRJselect.Tests.csproj", "{827FBA2A-2111-421F-AFCC-B5F38B4DF7E4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{029E23A5-C3B4-4778-98D4-364BDB4A0D6D}.Debug|x64.ActiveCfg = Debug|x64
+		{029E23A5-C3B4-4778-98D4-364BDB4A0D6D}.Debug|x64.Build.0 = Debug|x64
+		{029E23A5-C3B4-4778-98D4-364BDB4A0D6D}.Release|x64.ActiveCfg = Release|x64
+		{029E23A5-C3B4-4778-98D4-364BDB4A0D6D}.Release|x64.Build.0 = Release|x64
+		{827FBA2A-2111-421F-AFCC-B5F38B4DF7E4}.Debug|x64.ActiveCfg = Debug|x64
+		{827FBA2A-2111-421F-AFCC-B5F38B4DF7E4}.Debug|x64.Build.0 = Debug|x64
+		{827FBA2A-2111-421F-AFCC-B5F38B4DF7E4}.Release|x64.ActiveCfg = Release|x64
+		{827FBA2A-2111-421F-AFCC-B5F38B4DF7E4}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3C7EA718-1A38-4ED0-89EB-AF1CAE468667}
+	EndGlobalSection
+EndGlobal
