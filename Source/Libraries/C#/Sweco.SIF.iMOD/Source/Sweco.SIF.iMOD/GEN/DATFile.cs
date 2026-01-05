@@ -88,11 +88,39 @@ namespace Sweco.SIF.iMOD.GEN
         public List<string> ColumnNames { get; set; }
 
         /// <summary>
-        /// List with all rows in DAT-file. Note: adding/removing rows in this list will have no effect on rows in DAT-file. Editing values in existing rows is possible.
+        /// Number of defined columns in this DAT-file
         /// </summary>
-        public List<DATRow> Rows
+        public int ColumnCount 
+        { 
+            get { return ColumnNames.Count; }
+        }
+
+        /// <summary>
+        /// Retrieve list with all rows in DAT-file. 
+        /// Note1: adding/removing rows in this list will have no effect on rows in DAT-file. Editing values in existing rows is possible.
+        /// Note2: calling this property is slow: it retrieves all rows in each call and converts them to a list; store and use resulting list for faster processing
+        /// </summary>
+        public List<DATRow> RowList
         {
             get { return new List<DATRow>(rowDictionary.Values); }
+        }
+
+        /// <summary>
+        /// Retrieve collection with all rows in DAT-file. 
+        /// Note1: adding/removing rows in this collection will have no effect on rows in DAT-file. Editing values in existing rows is possible.
+        /// Note2: calling this property is relatively slow: it retrieves all rows in each call; store and use resulting collection for faster processing
+        /// </summary>
+        public ICollection<DATRow> Rows
+        {
+            get { return rowDictionary.Values; }
+        }
+
+        /// <summary>
+        /// Current number of rows in this DAT-file
+        /// </summary>
+        public int RowCount
+        {
+            get { return rowDictionary.Count; }
         }
 
         /// <summary>
@@ -475,11 +503,13 @@ namespace Sweco.SIF.iMOD.GEN
 
             string value;
             int length;
-            for (int rowIdx = 0; rowIdx < Rows.Count; rowIdx++)
+            List<DATRow> rows = RowList;
+            int rowCount = rows.Count;
+            for (int rowIdx = 0; rowIdx < rowCount; rowIdx++)
             {
                 for (int colIdx = 0; colIdx < ColumnNames.Count; colIdx++)
                 {
-                    value = Rows[rowIdx][colIdx];
+                    value = rows[rowIdx][colIdx];
                     if (value != null)
                     {
                         length = value.Length;
@@ -534,11 +564,12 @@ namespace Sweco.SIF.iMOD.GEN
         /// Add multiple rows to this DAT-file
         /// </summary>
         /// <param name="rows"></param>
-        public void AddRows(ICollection<DATRow> rows)
+        /// <param name="checkDuplicateIDs"></param>
+        public void AddRows(ICollection<DATRow> rows, bool checkDuplicateIDs = true)
         {
             foreach (DATRow row in rows)
             {
-                AddRow(row);
+                AddRow(row, checkDuplicateIDs);
             }
         }
 

@@ -145,12 +145,16 @@ namespace Sweco.SIF.iMOD.GEN
         /// <summary>
         /// Create copy of GENPolygon object
         /// </summary>
+        /// <param name="isDATRowCopied">if false, corresponding DATRow is not copied</param>
         /// <returns></returns>
-        public override GENFeature Copy()
+        public override GENFeature Copy(bool isDATRowCopied = true)
         {
             // Create copy of list with points
             GENPolygon genPolygon = new GENPolygon(null, ID, Points.ToList());
-            genPolygon.CopyDATRow(GENFile, ID);
+            if (isDATRowCopied)
+            {
+                genPolygon.CopyDATRow(GENFile, ID);
+            }
             return genPolygon;
         }
 

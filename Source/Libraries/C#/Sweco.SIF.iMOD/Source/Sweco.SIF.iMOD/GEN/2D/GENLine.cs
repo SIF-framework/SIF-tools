@@ -130,12 +130,16 @@ namespace Sweco.SIF.iMOD.GEN
         /// <summary>
         /// Copy this GENLine object
         /// </summary>
+        /// <param name="isDATRowCopied">if false, corresponding DATRow is not copied</param>
         /// <returns></returns>
-        public override GENFeature Copy()
+        public override GENFeature Copy(bool isDATRowCopied = true)
         {
             // Create copy of list with points
             GENLine genLine = new GENLine(null, ID, Points.ToList());
-            genLine.CopyDATRow(GENFile, this.ID);
+            if (isDATRowCopied)
+            {
+                genLine.CopyDATRow(GENFile, this.ID);
+            }
             return genLine;
         }
 
@@ -176,7 +180,7 @@ namespace Sweco.SIF.iMOD.GEN
                 clippedGENFile.AddFeature(clippedLine);
                 clippedGENLines.Add(clippedLine);
             }
-            else if (!clipExtent.Intersects(featureExtent))
+            else if (!clipExtent.Intersects2(featureExtent))
             {
                 // Feature is completely outside specified extent, return empty list
             }

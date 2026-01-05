@@ -222,10 +222,17 @@ namespace Sweco.SIF.iMOD.GEN
         /// <summary>
         /// Copy GENPoint object
         /// </summary>
+        /// <param name="isDATRowCopied">if false, corresponding DATRow is not copied</param>
         /// <returns></returns>
-        public override GENFeature Copy()
+        public override GENFeature Copy(bool isDATRowCopied = true)
         {
-            return new GENPoint(GENFile, ID, Points[0].Copy());
+            // Create copy of point
+            GENPoint genPoint = new GENPoint(GENFile, ID, Points[0].Copy());
+            if (isDATRowCopied)
+            {
+                genPoint.CopyDATRow(GENFile, this.ID);
+            }
+            return genPoint;
         }
 
         /// <summary>

@@ -35,11 +35,37 @@ using Sweco.SIF.iMOD.Values;
 namespace Sweco.SIF.iMOD.GEN
 {
     /// <summary>
+    /// Format in which a GEN-file can be stored
+    /// </summary>
+    public enum GENFileFormat
+    {
+        /// <summary>
+        /// Undefined format
+        /// </summary>
+        Undefined,
+
+        /// <summary>
+        /// ASC-format: with a seperate textual GEN- and DAT-file for feature- and fielddata
+        /// </summary>
+        ASC,
+
+        /// <summary>
+        /// Binary-format: a compressed format, with feature and field data in the same file
+        /// </summary>
+        BIN
+    }
+
+    /// <summary>
     /// Class to read, modify and write GEN-files. See iMOD-manual for details of GEN-files: https://oss.deltares.nl/nl/web/imod/user-manual.
     /// </summary>
     public class GENFile : IMODFile
     {
         private const int MaxStringLength = 10000000; // 1000000000;
+
+        /// <summary>
+        /// Specifies if an error should be thrown if a duplicate ID is found. Note; the DAT-file has its own setting for reporting this error.
+        /// </summary>
+        public static bool IsErrorOnDuplicateID = false;
 
         /// <summary>
         /// File extension of this iMOD-file without dot-prefix
@@ -94,10 +120,13 @@ namespace Sweco.SIF.iMOD.GEN
         public override bool UseLazyLoading { get; set; }
 
         /// <summary>
-        /// Specifies if an error should be thrown if a duplicate ID is found. Note; the DAT-file has its own setting for reporting this error.
+        /// File format of the source GEN-file when it was read and/or format that is used for writing
         /// </summary>
-        public static bool IsErrorOnDuplicateID = false;
+        public GENFileFormat FileFormat { get; set; }
 
+        /// <summary>
+        /// Reference to DAT-file with columns and column values of features in this GEN-file
+        /// </summary>
         protected DATFile datFile;
 
         /// <summary>
@@ -105,6 +134,9 @@ namespace Sweco.SIF.iMOD.GEN
         /// </summary>
         public GENFile()
         {
+            Filename = null;
+            FileFormat = GENFileFormat.Undefined;
+            UseLazyLoading = false;
             extent = null;
             fileExtent = null;
             modifiedExtent = null;
@@ -117,6 +149,9 @@ namespace Sweco.SIF.iMOD.GEN
         /// <param name="capacity"></param>
         public GENFile(int capacity)
         {
+            Filename = null;
+            FileFormat = GENFileFormat.Undefined;
+            UseLazyLoading = false;
             extent = null;
             fileExtent = null;
             modifiedExtent = null;
@@ -138,6 +173,35 @@ namespace Sweco.SIF.iMOD.GEN
             else
             {
                 return ReadASCIGENFile(fname, isIDRecalculated);
+            }
+        }
+
+        /// <summary>
+        /// Copies all properties from specified other GENFile object, including column names, but excluding actual features, to this GENFile object.
+        /// Note: Filename and Log properties are not copied, this is object specific.
+        /// </summary>
+        public void CopyProperties(GENFile otherGENFile)
+        {
+            // Filename = otherGENFile.Filename;
+            NoDataValue = otherGENFile.NoDataValue;
+            UseLazyLoading = otherGENFile.UseLazyLoading;
+            FileFormat = otherGENFile.FileFormat;
+            Legend = otherGENFile.Legend;
+
+            fileExtent = otherGENFile.fileExtent;
+            // do not copy other extent properties, since these depend on actual points
+            // do not copy log properties, this is object specific
+
+            if (otherGENFile.HasDATFile())
+            {
+                DATFile otherDATFile = otherGENFile.DATFile;
+
+                if (!HasDATFile())
+                {
+                    AddDATFile();
+                }
+
+                DATFile.AddColumns(otherDATFile.ColumnNames);
             }
         }
 
@@ -204,6 +268,8 @@ namespace Sweco.SIF.iMOD.GEN
 
                 genFile = new GENFile();
                 genFile.Filename = fname;
+                genFile.FileFormat = GENFileFormat.ASC;
+
                 string wholeLine;
                 while (lineNumber < lines.Length)
                 {
@@ -365,6 +431,7 @@ namespace Sweco.SIF.iMOD.GEN
             genFile = new GENFile();
             genFile.UseLazyLoading = true;
             genFile.Filename = filename;
+            genFile.FileFormat = GENFileFormat.BIN;
 
             DATFile datfile = new DATFile(genFile);
             genFile.DATFile = datfile;
@@ -539,7 +606,7 @@ namespace Sweco.SIF.iMOD.GEN
                     pointList.Add(ul);
                 }
 
-                string id = (columnValues.Count < 0) ? columnValues[0] : string.Empty;
+                string id = (columnValues.Count > 0) ? columnValues[0] : string.Empty;
                 GENFeature genFeature = null;
                 if (id.Equals(string.Empty))
                 {
@@ -869,10 +936,47 @@ namespace Sweco.SIF.iMOD.GEN
         /// Write GEN-file with specified filename and write intermediate logmessages based on size of GEN-file
         /// </summary>
         /// <param name="filename"></param>
-        /// <param name="metadata"></param>
-        /// <param name="log"></param>
+        /// <param name="metadata">optional metadata to write MET-file</param>
+        /// <param name="fileFormat">ASC, binary or undefined (to keep current format)</param>
+        /// <param name="log">if specified, intermediate logmessages are added</param>
+        /// <param name="logIndentLevel"></param>
+        public void WriteFile(string filename, Metadata metadata, GENFileFormat fileFormat, Log log, int logIndentLevel = 0)
+        {
+            FileFormat = fileFormat;
+            WriteFile(filename, metadata, log, logIndentLevel);
+        }
+
+        /// <summary>
+        /// Write GEN-file with specified filename and write intermediate logmessages based on size of GEN-file
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <param name="metadata">optional metadata to write MET-file</param>
+        /// <param name="log">if specified, intermediate logmessages are added</param>
         /// <param name="logIndentLevel"></param>
         public void WriteFile(string filename, Metadata metadata, Log log, int logIndentLevel = 0)
+        {
+            switch (FileFormat)
+            {
+                case GENFileFormat.Undefined:
+                case GENFileFormat.ASC:
+                    WriteASCFile(filename, metadata, log, logIndentLevel);
+                    break;
+                case GENFileFormat.BIN:
+                    WriteBINGENFile(filename, metadata, log, logIndentLevel);
+                    break;
+                default:
+                    throw new Exception("Unknown GEN-format: " + FileFormat);
+            }
+        }
+
+        /// <summary>
+        /// Write ASC GEN-file with specified filename and write intermediate logmessages based on size of GEN-file
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <param name="metadata">optional metadata to write MET-file</param>
+        /// <param name="log">if specified, intermediate logmessages are added</param>
+        /// <param name="logIndentLevel"></param>
+        public void WriteASCFile(string filename, Metadata metadata, Log log, int logIndentLevel = 0)
         {
             if (log != null)
             {
@@ -977,6 +1081,184 @@ namespace Sweco.SIF.iMOD.GEN
                 metadata.Type = Extension;
                 metadata.Resolution = "-";
                 metadata.WriteMetaFile();
+            }
+        }
+
+        /// <summary>
+        /// Write binary GEN-file with specified filename and write intermediate logmessages based on size of GEN-file
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <param name="metadata">optional metadata to write MET-file</param>
+        /// <param name="log">if specified, intermediate logmessages are added</param>
+        /// <param name="logIndentLevel"></param>
+        public void WriteBINGENFile(string filename, Metadata metadata = null, Log log = null, int logIndentLevel = 0)
+        {
+            if (log != null)
+            {
+                log.AddInfo("Writing binary GEN-file '" + Path.GetFileName(filename) + "'...", logIndentLevel);
+            }
+
+            if (!Path.GetExtension(filename).ToLower().Equals(".gen"))
+            {
+                throw new Exception("Extension for writing GEN-file should be .GEN: " + Path.GetFileName(filename));
+            }
+            Stream stream = null;
+            BinaryWriter bw = null;
+            try
+            {
+                List<int> columnWidths = null;
+                DATFile datFile = this.DATFile;
+                if (datFile == null)
+                {
+                    // Create dummy DAT-file with only ID's
+                    datFile = new DATFile(this);
+                    DATFile.AddIDColumn();
+                    for (int featureIdx = 0; featureIdx < Features.Count; featureIdx++)
+                    {
+                        GENFeature feature = Features[featureIdx];
+                        DATRow datRow = new DATRow(new string[] { feature.ID });
+                        datFile.AddRow(datRow);
+                    }
+                }
+
+                stream = File.OpenWrite(filename);
+                bw = new BinaryWriter(stream);
+
+                bw.Write((Int32)0x20);   // Write control value, which is always 0x20 (32d) for binary GEN-files; this defines number of bytes (?)
+
+                // Write extent dimensions
+                bw.Write((double)Extent.llx);
+                bw.Write((double)Extent.lly);
+                bw.Write((double)Extent.urx);
+                bw.Write((double)Extent.ury);
+
+                // Write control values
+                bw.Write((Int32)0x20);
+                bw.Write((Int32)0x08); // Write 
+
+                bw.Write((Int32)this.Count);
+                bw.Write((datFile != null) ? (Int32)datFile.ColumnNames.Count : (Int32)0);
+
+                // Write control value
+                bw.Write((Int32)0x08);
+
+                Int32 MAXCOL = 0;
+                Int32 maxColWidth = (Int32)11; // maximum column length seems to be 11 for binary GEN-files
+                int columnWidthSum = 0;
+                if ((datFile != null) && (datFile.ColumnNames.Count > 0))
+                {
+                    MAXCOL = (Int32)datFile.ColumnNames.Count;
+                    columnWidths = datFile.GetMaxColumnWidths();
+                    if (columnWidths[0] < 11)
+                    {
+                        columnWidths[0] = 11;
+                    }
+
+                    // Write control value
+                    bw.Write((Int32)(0x04 * MAXCOL));
+
+                    // Write widths columns
+                    for (int idx = 0; idx < datFile.ColumnNames.Count; idx++)
+                    {
+                        bw.Write((Int32)columnWidths[idx]);
+                        columnWidthSum += columnWidths[idx];
+                    }
+
+                    // Write control values
+                    bw.Write((Int32)(0x04 * MAXCOL));
+                    bw.Write(MAXCOL * maxColWidth);
+
+                    // Write column names with fixed length of 11 characters
+                    for (int idx = 0; idx < datFile.ColumnNames.Count; idx++)
+                    {
+                        // Limit/extend column name to 11 characters
+                        string columnname = datFile.ColumnNames[idx].PadRight(11).Substring(0, 11);
+                        for (int idx2 = 0; idx2 < 11; idx2++)
+                        {
+                            bw.Write(columnname[idx2]);
+                        }
+                    }
+
+                    // Write control value
+                    bw.Write(MAXCOL * maxColWidth);
+                }
+
+                for (int featureIdx = 0; featureIdx < Features.Count; featureIdx++)
+                {
+                    GENFeature feature = Features[featureIdx];
+                    int ITYPE = GENUtils.GetITYPE(feature);
+
+                    // Write control values
+                    bw.Write((Int32)0x08);
+
+                    // Write point count
+                    int pointCount = feature.Points.Count;
+                    if (ITYPE == 1025)
+                    {
+                        // For polygons remove last (extra) point
+                        pointCount--;
+                    }
+                    bw.Write((Int32)pointCount);
+                    bw.Write((Int32)ITYPE);
+
+                    // Write control values
+                    bw.Write((Int32)0x08);
+                    bw.Write((Int32)columnWidthSum);
+
+                    if ((datFile != null) && (datFile.ColumnNames.Count > 0))
+                    {
+                        DATRow datRow = datFile.GetRow(feature.ID);
+
+                        for (int idx = 0; idx < datFile.ColumnNames.Count; idx++)
+                        {
+                            string columnValue = datRow[idx];
+                            columnValue = columnValue.PadRight(columnWidths[idx]);
+                            for (int charIdx = 0; charIdx < columnValue.Length; charIdx++)
+                            {
+                                bw.Write(columnValue[charIdx]);
+                            }
+                        }
+                    }
+
+                    // Write control values
+                    bw.Write((Int32)columnWidthSum);
+                    bw.Write((Int32)0x20);
+
+                    // Write feature extent
+                    Extent featureExtent = feature.RetrieveExtent();
+                    bw.Write((double)featureExtent.llx);
+                    bw.Write((double)featureExtent.lly);
+                    bw.Write((double)featureExtent.urx);
+                    bw.Write((double)featureExtent.ury);
+
+                    // Write control value
+                    bw.Write((Int32)0x20);
+
+                    // Write control value
+                    bw.Write((Int32)(16 * pointCount));
+
+                    // Write feature points
+                    for (int pointIdx = 0; pointIdx < pointCount; pointIdx++)
+                    {
+                        Point point = feature.Points[pointIdx];
+                        bw.Write((double)point.X);
+                        bw.Write((double)point.Y);
+                    }
+
+                    // Write control value
+                    bw.Write((Int32)(16 * pointCount));
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Could not write binary GEN-file " + filename, ex);
+            }
+            finally
+            {
+                if (bw != null)
+                {
+                    bw.Close();
+                }
             }
         }
 
@@ -1142,6 +1424,8 @@ namespace Sweco.SIF.iMOD.GEN
                 copiedGENFile.AddFeature(featureCopy);
             }
             copiedGENFile.Filename = newFilename;
+            copiedGENFile.FileFormat = FileFormat;
+
             if (datFile != null)
             {
                 copiedGENFile.datFile = datFile.Copy(copiedGENFile);
@@ -1479,7 +1763,7 @@ namespace Sweco.SIF.iMOD.GEN
 
                     if (hasDATFile)
                     {
-                        DATRow datRow = clippedGENFeature.GENFile.DATFile.Rows[clippedFeatureIdx];
+                        DATRow datRow = clippedGENFeature.GENFile.DATFile.Rows.ElementAt(clippedFeatureIdx);
                         datRow[0] = clippedGENFeature.ID;
                         datRow[sourceIDColIdx] = genFeature.ID;
                         clippedGENFile.DATFile.AddRow(datRow);
@@ -1926,7 +2210,7 @@ namespace Sweco.SIF.iMOD.GEN
                                 }
                                 else
                                 {
-                                    if (!pointValue.Equals(value))
+                                    if ((pointValue == null) || !pointValue.Equals(value))
                                     {
                                         newGENFile.AddFeature(genFeature);
                                         srcPointIndices.Add(featureIdx);
@@ -2198,17 +2482,17 @@ namespace Sweco.SIF.iMOD.GEN
                 diffGENFile.AddFeatures(clippedOtherGENFile.Features);
             }
 
-            // Keep track of indices that haven't been processed yet; to start add indices for all other features
+            // Keep track of indices from other GEN-file that haven't been processed yet; to start add indices for all other features
             HashSet<int> leftOverIndices2 = new HashSet<int>();
             for (int featureIdx2 = 0; featureIdx2 < clippedOtherGENFile.Features.Count; featureIdx2++)
             {
                 leftOverIndices2.Add(featureIdx2);
             }
 
-            for (int featureIdx1 = 0; featureIdx1 < Features.Count; featureIdx1++)
+            for (int featureIdx1 = 0; featureIdx1 < clippedGENFile.Features.Count; featureIdx1++)
             {
-                GENFeature genLine1 = Features[featureIdx1];
-                int featureIdx2 = otherGENFile.RetrieveFeatureIndex(genLine1, leftOverIndices2);
+                GENFeature genLine1 = clippedGENFile.Features[featureIdx1];
+                int featureIdx2 = clippedOtherGENFile.RetrieveFeatureIndex(genLine1, leftOverIndices2);
                 if (featureIdx2 >= 0)
                 {
                     leftOverIndices2.Remove(featureIdx2);
@@ -2240,7 +2524,7 @@ namespace Sweco.SIF.iMOD.GEN
             foreach (int featureIdx in checkedIndices)
             {
                 GENFeature genFeature = Features[featureIdx];
-                if (genFeature.RetrieveExtent().Intersects(searchedExtent))
+                if (genFeature.RetrieveExtent().Intersects2(searchedExtent))
                 {
                     if (genFeature.Equals(searchedLine))
                     {

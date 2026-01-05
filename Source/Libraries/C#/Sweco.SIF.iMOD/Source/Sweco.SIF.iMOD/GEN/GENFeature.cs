@@ -563,8 +563,9 @@ namespace Sweco.SIF.iMOD.GEN
         /// <summary>
         /// Returns a copy of this GENFeature instance
         /// </summary>
+        /// <param name="isDATRowCopied">if false, corresponding DATRow is not copied</param>
         /// <returns></returns>
-        public abstract GENFeature Copy();
+        public abstract GENFeature Copy(bool isDATRowCopied = true);
 
         /// <summary>
         /// Clip feature to specified extent, which may result in one or more smaller features
