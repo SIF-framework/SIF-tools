@@ -98,7 +98,7 @@ namespace Sweco.SIF.iMODclip
                                            , "/sc", "Skip copying files with any of the following substrings in path: {...}", null, new string[] { "..." }, null, new int[] { 0, 1 });
             AddToolOptionDescription("sx", "skip files with specified extensions (these are not clipped/copied, case insensitive)", "/x:IDF,ASC", "Exclude files with following extensions: {0}", new string[] { "x1" }, new string[] { "x2", "..." }, null, new int[] { 0, 1 });
             AddToolOptionDescription("e", "define with value i how to handle empty (clippped) folders/iMOD-files (default: 0):\n"
-                                        + "0: skip empty folder; write empty (clipped) iMOD-file (ASC/IDF: NoData within clipextent\n"
+                                        + "0: skip empty folder; write empty (clipped) iMOD-file (for ASC/IDF: NoData within clipextent)\n"
                                         + "1: as 0, but write empty folder(s)\n"
                                         + "2: skip empty folders/iMOD-files\n"
                                         + "3: copy complete source file when extent is completey outside clipextent", "/e:3", "Method for handling empty files/folders: {0}", new string[] { "i" }, null, null, new int[] { 0, 1 });
@@ -153,6 +153,35 @@ namespace Sweco.SIF.iMODclip
             else
             {
                 throw new ToolException("Invalid number of parameters (" + parameters.Length + "), check tool usage");
+            }
+        }
+
+        protected override string FormatLogStringParameter(string optionName, string parameter, string parameterValue, List<string> parameterValues)
+        {
+            switch (optionName)
+            {
+                case "e":
+                    switch (parameter)
+                    {
+                        case "i":
+                            switch (parameterValue)
+                            {
+                                case "0":
+                                    return "skip empty folder; write empty (clipped) iMOD-file";
+                                case "1":
+                                    return "write empty folder; write empty (clipped) iMOD-file";
+                                case "2":
+                                    return "skip empty folder; skip empty (clipped) iMOD-file";
+                                case "3":
+                                    return "copy source file if completely outside extent";
+                                default: 
+                                    return base.FormatLogStringParameter(optionName, parameter, parameterValue, parameterValues);
+                            }
+                        default:
+                            return base.FormatLogStringParameter(optionName, parameter, parameterValue, parameterValues);
+                    }
+                default:
+                    return base.FormatLogStringParameter(optionName, parameter, parameterValue, parameterValues);
             }
         }
 
