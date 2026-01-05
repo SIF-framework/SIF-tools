@@ -22,6 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -117,6 +118,11 @@ namespace Sweco.SIF.Statistics
         /// Calculated median (or P50) of values
         /// </summary>
         protected float median;
+
+        /// <summary>
+        /// Calculated MAD (Median absolute deviation)
+        /// </summary>
+        protected float mad;
 
         /// <summary>
         /// Calculated Q1 (first quantile or P25) of values
@@ -230,6 +236,14 @@ namespace Sweco.SIF.Statistics
         }
 
         /// <summary>
+        /// Calculated median absolute deviation (MAD)
+        /// </summary>
+        public float MAD
+        {
+            get { return mad; }
+        }
+
+        /// <summary>
         /// Calculated Q1 (first quantile or P25) of values
         /// </summary>
         public float Q1
@@ -338,10 +352,12 @@ namespace Sweco.SIF.Statistics
         /// <summary>
         /// Create new Statistics object with specified values (a reference to the source is stored, values in the list are not copied)
         /// </summary>
+        /// <param name="values">list of values to be use (no copy is made)</param>
         public Statistics(List<float> values)
         {
             ResetStatistics();
             ResetValues();
+            Values = values;
             percentiles = new float[101];
         }
 
@@ -427,6 +443,31 @@ namespace Sweco.SIF.Statistics
                 {
                     ReleaseValuesMemory(isMemoryCollected);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Calculate Median Absolute Deviation. It is assumed that ComputePercentiles() has been called before.
+        /// </summary>
+        public void ComputeMAD(bool areValuesReleased = true, bool isMemoryCollected = false)
+        {
+            mad = float.NaN;
+            if ((Values != null) && (Values.Count() > 0))
+            {
+                List<float> sortedValues = new List<float>(Values.Count);
+                for (int idx = 0; idx < Values.Count; idx++)
+                {
+                    float value = Values[idx];
+                    sortedValues.Add(Math.Abs(value - median));
+                }
+                sortedValues.Sort();
+                int index = (int)(0.5f * (sortedValues.Count - 1));
+                mad = sortedValues[index];
+            }
+
+            if (areValuesReleased)
+            {
+                ReleaseValuesMemory(isMemoryCollected);
             }
         }
 
