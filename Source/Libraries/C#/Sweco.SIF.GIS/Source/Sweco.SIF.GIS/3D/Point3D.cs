@@ -164,7 +164,7 @@ namespace Sweco.SIF.GIS
             }
             else
             {
-                return (Math.Abs(other.X - X) < Tolerance) && (Math.Abs(other.Y - Y) < Tolerance) && (Math.Abs(other.Z - Z) < Tolerance);
+                return (Math.Abs(other.X - X) < Tolerance) && (Math.Abs(other.Y - Y) < Tolerance) && ((other.Z.Equals(float.NaN) && Z.Equals(float.NaN)) || (Math.Abs(other.Z - Z) < Tolerance));
             }
         }
 

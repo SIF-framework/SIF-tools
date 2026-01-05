@@ -327,13 +327,26 @@ namespace Sweco.SIF.GIS
         }
 
         /// <summary>
-        /// Check if this extent intersects the specified other extent. Note touching extents do not intersect.
+        /// Check if this extent intersects the specified other extent. Note: touching extents do not intersect.
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
         public bool Intersects(Extent other)
         {
             return (other != null) && !((urx <= other.llx) || (ury <= other.lly) || (llx >= other.urx) || (lly >= other.ury));
+        }
+
+        /// <summary>
+        /// Check if this extent intersects the specified other extent. Note: touching extents do not intersect, except for extents with no area (llx==urx and/or lly==ury)
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
+        public bool Intersects2(Extent other)
+        {
+            return (other != null) 
+                && (((urx > other.llx) && (llx < other.urx) && (ury > other.lly) && (lly < other.ury)) 
+                    || (urx.Equals(other.llx) && llx.Equals(other.urx) && (ury > other.lly) && (lly < other.ury))
+                    || (ury.Equals(other.lly) && lly.Equals(other.ury) && (urx > other.llx) && (llx < other.urx)));
         }
 
         /// <summary>
