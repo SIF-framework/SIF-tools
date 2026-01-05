@@ -31,6 +31,14 @@ using Sweco.SIF.iMOD.Values;
 
 namespace Sweco.SIF.IDFGENconvert
 {
+    public enum WarningMethod
+    {
+        LogFirst,
+        LogAll,
+        LogFirstReportAll,
+        ReportAll
+    }
+
     /// <summary>
     /// Class for processing command-line arguments and storing settings for this tool
     /// </summary>
@@ -44,7 +52,7 @@ namespace Sweco.SIF.IDFGENconvert
         public string OutputPath { get; set; }
         public string OutputFilename { get; set; } = null;
 
-        public bool ShowWarnings { get; set; }
+        public WarningMethod WarningMethod { get; set; }
         public bool IsMerged { get; set; }
         public string MergedGENFilename { get; set; }
         public int HullType { get; set; }
@@ -74,7 +82,7 @@ namespace Sweco.SIF.IDFGENconvert
             InputFilter = null;
             OutputPath = null;
 
-            ShowWarnings = false;
+            WarningMethod = WarningMethod.LogFirst;
             IsMerged = false;
             MergedGENFilename = null;
             HullType = 1;
@@ -110,6 +118,11 @@ namespace Sweco.SIF.IDFGENconvert
 
             // Define general option syntax
             AddToolOptionDescription("s", "Skip specified commaseperated values si, or ranges (s1-s2) in inputfiles, and process as NoData", "/s:-9999,-999", "Skipped values: {...}", new string[] { "s1" }, new string[] { "..." }, null, new int[] { 1, 2 });
+            AddToolOptionDescription("w", "Define method w1 to report warnings:\n" +
+                                          "  0: Write first warning in logfile for each warning type\n" +
+                                          "  1: Write all warnings in logfile\n" +
+                                          "  2: Write first warning in logfile and report all warning in an iMOD-file\n" +
+                                          "  3: Write all warnings in logfile and iMOD-file", "/w:1", "Method to report warnings: {0}", null, new string[] { "w1" }, new string[] { "0" }, new int[] { 1, 2 });
 
             // Define IDF-GEN option syntax
             AddToolUsageOptionPreRemark("\nFor IDF-GEN conversion:", 1);
@@ -131,7 +144,7 @@ namespace Sweco.SIF.IDFGENconvert
             AddToolOptionDescription("g", "Create a grid with:" +
                                           "cellsize 'sz' (default 25)\n" +
                                           "for polygons: cells that overlap with a polygon are assigned a value\n" +
-                                          "- c1: columnname or number (one based) or (integer) value c1 if no DAT-file is present\n" +
+                                          "- c1: floating point constant value or columnname/number (one based) if DAT-file is present\n" +
                                           "      leave empty for default and use feature number occording to order in GEN-file\n" +
                                           "      note: NaN-values are converted to the NoData-value of the IDF-file\n" +
                                           "- c2: method for checking polygon-cell overlap: 1) cell center inside polygon (default); 2) actual overlap\n" +
@@ -166,7 +179,6 @@ namespace Sweco.SIF.IDFGENconvert
                                           "note: for islands, option o (ordered GEN-features) is enforced.", "/i", "Islands (donut holes) are also converted", null, null, null, 2);
             AddToolOptionDescription("o", "Order GEN-polygons/-lines from large to small area/length before processing;\n" + 
                                           "islands (with negative area) are kept directly after previous polygon in source GEN-file", "/o", "GEN-polygons are ordered from large to small area", null, null, null, 2);
-            AddToolOptionDescription("w", "Show all warnings (and not only first occurance)", "/w", "All warnings are shown", null, null, null, new int[] { 1, 2 });
         }
 
         /// <summary>
@@ -185,29 +197,35 @@ namespace Sweco.SIF.IDFGENconvert
                 case "h":
                     switch (parameter)
                     {
-                        case "0":
-                            return "no hull, just IPF-points";
-                        case "1":
-                            return "convex hull";
-                        case "2":
-                            return "concave hull";
-                        case "3":
-                            return "outer edges";
-                        case "4":
-                            return "outer edges + IPF-points";
-                        case "5":
-                            return "outer edges (no islands)";
+                        case "h1":
+                            switch (parameterValue)
+                            {
+                                case "0":
+                                    return "no hull, just IPF-points";
+                                case "1":
+                                    return "convex hull";
+                                case "2":
+                                    return "concave hull";
+                                case "3":
+                                    return "outer edges";
+                                case "4":
+                                    return "outer edges + IPF-points";
+                                case "5":
+                                    return "outer edges (no islands)";
 
+                                default: return parameterValue;
+                            }
                         default: return parameterValue;
                     }
+
                 case "g":
                     switch (parameter)
                     {
                         case "c1":
-                            return "col " + parameterValue;
+                            return "col/val " + parameterValue;
                         case "c2":
                             // Distinguish between lines and polygons if less than 2 optional parameters are specified
-                            string logSubString = (parameterValues.Count <= 3) ? "col " + parameterValue + " (lines)/" : string.Empty;
+                            string logSubString = (parameterValues.Count <= 3) ? "col/val " + parameterValue + " (lines)/" : string.Empty;
                             switch (parameterValue)
                             {
                                 case "1": logSubString += "cell centre";
@@ -215,7 +233,6 @@ namespace Sweco.SIF.IDFGENconvert
                                 case "2":
                                     logSubString += "cell overlap";
                                     break;
-
                                 default: return parameterValue;
                             }
                             return logSubString + ((parameterValues.Count <= 3) ? " (polygons)" : string.Empty);
@@ -311,7 +328,23 @@ namespace Sweco.SIF.IDFGENconvert
             }
             else if (optionName.ToLower().Equals("w"))
             {
-                ShowWarnings = true;
+                switch (optionParametersString)
+                {
+                    case "0":
+                        WarningMethod = WarningMethod.LogFirst;
+                        break;
+                    case "1":
+                        WarningMethod = WarningMethod.LogAll;
+                        break;
+                    case "2":
+                        WarningMethod = WarningMethod.LogFirstReportAll;
+                        break;
+                    case "3":
+                        WarningMethod = WarningMethod.ReportAll;
+                        break;
+                    default:
+                        throw new ToolException("Invalid warning method: " + optionParametersString);
+                }
             }
             else if (optionName.ToLower().Equals("n"))
             {

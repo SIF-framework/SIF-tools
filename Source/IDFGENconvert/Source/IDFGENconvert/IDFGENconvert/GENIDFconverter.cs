@@ -21,6 +21,7 @@
 // along with IDFGENconvert. If not, see <https://www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -70,12 +71,13 @@ namespace Sweco.SIF.IDFGENconvert
         protected float idfCellArea;
         protected float polygonArea;
         protected bool isIsland = false;
-        private IPFFile warningIPFFile;
-        private GENFile warningGENFile;
-        bool isNegativeAreaWarningShown;
-        bool isInvalidGridPar2WarningShown;
-        bool isCellCoverageWarningShown;
-        bool isConversionWarningShown;
+        protected IPFFile warningIPFFile;
+        protected GENFile warningGENFile;
+        protected bool isNegativeAreaWarningShown;
+        protected bool isInvalidGridPar2WarningShown;
+        protected bool isCellCoverageWarningShown;
+        protected bool isConversionWarningShown;
+        protected bool isNoDataValueWarningShown;
 
         public GENIDFConverter(SIFToolSettings settings, Log log)
         {
@@ -93,6 +95,7 @@ namespace Sweco.SIF.IDFGENconvert
             isInvalidGridPar2WarningShown = false;
             isCellCoverageWarningShown = false;
             isConversionWarningShown = false;
+            isNoDataValueWarningShown = false;
 
             warningIPFFile = new IPFFile();
             warningIPFFile.Filename = Path.Combine(settings.OutputPath, "GENIDFConverterWarnings.IPF");
@@ -159,8 +162,11 @@ namespace Sweco.SIF.IDFGENconvert
                 }
                 catch (Exception ex)
                 {
-                    warningGENFile.AddFeature(genFeature);
-                    if (!isConversionWarningShown || settings.ShowWarnings)
+                    if ((settings.WarningMethod == WarningMethod.LogFirstReportAll) || (settings.WarningMethod == WarningMethod.ReportAll))
+                    {
+                        warningGENFile.AddFeature(genFeature);
+                    }
+                    if (!isConversionWarningShown || ((settings.WarningMethod == WarningMethod.LogAll) || (settings.WarningMethod == WarningMethod.ReportAll)))
                     {
                         log.AddWarning("Skipped conversion of feature " + genFeature.ID + " because of unexpected error: " + ex.GetBaseException().Message, logIndentLevel + 1);
                         isConversionWarningShown = true;
@@ -484,10 +490,17 @@ namespace Sweco.SIF.IDFGENconvert
                         }
                         catch (Exception ex)
                         {
-                            warningIPFFile.AddPoint(new IPFPoint(warningIPFFile, new FloatPoint(x, y), new List<string>() { x.ToString(SIFTool.EnglishCultureInfo), y.ToString(SIFTool.EnglishCultureInfo), string.Empty, "Polygon " + genPolygon.ID + ": " + ex.GetBaseException().Message }));
-                            if (!isCellCoverageWarningShown || settings.ShowWarnings)
+                            if ((settings.WarningMethod == WarningMethod.LogFirstReportAll) || (settings.WarningMethod == WarningMethod.ReportAll))
+                            {
+                                warningIPFFile.AddPoint(new IPFPoint(warningIPFFile, new FloatPoint(x, y), new List<string>() { x.ToString(SIFTool.EnglishCultureInfo), y.ToString(SIFTool.EnglishCultureInfo), string.Empty, "Polygon " + genPolygon.ID + ": " + ex.GetBaseException().Message }));
+                            }
+                            if (!isCellCoverageWarningShown || ((settings.WarningMethod == WarningMethod.LogAll) || (settings.WarningMethod == WarningMethod.ReportAll)))
                             {
                                 log.AddWarning("Cell coverage could not be evaluated for cell with (x,y) = (" + x.ToString(SIFTool.EnglishCultureInfo) + "," + y.ToString(SIFTool.EnglishCultureInfo) + "), polygon " + genPolygonID + ": " + ex.GetBaseException().Message, 2);
+                                if (settings.WarningMethod == WarningMethod.LogFirst)
+                                {
+                                    log.AddInfo("Note: similar warnings will not be shown anymore for this conversion.", logIndentLevel + 1);
+                                }
                                 isCellCoverageWarningShown = true;
                             }
                         }
@@ -786,25 +799,29 @@ namespace Sweco.SIF.IDFGENconvert
         {
             if (settings.GridPar1String != null)
             {
-                if (genFile.HasDATFile())
+                if (!int.TryParse(settings.GridPar1String, out int testValue) && float.TryParse(settings.GridPar1String, NumberStyles.Float, SIFTool.EnglishCultureInfo, out float par1Value))
                 {
-                    int gridPar1 = genFile.DATFile.FindColumnNumber(settings.GridPar1String, true);
-                    if (gridPar1 <= 0)
-                    {
-                        throw new ToolException("Column(number) " + settings.GridPar1String + " is not found for GEN-file " + Path.GetFileName(genFile.Filename));
-                    }
-                    else if (gridPar1 > genFile.DATFile.ColumnNames.Count)
-                    {
-                        throw new ToolException("Columnnumber " + gridPar1 + " is larger than column count (" + genFile.DATFile.ColumnNames.Count + ") and is invalid for GEN-file " + Path.GetFileName(genFile.Filename));
-                    }
+                    // par1 is a float, but not an integer: use as a constant
                 }
-                else
+                else 
                 {
-
-                    // When no DAT-file is present GridPar1 should be a floating point value
-                    if (!float.TryParse(settings.GridPar1String, NumberStyles.Float, SIFTool.EnglishCultureInfo, out float par1Value))
+                    // par1 is not a float, it should be an integer or a string that refers to an existing column
+                    // Check if a DAT-file exists and if it refers to a column
+                    if (genFile.HasDATFile())
                     {
-                        throw new ToolException("Invalid constant float value for GridPar1-value: (which is used when no DAT-file is present): " + settings.GridPar1String);
+                        int gridPar1 = genFile.DATFile.FindColumnNumber(settings.GridPar1String, true);
+                        if (gridPar1 <= 0)
+                        {
+                            throw new ToolException("Column(number) " + settings.GridPar1String + " is not found for GEN-file " + Path.GetFileName(genFile.Filename));
+                        }
+                        else if (gridPar1 > genFile.DATFile.ColumnNames.Count)
+                        {
+                            throw new ToolException("Columnnumber " + gridPar1 + " is larger than column count (" + genFile.DATFile.ColumnNames.Count + ") and is invalid for GEN-file " + Path.GetFileName(genFile.Filename));
+                        }
+                    }
+                    else
+                    {
+                        throw new ToolException("Invalid value for GridPar1, specify constant float value or column name/number in existing DAT-file: " + settings.GridPar1String);
                     }
                 }
             }
@@ -880,23 +897,6 @@ namespace Sweco.SIF.IDFGENconvert
             return new DoublePoint(point.X + dx2, point.Y + dy2);
         }
 
-        ///// <summary>
-        ///// Calculate area of specified GEN-polygon and give warning for negative area
-        ///// </summary>
-        ///// <param name="genPolygon"></param>
-        ///// <returns></returns>
-        //protected virtual float CalculateArea(GENPolygon genPolygon)
-        //{
-        //    float polygonArea = (float)genPolygon.CalculateArea();
-
-        //    if (polygonArea < 0)
-        //    {
-        //        log.AddWarning("Points of polygon " + genPolygon.ID + " are defined counterclockwise, which indicates an island, and may give unexpected results. Use option /i or /n.", 1);
-        //    }
-
-        //    return polygonArea;
-        //}
-
         /// <summary>
         /// Actually calculate the current cell value inside the current polygon
         /// </summary>
@@ -912,18 +912,22 @@ namespace Sweco.SIF.IDFGENconvert
 
                 if (isIsland)
                 {
-                    // For islands it is not expected to find an inner ring (with negative area) before the outer ring. Continue with negative area, but give warning
+                    // For islands it is not expected to find an inner ring (with negative area) before the outer ring. Continue with positive area, but give warning
                     areaIDFFile.values[rowIdx][colIdx] = -idfCellArea;
                     valueIDFFile.values[rowIdx][colIdx] = (settings.GridPar3 == 6) ? genValue * -idfCellArea : genValue;    // use area-weighted value for option 6 (weighted average)
 
-                    if (!isNegativeAreaWarningShown || settings.ShowWarnings)
+                    if ((settings.WarningMethod == WarningMethod.ReportAll) || (settings.WarningMethod == WarningMethod.LogFirstReportAll))
                     {
-                        log.AddWarning("Area<0 for feature idx " + genFeatureIdx + ", id " + genPolygonID + ", cell (" + (rowIdx + 1) + "," + (colIdx + 1) + "), indicating polygon/point order issue", logIndentLevel + 1);
-                        log.AddInfo("Note1: calcalated area and value grid might be incorrect. Check polygon and/or point order.", logIndentLevel + 1);
-                        log.AddInfo("Note2: topologically correct polygon rings should be ordered according to their containment relationship.", logIndentLevel + 1);
-                        if (!settings.ShowWarnings)
+                        warningGENFile.AddFeature(genPolygon);
+                    }
+                    if (!isNegativeAreaWarningShown || ((settings.WarningMethod == WarningMethod.LogAll) || (settings.WarningMethod == WarningMethod.ReportAll)))
+                    {
+                        log.AddWarning("Area<0 for feature idx " + genFeatureIdx + ", id " + genPolygonID + ", cell (" + (rowIdx + 1) + "," + (colIdx + 1) + "), indicating polygon/point order issue", logIndentLevel);
+                        log.AddInfo("Note1: Positive area used, but area and value grid may be incorrect. Check polygon and/or point order.", logIndentLevel);
+                        log.AddInfo("Note2: topologically correct polygon rings should be ordered according to their containment relationship.", logIndentLevel);
+                        if ((settings.WarningMethod == WarningMethod.LogFirst) || (settings.WarningMethod == WarningMethod.LogFirstReportAll))
                         {
-                            log.AddInfo("Note3: similar warnings will not be shown anymore for this conversion.", logIndentLevel + 1);
+                            log.AddInfo("Note3: similar warnings will not be shown anymore for this conversion.", logIndentLevel);
                         }
                         isNegativeAreaWarningShown = true;
                     }
@@ -1143,15 +1147,29 @@ namespace Sweco.SIF.IDFGENconvert
         protected virtual void RetrieveGENValue(GENFeature genFeature, int genFeatureIdx, int logIndentLevel)
         {
             genValue = float.NaN;
-            if (genFeature.GENFile.HasDATFile())
+
+            // No DAT-file is present: use sequence number if no value1 was defined, otherwise use specified value as a constant value
+            if (settings.GridPar1String == null)
             {
-                string id = genFeature.ID;
-                DATRow datRow = genFeature.GENFile.DATFile.GetRow(id);
-                if (datRow != null)
+                genValue = genFeatureIdx + 1;
+                genValue2 = genValue;
+            }
+            else if (!int.TryParse(settings.GridPar1String, out int testValue) && float.TryParse(settings.GridPar1String, NumberStyles.Float, SIFTool.EnglishCultureInfo, out float par1Value))
+            {
+                // Value is a floating point value, use it as a constant
+                genValue = par1Value;
+                genValue2 = genValue;
+            }
+            else
+            {
+                // Check if a DAT-file is present and an integer (column) number was specified
+                if (genFeature.GENFile.HasDATFile())
                 {
-                    // Check if a valid GEN column index was specified
-                    if (settings.GridPar1String != null)
+                    string id = genFeature.ID;
+                    DATRow datRow = genFeature.GENFile.DATFile.GetRow(id);
+                    if (datRow != null)
                     {
+                        // Check if a valid GEN column index was specified
                         int gridPar1 = genFeature.GENFile.DATFile.FindColumnNumber(settings.GridPar1String);
                         if ((gridPar1 > 0) && (gridPar1 <= datRow.Count))
                         {
@@ -1188,53 +1206,45 @@ namespace Sweco.SIF.IDFGENconvert
                                 genValue = int.TryParse(id, out int idVal) ? idVal : (genFeatureIdx + 1);
                                 genValue2 = genValue;
                             }
+
+                            if (genValue.Equals(valueIDFFile.NoDataValue))
+                            {
+                                //if ((settings.WarningMethod == WarningMethod.LogFirstReportAll) || (settings.WarningMethod == WarningMethod.ReportAll))
+                                //{
+                                //    warningGENFile.AddFeature(genFeature);
+                                //}
+                                if (!isNoDataValueWarningShown || ((settings.WarningMethod == WarningMethod.LogAll) || (settings.WarningMethod == WarningMethod.ReportAll)))
+                                {
+                                    log.AddWarning("Feature " + genFeature.ID + " will be skipped, because of NoData-value in DAT-file for specified column: " + genValue, logIndentLevel + 1);
+                                    isNoDataValueWarningShown = true;
+                                }
+                            }
                         }
                         else
                         {
                             // No valid GEN-column was specified
-                            genValue = genFeatureIdx + 1;
-                            genValue2 = genValue;
+                            throw new ToolException("Invalid value for GridPar1, specify constant float value or column name/number in existing DAT-file: " + settings.GridPar1String);
                         }
                     }
                     else
                     {
-                        // No valid GEN-column was specified
-                        genValue = genFeatureIdx + 1;
-                        genValue2 = genValue;
+                        if (settings.GridPar1String != null)
+                        {
+                            // DAT-row is missing for this GEN-feature, use NoData-value
+                            genValue = float.NaN;
+                            genValue2 = float.NaN;
+                        }
+                        else
+                        {
+                            // DAT-row is missing, but columnindices have not been defined, use index-value
+                            genValue = genFeatureIdx + 1;
+                            genValue2 = genValue;
+                        }
                     }
                 }
                 else
                 {
-                    if (settings.GridPar1String != null)
-                    {
-                        // DAT-row is missing for this GEN-feature, use NoData-value
-                        genValue = float.NaN;
-                        genValue2 = float.NaN;
-                    }
-                    else
-                    {
-                        // DAT-row is missing, but columnindices have not been defined, use index-value
-                        genValue = genFeatureIdx + 1;
-                        genValue2 = genValue;
-                    }
-                }
-            }
-            else
-            {
-                // No DAT-file is present: use sequence number if no value1 was defined, otherwise use that value as a constant value
-                if (settings.GridPar1String != null)
-                {
-                    if (!float.TryParse(settings.GridPar1String, NumberStyles.Float, SIFTool.EnglishCultureInfo, out float par1Value))
-                    {
-                        throw new ToolException("Invalid constant float value for GridPar1-value: (which is used when no DAT-file is present): " + settings.GridPar1String);
-                    }
-                    genValue = par1Value;
-                    genValue2 = genValue;
-                }
-                else
-                {
-                    genValue = genFeatureIdx + 1;
-                    genValue2 = genValue;
+                    throw new ToolException("Invalid value for GridPar1, specify constant float value or column name/number in existing DAT-file: " + settings.GridPar1String);
                 }
             }
 
