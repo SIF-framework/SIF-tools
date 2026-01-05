@@ -161,7 +161,13 @@ namespace Sweco.SIF.Common
 
             CheckLicense();
 
-            if (Settings.HasEnoughArguments())
+            if (Settings.IsToolHelpRequested())
+            {
+                ShowUsage();
+                HandleZeroArguments();
+                return 0;
+            }
+            else if (Settings.HasEnoughArguments())
             {
                 int exitcode = -1;
 
@@ -212,9 +218,14 @@ namespace Sweco.SIF.Common
             }
             else
             {
-                ShowUsage();
-                HandleZeroArguments();
-                return 0;
+                // string cl1 = System.Environment.CommandLine;
+                string[] fullArgs = GetFullArgs(false);
+                string fullArgsString = CommonUtils.ToString(fullArgs.ToList()," ");
+                if ((Settings.Args.Length != fullArgs.Length) && fullArgsString.Contains("\""))
+                {
+                    Log.AddWarning("Backslash before double quote (\\\") found in command-line. Default Windows-parsing may give unpexpected results. Current command-line is parsed as: " + CommonUtils.ToString(Settings.Args.ToList(), " "));
+                }
+                throw new ToolException("Invalid number of arguments (" + Settings.Args.Length + "), check tool usage: " + CommonUtils.ToString(GetFullArgs(false).ToList(), " "));
             }
         }
 
@@ -325,7 +336,7 @@ namespace Sweco.SIF.Common
         /// <summary>
         /// Writes tool properties (name, version, author and Sweco copyright) to log (if defined) or console
         /// </summary>
-        private void WriteToolHeader()
+        protected void WriteToolHeader()
         {
             string authorString = null;
             if (this.Authors != null)
@@ -500,8 +511,8 @@ namespace Sweco.SIF.Common
         /// <summary>
         /// Retrieve orginal command-line arguments before formatting by Environment.CommandLine for Windows .NET Framework
         /// </summary>
-        /// <returns>array with arguments (after toolname) that werecomma-seperated</returns>
-        public static string[] GetFullArgs()
+        /// <returns>array with arguments (after toolname) that were comma-seperated</returns>
+        public static string[] GetFullArgs(bool isOuterQuoteRemoved = true)
         {
             // code from: https://learn.microsoft.com/en-us/answers/questions/1179400/command-line-arguments-being-reformatted 
             IntPtr command_line0 = GetCommandLineW();
@@ -509,6 +520,18 @@ namespace Sweco.SIF.Common
             string[] args = command_line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             List<string> argList = new List<string>(args);
             argList.RemoveAt(0);
+
+            if (isOuterQuoteRemoved)
+            {
+                for (int idx = 0; idx < argList.Count; idx++)
+                {
+                    string arg = argList[idx];
+                    if (arg.StartsWith("\"") && arg.EndsWith("\""))
+                    {
+                        argList[idx] = arg.Substring(1, arg.Length - 2);
+                    }
+                }
+            }
 
             return argList.ToArray();
         }

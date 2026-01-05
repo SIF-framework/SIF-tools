@@ -151,7 +151,8 @@ namespace Sweco.SIF.Common
             if (Args.Length < idx + GetMinParameterCount())
             {
                 throw new ToolException("Found " + idx + " options and " + (Args.Length - idx)
-                    + " (other) argument(s), but expected number of (obligatory) arguments is " + GetMinParameterCount() + ". Check tool usage!");
+                    + " (other) argument(s), but expected number of (obligatory) arguments is " + GetMinParameterCount() + ".\n" 
+                    + "Check surrounding quotes and/or tool usage!");
             }
 
             // Combine (leftover) parameters
@@ -789,7 +790,7 @@ namespace Sweco.SIF.Common
                     + "), ensure that MinArgCount-property returns a positive value indicating the minimum number of (obligatory) command-line arguments.");
             }
 
-            return (Args.Length >= GetMinParameterCount()) && !((Args.Length == 1) && IsToolHelpArgString(Args[0]));
+            return (Args.Length >= GetMinParameterCount()) && !IsToolHelpRequested();
         }
 
         /// <summary>
@@ -1699,6 +1700,14 @@ namespace Sweco.SIF.Common
                 throw new Exception("Please define tool parameter descriptions in SIFToolSettingsBase subclass with method AddToolParameterDescription()");
             }
             return minParameterCount;
+        }
+
+        /// <summary>
+        /// Checks if the user requested for help (syntax info) via a keyword on the command-line
+        /// </summary>
+        public virtual bool IsToolHelpRequested()
+        {
+            return (Args.Length == 0) || ((Args.Length == 1) && IsToolHelpArgString(Args[0]));
         }
 
         /// <summary>
