@@ -265,12 +265,12 @@ namespace Sweco.SIF.iMOD.Legends
         {
             if (noDifferenceColor == null)
             {
-                noDifferenceColor = Color.FromArgb(240, 240, 240);
+                noDifferenceColor = Color.FromArgb(246, 246, 246);
             }
 
             Color[] diffColors = new Color[] { Color.FromArgb(79, 0, 0), Color.FromArgb(108, 0, 0), Color.FromArgb(128, 0, 0), Color.FromArgb(162, 0, 0), Color.FromArgb(209, 0, 0), Color.FromArgb(255, 0, 0),
-                                               Color.FromArgb(255, 63, 0), Color.FromArgb(255, 110, 0), Color.FromArgb(255, 170, 0), (Color) noDifferenceColor,
-                                               Color.FromArgb(168, 232, 0), Color.FromArgb(50, 233, 0), Color.FromArgb(0, 203, 0), Color.FromArgb(0, 170, 0), Color.FromArgb(0, 140, 0),
+                                               Color.FromArgb(255, 63, 0), Color.FromArgb(255, 110, 0), Color.FromArgb(255, 170, 0), Color.FromArgb(251,231,189), (Color) noDifferenceColor,
+                                               Color.FromArgb(226,244,179), Color.FromArgb(168, 232, 0), Color.FromArgb(50, 233, 0), Color.FromArgb(0, 203, 0), Color.FromArgb(0, 170, 0), Color.FromArgb(0, 140, 0),
                                                Color.FromArgb(0, 114, 0), Color.FromArgb(0, 70, 0), Color.FromArgb(0, 43, 0), Color.FromArgb(0, 23, 0)};
             if (isColorsReversed)
             {
@@ -285,17 +285,19 @@ namespace Sweco.SIF.iMOD.Legends
             AddClass(new RangeLegendClass(-0.50f, -0.25f, "-0.50 - -0.25", diffColors[5]));
             AddClass(new RangeLegendClass(-0.25f, -0.10f, "-0.25 - -0.10", diffColors[6]));
             AddClass(new RangeLegendClass(-0.10f, -0.05f, "-0.10 - -0.05", diffColors[7]));
-            AddClass(new RangeLegendClass(-0.05f, -0.0000001f, "-0.05 - -1E-7", diffColors[8]));
-            AddClass(new RangeLegendClass(-0.0000001f, 0.0000001f, "-1E-7 - 1E-7", diffColors[9]));
-            AddClass(new RangeLegendClass(0.0000001f, 0.05f, "1E-7 - 0.05", diffColors[10]));
-            AddClass(new RangeLegendClass(0.05f, 0.10f, "0.05 - 0.10", diffColors[11]));
-            AddClass(new RangeLegendClass(0.10f, 0.25f, "0.10 - 0.25", diffColors[12]));
-            AddClass(new RangeLegendClass(0.25f, 0.50f, "0.25 - 0.50", diffColors[13]));
-            AddClass(new RangeLegendClass(0.50f, 0.75f, "0.50 - 0.75", diffColors[14]));
-            AddClass(new RangeLegendClass(0.75f, 1.00f, "0.75 - 1.00", diffColors[15]));
-            AddClass(new RangeLegendClass(1.00f, 1.50f, "1.00 - 1.50", diffColors[16]));
-            AddClass(new RangeLegendClass(1.50f, 50.00f, "1.50 - 50.0", diffColors[17]));
-            AddClass(new RangeLegendClass(50.00f, 9999999f, "> 50.0", diffColors[18]));
+            AddClass(new RangeLegendClass(-0.05f, -0.001f, "-0.05 - -1E-3", diffColors[8]));
+            AddClass(new RangeLegendClass(-0.001f, -0.0000001f, "-1E-3 - -1E-7", diffColors[9]));
+            AddClass(new RangeLegendClass(-0.0000001f, 0.0000001f, "-1E-7 - 1E-7", diffColors[10]));
+            AddClass(new RangeLegendClass(0.0000001f, 0.001f, "1E-7 - 1E-3", diffColors[11]));
+            AddClass(new RangeLegendClass(0.001f, 0.05f, "1E-3 - 0.05", diffColors[12]));
+            AddClass(new RangeLegendClass(0.05f, 0.10f, "0.05 - 0.10", diffColors[13]));
+            AddClass(new RangeLegendClass(0.10f, 0.25f, "0.10 - 0.25", diffColors[14]));
+            AddClass(new RangeLegendClass(0.25f, 0.50f, "0.25 - 0.50", diffColors[15]));
+            AddClass(new RangeLegendClass(0.50f, 0.75f, "0.50 - 0.75", diffColors[16]));
+            AddClass(new RangeLegendClass(0.75f, 1.00f, "0.75 - 1.00", diffColors[17]));
+            AddClass(new RangeLegendClass(1.00f, 1.50f, "1.00 - 1.50", diffColors[18]));
+            AddClass(new RangeLegendClass(1.50f, 50.00f, "1.50 - 50.0", diffColors[19]));
+            AddClass(new RangeLegendClass(50.00f, 9999999f, "> 50.0", diffColors[20]));
             Description = "Differences";
         }
 
@@ -329,9 +331,9 @@ namespace Sweco.SIF.iMOD.Legends
             AddClass(new RangeLegendClass(0.33f, 0.50f, "0.33 - 0.50", diffColors[6]));
             AddClass(new RangeLegendClass(0.50f, 0.66f, "0.50 - 0.66", diffColors[7]));
             AddClass(new RangeLegendClass(0.66f, 0.90f, "0.66 - 0.90", diffColors[8]));
-            AddClass(new RangeLegendClass(0.90f, 0.99f, "0.90 - 1.00", diffColors[9]));
-            AddClass(new RangeLegendClass(0.99f, 1.01f, "1.0", diffColors[10]));
-            AddClass(new RangeLegendClass(1.01f, 1.1f, "1.0 - 1.1", diffColors[11]));
+            AddClass(new RangeLegendClass(0.90f, 0.9999f, "0.90 - 1.00", diffColors[9]));
+            AddClass(new RangeLegendClass(0.9999f, 1.0001f, "1.0", diffColors[10]));
+            AddClass(new RangeLegendClass(1.0001f, 1.1f, "1.0 - 1.1", diffColors[11]));
             AddClass(new RangeLegendClass(1.1f, 1.5f, "1.1 - 1.5", diffColors[12]));
             AddClass(new RangeLegendClass(1.5f, 2.0f, "1.5 - 2.0", diffColors[13]));
             AddClass(new RangeLegendClass(2.0f, 3.0f, "2.0 - 3.0", diffColors[14]));

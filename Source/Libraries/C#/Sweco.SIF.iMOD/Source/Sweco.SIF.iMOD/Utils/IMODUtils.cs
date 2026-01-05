@@ -280,10 +280,10 @@ namespace Sweco.SIF.iMOD.Utils
                 factor *= 10;
                 idx--;
             }
-
-            if ((idx < 0) && (factor > 1))
+    
+            if ((idx < 0) && (factor == 1))
             {
-                throw new ToolException("Could not parse value for string: " + Path.GetFileName(someString));
+                throw new ToolException("Could not parse last numeric value for string: " + Path.GetFileName(someString));
             }
 
             return layernumber;

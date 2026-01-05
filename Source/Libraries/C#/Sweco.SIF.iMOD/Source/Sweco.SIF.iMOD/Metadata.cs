@@ -235,7 +235,7 @@ namespace Sweco.SIF.iMOD
             metString += string.Format(fieldFormat + "{1}\r\n", GetFieldstring(MetadataSettings.PublicationDateStrings), publicationDateString);
             metString += string.Format(fieldFormat + "{1}\r\n", GetFieldstring(MetadataSettings.FileVersionStrings), Version);
             metString += string.Format(fieldFormat + "{1}\r\n", GetFieldstring(MetadataSettings.ModelVersionStrings), Modelversion);
-            metString += string.Format(fieldFormat + "{1}\r\n", GetFieldstring(MetadataSettings.DescriptionStrings), Description.Replace("\n", "\n               "));
+            metString += string.Format(fieldFormat + "{1}\r\n", GetFieldstring(MetadataSettings.DescriptionStrings), Description);
             metString += string.Format(fieldFormat + "{1}\r\n", GetFieldstring(MetadataSettings.ProducerStrings), Producer);
             metString += string.Format(fieldFormat + "{1}\r\n", GetFieldstring(MetadataSettings.TypeStrings), Type);
             metString += "\r\n" + "# " + GetFieldstring(MetadataSettings.DatasetDescriptionHeaderStrings) + "\r\n";
