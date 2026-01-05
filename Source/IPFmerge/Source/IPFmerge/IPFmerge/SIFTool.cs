@@ -234,6 +234,7 @@ namespace Sweco.SIF.IPFmerge
                 {
                     // Force timeseries to be loaded into memory since new file location could be different
                     LoadAllTimeseries(sourceIPFFile);
+                    IPFUtils.FixEqualTSFilenames(resultIPFFile, sourceIPFFile, Log, 2 );
                 }
 
                 if (sourceIPFFile.ColumnCount == resultIPFFile.ColumnCount)
