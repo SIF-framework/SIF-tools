@@ -513,13 +513,13 @@ namespace Sweco.SIF.iMOD.IPF
         }
 
         /// <summary>
-        /// Write timeseries, excluding invalid/NoData timestamps, to specified file
+        /// Write timeseries, excluding invalid/NoData timestamps, to specified file; writing is skipped if TimeStamps property is null
         /// </summary>
         /// <param name="filename"></param>
         /// <param name="decimalCount">Number of decimals for non-NoData-values when writing timeseries file. Use -1 to use IPFTimeseries.DecimalCount</param>
         public void WriteFile(string filename, int decimalCount = -1)
         {
-            if ((Timestamps != null) && (Timestamps.Count() > 0))
+            if (Timestamps != null)
             {
                 if (decimalCount == -1)
                 {

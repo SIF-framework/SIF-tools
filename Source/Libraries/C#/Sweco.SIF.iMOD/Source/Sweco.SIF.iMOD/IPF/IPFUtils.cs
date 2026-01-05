@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD.GEN;
 using Sweco.SIF.iMOD.IDF;
@@ -74,10 +75,11 @@ namespace Sweco.SIF.iMOD.IPF
         /// <param name="timeseriesStartDate">start date/time of selection period</param>
         /// <param name="timeseriesEndDate">end date/time of selection period</param>
         /// <param name="valueColIdx">column index in associated file to check, or -1 to check all columns</param>
+        /// <param name="isRemoved">if false, points are not removed (all points are selected), but timeseries may be clipped</param>
         /// <param name="isTimeseriesClipped">if true, all date/value columns are clipped to specified period</param>
         /// <param name="srcPointIndices">optional (empty, non-null) list to store indices to selected points in source IPF-file</param>
         /// <returns></returns>
-        public static IPFFile SelectPoints(IPFFile sourceIPFFile, DateTime? timeseriesStartDate, DateTime? timeseriesEndDate, int valueColIdx, bool isTimeseriesClipped, List<int> srcPointIndices = null)
+        public static IPFFile SelectPoints(IPFFile sourceIPFFile, DateTime? timeseriesStartDate, DateTime? timeseriesEndDate, int valueColIdx, bool isRemoved, bool isTimeseriesClipped, List<int> srcPointIndices = null)
         {
             IPFFile newIPFFile = new IPFFile();
             newIPFFile.CopyProperties(sourceIPFFile);
@@ -116,16 +118,20 @@ namespace Sweco.SIF.iMOD.IPF
                             selValueColIndices.Add(valueColIdx);
                         }
 
-                        // For all of the specified value columns check if number of NoData-values is equal to number of value in specified period
+                        // For all of the specified value columns check if number of NoData-values is equal to number of values in specified period
                         bool isPointSelected = true;
-                        foreach (int selValueColIdx in selValueColIndices)
+                        if (isRemoved)
                         {
-                            List<float> valueList = clippedIPFTimeseries.ValueColumns[selValueColIdx];
-
-                            int noDataCount = clippedIPFTimeseries.RetrieveNoDataCount(selValueColIdx);
-                            if (valueList.Count == noDataCount)
+                            // Remove points without dates in specified period
+                            foreach (int selValueColIdx in selValueColIndices)
                             {
-                                isPointSelected = false;
+                                List<float> valueList = clippedIPFTimeseries.ValueColumns[selValueColIdx];
+
+                                int noDataCount = clippedIPFTimeseries.RetrieveNoDataCount(selValueColIdx);
+                                if (valueList.Count == noDataCount)
+                                {
+                                    isPointSelected = false;
+                                }
                             }
                         }
 
@@ -442,6 +448,51 @@ namespace Sweco.SIF.iMOD.IPF
                 someString = someString.Replace(listSeperators[charIdx].ToString(), string.Empty);
             }
             return someString;
+        }
+
+        /// <summary>
+        /// Check for equal associated filenames in both IPF-files, which can be a risk. For equal filenames postfix #i is added to associated filenames of IPF-file 2.
+        /// For modified filenames it is necessary that the corresponding timeseries is loaded into memory; which is also performed in this method.
+        /// </summary>
+        /// <param name="ipfFile1"></param>
+        /// <param name="ipfFile2"></param>
+        /// <param name="log"></param>
+        /// <param name="logIndentLevel"></param>
+        public static void FixEqualTSFilenames(IPFFile ipfFile1, IPFFile ipfFile2, Log log, int logIndentLevel)
+        {
+            HashSet<string> sourceFilenames = new HashSet<string>();
+            int addedTXTColIdx = ipfFile2.AssociatedFileColIdx;
+            int sourceTXTColIdx = ipfFile1.AssociatedFileColIdx;
+            if ((sourceTXTColIdx >= 0) && (addedTXTColIdx >= 0))
+            {
+                foreach (IPFPoint ipfPoint1 in ipfFile1.Points)
+                {
+                    string txtFilename = ipfPoint1.ColumnValues[sourceTXTColIdx];
+                    sourceFilenames.Add(txtFilename);
+                }
+
+                foreach (IPFPoint ipfPoint2 in ipfFile2.Points)
+                {
+                    string txtFilename = ipfPoint2.ColumnValues[addedTXTColIdx];
+                    if (sourceFilenames.Contains(txtFilename))
+                    {
+                        // IPFPoint 2 has the same associated filename as a point in IPF-file 1
+                        // If necessasry, load timeseries and add postfix to associated filename of IPFpoint 2
+                        ipfPoint2.LoadTimeseries();
+                        int seqNr = 2;
+                        string txtFilename2 = FileUtils.AddFilePostFix(txtFilename, "#" + seqNr);
+                        while (sourceFilenames.Contains(txtFilename2))
+                        {
+                            txtFilename2 = FileUtils.AddFilePostFix(txtFilename, "#" + ++seqNr);
+                        }
+                        ipfPoint2.ColumnValues[addedTXTColIdx] = txtFilename2;
+                        ipfPoint2.Timeseries.Filename = txtFilename2;
+
+                        log.AddWarning("Point in IPF-file 2 has same associated filename as point in IPF-file 1: " + txtFilename + ".TXT", logIndentLevel);
+                        log.AddInfo("Associated filename for point in IPF-file 2 is renamed to: " + txtFilename2 + ipfFile1.AssociatedFileExtension, logIndentLevel + 1);
+                    }
+                }
+            }
         }
     }
 
