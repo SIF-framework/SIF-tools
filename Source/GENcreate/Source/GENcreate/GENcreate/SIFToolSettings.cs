@@ -56,7 +56,7 @@ namespace Sweco.SIF.GENcreate
         protected override void DefineToolSyntax()
         {
             AddToolParameterDescription("outFile", "Path and filename for resulting GEN-file", "C:\\Test\\Output\\BUFFEREXTENT.GEN");
-            AddToolOptionDescription("e", "extent coordinates (xll,yll,xur,yur) to create GEN-polygon for", "/e:181000,360000,222500,401000", "Extent for GEN-polygon: {...}", new string[] { "xll", "yll", "xur", "yur" });
+            AddToolOptionDescription("e", "Extent coordinates (xll,yll,xur,yur) to create GEN-polygon(s) for", "/e:181000,360000,222500,401000", "Extent for GEN-polygon: {...}", new string[] { "xll", "yll", "xur", "yur" });
         }
 
         /// <summary>

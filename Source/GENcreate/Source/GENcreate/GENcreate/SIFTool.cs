@@ -109,33 +109,37 @@ namespace Sweco.SIF.GENcreate
                 Directory.CreateDirectory(outputPath);
             }
 
+            Log.AddInfo("Creating GEN-feature(s) ...");
+            GENFile genFile = CreateFeatures(settings, Log, 1);
+            Log.AddInfo("Writing GEN-file " + Path.GetFileName(settings.OutputFilename) + " ...");
+            genFile.WriteFile(settings.OutputFilename);
+
+            ToolSuccessMessage = "GEN-file has been successfully created";
+
+            return exitcode;
+        }
+
+        protected virtual GENFile CreateFeatures(SIFToolSettings settings, Log log, int v)
+        {
             GENFile genFile = new GENFile();
-            try
+
+            if (settings.Extent == null)
             {
-                if (settings.Extent != null)
-                {
-                    Log.AddInfo("Writing GEN-file " + Path.GetFileName(settings.OutputFilename) + " ...");
-                    genFile.AddFeature(new GENPolygon(genFile, 1, new List<Point>(new Point[] {
+                throw new ToolException("Please define extent to create GEN-feature for");
+            }
+            if (!settings.Extent.IsValidExtent())
+            {
+                throw new ToolException("Specified extent has negative/zero areasize and is not valid: " + settings.Extent.ToString());
+            }
+
+            genFile.AddFeature(new GENPolygon(genFile, 1, new List<Point>(new Point[] {
                         new FloatPoint(settings.Extent.llx, settings.Extent.ury),
                         new FloatPoint(settings.Extent.urx, settings.Extent.ury),
                         new FloatPoint(settings.Extent.urx, settings.Extent.lly),
                         new FloatPoint(settings.Extent.llx, settings.Extent.lly),
                         new FloatPoint(settings.Extent.llx, settings.Extent.ury) })));
-                    genFile.WriteFile(settings.OutputFilename);
-                }
-                else
-                {
-                    throw new ToolException("No options have been specified, nothing to do.");
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Could not write GEN-file: " + Path.GetFullPath(settings.OutputFilename), ex);
-            }
 
-            ToolSuccessMessage = "GEN-file has been successfully created";
-
-            return exitcode;
+            return genFile;
         }
     }
 }
