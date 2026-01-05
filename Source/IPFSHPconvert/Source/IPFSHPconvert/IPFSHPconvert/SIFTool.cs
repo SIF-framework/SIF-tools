@@ -187,23 +187,28 @@ namespace Sweco.SIF.IPFSHPconvert
         {
             for (int colIdx = 0; colIdx < fieldDefinitions.Count; colIdx++)
             {
+                string fieldValue = fieldData[colIdx];
                 switch (fieldDefinitions[colIdx].Type)
                 {
                     case DbfFieldType.Logical:
-                        if (!fieldData[colIdx].Equals("?"))
+                        if (fieldValue.Equals(string.Empty) || fieldValue.ToUpper().Equals("NULL"))
                         {
-                            bool boolValue = bool.Parse(fieldData[colIdx]);
+                            fieldData[colIdx] = "?";
+                        }
+                        else if (!fieldData[colIdx].Equals("?"))
+                        {
+                            bool boolValue = bool.Parse(fieldValue);
                             fieldData[colIdx] = (boolValue) ? "T" : "F";
                         }
                         break;
                     case DbfFieldType.Date:
-                        if (fieldData[colIdx].Equals(string.Empty))
+                        if (fieldValue.Equals(string.Empty))
                         {
                             fieldData[colIdx] = SIFToolSettings.NoDataSHPDateValue;
                         }
                         else
                         {
-                            DateTime date = DateTime.Parse(fieldData[colIdx]);
+                            DateTime date = DateTime.Parse(fieldValue);
                             fieldData[colIdx] = date.ToString("yyyyMMdd");
                         }
                         break;
@@ -219,6 +224,10 @@ namespace Sweco.SIF.IPFSHPconvert
                         {
                             // An empty string doesn't seem to be allowed in a shapefile Character field, this is replaced by NULL.
                             fieldData[colIdx] = "\0"; //string.Empty.PadLeft(fieldDefinitions[colIdx].FieldLength + 1);
+                        }
+                        else if (fieldData[colIdx].Length > fieldDefinitions[colIdx].FieldLength)
+                        {
+                            fieldData[colIdx] = fieldValue.Substring(fieldDefinitions[colIdx].FieldLength);
                         }
                         break;
                     default:
@@ -326,31 +335,34 @@ namespace Sweco.SIF.IPFSHPconvert
 
                                 if ((fieldType == DbfFieldType.FloatingPoint) || (fieldType == DbfFieldType.Number))
                                 {
-                                    // Check if valuestring start with any of the specified NULL-characters
-                                    for (int charIdx = 0; charIdx < settings.ShpNullNumericChars.Length; charIdx++)
+                                    if (!value.Equals(string.Empty))
                                     {
-                                        if (value[0].Equals(settings.ShpNullNumericChars[charIdx]))
+                                        // Check if valuestring starts with any of the specified NULL-characters
+                                        for (int charIdx = 0; charIdx < settings.ShpNullNumericChars.Length; charIdx++)
                                         {
-                                            string orgValue = value;
-
-                                            if (fieldType == DbfFieldType.FloatingPoint)
+                                            if (value[0].Equals(settings.ShpNullNumericChars[charIdx]))
                                             {
-                                                value = settings.ShpNullDblReplacementString;
-                                            }
-                                            else if (fieldType == DbfFieldType.Number)
-                                            {
-                                                value = settings.ShpNullIntReplacementString;
-                                            }
+                                                string orgValue = value;
 
-                                            if (!isWarnedForNullValue)
-                                            {
-                                                Log.AddWarning("Native NULL-value '" + orgValue + "' found in row number " + featureIdx + " for " + fieldTypes[fieldIdx] + "-column '" + fieldDescs[fieldIdx].FieldName + "'", 3);
-                                                Log.AddInfo("Value is replaced with '" + value + "'; Warnings for more native NULL-values in this shapefile are not shown", 3);
-                                                isWarnedForNullValue = true;
-                                            }
+                                                if (fieldType == DbfFieldType.FloatingPoint)
+                                                {
+                                                    value = settings.ShpNullDblReplacementString;
+                                                }
+                                                else if (fieldType == DbfFieldType.Number)
+                                                {
+                                                    value = settings.ShpNullIntReplacementString;
+                                                }
 
-                                            // Stop trying other NULL-characters in this for-loop 
-                                            break;
+                                                if (!isWarnedForNullValue)
+                                                {
+                                                    Log.AddWarning("Native NULL-value '" + orgValue + "' found in row number " + featureIdx + " for " + fieldTypes[fieldIdx] + "-column '" + fieldDescs[fieldIdx].FieldName + "'", 3);
+                                                    Log.AddInfo("Value is replaced with '" + value + "'; Warnings for more native NULL-values in this shapefile are not shown", 3);
+                                                    isWarnedForNullValue = true;
+                                                }
+
+                                                // Stop trying other NULL-characters in this for-loop 
+                                                break;
+                                            }
                                         }
                                     }
                                 }
@@ -391,6 +403,8 @@ namespace Sweco.SIF.IPFSHPconvert
                                         value = string.Empty;
                                     }
                                 }
+
+                                value = CorrectIPFStringValue(value);
 
                                 columnValues.Add(value);
                             }
@@ -453,6 +467,37 @@ namespace Sweco.SIF.IPFSHPconvert
             }
         }
 
+        /// <summary>
+        /// Correct string that will be stored in an IPF-file
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        protected string CorrectIPFStringValue(string value)
+        {
+            if (value == null)
+            {
+                return null;
+            }
+
+            // Remove end-of-line characters
+            if (value.IndexOfAny(new char[] { '\r', '\n' }) >= 0)
+            {
+                value = value.Replace("\r", string.Empty).Replace("\n", string.Empty);
+            }
+
+            // Replace double quotes
+            if (value.Contains("\""))
+            {
+                if (value.StartsWith("\"") && value.EndsWith("\n"))
+                {
+                    value = value.Substring(1, value.Length - 2);
+                }
+                value = value.Replace("\"", "'");
+            }
+
+            return value;
+        }
+
         protected virtual void WriteIPFFile(string ipfFilename, IPFFile ipfFile, SIFToolSettings settings, int logIndentLevel)
         {
             Log.AddInfo("Creating IPF-file " + Path.GetFileName(ipfFilename) + " ...", logIndentLevel);
@@ -497,7 +542,7 @@ namespace Sweco.SIF.IPFSHPconvert
                 {
                     string columnName = ipfFile.ColumnNames[colIdx];
                     string value = point.ColumnValues[colIdx];
-                    value = CorrectStringValue(value);
+                    value = CorrectSHPStringValue(value);
 
                     FieldDefinition fieldDefinition = fieldDefinitions[colIdx];
                     int currFieldDefLength = fieldDefinition.FieldLength;
@@ -677,7 +722,14 @@ namespace Sweco.SIF.IPFSHPconvert
                     // Define simple character field with length 0
                     fieldDefinitions[colIdx] = new FieldDefinition(ipfFile.ColumnNames[colIdx], DbfFieldType.Character);
                 }
+
+                if (fieldDefinitions[colIdx].FieldLength > 254)
+                {
+                    // The shapefile maximum field width is 254. It is a limitation of the dBase format.
+                    fieldDefinitions[colIdx].FieldLength = 254;
+                }
             }
+
 
             if (hasScientificNotations)
             {
@@ -687,7 +739,12 @@ namespace Sweco.SIF.IPFSHPconvert
             return fieldDefinitions;
         }
 
-        private static string CorrectStringValue(string value)
+        /// <summary>
+        /// Correct string that will be stored in a shapefile
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        protected static string CorrectSHPStringValue(string value)
         {
             if (value == null)
             {
