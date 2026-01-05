@@ -34,7 +34,7 @@ namespace Sweco.SIF.IFFSelect
 {
     public enum ReverseMethodEnum
     {
-        Undefined,
+        None,
         Before,
         After
     }
@@ -86,8 +86,7 @@ namespace Sweco.SIF.IFFSelect
             SelectPointType = SelectPointType.Undefined;
             SelectPointMethod = SelectPointMethod.Inside;
             SelectFlowLinesMethod = SelectFlowLinesMethod.Undefined;
-            IsTravelTimeReversed = false;
-            ReverseMethod = ReverseMethodEnum.Before;
+            ReverseMethod = ReverseMethodEnum.None;
             OutputFilePostfix = null;
         }
 

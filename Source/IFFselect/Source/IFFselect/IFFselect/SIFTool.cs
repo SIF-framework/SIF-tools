@@ -197,7 +197,7 @@ namespace Sweco.SIF.IFFselect
             List<int> inputFileParticleNumbers = iffFile.SelectParticles();
             long inputFileParticlePointCount = iffFile.ParticlePoints.Count;
 
-            if (settings.IsTravelTimeReversed && settings.ReverseMethod == ReverseMethodEnum.Before)
+            if (settings.ReverseMethod == ReverseMethodEnum.Before)
             {
                 Log.AddInfo("Reversing traveltime ...", logIndentLevel + 1);
                 iffFile.ReverseTravelTime();
@@ -299,7 +299,7 @@ namespace Sweco.SIF.IFFselect
                 }
             }
 
-            if (settings.IsTravelTimeReversed && settings.ReverseMethod == ReverseMethodEnum.After)
+            if (settings.ReverseMethod == ReverseMethodEnum.After)
             {
                 Log.AddInfo("Reversing traveltime ...", logIndentLevel);
                 newIFFFile.ReverseTravelTime();
