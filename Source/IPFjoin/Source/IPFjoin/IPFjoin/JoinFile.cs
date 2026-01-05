@@ -58,6 +58,11 @@ namespace Sweco.SIF.IPFjoin
         public int AssociatedFileColIdx { get; protected set; }
 
         /// <summary>
+        /// Filename extension of associated files
+        /// </summary>
+        public string AssociatedFileExtension{ get; protected set; }
+
+        /// <summary>
         /// Table ([row][col]) with rows with a list of column values per row. Each row can contain an optional timeseries.
         /// </summary>
         public List<JoinRow> Rows { get; protected set; }
@@ -81,8 +86,13 @@ namespace Sweco.SIF.IPFjoin
             XColIdx = -1;
             YColIdx = -1;
             AssociatedFileColIdx = -1;
+            AssociatedFileExtension = null;
         }
 
+        /// <summary>
+        /// Create Joinfile object for specified filename and prepare datastructures for join
+        /// </summary>
+        /// <param name="filename"></param>
         public JoinFile(string filename, int xColIdx = -1, int yColIdx = -1) : base()
         {
             if (!File.Exists(filename))
@@ -96,6 +106,10 @@ namespace Sweco.SIF.IPFjoin
             ImportFile(filename);
         }
 
+        /// <summary>
+        /// Create Joinfile object for specified IMODFile object and prepare datastructures for join
+        /// </summary>
+        /// <param name="imodFile"></param>
         public JoinFile(IPFFile ipfFile) : base()
         {
             ImportIPFFile(ipfFile);
@@ -146,6 +160,7 @@ namespace Sweco.SIF.IPFjoin
             FileObject = ipfFile;
             ColumnNames = ipfFile.ColumnNames;
             AssociatedFileColIdx = ipfFile.AssociatedFileColIdx;
+            AssociatedFileExtension = ipfFile.AssociatedFileExtension;
             Rows = new List<JoinRow>();
             foreach (IPFPoint ipfPoint in ipfFile.Points)
             {

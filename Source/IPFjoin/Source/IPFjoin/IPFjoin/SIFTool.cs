@@ -117,6 +117,10 @@ namespace Sweco.SIF.IPFjoin
 
             // An example for reading files from a path and creating a new file...
             string[] inputFilenames = Directory.GetFiles(settings.InputPath, settings.InputFilter, settings.IsRecursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly );
+            if ((inputFilenames.Length == 0) && !settings.InputFilter.Contains("?") && !settings.InputFilter.Contains("*"))
+            {
+                throw new ToolException("Specified input file is not found: " + Path.GetFullPath(Path.Combine(settings.InputPath, settings.InputFilter)));
+            }
 
             Log.AddInfo("Applying " + settings.JoinType.ToString() + "-join for points ...");
             Log.AddInfo("Applying " + settings.TSJoinType.ToString() + "-join for dates in timeseries ...");
@@ -125,7 +129,7 @@ namespace Sweco.SIF.IPFjoin
             // Retrieve file 2 and create datastructures for efficient handling
             Log.AddInfo("Reading file '" + Path.GetFileName(settings.JoinFilename) + "' ...");
             Log.AddInfo();
-            JoinFile joinFile2 = ReadJoinFile(settings);
+            JoinFile joinFile2 = ReadJoinFile(settings.JoinFilename, settings);
 
             JoinInfo joinInfo = CreateJoinInfo(settings);
             UpdateJoinInfo(joinInfo, null, joinFile2, settings, Log, 1);
@@ -137,13 +141,16 @@ namespace Sweco.SIF.IPFjoin
                 // Retrieve source IPF-file and create datastructures for efficient handling
                 Log.AddInfo("Processing file '" + Path.GetFileName(inputFilename) + "' ...", 1);
                 IPFFile ipfFile1 = IPFFile.ReadFile(inputFilename, settings.XColIdx1, settings.YColIdx1);
+                
+                FixEqualTSFilenames(ipfFile1, joinFile2, Log, 2);
+
                 JoinFile joinFile1 = CreateJoinFile(ipfFile1);
 
                 UpdateJoinInfo(joinInfo, joinFile1, joinFile2, settings, Log, 2);
 
                 string outputFilename = GetOutputFilename(inputFilename, inputFilenames, settings);
                 IPFFile resultIPFFile = JoinIPFFile(ipfFile1, joinFile2, joinInfo, outputFilename, settings);
-                Log.AddInfo("Joining file 1 (" + ipfFile1.Points.Count + " rows) to file 2 (" + joinFile2.Rows.Count + " rows) resulted in " + resultIPFFile.Points.Count + " rows", 2);
+                Log.AddInfo("Joining file 1 (" + ipfFile1.Points.Count + " rows) with file 2 (" + joinFile2.Rows.Count + " rows) resulted in " + resultIPFFile.Points.Count + " rows", 2);
 
                 Log.AddInfo("Writing resulting IPF-file '" + Path.GetFileName(outputFilename) + "' ...", 2);
                 resultIPFFile.WriteFile();
@@ -249,9 +256,9 @@ namespace Sweco.SIF.IPFjoin
             return new JoinFile(ipfFile);
         }
 
-        protected virtual JoinFile ReadJoinFile(SIFToolSettings settings)
+        protected virtual JoinFile ReadJoinFile(string joinFilename, SIFToolSettings settings)
         {
-            return new JoinFile(settings.JoinFilename, settings.XColIdx2, settings.YColIdx2);
+            return new JoinFile(joinFilename, settings.XColIdx2, settings.YColIdx2);
         }
 
         /// <summary>
@@ -325,6 +332,51 @@ namespace Sweco.SIF.IPFjoin
             }
 
             return keyIndices;
+        }
+
+        /// <summary>
+        /// Check for equal associated filenames in both files, which can be a risk. For equal filenames postfix #i is added to associated filenames of JoinFile 2.
+        /// For modified filenames it is necessary that the corresponding timeseries is loaded into memory; which is also performed in this method.
+        /// </summary>
+        /// <param name="ipfFile1"></param>
+        /// <param name="joinFile2"></param>
+        /// <param name="log"></param>
+        /// <param name="logIndentLevel"></param>
+        public static void FixEqualTSFilenames(IPFFile ipfFile1, JoinFile joinFile2, Log log, int logIndentLevel)
+        {
+            HashSet<string> ipf1TXTFilenames = new HashSet<string>();
+            int join2TXTColIdx = joinFile2.AssociatedFileColIdx;
+            int ipf1TXTColIdx = ipfFile1.AssociatedFileColIdx;
+            if ((ipf1TXTColIdx >= 0) && (join2TXTColIdx >= 0))
+            {
+                foreach (IPFPoint ipfPoint1 in ipfFile1.Points)
+                {
+                    string txtFilename = ipfPoint1.ColumnValues[ipf1TXTColIdx];
+                    ipf1TXTFilenames.Add(txtFilename);
+                }
+
+                foreach (JoinRow joinRow in joinFile2.Rows)
+                {
+                    string txtFilename = joinRow[join2TXTColIdx];
+                    if (ipf1TXTFilenames.Contains(txtFilename))
+                    {
+                        // IPFPoint 2 has the same associated filename as a point in IPF-file 1
+                        // If necessasry, load timeseries and add postfix to associated filename of IPFpoint 2
+                        // joinFile2.LoadTimeseries();
+                        int seqNr = 2;
+                        string txtFilename2 = FileUtils.AddFilePostFix(txtFilename, "#" + seqNr);
+                        while (ipf1TXTFilenames.Contains(txtFilename2))
+                        {
+                            txtFilename2 = FileUtils.AddFilePostFix(txtFilename, "#" + ++seqNr);
+                        }
+                        joinRow[join2TXTColIdx] = txtFilename2;
+                        joinRow.Timeseries.Filename = txtFilename2;
+
+                        log.AddWarning("Point in joined file has same associated filename as point in IPF-file 1: " + txtFilename + ".TXT", logIndentLevel);
+                        log.AddInfo("Associated filename for point in joined file is renamed to: " + txtFilename2 + ipfFile1.AssociatedFileExtension, logIndentLevel + 1);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -488,6 +540,7 @@ namespace Sweco.SIF.IPFjoin
                 keyDictionary2KeyList.Remove(keyString);
             }
 
+            // Process remaining points from joined file
             switch (settings.JoinType)
             {
                 case JoinType.FullOuter:
@@ -504,27 +557,49 @@ namespace Sweco.SIF.IPFjoin
                         {
                             List<int> pointIndices2 = keyDictionary2[keyString2];
 
-                            // Loop through all source IPF-points that have this key
+                            // Loop through all source IPF-points of joined file that have this key
                             foreach (int pointIndex2 in pointIndices2)
                             {
                                 JoinRow row2 = joinFile2.Rows[pointIndex2];
                                 //IPFPoint ipfPoint2 = ipfFile1.Points[pointIndex2];
                                 Point point2 = joinFile2.RetrievePoint(row2);
-                                List<string> columnValues = new List<string>() { point2.XString, point2.YString };
-                                for (int colIdx1 = 2; colIdx1 < ipfFile1.ColumnCount; colIdx1++)
+                                if (point2 != null)
                                 {
-                                    columnValues.Add("");
-                                }
-                                for (int colIdx2 = 0; colIdx2 < joinFile2.ColumnNames.Count; colIdx2++)
-                                {
-                                    if (selectedColIndices2.Contains(colIdx2))
+                                    List<string> columnValues = new List<string>() { point2.XString, point2.YString };
+                                    for (int colIdx1 = 2; colIdx1 < ipfFile1.ColumnCount; colIdx1++)
                                     {
-                                        columnValues.Add(row2[colIdx2]);
+                                        columnValues.Add("");
                                     }
+                                    for (int colIdx2 = 0; colIdx2 < joinFile2.ColumnNames.Count; colIdx2++)
+                                    {
+                                        if (selectedColIndices2.Contains(colIdx2))
+                                        {
+                                            columnValues.Add(row2[colIdx2]);
+                                        }
+                                    }
+                                    IPFTimeseries ts = null;
+                                    if (row2.HasTimeseries && (resultIPFFile.AssociatedFileColIdx >= 0))
+                                    {
+                                        ts = row2.Timeseries;
+                                        if (ts != null)
+                                        {
+                                            // Copy optional filename/timeseries of associated file from joined file to result IPF-file
+                                            string associatedFilename = row2[joinFile2.AssociatedFileColIdx];
+                                            string tsPath = associatedFilename + "." + joinFile2.AssociatedFileExtension;
+                                            if (!Path.IsPathRooted(tsPath))
+                                            {
+                                                tsPath = Path.Combine(Path.GetDirectoryName(joinFile2.Filename), tsPath);
+                                            }
+
+                                            ts.Filename = Path.Combine(Path.GetDirectoryName(resultIPFFile.Filename), associatedFilename + "." + joinFile2.AssociatedFileExtension);
+                                            columnValues[resultIPFFile.AssociatedFileColIdx] = associatedFilename;
+                                        }
+                                    }
+
+                                    IPFPoint resultingIPFPoint = new IPFPoint(resultIPFFile, point2, columnValues);
+                                    resultingIPFPoint.Timeseries = ts;
+                                    resultIPFFile.AddPoint(resultingIPFPoint);
                                 }
-                                IPFPoint resultingIPFPoint = new IPFPoint(resultIPFFile, point2, columnValues);
-                                // Note: optional timeseries data from IPF-file 2 is ignored
-                                resultIPFFile.AddPoint(resultingIPFPoint);
                             }
                         }
                     }
@@ -533,6 +608,7 @@ namespace Sweco.SIF.IPFjoin
                     // ignore 
                     break;
             }
+
             return resultIPFFile;
         }
 

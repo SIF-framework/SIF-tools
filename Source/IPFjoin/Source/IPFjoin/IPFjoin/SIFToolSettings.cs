@@ -46,6 +46,10 @@ namespace Sweco.SIF.IPFjoin
     {
         public string InputPath { get; set; }
         public string InputFilter { get; set; }
+
+        /// <summary>
+        /// The second file, on the right side of the join, that is joined to the input files
+        /// </summary>
         public string JoinFilename { get; set; }
         public string KeyString1 { get; set; }
         public string KeyString2 { get; set; }
@@ -472,11 +476,7 @@ namespace Sweco.SIF.IPFjoin
                 }
             }
 
-            if (((KeyString1 == null) || (KeyString2 == null)) && (JoinType != JoinType.Natural))
-            {
-                SIFTool.Log.AddInfo("Because one or both keys are not defined, a natural join is enforced");
-                JoinType = JoinType.Natural;
-            }
+            CheckJoinType();
 
             if ((XColIdx1 < -1) || (YColIdx1 < -1))
             {
@@ -485,6 +485,15 @@ namespace Sweco.SIF.IPFjoin
             if ((XColIdx2 < -1) || (YColIdx2 < -1))
             {
                 throw new ToolException("Invalid column numbers for XY-coordinates for file2: " + XColIdx2 + ", " + YColIdx2);
+            }
+        }
+
+        protected virtual void CheckJoinType()
+        {
+            if (((KeyString1 == null) || (KeyString2 == null)) && (JoinType != JoinType.Natural))
+            {
+                SIFTool.Log.AddInfo("Because one or both keys are not defined, a natural join is enforced");
+                JoinType = JoinType.Natural;
             }
         }
     }
