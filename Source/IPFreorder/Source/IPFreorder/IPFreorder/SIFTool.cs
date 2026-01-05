@@ -193,11 +193,12 @@ namespace Sweco.SIF.IPFreorder
                 }
 
 
-                Log.AddInfo("Reading IPF-file " + FileUtils.GetRelativePath(sourceIPFFilename, settings.InputPath) + " ...");
+                Log.AddInfo("Processing IPF-file " + FileUtils.GetRelativePath(sourceIPFFilename, settings.InputPath) + " ...");
+                Log.AddInfo("Reading IPF-file ...", 1);
                 bool isAssociatedRefRead = (settings.AssociatedFileColumnRef == null) || !settings.AssociatedFileColumnRef.Equals("0"); // settings.IsTimeseriesSkipped || 
                 sourceIPFFile = ReadIPFFile(sourceIPFFilename, isAssociatedRefRead, settings);
 
-                Log.AddInfo("Reordering IPF-file ...");
+                Log.AddInfo("Reordering IPF-file ...", 1);
                 targetIPFFile = ReorderIPFFile(sourceIPFFile, targetIPFFilename, settings);
 
                 if (settings.TimeseriesPath != null)
@@ -206,7 +207,7 @@ namespace Sweco.SIF.IPFreorder
                     ResetTimeseriesPath(targetIPFFile, settings.TimeseriesPath);
                 }
 
-                Log.AddInfo("Writing target IPF-file: " + Path.GetFileName(targetIPFFilename) + " ...", 1);
+                Log.AddInfo("Writing target IPF-file '" + Path.GetFileName(targetIPFFilename) + "' ...", 1);
                 targetIPFFile.WriteFile(targetIPFFilename, null, !settings.IsTimeseriesSkipped);
             }
             catch (ToolException ex)

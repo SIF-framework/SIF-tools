@@ -135,7 +135,7 @@ namespace Sweco.SIF.IPFreorder
                 {
                     if (parameters.Length < 3)
                     {
-                        throw new ToolException("Missing obligatory parameter: " + CommonUtils.ToString(parameters.ToList()));
+                        throw new ToolException("Missing obligatory 'input filter' parameter: " + CommonUtils.ToString(parameters.ToList()));
                     }
 
                     InputFilter = parameters[idx++];
