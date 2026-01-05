@@ -74,7 +74,7 @@ namespace Sweco.SIF.iMODWBalFormat
             AddToolParameterDescription("filter", "Filter to select input files (e.g. *.GEN)", "*.csv");
             AddToolParameterDescription("outPath", "Path to write results", "C:\\Test\\Output");
 
-            AddToolOptionDescription("g", "specify GEN-filename to be used for area calculation", "/g:area.gen", "Area is retrieved from GEN-file: {0}", new string[] { "g1" });
+            AddToolOptionDescription("g", "specify GEN-filename to be used for area calculation; path can be absolute or relative to CSV-file", "/g:area.gen", "Area is retrieved from GEN-file: {0}", new string[] { "g1" });
             AddToolOptionDescription("i", "specify (one-based) column index i1 in GEN-file (as specified in CSV-file) of id-column", "/i:3", "Column in CSV-file used for ID: {0}", new string[] { "i1" });
         }
 

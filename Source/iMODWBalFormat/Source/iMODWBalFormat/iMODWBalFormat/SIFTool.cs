@@ -121,7 +121,7 @@ namespace Sweco.SIF.iMODWBalFormat
                     string excelFilename = Path.Combine(settings.OutputPath, Path.GetFileNameWithoutExtension(inputFilename) + ".xlsx");
                     try
                     {
-                        wbal.Export(excelFilename, settings);
+                        wbal.Export(excelFilename, settings, Log);
                     }
                     catch (ToolException ex)
                     {

@@ -66,7 +66,8 @@ namespace iMODWBalFormat
 
             bool isGroupedByZone = true;
             List<LayerWBalGroup> layerWBalGroups = CreateLayerWBalGroups(layerWBals, isGroupedByZone);
-            CheckEmptyWaterbalanceGroups(layerWBalGroups, log);
+            CheckWaterbalanceGroups(layerWBalGroups, settings, log);
+
             List<string> summaryPostNames = RetrieveSummaryPostNames(layerWBalGroups);
 
             if (log != null)
@@ -115,7 +116,7 @@ namespace iMODWBalFormat
             for (int layerWBalGroupIdx = 0; layerWBalGroupIdx < layerWBalGroups.Count; layerWBalGroupIdx++)
             {
                 LayerWBalGroup layerWBalsGroup = layerWBalGroups[layerWBalGroupIdx];
-                ExportLayerWBalGroup(layerWBalsGroup, layerWBalsGroup.Name, workbook, summarySheet, settings.SumStartLayer, settings.SumEndLayer, summaryPostNames, settings.IDColIdx);
+                ExportLayerWBalGroup(layerWBalsGroup, layerWBalsGroup.Name, workbook, summarySheet, settings.SumStartLayer, settings.SumEndLayer, summaryPostNames, settings.IDColIdx, log);
             }
 
             workbook.Sheets[0].Activate();
@@ -123,6 +124,11 @@ namespace iMODWBalFormat
             workbook.Save(excelFilename);
             workbook.Close();
             excelManager.Cleanup();
+        }
+
+        protected virtual void CheckWaterbalanceGroups(List<LayerWBalGroup> layerWBalGroups, SIFToolSettings settings, Log log)
+        {
+            CheckEmptyWaterbalanceGroups(layerWBalGroups, log);
         }
 
         protected virtual ExcelManager CreateExcelManager(SIFToolSettings settings)
@@ -142,6 +148,7 @@ namespace iMODWBalFormat
                 {
                     // Empty waterbalance. May have been caused by overwrite of a zone with equal polygon 
                     HandleEmptyBalanceGroup(layerWBalGroups, currentGroup, isFirstWarning, log, logIndentLevel);
+
                     isFirstWarning = false;
                 }
             }
@@ -210,19 +217,21 @@ namespace iMODWBalFormat
                     // Polygone message found, read line with polygon GEN-filename
                     wholeLine = sr.ReadLine().Trim();
                     lineNumber++;
-                    if (File.Exists(wholeLine))
-                    {
-                        genFilename = wholeLine.Trim();
-                    }
-                    else if (genFilename == null)
-                    {
-                        throw new ToolException("GEN-filename is missing in CSV-file, please use option g to specify the source GEN-file");
-                    }
-
                     if (genFilename != null)
                     {
-                        // If a genfilename was specified as a tooloption, use that genfilename
-                        genFilename = genFilename;
+                        // no GEN-filename was specified, try to read from CSV-file
+                        if (File.Exists(wholeLine))
+                        {
+                            genFilename = wholeLine.Trim();
+                        }
+                        else if (genFilename == null)
+                        {
+                            throw new ToolException("GEN-filename is missing in CSV-file, use option g to specify the source GEN-file");
+                        }
+                    }
+                    else
+                    {
+                        // GEN-filename was specified (as a tooloption), use genfilename
                     }
 
                     // Skip empty line(s)
@@ -238,6 +247,7 @@ namespace iMODWBalFormat
                         throw new ToolException("Error: unexpected end of line at line " + lineNumber);
                     }
                 }
+                this.genFilename = genFilename;
 
                 if (wholeLine.ToLower().StartsWith("bear in mind that disclosure of the waterbalance might be caused by absent budget"))
                 {
@@ -268,7 +278,6 @@ namespace iMODWBalFormat
                     }
                     if (File.Exists(genFilename))
                     {
-
                         genFile = GENFile.ReadFile(genFilename);
 
                         foreach (GENFeature feature in genFile.Features)
@@ -292,10 +301,6 @@ namespace iMODWBalFormat
                     {
                         log.AddWarning("Area calculation is skipped. Specified GEN-file in CSV-file cannot be found: " + genFilename);
                     }
-                }
-                else
-                {
-                    log.AddWarning("GEN-polygon missing in CSV-file, area calculation from GEN-file is skipped.");
                 }
 
                 //// The current line could be the waterbalance headerline, check if it starts with the date columnname
@@ -386,7 +391,7 @@ namespace iMODWBalFormat
                         {
                             if (!DateTime.TryParse(rowValues[0], englishCultureInfo, DateTimeStyles.None, out DateTime dateTime))
                             {
-                                throw new Exception("Unexpected date-value at line " + lineNumber + ": " + rowValues[0]);
+                                throw new ToolException("Unexpected date-value at line " + lineNumber + ": " + rowValues[0] + ".\n Only steady-state output can be processed, expected date value: " + SteadyStateDateString);
                             }
                             postDateTime = dateTime;
                         }
@@ -500,7 +505,7 @@ namespace iMODWBalFormat
             }
         }
 
-        private void ExportLayerWBalGroup(LayerWBalGroup layerWBalsGroup, string groupname, IWorkbook workbook, IWorksheet summarySheet, int sumStartLayer = 1, int sumEndLayer = 999, List<string> summaryPostNames = null, int idColIdx = -1)
+        private void ExportLayerWBalGroup(LayerWBalGroup layerWBalsGroup, string groupname, IWorkbook workbook, IWorksheet summarySheet, int sumStartLayer = 1, int sumEndLayer = 999, List<string> summaryPostNames = null, int idColIdx = -1, Log log = null)
         {
             int summarySheetLastRowIdx = -1;
             int summarySheetLastColIdx = -1;
@@ -704,10 +709,12 @@ namespace iMODWBalFormat
 
                             summaryZoneExternM3InSum += post.In;
                             summaryZoneExternM3OutSum += Math.Abs(post.Out);
+
                         }
                     }
                 }
             }
+
             foreach (string postName in summaryPosts.Keys)
             {
                 WBalPost summaryPost = summaryPosts[postName];
@@ -718,7 +725,7 @@ namespace iMODWBalFormat
                 // Sum m3 values of external post over all specified layers, for later use in percentage water balance
                 if (summaryPost.GetTypeString().Equals(WBalPost.ExternTypeString))
                 {
-                    sheet1.SetCellValue(summaryStatsRowIdx, 1, (object) (sumStartLayer + "-" + sumEndLayer));
+                    sheet1.SetCellValue(summaryStatsRowIdx, 1, (object)(sumStartLayer + "-" + sumEndLayer));
                 }
                 else if (summaryPost.GetFluxPosition().Equals(WBalPost.FluxPosition.Upper))
                 {
@@ -752,6 +759,7 @@ namespace iMODWBalFormat
                 sheet1.SetNumberFormat(new Range(sheet1, summaryStatsRowIdx, 9, summaryStatsRowIdx, 11), "0.00");
                 summaryStatsRowIdx++;
             }
+
             sheet1.SetBorderColor(new Range(sheet1, firstSummaryStatsRowIdx, 0, summaryStatsRowIdx - 1, 11), Color.Black, BorderWeight.Thin, true);
             sheet1.SetBorderColor(new Range(sheet1, firstSummaryStatsRowIdx, 0, summaryStatsRowIdx - 1, 11), Color.Black, BorderWeight.Thick, false);
             AddZoneTotal(sheet1, firstSummaryStatsRowIdx, summaryStatsRowIdx, 9, 10, 11, currentZone);
@@ -888,10 +896,17 @@ namespace iMODWBalFormat
                     if (summaryZoneExternM3InSum > 0)
                     {
                         sheet2.SetCellFormula(summaryStatsRowIdx, 3, "=" + summaryPost.In.ToString(englishCultureInfo) + "/" + summaryZoneExternM3InSum.ToString(englishCultureInfo));
-                        sheet2.SetCellFormula(summaryStatsRowIdx, 4, "=" + summaryPost.Out.ToString(englishCultureInfo) + "/" + summaryZoneExternM3OutSum.ToString(englishCultureInfo));
+                        if (summaryZoneExternM3OutSum > 0)
+                        {
+                            sheet2.SetCellFormula(summaryStatsRowIdx, 4, "=" + summaryPost.Out.ToString(englishCultureInfo) + "/" + summaryZoneExternM3OutSum.ToString(englishCultureInfo));
+                        }
+                        else
+                        {
+                            sheet2.SetCellValue(summaryStatsRowIdx, 4, 0f);
+                        }
                         sheet2.SetCellFormula(summaryStatsRowIdx, 5, "=" + summaryPost.Sum.ToString(englishCultureInfo) + "/" + summaryZoneExternM3InSum.ToString(englishCultureInfo));
                         pctIn = summaryPost.In / summaryZoneExternM3InSum;
-                        pctOut = summaryPost.Out / summaryZoneExternM3OutSum;
+                        pctOut = (summaryZoneExternM3OutSum > 0) ? summaryPost.Out / summaryZoneExternM3OutSum : 0;
                         pctSum = summaryPost.Sum / summaryZoneExternM3InSum;
                         SetFluxLegend(sheet2, summaryStatsRowIdx, 3, pctIn);
                         SetFluxLegend(sheet2, summaryStatsRowIdx, 4, pctOut);
@@ -980,7 +995,6 @@ namespace iMODWBalFormat
             {
                 summarySheet.AutoFitColumn(idColIdx + 2);
             }
-        
         }
 
         /// <summary>
