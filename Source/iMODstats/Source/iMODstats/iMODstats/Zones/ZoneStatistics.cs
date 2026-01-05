@@ -85,17 +85,21 @@ namespace Sweco.SIF.iMODstats.Zones
         /// <summary>
         /// Retrieve predefined columnnames for percentile columns
         /// </summary>
-        /// <param name="prefix"></param>
+        /// <param name="postfix"></param>
         /// <returns></returns>
-        protected List<string> GetPercentileColumnNames(string prefix = null)
+        protected List<string> GetPercentileColumnNames(string postfix = null)
         {
             List<string> columnNames = new List<string>();
-            for (int pctIdx = 1; pctIdx < Settings.PercentileClassCount; pctIdx++)
+            if (Settings.PercentilePercentages != null)
             {
-                int percentile = (int)((100.0 / ((float)Settings.PercentileClassCount)) * pctIdx);
-                string colName = ((prefix != null) ? prefix : string.Empty) + percentile.ToString() + "%";
-                columnNames.Add(colName);
+                foreach (int percentage in Settings.PercentilePercentages)
+                {
+                    string colName = percentage.ToString() + "%" + ((postfix != null) ? postfix : string.Empty);
+                    columnNames.Add(colName);
+                }
+                columnNames.Add("MAD" + ((postfix != null) ? postfix : string.Empty));
             }
+
             return columnNames;
         }
 
@@ -109,21 +113,31 @@ namespace Sweco.SIF.iMODstats.Zones
             RetrieveFormatStrings(out string decimalFormatString, out string percentageFormatString);
 
             List<string> numberFormats = new List<string>();
-            for (int pctIdx = 1; pctIdx < Settings.PercentileClassCount; pctIdx++)
+            if (Settings.PercentilePercentages != null)
             {
+                foreach (int percentage in Settings.PercentilePercentages)
+                {
+                    numberFormats.Add(decimalFormatString);
+                }
+                // Add format for MAD
                 numberFormats.Add(decimalFormatString);
             }
+
             return numberFormats;
         }
 
         protected List<string> GetPercentileColumnComments()
         {
             List<string> comments = new List<string>();
-            for (int pctIdx = 1; pctIdx < Settings.PercentileClassCount; pctIdx++)
+            if (Settings.PercentilePercentages != null)
             {
-                int percentile = (int)((100.0 / ((float)Settings.PercentileClassCount)) * pctIdx);
-                comments.Add(percentile.ToString() + "% percentile");
+                foreach (int percentage in Settings.PercentilePercentages)
+                {
+                    comments.Add(percentage.ToString() + "th percentile");
+                }
+                comments.Add("Median Absolute Deviation: median of absolute deviations from data's median");
             }
+
             return comments;
         }
 
@@ -159,7 +173,8 @@ namespace Sweco.SIF.iMODstats.Zones
             if (computeStatistics)
             {
                 stats.ComputeBasicStatistics(false, false);
-                stats.ComputePercentiles();
+                stats.ComputePercentiles(false, false);
+                stats.ComputeMAD();
             }
 
             List<object> statList = new List<object>();
@@ -168,16 +183,23 @@ namespace Sweco.SIF.iMODstats.Zones
             if (count > 0)
             {
                 float[] percentiles = stats.Percentiles;
-                for (int pctIdx = 1; pctIdx < Settings.PercentileClassCount; pctIdx++)
+                if (Settings.PercentilePercentages != null)
                 {
-                    int percentile = (int)((100.0 / ((float)Settings.PercentileClassCount)) * pctIdx);
-                    statList.Add(percentiles[percentile]);
+                    foreach (int percentage in Settings.PercentilePercentages)
+                    {
+                        statList.Add(percentiles[percentage]);
+                    }
+                    statList.Add(stats.MAD);
                 }
             }
             else
             {
-                for (int pctIdx = 1; pctIdx < Settings.PercentileClassCount; pctIdx++)
+                if (Settings.PercentilePercentages != null)
                 {
+                    foreach (int percentage in Settings.PercentilePercentages)
+                    {
+                        statList.Add(float.NaN);
+                    }
                     statList.Add(float.NaN);
                 }
             }
@@ -219,9 +241,9 @@ namespace Sweco.SIF.iMODstats.Zones
     public abstract class ZoneSettings
     {
         /// <summary>
-        /// Number of percentile classes, e.g. 4 will result in 4 classes: 25, 50, 75 and 100. Note: 100% class will not be shown seperately, since max value is also shown.
+        /// Percentile percentages defined as a list of integer values between 1 en 100; e.g. { 10, 90 } represents 10% and 90%-percentiles; or null if not used.
         /// </summary>
-        public int PercentileClassCount { get; set; }
+        public List<int> PercentilePercentages { get; set; }
 
         /// <summary>
         /// Number of decimals in resulting statistics 
@@ -234,7 +256,7 @@ namespace Sweco.SIF.iMODstats.Zones
         {
             Extent = null;
             DecimalCount = 2;
-            PercentileClassCount = 4;
+            PercentilePercentages = null;
         }
     }
 }

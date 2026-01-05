@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Text;
 using System.Threading.Tasks;
 using Sweco.SIF.Common;
@@ -36,7 +37,7 @@ namespace Sweco.SIF.iMODstats
     {
         None,
         TSValueResidual,
-        TSAverageResidual
+        TSStatDifference
     }
 
     /// <summary>
@@ -56,9 +57,9 @@ namespace Sweco.SIF.iMODstats
         public Extent Extent { get; set; }
 
         /// <summary>
-        /// Number of percentile classes, e.g. 4 will result in 4 classes: 25, 50, 75 and 100. Note: 100% class will not be shown seperately, since max value is also shown.
+        /// Percentile percentages defined as a list of integer values between 1 en 100; e.g. { 10, 90 } represents 10% and 90%-percentiles; or null if not used.
         /// </summary>
-        public int PercentileClassCount { get; set; }
+        public List<int> PercentilePercentages { get; set; }
 
         /// <summary>
         /// Number of decimals in resulting statistics 
@@ -88,7 +89,7 @@ namespace Sweco.SIF.iMODstats
             IsOverwrite = false;
             Extent = null;
             DecimalCount = DefaultDecimalCount;
-            PercentileClassCount = 10;
+            PercentilePercentages = null;
 
             IPFXColRef = "1";
             IPFYColRef = "2";
@@ -115,9 +116,11 @@ namespace Sweco.SIF.iMODstats
             AddToolOptionDescription("e", "extent (xll,yll,xur,yur) for processing", "/e:181500,407500,200500,426500", "Extent used for statistics: {0},{1},{2},{3}", new string[] { "xll", "yll", "xur", "yur" } );
             AddToolOptionDescription("o", "overwrite existing outputfile; otherwise an existing outputfile results in an error", "/o", "Existing outputfile is overwritten");
             AddToolOptionDescription("r", "Process input path recursively", "/r", "IDF-files are searched recursively");
-            AddToolOptionDescription("t", "Define number of percentile classes n (e.g. 4 gives classes of 25%)\n" +
-                                          "Note: 100% class will not be shown seperately, since max value is also shown.", "/t", "Number of percentile classes: {0}", new string[] { "n" });
-
+            AddToolOptionDescription("t", "Define number of percentile classes via one of the following methods:\n" + 
+                                          "- single integer value c (e.g. 4 gives four classes of 25%, default: 0). Use /t:0 to skip percentiles.\n" +
+                                          "  0% and 100%-percentiles are shown via min/max-values. To get just the median, use /t:2\n" +
+                                          "- comma-seperated list of integer values. E.g. /t:10,90 to get just the 10% and 90%-percentiles\n" +
+                                          "Note: the Median Absolute Deviation (MAD) is added when c > 0; check literature for relation with SD", "/t:4", "Number of percentile classes: {0}", new string[] { "c" });
             AddToolOptionDescription("ipf", "Specify column names or numbers (one-based) x, y and v that define columns in the source IPF-file(s) with\n" +
                                             "XY-coordinates (default: 1, 2) and values to calculate statistics for\n" +
                                             "Note: when no value column is defined timeseries statistics are calculated",
@@ -134,7 +137,7 @@ namespace Sweco.SIF.iMODstats
                                             "  v1 is defined via the tsc-option\n" + 
                                             "  The following options are available for method m to create residual statistics (default: 1):\n" +
                                             "  1: calculate residual between each timestamp of v2-v1 and calculate statistics over resulting residual\n" +
-                                            "  2: calculate average over timestamps of v1 and v2 and calculate residual between resulting average values\n" +
+                                            "  2: calculate average (and defined percentiles) over timestamps of v1 and v2 and calculate difference\n" +
                                             "  when an IPF-point has no associated timeseries, the point is skipped\n" +
                                             "  when an IPF-file has no associated files, the whole IPF-file is skipped",
                                             "/tsr:2,2", "Residual statistics are calculated with: {...}", new string[] { "v2" }, new string[] { "m" }, new string[] { "1" });
@@ -174,9 +177,9 @@ namespace Sweco.SIF.iMODstats
                             switch (parameterValue)
                             {
                                 case "1":
-                                    return "residual method: " + ResidualMethod.TSValueResidual;
+                                    return " residual method: " + ResidualMethod.TSValueResidual;
                                 case "2":
-                                    return "residual method: " + ResidualMethod.TSAverageResidual;
+                                    return " residual method: " + ResidualMethod.TSStatDifference;
                                 default:
                                     return base.FormatLogStringParameter(optionName, parameter, parameterValue, parameterValues);
                             }
@@ -239,11 +242,49 @@ namespace Sweco.SIF.iMODstats
             {
                 if (hasOptionParameters)
                 {
-                    if (!int.TryParse(optionParametersString, out int intValue))
+                    PercentilePercentages = null;
+                    if (int.TryParse(optionParametersString, out int count))
                     {
-                        throw new ToolException("Could not parse percentile class count: " + optionParametersString);
+                        if (count > 0)
+                        {
+                            // A single integer value; this is interpreted as the number of percentile classes including the maximum value
+                            PercentilePercentages = new List<int>();
+                            for (int pctIdx = 1; pctIdx < count; pctIdx++)
+                            {
+                                int percentage = (int)((100.0 / ((float)count)) * pctIdx);
+                                PercentilePercentages.Add(percentage);
+                            }
+                        }
+                        else
+                        {
+                            // for n=0, leave PercentilePercentages null, to prevent showing any percentiles or MAD
+                        }
                     }
-                    PercentileClassCount = intValue;
+                    else if (optionParametersString.Contains(","))
+                    {
+                        // A Comma-seperarated string, check for integer values
+                        string[] optionParameterStrings = GetOptionParameters(optionParametersString);
+                        PercentilePercentages = new List<int>();
+                        foreach (string optionParameterString in optionParameterStrings)
+                        {
+                            if (int.TryParse(optionParameterString, out int percentage))
+                            {
+                                if ((percentage > 0) && (percentage < 100))
+                                {
+                                    // Skip 0th and 100th percentile since minimum/maximum is also reported
+                                    PercentilePercentages.Add(percentage);
+                                }
+                            }
+                            else
+                            {
+                                throw new ToolException("Could not parse percentile value: " + optionParameterString);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        throw new ToolException("Could not parse percentiles or percentile class count: " + optionParametersString);
+                    }
                 }
                 else
                 {
@@ -357,7 +398,7 @@ namespace Sweco.SIF.iMODstats
                                     IPFResidualMethod = ResidualMethod.TSValueResidual;
                                     break;
                                 case "2":
-                                    IPFResidualMethod = ResidualMethod.TSAverageResidual;
+                                    IPFResidualMethod = ResidualMethod.TSStatDifference;
                                     break;
                                 default:
                                     throw new ToolException("Undefined residual method: " + optionParametersString);
@@ -410,6 +451,11 @@ namespace Sweco.SIF.iMODstats
             {
                 // Specify default
                 InputFilter = "*.IDF";
+            }
+
+            if (!Path.GetExtension(OutputFile).ToLower().Equals(".xlsx"))
+            {
+                OutputFile = Path.Combine(OutputFile, SIFTool.ToolName + ".xlsx");
             }
 
             if (!Directory.Exists(Path.GetDirectoryName(OutputFile)))

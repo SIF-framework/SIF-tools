@@ -40,21 +40,40 @@ namespace Sweco.SIF.iMODstats
     {
         protected const string NoResultsMessage = "No results found";
 
-        protected ResultTableSettings settings;
-        protected Dictionary<string, List<ZoneStatistics>> zoneStatsDictionary;
-        protected SpreadsheetManager spreadsheetManager;
-        protected Log log;
+        /// <summary>
+        /// Column index that is used for the subdirectory name when input files are processed recursively
+        /// </summary>
+        protected const int RecursiveSubdirColIdx = 1;
 
+        protected Log log;
+        protected ResultTableSettings settings;
+        protected SpreadsheetManager spreadsheetManager;
+        protected Dictionary<string, List<ZoneStatistics>> zoneStatsDictionary;
+
+        protected IWorkbook workbook;
+        protected IWorksheet worksheet;
         protected List<string> columnnames;
         protected List<string> numberFormats;
         protected List<string> comments;
-        protected IWorkbook workbook;
-        protected IWorksheet worksheet;
-        protected int firstRowIdx;
-        protected int firstStatColIdx;
-        protected int headerRowIdx;
-        protected int rowIdx;
 
+        /// <summary>
+        /// This is the column index of the first column that contains actual statistic data in each row
+        /// </summary>
+        protected int firstStatColIdx;
+
+        /// <summary>
+        /// This is the index of the row with header column names
+        /// </summary>
+        protected int headerRowIdx;
+
+        /// <summary>
+        /// Index of row to write currently processed data to 
+        /// </summary>
+        protected int currentRowIdx; 
+
+        /// <summary>
+        /// Dictionary with settings to log/write above table (ie input path, file filter)
+        /// </summary>
         protected Dictionary<string, string> loggedSettingDictionary;
 
         /// <summary>
@@ -75,16 +94,13 @@ namespace Sweco.SIF.iMODstats
         }
 
         /// <summary>
-        /// Initialize results
+        /// Initialize result table: initialize row and column indices store and write column names, comments, etc.
         /// </summary>
         public virtual void Initialize(Dictionary<string, string> loggedSettingDictionary = null)
         {
             this.loggedSettingDictionary = loggedSettingDictionary;
 
-            firstRowIdx = 1;                        // Relative index to first available data row
-            firstStatColIdx = 1;
-            headerRowIdx = 4;                       // The first four rows before the headers are always filled with path, filter, extent and an empty row.
-            headerRowIdx += (loggedSettingDictionary != null) ? loggedSettingDictionary.Count : 0;   // Add other, extra settings
+            InitializeIndices(loggedSettingDictionary);
 
             if (File.Exists(settings.OutputFile) && !settings.IsOverwrite)
             {
@@ -97,14 +113,15 @@ namespace Sweco.SIF.iMODstats
             numberFormats = (zoneStats0.Count > 0) ? zoneStats0[0].StatNumberFormats : null;
             comments = (zoneStats0.Count > 0) ? zoneStats0[0].StatComments : null;
 
+            // Create new workbook and sheet
             workbook = spreadsheetManager.CreateWorkbook(true, "iMOD-stats");
             worksheet = workbook.Sheets[0];
 
+            // Write column names in sheet
             worksheet.SetCellValue(headerRowIdx, 0, "Filename");
             if (settings.IsRecursive)
             {
-                worksheet.SetCellValue(headerRowIdx, 1, "Subdir");
-                firstStatColIdx++;
+                worksheet.SetCellValue(headerRowIdx, RecursiveSubdirColIdx, "Subdir");
             }
             if (columnnames != null)
             {
@@ -115,8 +132,26 @@ namespace Sweco.SIF.iMODstats
                 }
                 worksheet.SetFontBold(new Range(worksheet, headerRowIdx, 0, headerRowIdx, columnnames.Count + firstStatColIdx), true);
             }
+        }
 
-            rowIdx = headerRowIdx + firstRowIdx;
+        protected virtual void InitializeIndices(Dictionary<string, string> loggedSettingDictionary)
+        {
+            // The first four rows before the headers are always filled with path, filter, extent and an empty row.
+            headerRowIdx = 4;
+
+            // Increase header row index with number of other logged settings
+            headerRowIdx += (loggedSettingDictionary != null) ? loggedSettingDictionary.Count : 0;
+
+            // The first column is for the name of the processed file, when no other options are used, the statistics come after that
+            firstStatColIdx = 1;
+
+            // The first data row comes immediately below the header row
+            currentRowIdx = headerRowIdx + 1;
+
+            if (settings.IsRecursive)
+            {
+                firstStatColIdx++;
+            }
         }
 
         /// <summary>
@@ -126,18 +161,18 @@ namespace Sweco.SIF.iMODstats
         /// <param name="zoneStatistics"></param>
         public virtual void AddZoneStatistics(string filename, ZoneStatistics zoneStatistics)
         {
-            worksheet.SetCellValue(rowIdx, 0, Path.GetFileNameWithoutExtension(filename));
+            worksheet.SetCellValue(currentRowIdx, 0, Path.GetFileName(filename));
             if (settings.IsRecursive)
             {
-                worksheet.SetCellValue(rowIdx, 1, FileUtils.GetRelativePath(Path.GetDirectoryName(filename), settings.InputPath));
+                worksheet.SetCellValue(currentRowIdx, RecursiveSubdirColIdx, FileUtils.GetRelativePath(Path.GetDirectoryName(filename), settings.InputPath));
             }
 
             for (int statIdx = 0; statIdx < zoneStatistics.StatValues.Count; statIdx++)
             {
-                worksheet.SetCellValue(rowIdx, statIdx + firstStatColIdx, zoneStatistics.StatValues[statIdx]);
+                worksheet.SetCellValue(currentRowIdx, statIdx + firstStatColIdx, zoneStatistics.StatValues[statIdx]);
             }
 
-            rowIdx++;
+            currentRowIdx++;
         }
 
         /// <summary>
@@ -162,23 +197,23 @@ namespace Sweco.SIF.iMODstats
             {
                 for (int statIdx = 0; statIdx < columnnames.Count; statIdx++)
                 {
-                    worksheet.SetNumberFormat(new Range(worksheet, headerRowIdx + 1, statIdx + firstStatColIdx, rowIdx - 1, statIdx + columnnames.Count - 1), numberFormats[statIdx]);
+                    worksheet.SetNumberFormat(new Range(worksheet, headerRowIdx + 1, statIdx + firstStatColIdx, currentRowIdx - 1, statIdx + columnnames.Count - 1), numberFormats[statIdx]);
                 }
-                worksheet.SetBorderColor(new Range(worksheet, headerRowIdx, 0, rowIdx - 1, firstStatColIdx + columnnames.Count - 1), System.Drawing.Color.Black, BorderWeight.Thin, true);
+                worksheet.SetBorderColor(new Range(worksheet, headerRowIdx, 0, currentRowIdx - 1, firstStatColIdx + columnnames.Count - 1), System.Drawing.Color.Black, BorderWeight.Thin, true);
             }
             else
             {
-                if (firstRowIdx == 1)
-                {
-                    // When no results are present write warning message
-                    worksheet.SetCellValue(headerRowIdx + 1, 0, NoResultsMessage);
-                }
+                // No results are present, write warning message
+                worksheet.SetCellValue(headerRowIdx + 1, 0, NoResultsMessage);
             }
 
             if (!Path.GetExtension(settings.OutputFile.ToLower()).Equals("xlsx"))
             {
                 settings.OutputFile = Path.Combine(Path.GetDirectoryName(settings.OutputFile), Path.GetFileNameWithoutExtension(settings.OutputFile) + ".xlsx");
             }
+
+            // Fit first column with input filenames, before setting titles (that can have large widths)
+            worksheet.AutoFitColumns();
 
             // Set titles
             worksheet.SetCellValue(0, 0, "iMOD statistics for directory: " + settings.InputPath);

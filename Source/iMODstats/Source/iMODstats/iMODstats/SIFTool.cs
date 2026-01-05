@@ -116,14 +116,14 @@ namespace Sweco.SIF.iMODstats
                 }
             }
 
-
-            // Retrieve statistics for all files and (optional) zones
+            // Retrieve statistics for all files and (optional) zones per file type (file extension)
             Dictionary<string, Dictionary<string, List<ZoneStatistics>>> fileExtZoneStatsDictionary = GetFileExtensionZoneStatistics(settings.InputPath, settings, Log);
             if ((fileExtZoneStatsDictionary == null) || (fileExtZoneStatsDictionary.Count == 0))
             {
                 throw new ToolException("No files found in input path for specified filter (" + settings.InputFilter + "): " + settings.InputPath);
             }
 
+            // Loop through all file types (extension) and add results to result table
             foreach (string fileExtension in fileExtZoneStatsDictionary.Keys)
             {
                 Dictionary<string, List<ZoneStatistics>> fileZoneStatsDictionary = fileExtZoneStatsDictionary[fileExtension];
@@ -131,11 +131,12 @@ namespace Sweco.SIF.iMODstats
                 // Create statistics result table
                 ResultTable resultTable = null;
 
+                string resultFilename = settings.OutputFile;
                 try
                 {
                     resultTable = CreateResultTable(fileZoneStatsDictionary, fileExtension);
 
-                    string resultFilename = settings.OutputFile;
+                    // Write results to file(s)
                     if (fileExtZoneStatsDictionary.Count > 1)
                     {
                         // Add file extension to result filename when multiple extensions were processed
@@ -147,7 +148,25 @@ namespace Sweco.SIF.iMODstats
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception("Could not create and/or write result spreadsheet", ex);
+                    bool isLockedExcelFile = false;
+                    if (ex is InvalidOperationException || ex is IOException)
+                    {
+                        string innerMsg = (ex.InnerException != null) ? ex.InnerException.Message.ToLower() : string.Empty;
+                        string baseMsg = ex.GetBaseException().Message;
+                        if ((innerMsg.Contains(".xlsx") && innerMsg.Contains("error overwriting file")) 
+                            || (baseMsg.Contains(".xlsx") && (baseMsg.Contains("gebruikt door een ander proces") || baseMsg.Contains("used by an other process"))))
+                        {
+                            isLockedExcelFile = true;
+                        }
+                    }
+                    if (isLockedExcelFile)
+                    {
+                        throw new ToolException("Could not overwrite existing spreadsheet, as it is locked by another process: " + resultFilename, ex);
+                    }
+                    else
+                    {
+                        throw new Exception("Could not create and/or write result spreadsheet", ex);
+                    }
                 }
                 finally
                 {
@@ -168,6 +187,8 @@ namespace Sweco.SIF.iMODstats
         protected virtual ResultTable CreateResultTable(Dictionary<string, List<ZoneStatistics>> fileZoneStatsDictionary, string fileExtension)
         {
             SIFToolSettings settings = (SIFToolSettings) Settings;
+
+            // Create object for result table
             ResultTable resultTable = CreateResultTableObject(fileZoneStatsDictionary, settings);
 
             // Create list of extra settings specific for file type/extension that should be logged above the result table
@@ -201,9 +222,10 @@ namespace Sweco.SIF.iMODstats
                     break;
             }
 
+            // Initialize result table and add extra settings to header
             resultTable.Initialize(loggedTableSettings);
 
-            // Loop through filenames and write statistics per file (and optional zones) to result table
+            // Loop through filenames and add statistics per file (and optional zones) to result table
             for (int idx = 0; idx < fileZoneStatsDictionary.Keys.Count; idx++)
             {
                 // Retrieve filename
@@ -491,6 +513,7 @@ namespace Sweco.SIF.iMODstats
 
             // Copy settings that are specific for IPF-files
             ipfZoneSettings.InputPath = settings.InputPath;
+            ipfZoneSettings.OutputPath = Path.GetDirectoryName(settings.OutputFile);
             ipfZoneSettings.IPFIDColRef = settings.IPFIDColRef;
             ipfZoneSettings.IPFValueColRef = settings.IPFValueColRef;
             ipfZoneSettings.IPFSelColRefs = settings.IPFSelColRefs;
@@ -509,7 +532,7 @@ namespace Sweco.SIF.iMODstats
         protected void CopyBasicZoneSettings(SIFToolSettings settings, ZoneSettings zoneSettings)
         {
             zoneSettings.DecimalCount = settings.DecimalCount;
-            zoneSettings.PercentileClassCount = settings.PercentileClassCount;
+            zoneSettings.PercentilePercentages = settings.PercentilePercentages;
             zoneSettings.Extent = settings.Extent;
         }
 

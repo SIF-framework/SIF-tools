@@ -49,7 +49,7 @@
       <HintPath>..\..\Libraries\Sweco.SIF.Spreadsheets.dll</HintPath>
     </Reference>
     <Reference Include="Sweco.SIF.Statistics">
-      <HintPath>..\..\..\..\Libraries\C#\Sweco.SIF.iMOD\Bin\Sweco.SIF.Statistics.dll</HintPath>
+      <HintPath>..\..\Libraries\Sweco.SIF.Statistics.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />

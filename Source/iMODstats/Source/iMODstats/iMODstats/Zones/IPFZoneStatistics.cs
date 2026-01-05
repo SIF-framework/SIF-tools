@@ -183,7 +183,23 @@ namespace Sweco.SIF.iMODstats.Zones
             List<string> comments = new List<string>();
             if ((settings.IPFTSValueColIdx2 >= 0) && (settings.IPFResidualMethod != ResidualMethod.None))
             {
-                comments.AddRange(new List<string>() { null, null, null, null });
+                string statColName = null;
+                switch (settings.IPFResidualMethod)
+                {
+                    case ResidualMethod.TSValueResidual:
+                        statColName = "AVGRES";
+                        break;
+                    case ResidualMethod.TSStatDifference:
+                        statColName = "dAVGVAL";
+                        break;
+                    default:
+                        throw new Exception("Unexpected IPFResidualMethod: " + settings.IPFResidualMethod);
+
+                }
+                comments.AddRange(new List<string>() { "Average of " + statColName + "-values over all IPF-points", 
+                                                       "Standard deviation of " + statColName + "-values over all IPF-points",
+                                                       "Average of absolute " + statColName + "-values over all IPF-points",
+                                                       "Standard deviation of absolute " + statColName + "-values over all IPF-points"});
             }
             return comments;
         }
@@ -270,6 +286,9 @@ namespace Sweco.SIF.iMODstats.Zones
             // Add optional residual statistic objects and IPF-columns
             AddIPFResidualColumns(resultIPFFile);
 
+            // Add optional other IPF-columns
+            AddIPFExtraColumns(resultIPFFile);
+
             // Add column for reference to source IPF-file
             resultIPFFile.AddColumn("SourceFile");
 
@@ -279,7 +298,9 @@ namespace Sweco.SIF.iMODstats.Zones
                 if (ipfPoint.HasTimeseries())
                 {
                     IPFTimeseries ipfTimeseries = ipfPoint.Timeseries;
+                    string tsFilename = ipfTimeseries.Filename;
                     ipfTimeseries = ipfTimeseries.Select(settings.IPFTSPeriodStartDate, settings.IPFTSPeriodEndDate);
+                    ipfTimeseries.Filename = tsFilename;
 
                     if (tsValueColIdx1 >= ipfTimeseries.ValueColumns.Count)
                     {
@@ -289,7 +310,8 @@ namespace Sweco.SIF.iMODstats.Zones
                     // Retrieve statistics about timeseries values
                     IPFTSStatistics ipfTSStats = new IPFTSStatistics(ipfTimeseries, tsValueColIdx1);
                     ipfTSStats.ComputeBasicStatistics(false, false);
-                    ipfTSStats.ComputePercentiles();
+                    ipfTSStats.ComputePercentiles(false, false);
+                    ipfTSStats.ComputeMAD();
 
                     ipfFileMeanStats.AddValue(ipfTSStats.Mean);
                     ipfFileDateCountStats.AddValue(ipfTSStats.Count);
@@ -342,6 +364,9 @@ namespace Sweco.SIF.iMODstats.Zones
                     // Optionally add residual statistics
                     AddPointResidualValues(ipfTimeseries, ipfTSStats, resultIPFFile, columnValues);
 
+                    // Optionally add other statistics
+                    AddPointExtraValues(ipfTimeseries, ipfTSStats, resultIPFFile, columnValues);
+
                     // Add reference to source filename
                     columnValues.Add(FileUtils.GetRelativePath(IPFFile.Filename, settings.InputPath));
 
@@ -358,7 +383,8 @@ namespace Sweco.SIF.iMODstats.Zones
 
             ipfFileDateCountStats.ComputeBasicStatistics();
             ipfFileMeanStats.ComputeBasicStatistics(false, false);
-            ipfFileMeanStats.ComputePercentiles();
+            ipfFileMeanStats.ComputePercentiles(false, false);
+            ipfFileMeanStats.ComputeMAD();
 
             // Store statistics over all points in the IPF-file; first add basic statistics
             StatValues = new List<object>();
@@ -412,7 +438,8 @@ namespace Sweco.SIF.iMODstats.Zones
 
             // Calculate statistics
             ipfFileMeanStats.ComputeBasicStatistics(false, false);
-            ipfFileMeanStats.ComputePercentiles();
+            ipfFileMeanStats.ComputePercentiles(false, false);
+            ipfFileMeanStats.ComputeMAD();
 
             // Store statistics for this zone object
             if (ipfFileMeanStats.Count > 0)
@@ -467,8 +494,23 @@ namespace Sweco.SIF.iMODstats.Zones
                         resultIPFFile.AddColumns(new List<string>() { "AVGABSRES", "SDABSRES", "MINABSRES", "MAXABSRES" });
                         resultIPFFile.AddColumns(GetPercentileColumnNames("ABSRES"));
                         break;
-                    case ResidualMethod.TSAverageResidual:
-                        resultIPFFile.AddColumns(new List<string>() { "NVAL2", "AVGVAL2", "SDVAL2", "MINVAL2", "MAXVAL2", "dAVGVAL" });
+                    case ResidualMethod.TSStatDifference:
+                        List<string> columns = new List<string>() { "NVAL2", "AVGVAL2", "SDVAL2", "MINVAL2" };
+                        List<string> pctNames2 = new List<string>();
+                        List<string> pctDiffNames2 = new List<string>();
+                        if (Settings.PercentilePercentages != null)
+                        {
+                            foreach (int percentage in Settings.PercentilePercentages)
+                            {
+                                pctNames2.Add(percentage + "%VAL2");
+                                pctDiffNames2.Add("d" + percentage + "%VAL2");
+                            }
+                        }
+                        columns.AddRange(pctNames2);
+                        columns.AddRange(new List<string>() { "MAXVAL2", "dAVGVAL" });
+                        columns.AddRange(pctDiffNames2);
+
+                        resultIPFFile.AddColumns(columns);
                         break;
                     default:
                         throw new Exception("Unknown ResidualMethod: " + settings.IPFResidualMethod);
@@ -477,12 +519,21 @@ namespace Sweco.SIF.iMODstats.Zones
         }
 
         /// <summary>
+        /// Add extra columns to result IPF-file
+        /// </summary>
+        /// <param name="resultIPFFile"></param>
+        protected virtual void AddIPFExtraColumns(IPFFile resultIPFFile)
+        {
+            // Currently there is nothing to add; e.g. the GxG could be added
+        }
+
+        /// <summary>
         /// Calculate and add optional residual values and statistics for specified IPF-point
         /// </summary>
         /// <param name="ipfTimeseries"></param>
         /// <param name="ipfTSStats"></param>
         /// <param name="resultIPFFile"></param>
-        /// <param name="columnValues"></param>
+        /// <param name="columnValues">current column values for point that is processed</param>
         /// <param name="ipfFileResidualStats"></param>
         /// <param name="ipfFileAbsResidualStats"></param>
         protected virtual void AddPointResidualValues(IPFTimeseries ipfTimeseries, IPFTSStatistics ipfTSStats, IPFFile resultIPFFile, List<string> columnValues)
@@ -525,10 +576,12 @@ namespace Sweco.SIF.iMODstats.Zones
                                 ipfAbsResStats.AddValue((float)Math.Abs(valResidual));
                             }
                         }
-                        ipfResStats.ComputeBasicStatistics();
-                        ipfResStats.ComputePercentiles();
+                        ipfResStats.ComputeBasicStatistics(false, false);
+                        ipfResStats.ComputePercentiles(false, false);
+                        ipfResStats.ComputeMAD();
                         ipfAbsResStats.ComputeBasicStatistics(false, false);
-                        ipfAbsResStats.ComputePercentiles();
+                        ipfAbsResStats.ComputePercentiles(false, false);
+                        ipfAbsResStats.ComputeMAD();
 
                         // Add residual statistics to IPF-point for resulting IPF-file
                         columnValues.Add(ipfResStats.Count.ToString());
@@ -558,18 +611,37 @@ namespace Sweco.SIF.iMODstats.Zones
 
                         break;
 
-                    case ResidualMethod.TSAverageResidual:
+                    case ResidualMethod.TSStatDifference:
                         IPFTSStatistics ipfTSStats2 = new IPFTSStatistics(ipfTimeseries, tsValueColIdx2);
-                        ipfTSStats2.ComputeBasicStatistics(true);
-                        float diffVal = ipfTSStats2.Mean - ipfTSStats.Mean;
+                        ipfTSStats2.ComputeBasicStatistics(true, false);
+                        ipfTSStats2.ComputePercentiles(true);
+                        ipfTSStats2.ComputeMAD();
 
-                        // resultIPFFile.AddColumns(new List<string>() { "AVGVAL2", "SDVAL2", "MINVAL2", "MAXVAL2", "dAVGVAL" });
+                        // Columns: "AVGVAL2", "SDVAL2", "MINVAL2", [PCT%VAL2]*, "MAXVAL2", "dAVGVAL", [dPCT%VAL2]*
                         columnValues.Add(ipfTSStats2.Count.ToString());
                         columnValues.Add(ipfTSStats2.Mean.ToString(floatFormatString, englishCultureInfo));
                         columnValues.Add(ipfTSStats2.SD.ToString(floatFormatString, englishCultureInfo));
                         columnValues.Add(ipfTSStats2.Min.ToString(floatFormatString, englishCultureInfo));
+
+                        List<string> pctDiffValues2 = new List<string>();
+                        if (Settings.PercentilePercentages != null)
+                        {
+                            foreach (int percentage in Settings.PercentilePercentages)
+                            {
+                                float pctVal2 = ipfTSStats2.Percentiles[percentage];
+                                columnValues.Add(pctVal2.ToString(floatFormatString, englishCultureInfo));
+
+                                float pctVal1 = ipfTSStats.Percentiles[percentage];
+                                float diffPctVal = pctVal2 - pctVal1;
+                                pctDiffValues2.Add(diffPctVal.ToString(floatFormatString, englishCultureInfo));
+                            }
+                        }
+
                         columnValues.Add(ipfTSStats2.Max.ToString(floatFormatString, englishCultureInfo));
+
+                        float diffVal = ipfTSStats2.Mean - ipfTSStats.Mean;
                         columnValues.Add(diffVal.ToString(floatFormatString, englishCultureInfo));
+                        columnValues.AddRange(pctDiffValues2);
 
                         // Add average residual to IPF file statistics
                         ResidualZoneStats.AddValue(diffVal);
@@ -581,6 +653,20 @@ namespace Sweco.SIF.iMODstats.Zones
                         throw new Exception("Unknown ResidualMethod: ");
                 }
             }
+        }
+
+        /// <summary>
+        /// Calculate and add optional extra values and statistics for specified IPF-point
+        /// </summary>
+        /// <param name="ipfTimeseries"></param>
+        /// <param name="ipfTSStats"></param>
+        /// <param name="resultIPFFile"></param>
+        /// <param name="columnValues"></param>
+        /// <param name="ipfFileResidualStats"></param>
+        /// <param name="ipfFileAbsResidualStats"></param>
+        protected virtual void AddPointExtraValues(IPFTimeseries ipfTimeseries, IPFTSStatistics ipfTSStats, IPFFile resultIPFFile, List<string> columnValues)
+        {
+            // Currently there is nothing to add; e.g. the GxG could be added
         }
 
         /// <summary>
@@ -614,6 +700,7 @@ namespace Sweco.SIF.iMODstats.Zones
     public class IPFZoneSettings : ZoneSettings
     {
         public string InputPath { get; set; }
+        public string OutputPath { get; set; }
         public string IPFXColRef { get; set; }
         public string IPFYColRef { get; set; }
         public string IPFIDColRef { get; set; }
@@ -628,6 +715,7 @@ namespace Sweco.SIF.iMODstats.Zones
         public IPFZoneSettings()
         {
             InputPath = null;
+            OutputPath = null;
             IPFXColRef = "1";
             IPFXColRef = "2";
             IPFIDColRef = null;
