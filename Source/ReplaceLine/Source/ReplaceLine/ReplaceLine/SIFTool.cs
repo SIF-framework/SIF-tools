@@ -94,19 +94,20 @@ namespace Sweco.SIF.ReplaceLine
             // Retrieve tool settings that have been parsed from the command-line arguments 
             SIFToolSettings settings = (SIFToolSettings)Settings;
 
-            StreamReader sr = null;
+            StringReader sr = null;
             StreamWriter sw = null;
             string outputText = string.Empty;
             bool isModified = false;
             StringBuilder outputTextBuilder = new StringBuilder();
             try
             {
+                string fileString = File.ReadAllText(settings.Filename);
                 // Read lines from inputfile and create resulting file in memory
-                sr = new StreamReader(settings.Filename);
+                sr = new StringReader(fileString);
                 int currentLineNumber = 0;
-                while (!sr.EndOfStream)
+                string currentLine;
+                while ((currentLine = sr.ReadLine()) != null)
                 {
-                    string currentLine = sr.ReadLine();
                     currentLineNumber++;
                     if (currentLineNumber != settings.Linenumber)
                     {
@@ -115,15 +116,24 @@ namespace Sweco.SIF.ReplaceLine
                     else
                     {
                         outputTextBuilder.AppendLine(settings.NewLine);
-
-                        isModified = !currentLine.ToLower().Equals(settings.NewLine.ToLower());
-                        if (isModified)
+                        if (settings.IsInserted)
                         {
-                            ToolSuccessMessage = "Replaced current string at line " + settings.Linenumber + ": '" + currentLine + "' with '" + settings.NewLine + "'";
+                            // Add existing line after inserted line
+                            outputTextBuilder.AppendLine(currentLine);
+                            isModified = true;
+                            ToolSuccessMessage = "Inserted line '" + settings.NewLine + "' above line number " + settings.Linenumber;
                         }
                         else
                         {
-                            ToolSuccessMessage = "No modification was necessary for line " + settings.Linenumber + ": '" + currentLine + "'";
+                            isModified = !currentLine.ToLower().Equals(settings.NewLine.ToLower());
+                            if (isModified)
+                            {
+                                ToolSuccessMessage = "Replaced current string at line " + settings.Linenumber + ": '" + currentLine + "' with '" + settings.NewLine + "'";
+                            }
+                            else
+                            {
+                                ToolSuccessMessage = "No modification was necessary for line " + settings.Linenumber + ": '" + currentLine + "'";
+                            }
                         }
                     }
                 }

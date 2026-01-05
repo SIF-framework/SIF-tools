@@ -40,6 +40,7 @@ namespace Sweco.SIF.ReplaceLine
         public string Filename { get; set; }
         public int Linenumber { get; set; }
         public string NewLine { get; set; }
+        public bool IsInserted{ get; set; }
         public bool IsBackedUp { get; set; }
         public string BackupSubdirname { get; set; }
 
@@ -52,6 +53,7 @@ namespace Sweco.SIF.ReplaceLine
             Filename = null;
             Linenumber = -1;
             NewLine = null;
+            IsInserted = false;
             IsBackedUp = false;
             BackupSubdirname = null;
         }
@@ -66,6 +68,7 @@ namespace Sweco.SIF.ReplaceLine
             AddToolParameterDescription("linenr", "Number of line to modify", "1");
             AddToolParameterDescription("line", "New line to replace line at specified linenumber", "C:\\TEMP\\RJ_STAT\\RESULTS\\HUIDIG3");
             AddToolOptionDescription("b", "Make backup of sourcefile in subdirectory with specified or default name (" + DefaultSubdirName + ")", "/b", "Sourcefile is backed up to: {0}", null, new string[] { "subdir" });
+            AddToolOptionDescription("i", "Insert line before specified linenumber", "/i", "Line is inserted");
         }
 
         /// <summary>
@@ -115,6 +118,10 @@ namespace Sweco.SIF.ReplaceLine
                         throw new ToolException("Name of backup subdirectory contains invalid characters: " + BackupSubdirname);
                     }
                 }
+            }
+            else if (optionName.ToLower().Equals("i"))
+            {
+                IsInserted = true;
             }
             else
             {
