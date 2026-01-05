@@ -85,7 +85,7 @@ namespace Sweco.SIF.IDFmerge
         {
             AddAuthor("Koen Jansen");
             AddAuthor("Koen van der Hauw");
-            ToolPurpose = "SIF-tool for (groupwise) aggregation of IDF-files";
+            ToolPurpose = "SIF-tool for (groupwise) aggregation of IDF/ASC-files";
         }
 
         /// <summary>
@@ -114,7 +114,7 @@ namespace Sweco.SIF.IDFmerge
                     Log.AddInfo("Searching for '" + settings.InputFilter + "' in input path ...", 1);
                     if (settings.GroupIndices != null)
 					{
-                        Log.AddInfo("Grouping IDF-files ...", 1);
+                        Log.AddInfo("Grouping input files ...", 1);
 						Dictionary<string, List<string>> groupSubstringDictionary = CreateGroups(idfFilenames, settings);
 						foreach(string groupSubstring in groupSubstringDictionary.Keys)
 						{
@@ -130,7 +130,7 @@ namespace Sweco.SIF.IDFmerge
                 }
                 else
                 {
-                    Log.AddWarning("No IDF-files found for specified filter: " + settings.InputFilter, 1);
+                    Log.AddWarning("No input files found for specified filter: " + settings.InputFilter, 1);
                 }
             }
 
@@ -174,7 +174,7 @@ namespace Sweco.SIF.IDFmerge
                 {
                     if (fileIdx % logSnapPointMessageFrequency == 0)
                     {
-                        Log.AddInfo("Processing IDF-files " + (fileIdx + 1) + "-" + (int)Math.Min(idfFilenames.Length, (fileIdx + logSnapPointMessageFrequency)) + " of " + idfFilenames.Length + " ...", 3);
+                        Log.AddInfo("Processing input files " + (fileIdx + 1) + "-" + (int)Math.Min(idfFilenames.Length, (fileIdx + logSnapPointMessageFrequency)) + " of " + idfFilenames.Length + " ...", 3);
                     }
 
                     LogRead(idfFilenames, fileIdx, settings, Log, 2);
@@ -219,7 +219,7 @@ namespace Sweco.SIF.IDFmerge
 
         protected virtual void LogRead(string[] idfFilenames, int fileIdx, SIFToolSettings settings, Log log, int logIndentLevel)
         {
-            Log.AddInfo("Reading " + Path.GetFileName(idfFilenames[0]) + " ...", 2);
+            Log.AddInfo("Reading " + Path.GetFileName(idfFilenames[fileIdx]) + " ...", 2);
         }
 
         /// <summary>
@@ -244,7 +244,7 @@ namespace Sweco.SIF.IDFmerge
                 {
                     if (fileIdx % logSnapPointMessageFrequency == 0)
                     {
-                        Log.AddInfo("Processing GEN-features " + (fileIdx + 1) + "-" + (int)Math.Min(idfFilenames.Length, (fileIdx + logSnapPointMessageFrequency)) + " of " + idfFilenames.Length + " ...", 3);
+                        Log.AddInfo("Processing input files " + (fileIdx + 1) + "-" + (int)Math.Min(idfFilenames.Length, (fileIdx + logSnapPointMessageFrequency)) + " of " + idfFilenames.Length + " ...", 3);
                     }
 
                     IDFFile idfFile = IDFFile.ReadFile(idfFilenames[fileIdx], true);
