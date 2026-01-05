@@ -121,6 +121,8 @@
     <Compile Include="ISG\ISGCalculationPoint.cs" />
     <Compile Include="ISG\ISGCoordinate.cs" />
     <Compile Include="ISG\ISGCrossSection.cs" />
+    <Compile Include="ISG\ISGCrossSection1DData.cs" />
+    <Compile Include="ISG\ISGCrossSection2DData.cs" />
     <Compile Include="ISG\ISGCrossSectionData.cs" />
     <Compile Include="ISG\ISGFile.cs" />
     <Compile Include="ISG\ISGLegend.cs" />
@@ -129,17 +131,24 @@
     <Compile Include="ISG\ISGSegment.cs" />
     <Compile Include="ISG\ISGStructure.cs" />
     <Compile Include="ISG\ISGStructureData.cs" />
+    <Compile Include="Joins\JoinFile.cs" />
+    <Compile Include="Joins\JoinInfo.cs" />
+    <Compile Include="Joins\JoinRow.cs" />
+    <Compile Include="Joins\JoinSettings.cs" />
+    <Compile Include="Joins\JoinType.cs" />
+    <Compile Include="Joins\JoinUtils.cs" />
     <Compile Include="Legends\ClassLegend.cs" />
     <Compile Include="Legends\Legend.cs" />
     <Compile Include="Legends\RangeLegendClass.cs" />
     <Compile Include="Legends\ValueLegendClass.cs" />
     <Compile Include="Metadata.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Timeseries.cs" />
+    <Compile Include="Values\Timeseries.cs" />
     <Compile Include="Utils\IMODUtils.cs" />
     <Compile Include="Utils\ParseUtils.cs" />
     <Compile Include="Values\ValueOperator.cs" />
     <Compile Include="Values\ValueRange.cs" />
+    <Compile Include="Values\XYSeries.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Sweco.ico" />
