@@ -115,6 +115,10 @@ namespace Sweco.SIF.IDFexp
         {
             if (!IsPersisted && (IDFFile != null))
             {
+                if (IDFExpParser.IsDebugMode)
+                {
+                    IDFFile.IsDebugMode = true;
+                }
                 IDFFile.WriteFile(IDFFile.Filename, Metadata);
                 IsPersisted = true;
 

@@ -49,11 +49,6 @@ namespace Sweco.SIF.IDFexp
         protected Dictionary<string, IDFExpVariable> VariableDictionary { get; set; }
 
         /// <summary>
-        /// Dictionary with all 
-        /// </summary>
-        protected Dictionary<string, string> ResultPathDictionary { get; set; }
-        
-        /// <summary>
         /// Input files are read relative to this path
         /// </summary>
         public static string BasePath
@@ -78,6 +73,15 @@ namespace Sweco.SIF.IDFexp
         {
             get { return IDFExpParser.IsDebugMode; }
             set { IDFExpParser.IsDebugMode = value; }
+        }
+
+        /// <summary>
+        /// Delay (ms) which is applied after each INI-line
+        /// </summary>
+        public static int DebugDelay
+        {
+            get { return IDFExpParser.DebugDelay; }
+            set { IDFExpParser.DebugDelay = value; }
         }
 
         /// <summary>
@@ -143,7 +147,7 @@ namespace Sweco.SIF.IDFexp
         /// <summary>
         /// Stack datastructure to keep track of (nested) for loops
         /// </summary>
-        private Stack<ForLoopDef> forLoopStack = new Stack<ForLoopDef>();
+        protected Stack<ForLoopDef> forLoopStack = new Stack<ForLoopDef>();
 
         public Interpreter()
         {
@@ -294,7 +298,7 @@ namespace Sweco.SIF.IDFexp
         }
 
         /// <summary>
-        /// Add an IDFExpVariable with specified propertie to the variable dictionary. If already existing it is replaced with specified properties.
+        /// Add an IDFExpVariable with specified property to the variable dictionary. If already existing it is replaced with specified properties.
         /// If new IDF-file is null, the current value is kept if name already exists in the dictionary
         /// </summary>
         /// <param name="variableDictionary"></param>
@@ -574,7 +578,7 @@ namespace Sweco.SIF.IDFexp
 
                             if (IsMetadataAdded)
                             {
-                                expResultMetadata = new Metadata("Expression evaluation using IDF files: " + expression);
+                                expResultMetadata = new Metadata("Expression evaluation using IDF-files: " + expression);
                                 expResultMetadata.ProcessDescription = "Automatically generated with Sweco's IDFexp-tool";
                                 if (DecimalCount >= 0)
                                 {
@@ -599,6 +603,11 @@ namespace Sweco.SIF.IDFexp
                     {
                         long usedMemory = GC.GetTotalMemory(true) / 1000000;
                         Log.AddInfo("Allocated memory after releasing memory: " + usedMemory + "Mb", 1);
+                    }
+
+                    if (IsDebugMode && (DebugDelay != 0))
+                    {
+                        System.Threading.Thread.Sleep(DebugDelay);
                     }
                 }
                 else
@@ -794,7 +803,7 @@ namespace Sweco.SIF.IDFexp
         /// <param name="wholeLine"></param>
         /// <param name="forLoopStack"></param>
         /// <returns></returns>
-        private string HandleForLoops(string wholeLine, Stack<ForLoopDef> forLoopStack)
+        protected virtual string HandleForLoops(string wholeLine, Stack<ForLoopDef> forLoopStack)
         {
             // Check FOR-loop variables to replace with current values
             for (int forLoopIdx = 0; forLoopIdx < forLoopStack.Count(); forLoopIdx++)
@@ -860,7 +869,7 @@ namespace Sweco.SIF.IDFexp
         /// <param name="varName"></param>
         /// <param name="varValue"></param>
         /// <returns></returns>
-        private string ParseIndexExp(string indexExp, string varName, int varValue)
+        protected string ParseIndexExp(string indexExp, string varName, int varValue)
         {
             string simpleIndexExp = indexExp.Substring(3, indexExp.Length - 4);
             int opIdx = simpleIndexExp.IndexOfAny(new char[] { '+', '-', '*', '/' });

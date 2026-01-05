@@ -22,6 +22,8 @@
 using Sweco.SIF.Common;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -33,6 +35,8 @@ namespace Sweco.SIF.IDFexp
     /// </summary>
     public class ForLoopDef
     {
+        protected const string ForCountKeyword = "count";
+
         public int LineIdx;
         public string VarName;
         public int Idx;
@@ -72,8 +76,37 @@ namespace Sweco.SIF.IDFexp
             }
 
             // Parse last index
+            int lastIdx;
             forString = forString.Substring(toIdx + " to ".Length).Trim();
-            if (!int.TryParse(forString, out int lastIdx))
+            if (forString.ToLower().StartsWith(ForCountKeyword + "("))
+            {
+                // Remove count-keyword, parenthesis and optional quotes
+                string pathString = forString.Substring(ForCountKeyword.Length + 1, forString.Length - ForCountKeyword.Length - 2).Replace("\"", string.Empty).Trim();
+                try
+                {
+                    string pathStringExpanded = Environment.ExpandEnvironmentVariables(pathString);
+                    string filter;
+                    string path; 
+                    string ext = Path.GetExtension(pathStringExpanded);
+                    if ((ext != null) && !ext.Equals(string.Empty))
+                    {
+                        filter = Path.GetFileName(pathStringExpanded);
+                        path = Path.GetDirectoryName(pathStringExpanded);
+                    }
+                    else
+                    {
+                        filter = "*.*";
+                        path = pathStringExpanded;
+                    }
+                    string[] filenames = Directory.GetFiles(path.Equals(string.Empty) ? Interpreter.BasePath : path, filter);
+                    lastIdx = filenames.Length;
+                }
+                catch (Exception ex)
+                {
+                    throw new ToolException("Error in FOR-expression, invalid path for count()-expression: " + pathString, ex);
+                }
+            }
+            else if (!int.TryParse(forString, out lastIdx))
             {
                 throw new ToolException("Error in FOR-expression, invalid last index: " + forString);
             }

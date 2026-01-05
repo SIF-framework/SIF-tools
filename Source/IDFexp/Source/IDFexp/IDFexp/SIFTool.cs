@@ -135,6 +135,7 @@ namespace Sweco.SIF.IDFexp
             Interpreter.DecimalCount = settings.DecimalCount;
             Interpreter.BasePath = Path.GetDirectoryName(settings.InputFilename);
             Interpreter.IsDebugMode = settings.IsDebugMode;
+            Interpreter.DebugDelay = settings.DebugDelay;
             Interpreter.IsIntermediateResultWritten = settings.IsIntermediateResultWritten;
 
             Interpreter.OutputPath = settings.OutputPath;

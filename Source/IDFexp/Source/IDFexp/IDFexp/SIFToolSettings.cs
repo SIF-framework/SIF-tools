@@ -57,6 +57,7 @@ namespace Sweco.SIF.IDFexp
         public Extent Extent { get; set; }
         public bool IsMetadataAdded { get; set; }
         public bool IsDebugMode { get; set; }
+        public int DebugDelay { get; set; }
         public QuietMode QuietMode { get; set; }
         public int DecimalCount { get; set; }
         public bool IsIntermediateResultWritten { get; set; }
@@ -77,6 +78,7 @@ namespace Sweco.SIF.IDFexp
             QuietMode = QuietMode.Off;
             DecimalCount = -1;
             IsDebugMode = false;
+            DebugDelay = 0;
             IsIntermediateResultWritten = false;
         }
 
@@ -101,7 +103,7 @@ namespace Sweco.SIF.IDFexp
                                         + "", null, "Expression extent: {0},{1},{2},{3}", new string[] { "xll", "yll", "xur", "yur" });
             AddToolOptionDescription("v", "Use NoData as value v1. Without option v, NoData in one of the input IDF-files results in NoData.\n"
                                         + "Without option v1, the NoData-value of each IDF-file is used as a value.", "/v:0", "NoData calculation value: {0}", null, new string[] { "x1" }, new string[] { "NoData-value" });
-            AddToolOptionDescription("d", "Run in debug mode: write intermediate expressions and IDF-files", "/d", "Running in debug mode");
+            AddToolOptionDescription("d", "Run in debug mode: write intermediate expressions and IDF-files. Optionally define delay (ms) after each line.", "/d", "Running in debug mode, with delay {0} ms", null, new string[] { "d1" }, new string[] { "0" });
             AddToolOptionDescription("i", "Write intermediate results (all IDF-variables) to IDF-files", "/i", "Intermediate variables are written to IDF-files");
             AddToolOptionDescription("m", "Add metadatafiles with (part of) expression(s) and source path", "/m", "Metadata is added to result files");
             AddToolOptionDescription("q", "Define Quiet-mode for missing IDF-files with one of the following options:\n" +
@@ -123,7 +125,8 @@ namespace Sweco.SIF.IDFexp
                                    + "      checks if path/file <path> exists; surround with double quotes when the path contains spaces\n"
                                    + "  notes: optionally use NOT to invert the condition; environment variables may be used\n"
                                    + "- FOR-loop: FOR <i>=<i1> TO <i2>, to start a FOR-loop with index <i>, that loops from value i1 to i2 and repeats\n"
-                                   + "    lines between FOR and the next ENDFOR-statement. The value of index <i> can be accessed by prefixing %%, which is\n"
+                                   + "    lines between FOR and the next ENDFOR-statement. For <i2> the number of files in path p (with optional filter)\n"
+                                   + "    can be retrieved with 'count(p)'. The value of index <i> can be accessed by prefixing %%, which is\n"
                                    + "    evaluated first. FOR-loops can be nested. Simple expressions with indices are allowed with syntax %% (i<op><val>),\n"
                                    + "    where <op> is one of '+','-','*' or '/' and <val> is an integer value, e.g. C_L%%i=(BOT_L%%i-TOP_L%%(i+1))*KVV_L%%i\n"
                                    + "    Loop values can be padded with zeroes by inserting zeroes after the %% substring\n"
@@ -160,7 +163,7 @@ namespace Sweco.SIF.IDFexp
                                    + "  to clip IDF-expression <exp1> to the extent of IDF-expression <exp2>\n"
                                    + "- scale-function: scale(<exp1>,<exp2>[,<method>])\n"
                                    + "                  scale(<exp1>,<exp2>,<methodDown>,<methodUp>)\n"
-                                   + "  to scale IDF-expression <exp1> to the cellsize of (IDF-expression) <exp2>. Optional method:\n"
+                                   + "  scales IDF-expression <exp1> to cellsize of IDF-expression <exp2> or to numeric value <exp2>. Optional method:\n"
                                    + "    for downscale: 0=Block (default), 1=Divide\n"
                                    + "    for upscale: 0=Mean (default), 1=Median, 2=Minimum, 3=Maximum, 4=MostOccurring, 5=Boundary, 6=Sum,\n"
                                    + "                 7=MostOccuringNoData (including NoData); For 1-6 NoData-values are excluded.\n"
@@ -169,10 +172,13 @@ namespace Sweco.SIF.IDFexp
                                    + "                                    when only zero and/or NoData-values are present, 0 is returned.\n"
                                    + "- bbox-function: bbox(<exp1>) \n "
                                    + "  to find bounding box with all non-NoData-values; results in NoData-centercell(s) if only NoData-values are present\n"
-                                   + "- cellsize-function: cellsize(<exp1>) \n "
+                                   + "- cellsize-function: cellsize(<exp1>)\n"
                                    + "  to retrieve cellsize for some IDF-expression as a (constant) IDF-file\n"
+                                   + "- nd-function: nd(<idf11>,<exp2>) to reset NoData-value of idf1; also replace cell-values with previous NoData-value\n"
+                                   + "  New NoData-value is either NoData-value of exp2, if exp2 is an IDF-file, or constant if exp2 is a constant value\n"
                                    + "Notes:\n"
                                    + "- Parenthesis ('(' and ')') can be used to group subexpressions\n"
+                                   + "- Use '_' symbol at the end of a line to continue an expression on the next line\n"
                                    + "- In general the cellsize of leftmost expression/IDF-file will be used for result\n"
                                    + "- In general the ITB-levels of leftmost expression/IDF-file will be used for result\n"
                                    + "  for if, min and max the first expresion/IDF-file with ITB-levels is used\n"
@@ -199,7 +205,7 @@ namespace Sweco.SIF.IDFexp
                                    + "kD_L1=dL1_ZUG*kZUG+dL1_ZZG*kZZG");
 
             AddToolUsageOptionPostRemark("\n" +
-                                     "FOR i = 1 TO 2\n" +
+                                     "FOR i = 1 TO count(*.IDF)\n" +
                                      "  FOR j = 3 TO 4\n" +
                                      "    I%%i = I3 + %%j\n" +
                                      "    J%%(i + 1) = I3 + %%j\n" +
@@ -278,6 +284,14 @@ namespace Sweco.SIF.IDFexp
             else if (optionName.ToLower().Equals("d"))
             {
                 IsDebugMode = true;
+                if (hasOptionParameters)
+                {
+                    if (!int.TryParse(optionParametersString, out int delay))
+                    {
+                        throw new ToolException("Invalid debug delay value (ms): " + optionParametersString);
+                    }
+                    DebugDelay = delay;
+                }
             }
             else if (optionName.ToLower().Equals("e"))
             {
@@ -390,6 +404,11 @@ namespace Sweco.SIF.IDFexp
             if (!Directory.Exists(OutputPath))
             {
                 Directory.CreateDirectory(OutputPath);
+            }
+
+            if ((Extent != null) && !Extent.IsValidExtent())
+            {
+                throw new ToolException("Invalid extent has been specified: " + Extent.ToString());
             }
         }
     }

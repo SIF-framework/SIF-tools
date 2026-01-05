@@ -29,7 +29,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Sweco.SIF.IDFexp
 {
@@ -66,6 +65,7 @@ namespace Sweco.SIF.IDFexp
         public static string BasePath = null;
         public static string OutputPath = null;
         public static bool IsDebugMode = false;
+        public static int DebugDelay = 0;
         public static bool IsIntermediateResultWritten = false;
         public static bool UseNoDataAsValue = false;
         public static float NoDataValue = float.NaN;
@@ -97,15 +97,16 @@ namespace Sweco.SIF.IDFexp
         protected static void RegisterParserFunctions()
         {
             ParserFunction.RemoveAllFunctions();
-            ParserFunction.RegisterFunction("if", new IfThenElseFunction());
-            ParserFunction.RegisterFunction("min", new IDFMinFunction());
-            ParserFunction.RegisterFunction("max", new IDFMaxFunction());
-            ParserFunction.RegisterFunction("round", new IDFRoundFunction());
-            ParserFunction.RegisterFunction("enlarge", new IDFEnlargeFunction());
-            ParserFunction.RegisterFunction("clip", new IDFClipFunction());
-            ParserFunction.RegisterFunction("scale", new IDFScaleFunction());
-            ParserFunction.RegisterFunction("bbox", new IDFBoundingBoxFunction());
-            ParserFunction.RegisterFunction("cellsize", new IDFCellsizeFunction());
+            ParserFunction.RegisterFunction(IfThenElseFunction.Name, new IfThenElseFunction());
+            ParserFunction.RegisterFunction(MinFunction.Name, new MinFunction());
+            ParserFunction.RegisterFunction(MaxFunction.Name, new MaxFunction());
+            ParserFunction.RegisterFunction(RoundFunction.Name, new RoundFunction());
+            ParserFunction.RegisterFunction(EnlargeFunction.Name, new EnlargeFunction());
+            ParserFunction.RegisterFunction(ClipFunction.Name, new ClipFunction());
+            ParserFunction.RegisterFunction(ScaleFunction.Name, new ScaleFunction());
+            ParserFunction.RegisterFunction(BoundingBoxFunction.Name, new BoundingBoxFunction());
+            ParserFunction.RegisterFunction(CellsizeFunction.Name, new CellsizeFunction());
+            ParserFunction.RegisterFunction(NDFunction.Name, new NDFunction());
         }
 
         /// <summary>
@@ -119,9 +120,31 @@ namespace Sweco.SIF.IDFexp
         {
             // Get rid of spaces and check parenthesis
             string cleanedExpression = Preprocess(expression);
-            int from = 0;
 
-            return SplitAndMerge(cleanedExpression, variableDictionary, out expressionType, ref from, END_LINE);
+            // Simplify expression before and temporarily replace existing variable names, which enables mathematical operators in variable names
+            Dictionary<string, IDFExpVariable> tmpVarDictionary;
+            string tmpExpressionString;
+            PreprocessVars(cleanedExpression, variableDictionary, out tmpExpressionString, out tmpVarDictionary); 
+
+            int from = 0;
+            return SplitAndMerge(tmpExpressionString, tmpVarDictionary, out expressionType, ref from, END_LINE);
+        }
+
+        protected static void PreprocessVars(string expression, Dictionary<string, IDFExpVariable> variableDictionary, out string tmpExpression, out Dictionary<string, IDFExpVariable> tmpVarDictionary)
+        {
+            tmpVarDictionary = new Dictionary<string, IDFExpVariable>();
+            int index = 1;
+            tmpExpression = expression;
+            // Loop through current variable names reversely sorted by string length to avoid conflicts with substrings (e.g. )variable XXX05 is recognized as XXX instead of XXX05).
+            foreach (string varName in variableDictionary.Keys.OrderByDescending(x => x.Length))
+            {
+                if (expression.Contains(varName))
+                {
+                    string tmpKey = "#" + index++;
+                    tmpExpression = tmpExpression.Replace(varName, tmpKey);
+                    tmpVarDictionary.Add(tmpKey, variableDictionary[varName]);
+                }
+            }
         }
 
         /// <summary>
@@ -183,6 +206,10 @@ namespace Sweco.SIF.IDFexp
             }
             else
             {
+                if (IsDebugMode)
+                {
+                    idfFile.IsDebugMode = true;
+                }
                 idfFile.WriteFile(debugIDFFilename, metadata);
             }
         }
@@ -190,7 +217,7 @@ namespace Sweco.SIF.IDFexp
         /// <summary>
         /// Parse specified part of an expression string
         /// </summary>
-        /// <param name="data"></param>
+        /// <param name="data">expression string</param>
         /// <param name="variableDictionary"></param>
         /// <param name="expressionType"></param>
         /// <param name="from"></param>
@@ -229,7 +256,6 @@ namespace Sweco.SIF.IDFexp
             // This is so because each token will be read only once during the splitting step and then, in the worst case, 
             // there will be at most 2(m - 1) – 1 comparisons in the merging step, where m is the number of cells created in the first step.
 
-
             List<IDFExpressionCell> listToMerge = Split(data, ref from, to, variableDictionary, out expressionType);
             if (listToMerge.Count == 0)
             {
@@ -239,7 +265,7 @@ namespace Sweco.SIF.IDFexp
             // In the second step, all the cells are merged together. 
             int index = 1;
             IDFExpressionCell baseCell = listToMerge[0];
-            return MergeList(baseCell, ref index, listToMerge, ref expressionType);
+            return MergeList(baseCell, ref index, listToMerge, variableDictionary, ref expressionType);
         }
 
         /// <summary>
@@ -357,10 +383,11 @@ namespace Sweco.SIF.IDFexp
             // the START_ARG or END_ARG constants. There’s also a special case involving a “-” token, which is used to denote a number starting with a negative sign.
 
             // Stop collecting if either got END_ARG ')' or to char, e.g. SEP_ARG ','.
-            char stopCollecting = (to == END_ARG || to == END_LINE) ?
-                                   END_ARG : to;
-            return (item.Length == 0 && (ch == '-' || ch == END_ARG)) || ((item.Length > 0) && IsDigit(item[0]) && item.EndsWith("E") && ((ch == '-') || (ch == '+'))) ||
-                  !((IsValidShortAction(ch) || IsValidLongAction(ch)) || ch == START_ARG || ch == stopCollecting);
+            char stopCollecting = (to == END_ARG || to == END_LINE) ? END_ARG : to;
+
+            return (item.Length == 0 && (ch == '-' || ch == END_ARG)) 
+                || ((item.Length > 0) && IsDigit(item[0]) && item.EndsWith("E") && ((ch == '-') || (ch == '+'))) 
+                || !(IsValidShortAction(ch) || IsValidLongAction(ch) || ch == START_ARG || ch == stopCollecting);
         }
 
         private static bool IsDigit(char c)
@@ -488,10 +515,11 @@ namespace Sweco.SIF.IDFexp
         /// <param name="current"></param>
         /// <param name="index"></param>
         /// <param name="listToMerge"></param>
+        /// <param name="variableDictionary"></param>
         /// <param name="expressionType"></param>
         /// <param name="mergeOneOnly"></param>
         /// <returns></returns>
-        private static IDFFile MergeList(IDFExpressionCell current, ref int index, List<IDFExpressionCell> listToMerge, ref IDFExpressionType expressionType, bool mergeOneOnly = false)
+        private static IDFFile MergeList(IDFExpressionCell current, ref int index, List<IDFExpressionCell> listToMerge, Dictionary<string, IDFExpVariable> variableDictionary, ref IDFExpressionType expressionType, bool mergeOneOnly = false)
         {
             // Two cells can be merged if and only if the priority of the action of the cell on the left isn’t lower than the priority of the action of the cell next to it:
             // Merging cells means applying the action of the left cell to the values of the left cell and the right cell.The new cell will have the same action as the right cell.
@@ -514,9 +542,9 @@ namespace Sweco.SIF.IDFexp
                 {
                     // If we cannot merge cells yet, go to the next cell and merge next cells first. 
                     // E.g. if we have 1+2*3, we first merge next cells, i.e. 2*3, getting 6, and then we can merge 1+6.
-                    MergeList(next, ref index, listToMerge, ref expressionType, true /* mergeOneOnly */);
+                    MergeList(next, ref index, listToMerge, variableDictionary, ref expressionType, true /* mergeOneOnly */);
                 }
-                MergeCells(current, next);
+                MergeCells(current, next, variableDictionary);
                 expressionType = IDFExpressionType.Complex;
                 if (mergeOneOnly)
                 {
@@ -527,7 +555,7 @@ namespace Sweco.SIF.IDFexp
             return current.IDFFile;
         }
 
-        private static void MergeCells(IDFExpressionCell leftCell, IDFExpressionCell rightCell)
+        private static void MergeCells(IDFExpressionCell leftCell, IDFExpressionCell rightCell, Dictionary<string, IDFExpVariable> variableDictionary)
         {
             IncreaseExpressionCount();
             string newExpId = GetCurrentExpressionId();
@@ -535,7 +563,7 @@ namespace Sweco.SIF.IDFexp
             string expression = leftCell.IDFId + leftCell.Action + rightCell.IDFId;
             if (IDFExpParser.IsDebugMode || IDFExpParser.IsIntermediateResultWritten)
             {
-                IDFExpParser.Log.AddInfo("Evaluating expression '" + newExpId + " = " + expression + "'", leftCell.ExpDepth);
+                IDFExpParser.Log.AddInfo("Evaluating expression '" + newExpId + " = " + IDFExpParser.ExpandExpressionKeys(expression, variableDictionary) + "'", leftCell.ExpDepth);
             }
 
             IDFFile leftCellIDFFile = leftCell.IDFFile;
@@ -747,6 +775,10 @@ namespace Sweco.SIF.IDFexp
         protected static IDFFile ReadIDFFile(string idfFilename)
         {
             IDFFile resultIDF = IDFFile.ReadFile(idfFilename, true, null, 0, Interpreter.Extent);
+            if (IsDebugMode)
+            {
+                resultIDF.IsDebugMode = true;
+            }
             // IDFFile resultIDF = (isSparseIDFUsed) ? SparseIDFFile.ReadIDFFile(idfFilename, true) : IDFFile.ReadFile(idfFilename, true);
             if (UseNoDataAsValue)
             {
@@ -761,6 +793,26 @@ namespace Sweco.SIF.IDFexp
                 Log.AddWarning("Empty IDF-file (number of rows/columns is 0), this may produce unexpected results!");
             }
             return resultIDF;
+        }
+
+        /// <summary>
+        /// Utility method for expanding variable keys to variable names in specified expression string
+        /// </summary>
+        /// <param name="expression"></param>
+        /// <param name="variableDictionary"></param>
+        /// <returns></returns>
+        public static string ExpandExpressionKeys(string expression, Dictionary<string, IDFExpVariable> variableDictionary)
+        {
+            string result = expression;
+            foreach (string key in variableDictionary.Keys)
+            {
+                if (result.Contains(key))
+                {
+                    result = result.Replace(key, variableDictionary[key].Name);
+                }
+            }
+
+            return result;
         }
     }
 
@@ -884,6 +936,14 @@ namespace Sweco.SIF.IDFexp
             expressionType = IDFExpressionType.Undefined;
             return new ConstantIDFFile(0);
         }
+
+        /// <summary>
+        /// Returns the name of this function as used for calling
+        /// </summary>
+        public static string Name 
+        { 
+            get { throw new NotImplementedException(); } // To be redefined in subclass
+        }
     }
 
     /// <summary>
@@ -924,13 +984,13 @@ namespace Sweco.SIF.IDFexp
                 IDFFile resultIDFFile = IDFExpParser.ParseIDFFilename(Item, out expressionType);
                 if (resultIDFFile == null)
                 {
-                    throw new ToolException("IDF-file not found: " + Environment.ExpandEnvironmentVariables(Item));
+                    throw new ToolException("IDF-file not found: " + Environment.ExpandEnvironmentVariables(IDFExpParser.ExpandExpressionKeys(Item, variableDictionary)));
                 }
                 return resultIDFFile;
             }
             else
             {
-                throw new ToolException("Could not parse token '" + Item + "'");
+                throw new ToolException("Could not parse token '" + IDFExpParser.ExpandExpressionKeys(Item, variableDictionary) + "'");
             }
         }
     }
@@ -951,6 +1011,14 @@ namespace Sweco.SIF.IDFexp
     /// </summary>
     class IfThenElseFunction : ParserFunction
     {
+        /// <summary>
+        /// Returns the name of this function as used for calling
+        /// </summary>
+        public new static string Name
+        {
+            get { return "if"; }
+        }
+
         protected override IDFFile Evaluate(string data, Dictionary<string, IDFExpVariable> variableDictionary, out IDFExpressionType expressionType, ref int from)
         {
             // This is how to write a function requiring multiple arguments separated by a comma
@@ -962,6 +1030,9 @@ namespace Sweco.SIF.IDFexp
             if (thenIDFFile is ConstantIDFFile)
             {
                 thenIDFFile = ((ConstantIDFFile)thenIDFFile).Allocate(conditionIDFFile);
+
+                // For constant IDF-files ITB-level is not defined, remove if it was copied from the condition IDF-file
+                thenIDFFile.ClearITBLevels();
             }
             string thenExpression = data.Substring(startIdx, from - startIdx - 1);
             startIdx = from;
@@ -969,15 +1040,18 @@ namespace Sweco.SIF.IDFexp
             if (elseIDFFile is ConstantIDFFile)
             {
                 elseIDFFile = ((ConstantIDFFile)elseIDFFile).Allocate(conditionIDFFile);
+
+                // For constant IDF-files ITB-level is not defined, remove if it was copied from the condition IDF-file
+                elseIDFFile.ClearITBLevels();
             }
             string elseExpression = data.Substring(startIdx, from - startIdx - 1);
-            string ifExpression = "if(" + condExpression + "," + thenExpression + "," + elseExpression + ")";
+            string ifExpression = Name+ "(" + condExpression + "," + thenExpression + "," + elseExpression + ")";
 
             IDFExpParser.IncreaseExpressionCount();
             string expId = IDFExpParser.GetCurrentExpressionId();
             if (IDFExpParser.IsDebugMode || IDFExpParser.IsIntermediateResultWritten)
             {
-                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + ifExpression + "'", 1);
+                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + IDFExpParser.ExpandExpressionKeys(ifExpression, variableDictionary) + "'", 1);
             }
 
             // If all input IDF-files are constant IDF-files perform simple direct if-then-else
@@ -1089,11 +1163,7 @@ namespace Sweco.SIF.IDFexp
             float minXCellsize = Math.Min(Math.Min(conditionIDFFile.XCellsize, thenIDFFile.XCellsize), elseIDFFile.XCellsize);
             float minYCellsize = Math.Min(Math.Min(conditionIDFFile.YCellsize, thenIDFFile.YCellsize), elseIDFFile.YCellsize);
             IDFFile resultIDFFile = new IDFFile(expId + ".IDF", conditionIDFFile.Extent, minXCellsize, minYCellsize, conditionIDFFile.NoDataValue);
-            if (!conditionIDFFile.TOPLevel.Equals(float.NaN))
-            {
-                resultIDFFile.SetITBLevels(conditionIDFFile.TOPLevel, conditionIDFFile.BOTLevel);
-            }
-            else if (!thenIDFFile.TOPLevel.Equals(float.NaN))
+            if (!thenIDFFile.TOPLevel.Equals(float.NaN))
             {
                 resultIDFFile.SetITBLevels(thenIDFFile.TOPLevel, thenIDFFile.BOTLevel);
             }
@@ -1118,8 +1188,16 @@ namespace Sweco.SIF.IDFexp
     /// <summary>
     /// Class for parsing a round-function to handle rounding the values of an IDF-file with syntax round(IDF,d), with d the number of decimals
     /// </summary>
-    class IDFRoundFunction : ParserFunction
+    class RoundFunction : ParserFunction
     {
+        /// <summary>
+        /// Returns the name of this function as used for calling
+        /// </summary>
+        public new static string Name
+        {
+            get { return "round"; }
+        }
+
         protected override IDFFile Evaluate(string data, Dictionary<string, IDFExpVariable> variableDictionary, out IDFExpressionType expressionType, ref int from)
         {
             int startIdx = from;
@@ -1128,13 +1206,13 @@ namespace Sweco.SIF.IDFexp
             startIdx = from;
             IDFFile idfFile2 = IDFExpParser.SplitAndMerge(data, variableDictionary, out expressionType, ref from, IDFExpParser.END_ARG);
             string idfFile2Expression = data.Substring(startIdx, from - startIdx - 1);
-            string roundExpression = "round(" + idfFile1Expression + "," + idfFile2Expression + ")";
+            string roundExpression = Name + "(" + idfFile1Expression + "," + idfFile2Expression + ")";
 
             IDFExpParser.IncreaseExpressionCount();
             string expId = IDFExpParser.GetCurrentExpressionId();
             if (IDFExpParser.IsDebugMode || IDFExpParser.IsIntermediateResultWritten)
             {
-                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + roundExpression + "'", 1);
+                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + IDFExpParser.ExpandExpressionKeys(roundExpression, variableDictionary) + "'", 1);
             }
 
             if (idfFile1 is ConstantIDFFile)
@@ -1165,8 +1243,16 @@ namespace Sweco.SIF.IDFexp
     /// <summary>
     /// Class for parsing a max-function to get the maximum value per cell for two IDF-files, with syntax max(IDF1,IDF2)
     /// </summary>
-    class IDFMaxFunction : ParserFunction
+    class MaxFunction : ParserFunction
     {
+        /// <summary>
+        /// Returns the name of this function as used for calling
+        /// </summary>
+        public new static string Name
+        {
+            get { return "max"; }
+        }
+
         protected override IDFFile Evaluate(string data, Dictionary<string, IDFExpVariable> variableDictionary, out IDFExpressionType expressionType, ref int from)
         {
             int startIdx = from;
@@ -1175,13 +1261,13 @@ namespace Sweco.SIF.IDFexp
             startIdx = from;
             IDFFile idfFile2 = IDFExpParser.SplitAndMerge(data, variableDictionary, out expressionType, ref from, IDFExpParser.END_ARG);
             string idfFile2Expression = data.Substring(startIdx, from - startIdx - 1);
-            string maxExpression = "max(" + idfFile1Expression + "," + idfFile2Expression + ")";
+            string maxExpression = Name + "(" + idfFile1Expression + "," + idfFile2Expression + ")";
 
             IDFExpParser.IncreaseExpressionCount();
             string expId = IDFExpParser.GetCurrentExpressionId();
             if (IDFExpParser.IsDebugMode || IDFExpParser.IsIntermediateResultWritten)
             {
-                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + maxExpression + "'", 1);
+                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + IDFExpParser.ExpandExpressionKeys(maxExpression, variableDictionary) + "'", 1);
             }
 
             if ((idfFile1 is ConstantIDFFile) && (idfFile2 is ConstantIDFFile))
@@ -1286,8 +1372,16 @@ namespace Sweco.SIF.IDFexp
     /// <summary>
     /// Class for parsing a min-function to get the minimum value per cell for two IDF-files, with syntax min(IDF1,IDF2)
     /// </summary>
-    class IDFMinFunction : ParserFunction
+    class MinFunction : ParserFunction
     {
+        /// <summary>
+        /// Returns the name of this function as used for calling
+        /// </summary>
+        public new static string Name
+        {
+            get { return "min"; }
+        }
+
         protected override IDFFile Evaluate(string data, Dictionary<string, IDFExpVariable> variableDictionary, out IDFExpressionType expressionType, ref int from)
         {
             int startIdx = from;
@@ -1296,13 +1390,13 @@ namespace Sweco.SIF.IDFexp
             startIdx = from;
             IDFFile idfFile2 = IDFExpParser.SplitAndMerge(data, variableDictionary, out expressionType, ref from, IDFExpParser.END_ARG);
             string idfFile2Expression = data.Substring(startIdx, from - startIdx - 1);
-            string maxExpression = "min(" + idfFile1Expression + "," + idfFile2Expression + ")";
+            string maxExpression = Name + "(" + idfFile1Expression + "," + idfFile2Expression + ")";
 
             IDFExpParser.IncreaseExpressionCount();
             string expId = IDFExpParser.GetCurrentExpressionId();
             if (IDFExpParser.IsDebugMode || IDFExpParser.IsIntermediateResultWritten)
             {
-                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + maxExpression + "'", 1);
+                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + IDFExpParser.ExpandExpressionKeys(maxExpression, variableDictionary) + "'", 1);
             }
 
             if ((idfFile1 is ConstantIDFFile) && (idfFile2 is ConstantIDFFile))
@@ -1407,8 +1501,16 @@ namespace Sweco.SIF.IDFexp
     /// <summary>
     /// Class for parsing a clip-function to clip an IDF-file to the extent of another IDF-file, with syntax clip(IDF1,IDF2)
     /// </summary>
-    class IDFClipFunction : ParserFunction
+    class ClipFunction : ParserFunction
     {
+        /// <summary>
+        /// Returns the name of this function as used for calling
+        /// </summary>
+        public new static string Name
+        {
+            get { return "clip"; }
+        }
+
         protected override IDFFile Evaluate(string data, Dictionary<string, IDFExpVariable> variableDictionary, out IDFExpressionType expressionType, ref int from)
         {
             int startIdx = from;
@@ -1417,13 +1519,13 @@ namespace Sweco.SIF.IDFexp
             startIdx = from;
             IDFFile idfFile2 = IDFExpParser.SplitAndMerge(data, variableDictionary, out expressionType, ref from, IDFExpParser.END_ARG);
             string idfFile2Expression = data.Substring(startIdx, from - startIdx - 1);
-            string clipExpression = "clip(" + idfFile1Expression + "," + idfFile2Expression + ")";
+            string clipExpression = Name + "(" + idfFile1Expression + "," + idfFile2Expression + ")";
 
             IDFExpParser.IncreaseExpressionCount();
             string expId = IDFExpParser.GetCurrentExpressionId();
             if (IDFExpParser.IsDebugMode || IDFExpParser.IsIntermediateResultWritten)
             {
-                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + clipExpression + "'", 1);
+                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + IDFExpParser.ExpandExpressionKeys(clipExpression, variableDictionary) + "'", 1);
             }
 
             if (idfFile1 is ConstantIDFFile)
@@ -1485,8 +1587,16 @@ namespace Sweco.SIF.IDFexp
     /// Class for parsing an enlarge-function to enlarge an IDF-file to the extent of another IDF-file, with syntax clip(IDF1,IDF2)
     /// New cells are filled with NoData-values.
     /// </summary>
-    class IDFEnlargeFunction : ParserFunction
+    class EnlargeFunction : ParserFunction
     {
+        /// <summary>
+        /// Returns the name of this function as used for calling
+        /// </summary>
+        public new static string Name
+        {
+            get { return "enlarge"; }
+        }
+
         protected override IDFFile Evaluate(string data, Dictionary<string, IDFExpVariable> variableDictionary, out IDFExpressionType expressionType, ref int from)
         {
             int startIdx = from;
@@ -1495,13 +1605,13 @@ namespace Sweco.SIF.IDFexp
             startIdx = from;
             IDFFile idfFile2 = IDFExpParser.SplitAndMerge(data, variableDictionary, out expressionType, ref from, IDFExpParser.END_ARG);
             string idfFile2Expression = data.Substring(startIdx, from - startIdx - 1);
-            string enlargeExpression = "enlarge(" + idfFile1Expression + "," + idfFile2Expression + ")";
+            string enlargeExpression = Name + "(" + idfFile1Expression + "," + idfFile2Expression + ")";
 
             IDFExpParser.IncreaseExpressionCount();
             string expId = IDFExpParser.GetCurrentExpressionId();
             if (IDFExpParser.IsDebugMode || IDFExpParser.IsIntermediateResultWritten)
             {
-                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + enlargeExpression + "'", 1);
+                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + IDFExpParser.ExpandExpressionKeys(enlargeExpression, variableDictionary) + "'", 1);
             }
 
             if (idfFile1 is ConstantIDFFile)
@@ -1541,8 +1651,16 @@ namespace Sweco.SIF.IDFexp
     /// <summary>
     /// Class for parsing a scale-function to scale an IDF-file (IDF1) to the specified cellsize (IDF2) using specified method, with syntax scale(IDF1,IDF2,method), scale(IDF1,IDF2, methodDown,methodUp). For methods see UpscaleMethodEnum and DownscaleMethodEnum.
     /// </summary>
-    class IDFScaleFunction : ParserFunction
+    class ScaleFunction : ParserFunction
     {
+        /// <summary>
+        /// Returns the name of this function as used for calling
+        /// </summary>
+        public new static string Name
+        {
+            get { return "scale"; }
+        }
+
         protected override IDFFile Evaluate(string data, Dictionary<string, IDFExpVariable> variableDictionary, out IDFExpressionType expressionType, ref int from)
         {
             // Parse first argument
@@ -1592,7 +1710,7 @@ namespace Sweco.SIF.IDFexp
             IDFExpParser.IncreaseExpressionCount();
             string expId = IDFExpParser.GetCurrentExpressionId();
 
-            string scaleExpression = "scale(" + idfFile1Expression + "," + idfFile2Expression + ((idfFile3Expression != null) ? ("," + idfFile3Expression) : string.Empty) + ((idfFile4Expression != null) ? ("," + idfFile4Expression) : string.Empty) + ")";
+            string scaleExpression = Name + "(" + idfFile1Expression + "," + idfFile2Expression + ((idfFile3Expression != null) ? ("," + idfFile3Expression) : string.Empty) + ((idfFile4Expression != null) ? ("," + idfFile4Expression) : string.Empty) + ")";
             if (idfFile1 is ConstantIDFFile)
             {
                 throw new ToolException("Argument 1 of scale-function should be an IDF-file: " + scaleExpression);
@@ -1736,44 +1854,34 @@ namespace Sweco.SIF.IDFexp
     /// Class for parsing bbox-function to find minimal extent (bounding box) with all non-NoData-values, with syntax bbox(IDF1). Cellsize and alignment are not changed.
     /// When no non-NoData-cells are present, the extent is not modified.
     /// </summary>
-    class IDFBoundingBoxFunction : ParserFunction
+    class BoundingBoxFunction : ParserFunction
     {
+        /// <summary>
+        /// Returns the name of this function as used for calling
+        /// </summary>
+        public new static string Name
+        {
+            get { return "bbox"; }
+        }
+
         protected override IDFFile Evaluate(string data, Dictionary<string, IDFExpVariable> variableDictionary, out IDFExpressionType expressionType, ref int from)
         {
             int startIdx = from;
             IDFFile idfFile = IDFExpParser.SplitAndMerge(data, variableDictionary, out expressionType, ref from, IDFExpParser.END_ARG);
             string idfFileExpression = data.Substring(startIdx, from - startIdx - 1);
             startIdx = from;
-            string bboxExpression = "bbox(" + idfFileExpression + ")";
+            string bboxExpression = Name + "(" + idfFileExpression + ")";
 
             IDFExpParser.IncreaseExpressionCount();
             string expId = IDFExpParser.GetCurrentExpressionId();
             if (IDFExpParser.IsDebugMode)
             {
-                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + bboxExpression + "'", 1);
+                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + IDFExpParser.ExpandExpressionKeys(bboxExpression, variableDictionary) + "'", 1);
             }
 
-            IDFFile resultIDFFile = null;
-            if (idfFile.RetrieveValueCount() > 0)
-            {
-                Extent nonNoDataExtent = idfFile.RetrieveExtent();
-                resultIDFFile = idfFile.ClipIDF(nonNoDataExtent);
-                expressionType = IDFExpressionType.Function;
-
-            }
-            else
-            {
-                // Retrieve extent of center cell
-                float centerX = (idfFile.Extent.llx + idfFile.Extent.urx) / 2;
-                float centerY = (idfFile.Extent.lly + idfFile.Extent.ury) / 2;
-                float halfCellsizeX = idfFile.XCellsize / 2.0f;
-                float halfCellsizeY = idfFile.YCellsize / 2.0f;
-                Extent noDataExtent = new Extent(centerX - halfCellsizeX, centerY - halfCellsizeY, centerX + halfCellsizeX, centerY + halfCellsizeY);
-                noDataExtent = noDataExtent.Snap(idfFile.XCellsize, idfFile.YCellsize, true);
-
-                resultIDFFile = idfFile.ClipIDF(noDataExtent);
-                resultIDFFile.Filename = expId + ".IDF";
-            }
+            IDFFile resultIDFFile = idfFile.Clip();
+            resultIDFFile.Filename = expId + ".IDF";
+            expressionType = IDFExpressionType.Function;
 
             if (IDFExpParser.IsDebugMode)
             {
@@ -1787,21 +1895,29 @@ namespace Sweco.SIF.IDFexp
     /// <summary>
     /// Class for parsing cellsize-function to retrieve X-cellsize for specified IDF-file. A constant IDF-file is returned
     /// </summary>
-    class IDFCellsizeFunction : ParserFunction
+    class CellsizeFunction : ParserFunction
     {
+        /// <summary>
+        /// Returns the name of this function as used for calling
+        /// </summary>
+        public new static string Name
+        {
+            get { return "cellsize"; }
+        }
+
         protected override IDFFile Evaluate(string data, Dictionary<string, IDFExpVariable> variableDictionary, out IDFExpressionType expressionType, ref int from)
         {
             int startIdx = from;
             IDFFile idfFile = IDFExpParser.SplitAndMerge(data, variableDictionary, out expressionType, ref from, IDFExpParser.END_ARG);
             string idfFileExpression = data.Substring(startIdx, from - startIdx - 1);
             startIdx = from;
-            string cellsizeExpression = "cellsize(" + idfFileExpression + ")";
+            string cellsizeExpression = Name + "(" + idfFileExpression + ")";
 
             IDFExpParser.IncreaseExpressionCount();
             string expId = IDFExpParser.GetCurrentExpressionId();
             if (IDFExpParser.IsDebugMode)
             {
-                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + cellsizeExpression + "'", 1);
+                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + IDFExpParser.ExpandExpressionKeys(cellsizeExpression, variableDictionary) + "'", 1);
             }
 
             ConstantIDFFile resultIDFFile = new ConstantIDFFile(idfFile.XCellsize);
@@ -1809,6 +1925,71 @@ namespace Sweco.SIF.IDFexp
             if (IDFExpParser.IsDebugMode)
             {
                 IDFExpParser.WriteExpressionResult(resultIDFFile, IDFExpParser.GetCurrentExpressionId(), cellsizeExpression, IDFExpParser.Log);
+            }
+
+            return resultIDFFile;
+        }
+    }
+
+    /// <summary>
+    /// Class for parsing an enlarge-function to enlarge an IDF-file to the extent of another IDF-file, with syntax clip(IDF1,IDF2)
+    /// New cells are filled with NoData-values.
+    /// </summary>
+    class NDFunction : ParserFunction
+    {
+        /// <summary>
+        /// Returns the name of this function as used for calling
+        /// </summary>
+        public new static string Name
+        {
+            get { return "nd"; }
+        }
+
+        protected override IDFFile Evaluate(string data, Dictionary<string, IDFExpVariable> variableDictionary, out IDFExpressionType expressionType, ref int from)
+        {
+            int startIdx = from;
+            IDFFile idfFile1 = IDFExpParser.SplitAndMerge(data, variableDictionary, out expressionType, ref from, IDFExpParser.SEP_ARG);
+            string idfFile1Expression = data.Substring(startIdx, from - startIdx - 1);
+            startIdx = from;
+            IDFFile idfFile2 = IDFExpParser.SplitAndMerge(data, variableDictionary, out IDFExpressionType expressionType2, ref from, IDFExpParser.END_ARG);
+            string idfFile2Expression = data.Substring(startIdx, from - startIdx - 1);
+            string ndExpression = Name + "(" + idfFile1Expression + "," + idfFile2Expression + ")";
+
+            IDFExpParser.IncreaseExpressionCount();
+            string expId = IDFExpParser.GetCurrentExpressionId();
+            if (IDFExpParser.IsDebugMode || IDFExpParser.IsIntermediateResultWritten)
+            {
+                IDFExpParser.Log.AddInfo("Evaluating expression '" + expId + " = " + IDFExpParser.ExpandExpressionKeys(ndExpression, variableDictionary) + "'", 1);
+            }
+
+            float noDataValue = float.NaN;
+            if (idfFile1 is ConstantIDFFile)
+            {
+                if (idfFile2 is ConstantIDFFile)
+                {
+                    noDataValue = ((ConstantIDFFile) idfFile2).ConstantValue;
+                }
+                else
+                {
+                    noDataValue = idfFile2.NoDataValue;
+                }
+            }
+            else if (idfFile2 is ConstantIDFFile)
+            {
+                noDataValue = ((ConstantIDFFile)idfFile2).ConstantValue;
+            }
+
+            // Redefine NoData-value of first IDF-file to second IDF-file or constant value
+            IDFFile resultIDFFile = null;
+            if (noDataValue.Equals(idfFile1.NoDataValue))
+            {
+                resultIDFFile = idfFile1;
+            }
+            else
+            {
+                resultIDFFile = idfFile1.CopyIDF(FileUtils.AddFilePostFix(idfFile1.Filename, "_nd"));
+                resultIDFFile.ReplaceValues(resultIDFFile.NoDataValue, noDataValue);
+                resultIDFFile.NoDataValue = noDataValue;
             }
 
             return resultIDFFile;
