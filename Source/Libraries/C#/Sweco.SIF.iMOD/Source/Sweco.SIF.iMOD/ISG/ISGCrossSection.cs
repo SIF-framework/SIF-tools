@@ -29,48 +29,72 @@ namespace Sweco.SIF.iMOD.ISG
 {
     public class ISGCrossSection
     {
-        public const int ByteLength = 44;
+        /// <summary>
+        /// Byte length for single precision ISG-files
+        /// </summary>
+        public const int SingleByteLength = 44;
+        /// <summary>
+        /// Byte length for double precision ISG-files
+        /// </summary>
+        public const int DoubleByteLength = 48;
 
-        /// <summary>
-        ///   The meaning of this attribute is twofold:
-        ///   - greater than 0: Number of data records in the ISC2-ﬁle that describes the actual cross-section.
-        ///   - smaller than 0: The absolute number of data records in the ISC2-ﬁle that describes the riverbed 
-        ///     as a collection of x,y,z points including an extra record to describe the dimensions (DX,DY ) of
-        ///     the network that captured the x,y,z points.
-        /// </summary>
-        public int N;
-        /// <summary>
-        ///  Record number within the ISC2-ﬁle for the ﬁrst data record that describes the cross-section.
-        /// </summary>
-        public int IREF;
-        /// <summary>
-        ///  Distance (meters) measured from the beginning of the segment (node 1) that locates the cross-section
-        /// </summary>
-        public float DIST;
         /// <summary>
         /// Name of the cross-section.
         /// </summary>
         public string CNAME;
 
-        private ISGCrossSectionData[] definitions;
-        public ISGCrossSectionData[] Definitions
+        /// <summary>
+        ///  Distance (meters) measured from the beginning of the segment (node 1) that locates the cross-section
+        /// </summary>
+        public float DIST;
+
+        /// <summary>
+        ///   The meaning of this attribute is twofold:
+        ///   - the absolute value defines the number of data records in the ISC2-file
+        ///   - N greater than 0: specifies a 1D-cross section, with a distance, bottom and manning coefficient along the cross section
+        ///   - N smaller than 0: specifies a 2D-cross section, which describes the riverbed as a collection of x,y,z points,
+        ///                       including an extra record to describe the dimensions (DX,DY) and HREF-level of the network.
+        /// </summary>
+        public int N;
+
+        /// <summary>
+        ///  Record number within the ISC2-file for the ﬁrst data record that describes the cross-section.
+        /// </summary>
+        public int IREF;
+
+        /// <summary>
+        /// Data record that defines the actual cross section (which depends on the cross section type as defined by N)
+        /// </summary>
+        public ISGCrossSectionData Data { get; set; }
+
+        /// <summary>
+        /// Constructor for new cross section object without actual data
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="dist"></param>
+        /// <param name="n"></param>
+        /// <param name="iref"></param>
+        public ISGCrossSection(string name, float dist, int n, int iref)
         {
-            get { return definitions; }
-            set { definitions = value; }
+            this.CNAME = name;
+            this.DIST = dist;
+            this.N = n;
+            this.IREF = iref;
+            this.Data = null;
         }
 
+        /// <summary>
+        /// Creates copy of cross section object
+        /// </summary>
+        /// <returns></returns>
         public ISGCrossSection Copy()
         {
-            ISGCrossSection csCopy = new ISGCrossSection();
-            csCopy.CNAME = CNAME;
-            csCopy.DIST = DIST;
-            csCopy.N = N;
-            csCopy.IREF = 0;
-            csCopy.definitions = new ISGCrossSectionData[definitions.Count()];
-            for (int defIdx = 0; defIdx < definitions.Count(); defIdx++)
+            ISGCrossSection csCopy = new ISGCrossSection(CNAME, DIST, N, IREF);
+            if (Data != null)
             {
-                csCopy.definitions[defIdx] = (definitions[defIdx].Copy());
+                csCopy.Data = Data.Copy();
             }
+
             return csCopy;
         }
     }

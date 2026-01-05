@@ -27,90 +27,24 @@ using System.Threading.Tasks;
 
 namespace Sweco.SIF.iMOD.ISG
 {
+    /// <summary>
+    /// Class that 
+    /// </summary>
     public abstract class ISGCrossSectionData
     {
-        public const int ByteLength = 12;
+        /// <summary>
+        /// Byte length for single precision ISG-files
+        /// </summary>
+        public const int SingleByteLength = 12;
+        /// <summary>
+        /// Byte length for double precision ISG-files. Note: iMOD-manual 5.6.1 is not correct here (20 bytes is specified there)
+        /// </summary>
+        public const int DoubleByteLength = 24;
 
+        /// <summary>
+        /// Copies cross section data record
+        /// </summary>
+        /// <returns></returns>
         public abstract ISGCrossSectionData Copy();
-    }
-
-    /// <summary>
-    /// Data for 1D crosssection
-    /// </summary>
-    public class ISGCrossSectionData1 : ISGCrossSectionData
-    {
-        /// <summary>
-        ///  Distance of the cross-section measured from the center of the riverbed (minus to the left en positive to the right)
-        /// </summary>
-        public float DISTANCE;
-        /// <summary>
-        ///  Bottom level of the riverbed (meter), whereby zero will be assigned to the lowest riverbed level.
-        /// </summary>
-        public float BOTTOM;
-        /// <summary>
-        ///  KManning resistance factor (-)
-        /// </summary>
-        public float KM;
-
-        public ISGCrossSectionData1()
-        {
-        }
-
-        public ISGCrossSectionData1(float distance, float bottom, float km)
-        {
-            this.DISTANCE = distance;
-            this.BOTTOM = bottom;
-            this.KM = km;
-        }
-
-        public override ISGCrossSectionData Copy()
-        {
-            return new ISGCrossSectionData1(DISTANCE, BOTTOM, KM);
-        }
-    }
-
-    /// <summary>
-    /// Data for 2D crosssection
-    /// </summary>
-    public class ISGCrossSectionData2 : ISGCrossSectionData
-    {
-        /// <summary>
-        ///  Width in meters of the rectangular raster that follows.
-        /// </summary>
-        public float DX;
-        /// <summary>
-        ///  Height in meters of the rectangular raster that follows.
-        /// </summary>
-        public float DY;
-        /// <summary>
-        ///  X coordinate (meter) for a riverbed “pixel”, these coordinates need to be on a rectangular network with spatial distance of DX.
-        /// </summary>
-        public float X;
-        /// <summary>
-        /// Y coordinate (meter) for a riverbed “pixel” , these coordinates need to be on a rectangular network with spatial distance of DY.
-        /// </summary>
-        public float Y;
-        /// <summary>
-        ///  Bottom level of the riverbed (meter).
-        /// </summary>
-        public float Z;
-
-        public ISGCrossSectionData2()
-        {
-        }
-
-        public ISGCrossSectionData2(float dx, float dy, float x, float y, float z)
-        {
-            this.DX = dx;
-            this.DY = dy;
-            this.X = x;
-            this.Y = y;
-            this.Z = z;
-        }
-
-        public override ISGCrossSectionData Copy()
-        {
-            return new ISGCrossSectionData2(DX, DY, X, Y, Z);
-        }
     }
 }

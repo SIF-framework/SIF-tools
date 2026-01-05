@@ -27,9 +27,20 @@ using System.Threading.Tasks;
 
 namespace Sweco.SIF.iMOD.ISG
 {
+    /// <summary>
+    /// Datastructure for ISD1-files with calculation point information at level 1 (id, xy and index in ISD2)
+    /// </summary>
     public class ISGCalculationPoint
     {
-        public const int ByteLength = 44;
+        /// <summary>
+        /// Byte length for single precision ISG-files
+        /// </summary>
+        public const int SingleByteLength = 44; // 11 words
+        /// <summary>
+        /// Byte length for double precision ISG-files
+        /// </summary>
+        public const int DoubleByteLength = 48; // 13 words
+
         /// <summary>
         ///  Number of data records in the ISD2-ﬁle that describes the timeseries of the calculation point.
         /// </summary>
@@ -248,9 +259,20 @@ namespace Sweco.SIF.iMOD.ISG
         }
     }
 
+    /// <summary>
+    /// Datastructure for ISD2-files with time dependent data per ISG Calculation Point
+    /// </summary>
     public class ISGCalculationPointData
     {
-        public const int ByteLength = 20;
+        /// <summary>
+        /// Byte length for single precision ISG-files
+        /// </summary>
+        public const int SingleByteLength = 20;
+        /// <summary>
+        /// Byte length for double precision ISG-files. Note: the iMOD-manual 5.6.1 is wrong here: for double precision record length 44 bytes because of added CTIME.
+        /// </summary>
+        public const int DoubleByteLength = 44;
+
         /// <summary>
         ///  Date for record (in ISD2-file representation as yyyymmdd).
         /// </summary>

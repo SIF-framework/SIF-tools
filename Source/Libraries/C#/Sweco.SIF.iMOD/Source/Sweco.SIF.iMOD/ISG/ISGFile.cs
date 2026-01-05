@@ -80,6 +80,12 @@ namespace Sweco.SIF.iMOD.ISG
         }
 
         /// <summary>
+        /// If true, source file has double precision; if false source has single precision
+        /// Note: currently double precision is handled and written as single precision.
+        /// </summary>
+        public bool IsDoublePrecision { get; set; }
+
+        /// <summary>
         /// Number of segments in ISG-file which is (only) set after reading an ISG-file (with or without lazy-loading)
         /// </summary>
         private int segmentCount;
@@ -167,6 +173,9 @@ namespace Sweco.SIF.iMOD.ISG
             try
             {
                 isgFile = new ISGFile(Filename);
+                isgFile.log = log;
+                isgFile.logIndentLevel = logIndentLevel;
+
                 isgFile.useLazyLoading = useLazyLoading;
                 if (useLazyLoading)
                 {
@@ -219,6 +228,8 @@ namespace Sweco.SIF.iMOD.ISG
 
                 ReadIST1();
                 ReadIST2();
+
+                CheckISQ1();
                 
                 UpdateExtent();
 
@@ -426,6 +437,10 @@ namespace Sweco.SIF.iMOD.ISG
                     default:
                         throw new Exception("Unknown record length for ISP-file: " + recordLength);
                 }
+
+                // Store single/double precision property of ISP-file for whole ISG-file
+                IsDoublePrecision = isDoublePrecision;
+
                 foreach (ISGSegment segment in segments)
                 {
                     br.BaseStream.Seek(segment.ISEG * byteLength, SeekOrigin.Begin);
@@ -493,14 +508,33 @@ namespace Sweco.SIF.iMOD.ISG
 
             Stream stream = null;
             BinaryReader br = null;
+            char[] trimmedChars = new char[] { ' ', '\0' };
             try
             {
+                char[] cnameChars = null;
                 stream = File.OpenRead(isd1Filename);
                 br = new BinaryReader(stream);
-                int recordLength = br.ReadInt32();   // is always 11511 for ISD1-files
+                int recordLength = br.ReadInt32(); 
+
+                int byteLength;
+                bool isDoublePrecision;
+                switch (recordLength)
+                {
+                    case 11511:
+                        isDoublePrecision = false;
+                        byteLength = ISGCalculationPoint.SingleByteLength;
+                        break;
+                    case 12535:
+                        isDoublePrecision = true;
+                        byteLength = ISGCalculationPoint.DoubleByteLength;
+                        break;
+                    default:
+                        throw new Exception("Unknown record length for ISD1-file: " + recordLength);
+                }
+
                 foreach (ISGSegment segment in segments)
                 {
-                    br.BaseStream.Seek(segment.ICLC * ISGCalculationPoint.ByteLength, SeekOrigin.Begin);
+                    br.BaseStream.Seek(segment.ICLC * byteLength, SeekOrigin.Begin);
                     List<ISGCalculationPoint> isgCalculationPointList = new List<ISGCalculationPoint>();
                     for (int subIdx = 0; subIdx < segment.NCLC; subIdx++)
                     {
@@ -509,8 +543,10 @@ namespace Sweco.SIF.iMOD.ISG
                             ISGCalculationPoint calculationPoint = new ISGCalculationPoint();
                             calculationPoint.N = br.ReadInt32();
                             calculationPoint.IREF = br.ReadInt32();
-                            calculationPoint.DIST = br.ReadSingle();
-                            calculationPoint.CNAME = new string(br.ReadChars(32)).Trim();
+                            calculationPoint.DIST = isDoublePrecision ? (float)br.ReadDouble() : br.ReadSingle();
+
+                            cnameChars = br.ReadChars(32);
+                            calculationPoint.CNAME = new string(cnameChars).Trim();
                             isgCalculationPointList.Add(calculationPoint);
                         }
                         catch (Exception ex)
@@ -565,12 +601,29 @@ namespace Sweco.SIF.iMOD.ISG
             {
                 stream = File.OpenRead(isd2Filename);
                 br = new BinaryReader(stream);
-                int recordLength = br.ReadInt32();   // is always 5367 for ISD2-files
+                int recordLength = br.ReadInt32();   // is always 5367 for single precision ISD2-files
+
+                int byteLength;
+                bool isDoublePrecision;
+                switch (recordLength)
+                {
+                    case 5367:
+                        isDoublePrecision = false;
+                        byteLength = ISGCalculationPointData.SingleByteLength;
+                        break;
+                    case 11511:
+                        isDoublePrecision = true;
+                        byteLength = ISGCalculationPointData.DoubleByteLength;
+                        break;
+                    default:
+                        throw new Exception("Unknown record length for ISD2-file: " + recordLength);
+                }
+
                 foreach (ISGSegment segment in segments)
                 {
                     foreach (ISGCalculationPoint cp in segment.CalculationPoints)
                     {
-                        br.BaseStream.Seek(cp.IREF * ISGCalculationPointData.ByteLength, SeekOrigin.Begin);
+                        br.BaseStream.Seek(cp.IREF * byteLength, SeekOrigin.Begin);
                         List<ISGCalculationPointData> isd2RecordList = new List<ISGCalculationPointData>();
                         for (int subIdx = 0; subIdx < cp.N; subIdx++)
                         {
@@ -578,21 +631,21 @@ namespace Sweco.SIF.iMOD.ISG
                             {
                                 ISGCalculationPointData isd2Record = new ISGCalculationPointData();
                                 int IDATE = br.ReadInt32();
+                                if (isDoublePrecision)
+                                {
+                                    char[] CTIME = br.ReadChars(8); // Note: currently not used in iMOD 5.6.1 (see iMOD-manual);  : "00:00:00".ToCharArray()
+                                }
                                 isd2Record.DATE = new DateTime(IDATE / 10000, (IDATE / 100) % 100, IDATE % 100);
-                                isd2Record.WLVL = br.ReadSingle();
-                                isd2Record.BTML = br.ReadSingle();
-                                isd2Record.RESIS = br.ReadSingle();
-                                isd2Record.INFF = br.ReadSingle();
+                                isd2Record.WLVL = isDoublePrecision ? (float) br.ReadDouble() : br.ReadSingle();
+                                isd2Record.BTML = isDoublePrecision ? (float)br.ReadDouble() : br.ReadSingle();
+                                isd2Record.RESIS = isDoublePrecision ? (float) br.ReadDouble() : br.ReadSingle();
+                                isd2Record.INFF = isDoublePrecision ? (float)br.ReadDouble() : br.ReadSingle();
                                 isd2RecordList.Add(isd2Record);
                             }
                             catch (Exception ex)
                             {
-                                //                              string s = ex.GetBaseException().Message;
-                                //                              long mem = GC.GetTotalMemory(true) / 1000000;
                                 throw new Exception("Unexpected error while reading ISD2-record " + (cp.IREF + subIdx) + " for segment: " + segment.Label + ", calculation point: " + cp.CNAME, ex);
                             }
-
-
                         }
                         cp.cpDataArray = isd2RecordList.ToArray();
                     }
@@ -642,21 +695,38 @@ namespace Sweco.SIF.iMOD.ISG
             {
                 stream = File.OpenRead(isc1Filename);
                 br = new BinaryReader(stream);
-                int recordLength = br.ReadInt32();   // is always 11511 for ISC1-files
+                int recordLength = br.ReadInt32();
+
+                int byteLength;
+                bool isDoublePrecision;
+                switch (recordLength)
+                {
+                    case 11511:
+                        isDoublePrecision = false;
+                        byteLength = ISGCalculationPoint.SingleByteLength;
+                        break;
+                    case 12535:
+                        isDoublePrecision = true;
+                        byteLength = ISGCalculationPoint.DoubleByteLength;
+                        break;
+                    default:
+                        throw new Exception("Unknown record length for ISC1-file: " + recordLength);
+                }
+
                 foreach (ISGSegment segment in segments)
                 {
-                    br.BaseStream.Seek(segment.ICRS * ISGCrossSection.ByteLength, SeekOrigin.Begin);
+                    br.BaseStream.Seek(segment.ICRS * byteLength, SeekOrigin.Begin);
                     List<ISGCrossSection> isgCrossSectionList = new List<ISGCrossSection>();
                     for (int subIdx = 0; subIdx < segment.NCRS; subIdx++)
                     {
                         try
                         {
-                            ISGCrossSection crosssection = new ISGCrossSection();
-                            crosssection.N = br.ReadInt32();
-                            crosssection.IREF = br.ReadInt32();
-                            crosssection.DIST = br.ReadSingle();
-                            crosssection.CNAME = new string(br.ReadChars(32)).Trim();
-                            isgCrossSectionList.Add(crosssection);
+                            int n = br.ReadInt32();
+                            int iref = br.ReadInt32();
+                            float dist = isDoublePrecision ? (float) br.ReadDouble() : br.ReadSingle();
+                            string cname = new string(br.ReadChars(32)).Trim();
+                            ISGCrossSection cs = new ISGCrossSection(cname, dist, n, iref);
+                            isgCrossSectionList.Add(cs);
                         }
                         catch (Exception ex)
                         {
@@ -710,55 +780,93 @@ namespace Sweco.SIF.iMOD.ISG
             {
                 stream = File.OpenRead(isc2Filename);
                 br = new BinaryReader(stream);
-                int recordLength = br.ReadInt32();   // is always 3319 for ISC2-files
+                int recordLength = br.ReadInt32();
+
+                int byteLength;
+                bool isDoublePrecision;
+                switch (recordLength)
+                {
+                    case 3319:
+                        isDoublePrecision = false;
+                        byteLength = ISGCrossSectionData.SingleByteLength;
+                        break;
+                    case 6391:
+                        isDoublePrecision = true;
+                        byteLength = ISGCrossSectionData.DoubleByteLength;
+                        break;
+                    default:
+                        throw new Exception("Unknown record length for ISC2-file: " + recordLength);
+                }
+
                 foreach (ISGSegment segment in segments)
                 {
-                    foreach (ISGCrossSection cs in segment.CrossSections)
+                    for (int csIdx = 0; csIdx < segment.CrossSections.Count; csIdx++)
                     {
-                        br.BaseStream.Seek(cs.IREF * ISGCrossSectionData.ByteLength, SeekOrigin.Begin);
-                        List<ISGCrossSectionData> isc2RecordList = new List<ISGCrossSectionData>();
+                        ISGCrossSection cs = segment.CrossSections[csIdx];
+                        br.BaseStream.Seek(cs.IREF * byteLength, SeekOrigin.Begin);
                         if (cs.N >= 0)
                         {
+                            ISGCrossSection1DData isc2Data = new ISGCrossSection1DData();
                             for (int subIdx = 0; subIdx < cs.N; subIdx++)
                             {
                                 try
                                 {
-                                    ISGCrossSectionData1 isc2Record = new ISGCrossSectionData1();
-                                    isc2Record.DISTANCE = br.ReadSingle();
-                                    isc2Record.BOTTOM = br.ReadSingle();
-                                    isc2Record.KM = br.ReadSingle();
-                                    isc2RecordList.Add(isc2Record);
+                                    float distance = isDoublePrecision ? (float) br.ReadDouble() : br.ReadSingle();
+                                    float bottom = isDoublePrecision ? (float)br.ReadDouble() : br.ReadSingle();
+                                    float km = isDoublePrecision ? (float)br.ReadDouble() : br.ReadSingle();
+                                    ISGCrossSection1DDataPoint csPoint = new ISGCrossSection1DDataPoint(distance, bottom, km);
+                                    isc2Data.Points.Add(csPoint);
                                 }
                                 catch (Exception ex)
                                 {
                                     throw new Exception("Unexpected error while reading ISC2-record " + (cs.IREF + subIdx) + " for segment: " + segment.Label + ", cross section: " + cs.CNAME, ex);
                                 }
                             }
-                            cs.Definitions = isc2RecordList.ToArray();
+                            cs.Data = isc2Data;
                         }
                         else
                         {
-                            float dx = br.ReadSingle();
-                            float dy = br.ReadSingle();
-                            br.BaseStream.Seek(4, SeekOrigin.Current);
+                            float dx = isDoublePrecision ? (float)br.ReadDouble() : br.ReadSingle();
+                            float dy = isDoublePrecision ? (float)br.ReadDouble() : br.ReadSingle();
+                            float href = float.NaN;
+                            bool hasHREF = false;
+                            if ((dx < 0) && (dy < 0))
+                            {
+                                hasHREF = true;
+                                href = isDoublePrecision ? (float)br.ReadDouble() : br.ReadSingle();
+                            }
+
+                            ISGCrossSection2DData isc2Data = new ISGCrossSection2DData(dx, dy, href);
                             for (int subIdx = 1; subIdx < (-cs.N); subIdx++)
                             {
                                 try
                                 {
-                                    ISGCrossSectionData2 isc2Record = new ISGCrossSectionData2();
-                                    isc2Record.DX = dx;
-                                    isc2Record.DY = dy;
-                                    isc2Record.X = br.ReadSingle();
-                                    isc2Record.Y = br.ReadSingle();
-                                    isc2Record.Z = br.ReadSingle();
-                                    isc2RecordList.Add(isc2Record);
+                                    float X = isDoublePrecision ? (float)br.ReadDouble() : br.ReadSingle();
+                                    float Y = isDoublePrecision ? (float)br.ReadDouble() : br.ReadSingle();
+                                    float Z = float.NaN;
+                                    short Zm = 0;
+                                    sbyte Zc = 0;
+                                    sbyte Zp = 1;
+                                    if (!hasHREF)
+                                    {
+                                        Z = isDoublePrecision ? (float)br.ReadDouble() : br.ReadSingle();
+                                    }
+                                    else
+                                    {
+                                        Zm = br.ReadInt16();
+                                        Zc = br.ReadSByte();
+                                        Zp = br.ReadSByte();
+                                    }
+
+                                    ISGCrossSection2DDataPoint csPoint = Z.Equals(float.NaN) ? new ISGCrossSection2DDataPoint(X, Y, Zm, Zc, Zp) : new ISGCrossSection2DDataPoint(X, Y, Z);
+                                    isc2Data.Points.Add(csPoint);
                                 }
                                 catch (Exception ex)
                                 {
                                     throw new Exception("Unexpected error while reading ISC2-record " + (cs.IREF + subIdx) + " for segment: " + segment.Label + ", cross section: " + cs.CNAME, ex);
                                 }
                             }
-                            cs.Definitions = isc2RecordList.ToArray();
+                            cs.Data = isc2Data;
                         }
                     }
                 }
@@ -808,9 +916,26 @@ namespace Sweco.SIF.iMOD.ISG
                 stream = File.OpenRead(ist1Filename);
                 br = new BinaryReader(stream);
                 int recordLength = br.ReadInt32();   // is always 11511 for IST1-files
+
+                int byteLength;
+                bool isDoublePrecision;
+                switch (recordLength)
+                {
+                    case 11511:
+                        isDoublePrecision = false;
+                        byteLength = ISGStructure.SingleByteLength;
+                        break;
+                    case 12535:
+                        isDoublePrecision = true;
+                        byteLength = ISGStructure.DoubleByteLength;
+                        break;
+                    default:
+                        throw new Exception("Unknown record length for IST1-file: " + recordLength);
+                }
+
                 foreach (ISGSegment segment in segments)
                 {
-                    br.BaseStream.Seek(segment.ISTW * ISGStructure.ByteLength, SeekOrigin.Begin);
+                    br.BaseStream.Seek(segment.ISTW * byteLength, SeekOrigin.Begin);
                     List<ISGStructure> isgStructureList = new List<ISGStructure>();
                     for (int subIdx = 0; subIdx < segment.NSTW; subIdx++)
                     {
@@ -819,8 +944,8 @@ namespace Sweco.SIF.iMOD.ISG
                             ISGStructure structure = new ISGStructure();
                             structure.N = br.ReadInt32();
                             structure.IREF = br.ReadInt32();
-                            structure.DIST = br.ReadSingle();
-                            structure.CNAME = new string(br.ReadChars(32));
+                            structure.DIST = isDoublePrecision ? (float)br.ReadDouble() : br.ReadSingle();
+                            structure.CNAME = new string(br.ReadChars(32)).Trim();
                             isgStructureList.Add(structure);
                         }
                         catch (Exception ex)
@@ -875,12 +1000,29 @@ namespace Sweco.SIF.iMOD.ISG
             {
                 stream = File.OpenRead(ist2Filename);
                 br = new BinaryReader(stream);
-                int recordLength = br.ReadInt32();   // is always 3319 for IST2-files
+                int recordLength = br.ReadInt32();
+
+                int byteLength;
+                bool isDoublePrecision;
+                switch (recordLength)
+                {
+                    case 3319:
+                        isDoublePrecision = false;
+                        byteLength = ISGStructureData.SingleByteLength;
+                        break;
+                    case 7415:                  // Note: record length for double precision of IST2 is different from iMOD-manual
+                        isDoublePrecision = true;
+                        byteLength = ISGStructureData.DoubleByteLength;
+                        break;
+                    default:
+                        throw new Exception("Unknown record length for IST2-file: " + recordLength);
+                }
+
                 foreach (ISGSegment segment in segments)
                 {
                     foreach (ISGStructure structure in segment.Structures)
                     {
-                        br.BaseStream.Seek(structure.IREF * ISGStructureData.ByteLength, SeekOrigin.Begin);
+                        br.BaseStream.Seek(structure.IREF * byteLength, SeekOrigin.Begin);
                         List<ISGStructureData> ist2RecordList = new List<ISGStructureData>();
                         for (int subIdx = 0; subIdx < structure.N; subIdx++)
                         {
@@ -889,8 +1031,12 @@ namespace Sweco.SIF.iMOD.ISG
                                 ISGStructureData ist2Record = new ISGStructureData();
                                 int IDATE = br.ReadInt32();
                                 ist2Record.DATE = new DateTime(IDATE / 10000, (IDATE % 10000) / 100, IDATE % 100);
-                                ist2Record.WLVL_UP = br.ReadSingle();
-                                ist2Record.WLVL_DOWN = br.ReadSingle();
+                                if (isDoublePrecision)
+                                {
+                                    char[] CTIME = br.ReadChars(8); // Note: currently not used in iMOD 5.6.1 (see iMOD-manual);  : "00:00:00".ToCharArray()
+                                }
+                                ist2Record.WLVL_UP = isDoublePrecision ? (float)br.ReadDouble() : br.ReadSingle();
+                                ist2Record.WLVL_DOWN = isDoublePrecision ? (float)br.ReadDouble() : br.ReadSingle();
                                 ist2RecordList.Add(ist2Record);
                             }
                             catch (Exception ex)
@@ -909,6 +1055,79 @@ namespace Sweco.SIF.iMOD.ISG
             catch (Exception ex)
             {
                 throw new Exception("Unexpected error while reading IST2-file " + Filename, ex);
+            }
+            finally
+            {
+                if (br != null)
+                {
+                    br.Close();
+                }
+                if (stream != null)
+                {
+                    stream.Close();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Check if ISQ1/2-file contains data. If so a warning is given as ISQ is currently not yet read.
+        /// </summary>
+        protected void CheckISQ1()
+        {
+            if (segments == null)
+            {
+                throw new Exception("segments is null, ensure data is loaded before calling ReadXXX()-methods");
+            }
+
+            string isq1Filename = Path.Combine(Path.GetDirectoryName(Filename), Path.GetFileNameWithoutExtension(Filename) + ".ISQ1");
+            if (!File.Exists(isq1Filename))
+            {
+                throw new ToolException("ISQ1-file does not exist: " + isq1Filename);
+            }
+
+            Stream stream = null;
+            BinaryReader br = null;
+            try
+            {
+                stream = File.OpenRead(isq1Filename);
+                br = new BinaryReader(stream);
+                int recordLength = br.ReadInt32();
+
+                int byteLength;
+                bool isDoublePrecision;
+                switch (recordLength)
+                {
+                    case 3319:
+                        isDoublePrecision = false;
+                        break;
+                    case 5367:
+                        isDoublePrecision = true;
+                        break;
+                    default:
+                        // For now ignore
+                        // // throw new Exception("Unknown record length for ISQ1-file: " + recordLength);
+                        break;
+                }
+
+                foreach (ISGSegment segment in segments)
+                {
+                    if (segment.IQHR > 0)
+                    {
+                        if (log != null)
+                        {
+                            log.AddWarning("ISG-file has Q/H-relations defined. Currently this data is not processed and skipped.", logIndentLevel);
+                            return;
+                        }
+                    }
+                }
+            }
+            catch (EndOfStreamException ex)
+            {
+                throw new Exception("Unexpected end of file reading ISQ1-file " + Filename, ex);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Unexpected error while reading ISQ1-file " + Filename, ex);
             }
             finally
             {
@@ -1346,6 +1565,24 @@ namespace Sweco.SIF.iMOD.ISG
         public override Legend CreateDivisionLegend(System.Drawing.Color? color = null, bool isColorReversed = false)
         {
             return CreateDifferenceLegend(null);
+        }
+
+        /// <summary>
+        /// Retrieve total number of structures in this ISG-file
+        /// </summary>
+        /// <returns></returns>
+        public int RetrieveStructureCount()
+        {
+            int istw = 0;
+
+            foreach (ISGSegment segment in Segments)
+            {
+                foreach (ISGStructure structure in segment.Structures)
+                {
+                    istw++;
+                }
+            }
+            return istw;
         }
     }
 }

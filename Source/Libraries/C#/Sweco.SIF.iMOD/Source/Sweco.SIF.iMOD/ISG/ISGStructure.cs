@@ -29,7 +29,15 @@ namespace Sweco.SIF.iMOD.ISG
 {
     public class ISGStructure
     {
-        public const int ByteLength = 44;
+        /// <summary>
+        /// Byte length for single precision ISG-files
+        /// </summary>
+        public const int SingleByteLength = 44;
+        /// <summary>
+        /// Byte length for double precision ISG-files
+        /// </summary>
+        public const int DoubleByteLength = 48;
+
         /// <summary>
         /// Number of data records in the IST2-ﬁle that describes the actual timeserie for the weir/structure.
         /// </summary>

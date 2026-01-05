@@ -29,7 +29,14 @@ namespace Sweco.SIF.iMOD.ISG
 {
     public class ISGStructureData
     {
-        public const int ByteLength = 12;
+        /// <summary>
+        /// Byte length for single precision ISG-files
+        /// </summary>
+        public const int SingleByteLength = 12;
+        /// <summary>
+        /// Byte length for double precision ISG-files
+        /// </summary>
+        public const int DoubleByteLength = 28;
 
         /// <summary>
         /// Date for structure record (in IST2-file representation as yyyymmdd).

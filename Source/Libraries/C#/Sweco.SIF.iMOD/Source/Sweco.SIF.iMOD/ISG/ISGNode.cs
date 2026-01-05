@@ -29,7 +29,13 @@ namespace Sweco.SIF.iMOD.ISG
 {
     public class ISGNode : ISGCoordinate
     {
+        /// <summary>
+        /// Byte length for single precision ISG-files
+        /// </summary>
         public const int SingleByteLength = 8;
+        /// <summary>
+        /// Byte length for double precision ISG-files
+        /// </summary>
         public const int DoubleByteLength = 16;
 
         public ISGSegment ISGSegment = null;
