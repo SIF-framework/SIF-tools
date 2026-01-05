@@ -303,7 +303,15 @@ namespace Sweco.SIF.WorkflowViz.Visualisation
                         node.Color = GetStatusColor(batchfile.RunStatus);
                         node.URL = Path.GetDirectoryName(batchfile.Filename);
 
-                        LogTable.Add(new LogEntry(batchfile));
+                        LogEntry logEntry = new LogEntry(batchfile);
+                        if (!LogTable.Contains(logEntry))
+                        {
+                            LogTable.Add(logEntry);
+                        }
+                        else
+                        {
+                            // ignore, workflows are processed multiple times
+                        }
 
                         // Handle RunScripts batchfiles differently when in RunScripts-mode
                         if (!isRunScriptsMode || (workflowLevel == maxWorkflowLevels) || !Utils.IsRunscriptsName(batchfile.Name))

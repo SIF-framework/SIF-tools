@@ -76,6 +76,18 @@ namespace Sweco.SIF.WorkflowViz
             LogList.Add(entry);
         }
 
+        public bool Contains(LogEntry entry)
+        {
+            foreach (LogEntry e in LogList)
+            {
+                if (e.Batchfile.ID.Equals(entry.Batchfile.ID))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public LogEntry GetEntry(int idx)
         {
             return LogList[idx];

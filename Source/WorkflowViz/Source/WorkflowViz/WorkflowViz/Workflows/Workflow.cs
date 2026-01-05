@@ -92,7 +92,7 @@ namespace Sweco.SIF.WorkflowViz.Workflows
             Workflow workflow = new Workflow();
             workflow.FullPath = path;
             workflow.Label = Path.GetFileName(path);
-            workflow.Name = "WF" + workflow.Label.Replace(" ", string.Empty);
+            workflow.Name = CorrctWorkflowName("WF" + workflow.Label.Replace(" ", string.Empty));
 
             try
             {
@@ -120,6 +120,21 @@ namespace Sweco.SIF.WorkflowViz.Workflows
             }
 
             return workflow;
+        }
+
+        private static string CorrctWorkflowName(string wfName)
+        {
+            string[] invalidSubstrings = new string[] { "'", "{", "}", "(", ")", "[", "]", "!", "@", "#", "$", "%", "^", "&", "=", ";", ",", "`", "~" };
+
+            foreach (string s in invalidSubstrings)
+            {
+                if (wfName.Contains(s))
+                {
+                    wfName = wfName.Replace(s, string.Empty);
+                }
+            }
+
+            return wfName;
         }
 
         /// <summary>
