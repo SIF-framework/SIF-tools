@@ -25,9 +25,11 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD.IDF;
+using Sweco.SIF.iMOD.Legends;
 
 namespace Sweco.SIF.iMOD.ASC
 {
@@ -180,7 +182,7 @@ namespace Sweco.SIF.iMOD.ASC
         public static ASCFile ReadFile(string filename, IFormatProvider formatProvider)
         {
             Stream stream = null;
-            StreamReader sr = null;
+            StringReader sr = null;
 
             ASCFile ascFile = new ASCFile();
             try
@@ -188,8 +190,16 @@ namespace Sweco.SIF.iMOD.ASC
                 ascFile.Filename = filename;
                 ascFile.LastWriteTime = File.GetLastWriteTime(filename);
 
-                stream = File.OpenRead(filename); // File.Open(filename, FileMode.Open, FileAccess.Read)
-                sr = new StreamReader(stream);
+                string ascString = File.ReadAllText(filename);
+
+                if (!ascString.Contains(".") && ascString.Contains(","))
+                {
+                    // Correct for ASC-file with comma's as decimal seperator
+                    ascString = ascString.Replace(',', '.');
+                }
+
+                // stream = File.OpenRead(filename); // File.Open(filename, FileMode.Open, FileAccess.Read)
+                sr = new StringReader(ascString);
 
                 // Read Definitions
                 string line = sr.ReadLine();
@@ -219,24 +229,26 @@ namespace Sweco.SIF.iMOD.ASC
 
                 int colIdx = 0;
                 int rowIdx = 0;
-                while (!sr.EndOfStream)
+                while ((line = sr.ReadLine()) != null)
                 {
-                    line = sr.ReadLine();
-                    string[] values = line.Split(new char[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    for (int i = 0; i < values.Length; i++)
+                    if (line != null)
                     {
-                        if (rowIdx >= ascFile.NRows)
+                        string[] values = line.Split(new char[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                        for (int i = 0; i < values.Length; i++)
                         {
-                            throw new ToolException("Too many values found in ASC-file, check decimal seperator");
-                        }
+                            if (rowIdx >= ascFile.NRows)
+                            {
+                                throw new ToolException("Too many values found in ASC-file, check decimal seperator");
+                            }
 
-                        float value = float.Parse(values[i], formatProvider);
-                        ascFile.Values[rowIdx][colIdx] = value;
-                        colIdx++;
-                        if (colIdx == ascFile.NCols)
-                        {
-                            colIdx = 0;
-                            rowIdx++;
+                            float value = float.Parse(values[i], formatProvider);
+                            ascFile.Values[rowIdx][colIdx] = value;
+                            colIdx++;
+                            if (colIdx == ascFile.NCols)
+                            {
+                                colIdx = 0;
+                                rowIdx++;
+                            }
                         }
                     }
                 }
@@ -342,102 +354,287 @@ namespace Sweco.SIF.iMOD.ASC
         /// <summary>
         /// Clip ASC-file data to specified extent
         /// </summary>
-        /// <param name="clipRectangle"></param>
+        /// <param name="clipExtent"></param>
         /// <param name="isInvertedClip">if true, part outside extent is retained</param>
         /// <returns></returns>
-        public ASCFile Clip(Extent clipRectangle, bool isInvertedClip = false)
+        public ASCFile Clip(Extent clipExtent, bool isInvertedClip = false)
         {
+            int upperRowIdx;
+            int lowerRowIdx;
+            int leftColIdx;
+            int rightColIdx;
+            int invRow;
 
-            float xllClipRectangle = clipRectangle.llx;
-            float yllClipRectangle = clipRectangle.lly;
-            float xurClipRectangle = clipRectangle.urx;
-            float yurClipRectangle = clipRectangle.ury;
-
-            ASCFile outputASCFile = new ASCFile();
-            outputASCFile.Filename = Filename;
-            outputASCFile.LastWriteTime = LastWriteTime;
-
-            if (xllClipRectangle < XLL)
+            float xur = XLL + Cellsize * NCols;
+            float yur = YLL + Cellsize * NRows;
+            Extent ascExtent = new Extent(XLL, YLL, xur, yur);
+            if (clipExtent == null)
             {
-                xllClipRectangle = XLL;
-            }
-            if (yllClipRectangle < YLL)
-            {
-                yllClipRectangle = YLL;
-            }
-            float xurcorner = XLL + Cellsize * NCols;
-            if (xurClipRectangle > xurcorner)
-            {
-                xurClipRectangle = xurcorner;
-            }
-            float yurcorner = YLL + Cellsize * NRows;
-            if (yurClipRectangle > yurcorner)
-            {
-                yurClipRectangle = yurcorner;
-            }
-            if (yllClipRectangle > yurClipRectangle)
-            {
-                yllClipRectangle = yurClipRectangle;
-            }
-            if (xllClipRectangle > xurClipRectangle)
-            {
-                xllClipRectangle = xurClipRectangle;
-            }
-            int invRow = (int)((yurClipRectangle - YLL - 1) / Cellsize); // don't include upper row if clipboundary is exactly at cell border
-            int upperRowIdx = NRows - invRow - 1;
-            invRow = (int)((yllClipRectangle - YLL) / Cellsize);
-            int lowerRowIdx = NRows - invRow - 1;
-            int leftColIdx = (int)((xllClipRectangle - XLL) / Cellsize);
-            int rightColIdx = (int)(((xurClipRectangle - XLL - 1) / Cellsize));  // don't include right column if clipboundary is exactly at cell border
-
-            // initialize output ASCFile
-            outputASCFile.Cellsize = Cellsize;
-            outputASCFile.NoDataValue = NoDataValue;
-            outputASCFile.NCols = isInvertedClip ? NCols : (rightColIdx - leftColIdx + 1);
-            outputASCFile.NRows = isInvertedClip ? NRows : (lowerRowIdx - upperRowIdx + 1);
-            outputASCFile.XLL = isInvertedClip ? XLL : (float)xllClipRectangle;
-            outputASCFile.YLL = isInvertedClip ? YLL : (float)yllClipRectangle;
-            outputASCFile.Values = new float[outputASCFile.NRows][];
-
-            // Declare memory for values in output file
-            for (int i = 0; i < outputASCFile.NRows; i++)
-            {
-                outputASCFile.Values[i] = new float[outputASCFile.NCols];
+                // Use extent of ASC-file
+                clipExtent = ascExtent.Copy();
             }
 
-            if (isInvertedClip)
+            if (!ascExtent.Clip(clipExtent).IsValidExtent())
             {
-                // Copy values from source file
-                int rowIdx;
-                for (rowIdx = 0; rowIdx < outputASCFile.NRows; rowIdx++)
+                return null;
+                // throw new Exception("No overlap in extent of '" + Path.GetFileName(this.Filename) + "' " +  ascExtent.ToString() + " and clipExtent: '" + clipExtent.ToString());
+            }
+
+            if (clipExtent.Contains(ascExtent) && !isInvertedClip)
+            {
+                // No need to clip; return this IDF-file
+                return this.Copy(Filename);
+            }
+
+            // Snap clip extent to extent and cellsize of source IDF-file, ensure corrected clipExtent is not smaller than original clipExtent
+            float llxMismatch = (clipExtent.llx - ascExtent.llx) % Cellsize;
+            float llyMismatch = (clipExtent.lly - ascExtent.lly) % Cellsize;
+            float urxMismatch = (ascExtent.urx - clipExtent.urx) % Cellsize;
+            float uryMismatch = (ascExtent.ury - clipExtent.ury) % Cellsize;
+            float llxCorr = clipExtent.llx - llxMismatch;
+            float llyCorr = clipExtent.lly - llyMismatch;
+            float urxCorr = clipExtent.urx + urxMismatch;
+            float uryCorr = clipExtent.ury + uryMismatch;
+            if (urxCorr < clipExtent.urx)
+            {
+                urxCorr += Cellsize;
+            }
+            if (uryCorr < clipExtent.ury)
+            {
+                uryCorr += Cellsize;
+            }
+            clipExtent = new Extent(llxCorr, llyCorr, urxCorr, uryCorr);
+
+            // Clip the extent
+            Extent clippedExtent = ascExtent.Clip(clipExtent);
+
+            // Initialize clipped result IDFFile
+            ASCFile clippedASCFile = new ASCFile();
+            clippedASCFile.Filename = Filename;
+            clippedASCFile.Cellsize = Cellsize;
+            clippedASCFile.NoDataValue = NoDataValue;
+            clippedASCFile.LastWriteTime = LastWriteTime;
+
+            if (ascExtent == null)
+            {
+                throw new Exception("No extent is defined for the base file. Clip is not possible for: " + this.Filename);
+            }
+
+            // Calculate new number of columns and number of rows
+            invRow = (int)((clippedExtent.ury - ascExtent.lly - (Cellsize / 10)) / Cellsize); // don't include upper row if clipboundary is exactly at cell border
+            upperRowIdx = NRows - invRow - 1;
+            invRow = (int)((clippedExtent.lly - ascExtent.lly) / Cellsize);
+            lowerRowIdx = NRows - invRow - 1;
+            leftColIdx = (int)((clippedExtent.llx - ascExtent.llx) / Cellsize);
+            rightColIdx = (int)(((clippedExtent.urx - ascExtent.llx - (Cellsize / 10)) / Cellsize));  // don't include right column if clipboundary is exactly at cell border
+
+            clippedASCFile.NCols = isInvertedClip ? NCols : (rightColIdx - leftColIdx + 1);
+            clippedASCFile.NRows = isInvertedClip ? NRows : (lowerRowIdx - upperRowIdx + 1);
+            clippedASCFile.XLL = isInvertedClip ? ascExtent.llx : clippedExtent.llx;
+            clippedASCFile.YLL = isInvertedClip ? ascExtent.lly : clippedExtent.lly;
+
+            if (this.Values != null)
+            {
+                clippedASCFile.DeclareValuesMemory();
+
+                if (isInvertedClip)
                 {
-                    for (int colIdx = 0; colIdx < outputASCFile.NCols; colIdx++)
+                    // Copy values from source file
+                    for (int rowIdx = 0; rowIdx < clippedASCFile.NRows; rowIdx++)
                     {
-                        outputASCFile.Values[rowIdx][colIdx] = Values[rowIdx][colIdx];
+                        for (int colIdx = 0; colIdx < clippedASCFile.NCols; colIdx++)
+                        {
+                            clippedASCFile.Values[rowIdx][colIdx] = Values[rowIdx][colIdx];
+                        }
+                    }
+
+                    // Remove values inside rectangle: set to NoData
+                    for (int rowIdx = upperRowIdx; rowIdx <= lowerRowIdx; rowIdx++)
+                    {
+                        for (int colIdx = leftColIdx; colIdx <= rightColIdx; colIdx++)
+                        {
+                            clippedASCFile.Values[rowIdx][colIdx] = NoDataValue;
+                        }
                     }
                 }
-
-                // Remove values inside rectangle: set to NoData
-                for (rowIdx = upperRowIdx; rowIdx <= lowerRowIdx; rowIdx++)
+                else
                 {
-                    for (int colIdx = leftColIdx; colIdx <= rightColIdx; colIdx++)
+                    // copy clipped values and recalculate min/max-values
+                    float outputValue;
+                    for (int rowIdx = 0; rowIdx < clippedASCFile.NRows; rowIdx++)
                     {
-                        outputASCFile.Values[rowIdx][colIdx] = NoDataValue;
+                        for (int colIdx = 0; colIdx < clippedASCFile.NCols; colIdx++)
+                        {
+                            outputValue = float.NaN;
+                            if (((upperRowIdx + rowIdx) > Values.Length) || ((leftColIdx + colIdx) > Values[Values.Length - 1].Length) || (upperRowIdx < 0) || (leftColIdx < 0))
+                            {
+                                // this should actually never happen...
+                                outputValue = float.NaN;
+                            }
+                            else
+                            {
+                                outputValue = Values[upperRowIdx + rowIdx][leftColIdx + colIdx];
+                            }
+                            clippedASCFile.Values[rowIdx][colIdx] = outputValue;
+                        }
                     }
                 }
+            }
+
+            return clippedASCFile;
+        }
+
+        /// <summary>
+        /// Declare memory for values of this ASC-file object based on defined number of rows and columns. Cells will get default float value (0).
+        /// </summary>
+        public void DeclareValuesMemory()
+        {
+            // declare memory for values
+            if (NRows > 0)
+            {
+                Values = new float[NRows][];
+                for (int i = 0; i < NRows; i++)
+                {
+                    Values[i] = new float[NCols];
+                }
+            }
+            else if ((NRows == 0) && (NCols == 0))
+            {
+                Values = new float[0][];
             }
             else
             {
-                // copy clipped values
-                for (int rowIdx = 0; rowIdx < outputASCFile.NRows; rowIdx++)
+                throw new Exception("Invalid rowcount: " + NRows);
+            }
+        }
+
+        /// <summary>
+        /// Copy properties and values to new ASCFile object
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <returns></returns>
+        public ASCFile Copy(string filename)
+        {
+            ASCFile newASCFile = new ASCFile();
+            newASCFile.Filename = filename;
+            newASCFile.XLL = XLL;
+            newASCFile.YLL = YLL;
+            newASCFile.Cellsize = Cellsize;
+            newASCFile.NoDataValue = NoDataValue;
+            newASCFile.NCols = NCols;
+            newASCFile.NRows = NRows;
+            newASCFile.LastWriteTime = LastWriteTime;
+            newASCFile.DeclareValuesMemory();
+
+            for (int rowIdx = 0; rowIdx < NRows; rowIdx++)
+            {
+                for (int colIdx = 0; colIdx < NCols; colIdx++)
                 {
-                    for (int colIdx = 0; colIdx < outputASCFile.NCols; colIdx++)
-                    {
-                        outputASCFile.Values[rowIdx][colIdx] = Values[upperRowIdx + rowIdx][leftColIdx + colIdx];
-                    }
+                    newASCFile.Values[rowIdx][colIdx] = Values[rowIdx][colIdx];
                 }
             }
-            return outputASCFile;
+
+            return newASCFile;
         }
+
+        ///// <summary>
+        ///// Clip ASC-file data to specified extent
+        ///// </summary>
+        ///// <param name="clipRectangle"></param>
+        ///// <param name="isInvertedClip">if true, part outside extent is retained</param>
+        ///// <returns></returns>
+        //public ASCFile ClipDeprecated(Extent clipRectangle, bool isInvertedClip = false)
+        //{
+        //    float xllClipRectangle = clipRectangle.llx;
+        //    float yllClipRectangle = clipRectangle.lly;
+        //    float xurClipRectangle = clipRectangle.urx;
+        //    float yurClipRectangle = clipRectangle.ury;
+
+        //    ASCFile outputASCFile = new ASCFile();
+        //    outputASCFile.Filename = Filename;
+        //    outputASCFile.LastWriteTime = LastWriteTime;
+
+        //    if (xllClipRectangle < XLL)
+        //    {
+        //        xllClipRectangle = XLL;
+        //    }
+        //    if (yllClipRectangle < YLL)
+        //    {
+        //        yllClipRectangle = YLL;
+        //    }
+        //    float xurcorner = XLL + Cellsize * NCols;
+        //    if (xurClipRectangle > xurcorner)
+        //    {
+        //        xurClipRectangle = xurcorner;
+        //    }
+        //    float yurcorner = YLL + Cellsize * NRows;
+        //    if (yurClipRectangle > yurcorner)
+        //    {
+        //        yurClipRectangle = yurcorner;
+        //    }
+        //    if (yllClipRectangle > yurClipRectangle)
+        //    {
+        //        yllClipRectangle = yurClipRectangle;
+        //    }
+        //    if (xllClipRectangle > xurClipRectangle)
+        //    {
+        //        xllClipRectangle = xurClipRectangle;
+        //    }
+        //    int invRow = (int)((yurClipRectangle - YLL - 1) / Cellsize); // don't include upper row if clipboundary is exactly at cell border
+        //    int upperRowIdx = NRows - invRow - 1;
+        //    invRow = (int)((yllClipRectangle - YLL) / Cellsize);
+        //    int lowerRowIdx = NRows - invRow - 1;
+        //    int leftColIdx = (int)((xllClipRectangle - XLL) / Cellsize);
+        //    int rightColIdx = (int)(((xurClipRectangle - XLL - 1) / Cellsize));  // don't include right column if clipboundary is exactly at cell border
+
+        //    // initialize output ASCFile
+        //    outputASCFile.Cellsize = Cellsize;
+        //    outputASCFile.NoDataValue = NoDataValue;
+        //    outputASCFile.NCols = isInvertedClip ? NCols : (rightColIdx - leftColIdx + 1);
+        //    outputASCFile.NRows = isInvertedClip ? NRows : (lowerRowIdx - upperRowIdx + 1);
+        //    outputASCFile.XLL = isInvertedClip ? XLL : (float)xllClipRectangle;
+        //    outputASCFile.YLL = isInvertedClip ? YLL : (float)yllClipRectangle;
+        //    outputASCFile.Values = new float[outputASCFile.NRows][];
+
+        //    // Declare memory for values in output file
+        //    for (int i = 0; i < outputASCFile.NRows; i++)
+        //    {
+        //        outputASCFile.Values[i] = new float[outputASCFile.NCols];
+        //    }
+
+        //    if (isInvertedClip)
+        //    {
+        //        // Copy values from source file
+        //        int rowIdx;
+        //        for (rowIdx = 0; rowIdx < outputASCFile.NRows; rowIdx++)
+        //        {
+        //            for (int colIdx = 0; colIdx < outputASCFile.NCols; colIdx++)
+        //            {
+        //                outputASCFile.Values[rowIdx][colIdx] = Values[rowIdx][colIdx];
+        //            }
+        //        }
+
+        //        // Remove values inside rectangle: set to NoData
+        //        for (rowIdx = upperRowIdx; rowIdx <= lowerRowIdx; rowIdx++)
+        //        {
+        //            for (int colIdx = leftColIdx; colIdx <= rightColIdx; colIdx++)
+        //            {
+        //                outputASCFile.Values[rowIdx][colIdx] = NoDataValue;
+        //            }
+        //        }
+        //    }
+        //    else
+        //    {
+        //        // copy clipped values
+        //        for (int rowIdx = 0; rowIdx < outputASCFile.NRows; rowIdx++)
+        //        {
+        //            for (int colIdx = 0; colIdx < outputASCFile.NCols; colIdx++)
+        //            {
+        //                outputASCFile.Values[rowIdx][colIdx] = Values[upperRowIdx + rowIdx][leftColIdx + colIdx];
+        //            }
+        //        }
+        //    }
+        //    return outputASCFile;
+        //}
     }
 }
