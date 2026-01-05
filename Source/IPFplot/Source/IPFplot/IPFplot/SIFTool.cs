@@ -20,7 +20,9 @@
 // You should have received a copy of the GNU General Public License
 // along with IPFplot. If not, see <https://www.gnu.org/licenses/>.
 using Sweco.SIF.Common;
+using Sweco.SIF.iMOD;
 using Sweco.SIF.iMOD.IPF;
+using Sweco.SIF.iMOD.Values;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -28,6 +30,7 @@ using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -149,21 +152,22 @@ namespace Sweco.SIF.IPFplot
                 IPFPoint ipfPoint = baseIPFFile.Points[pointIdx];
                 string id = RetrieveIdString(ipfPoint, settings, 0);
 
-                zedGraphControl.GraphPane.Title.Text = (id != null) ? id : ipfPoint.ToString(0);
+                SetPlotTitle((id != null) ? id : ipfPoint.ToString(0), settings);
 
                 // Process base/first timeseries
-                IPFTimeseries ipfTimeseries = GetIPFTimeSeries(ipfPoint, pointIdx, id, inputFilenames, settings);
-                if (ipfTimeseries != null)
+                XYSeries xySeries = GetXYSeries(ipfPoint, pointIdx, id, inputFilenames, settings);
+
+                if (xySeries != null)
                 {
-                    int valueListIdx = GetValueListIndex(ipfTimeseries, settings, 0);
-                    CheckColumnIndex(ipfTimeseries, settings, valueListIdx);
+                    int valueListIdx = GetValueListIndex(xySeries, settings, 0);
+                    CheckColumnIndex(xySeries, settings, valueListIdx);
 
-                    DateTime minDate = DateTime.MaxValue;
-                    DateTime maxDate = DateTime.MinValue;
-                    SetMinMaxDate(ipfTimeseries, ref minDate, ref maxDate);
+                    double minXValue = new XDate(DateTime.MaxValue);
+                    double maxXValue = new XDate(DateTime.MinValue);
+                    UpdatePlotXAxis(xySeries, ref minXValue, ref maxXValue, settings);
 
-                    zedGraphControl.GraphPane.CurveList.Clear();
-                    AddSeries(ref isDataMissing, zedGraphControl, ipfTimeseries, valueListIdx, seriesLabel, colors, markerTypes[0], lineTypes[0], lineSizes[0], 0, inputFilenames.Count(), settings); 
+                    ClearPlotSeries();
+                    AddSeries(ref isDataMissing, xySeries, valueListIdx, seriesLabel, colors, markerTypes[0], lineTypes[0], lineSizes[0], 0, inputFilenames.Count(), settings); 
 
                     // Process other timeseries
                     if (inputFilenames.Length > 1)
@@ -171,7 +175,7 @@ namespace Sweco.SIF.IPFplot
                         for (int fileIdx = 1; fileIdx < inputFilenames.Length; fileIdx++)
                         {
                             string inputFilename2 = ExpandFilenameFilter(inputFilenames[fileIdx]);
-                            if (inputFilename2 == null)
+                            if (!File.Exists(inputFilename2))
                             {
                                 // Timeseries object is not an existing file, check for column index or column name in first IPF-file
                                 string columnString = inputFilenames[fileIdx];
@@ -181,7 +185,7 @@ namespace Sweco.SIF.IPFplot
 
                                 // Add constant line to graph
                                 string constantSeriesLabel = GetConstantLabel(baseIPFFile, fileIdx, colIdx, settings);
-                                AddConstantTimeseries(zedGraphControl, constantValue, minDate, maxDate, constantSeriesLabel, colors[fileIdx], fileIdx, DashStyle.Dash, 2.0F);
+                                AddConstantTimeseries(constantValue, minXValue, maxXValue, constantSeriesLabel, colors[fileIdx], fileIdx, DashStyle.Dash, 2.0F);
                             }
                             else
                             {
@@ -189,18 +193,18 @@ namespace Sweco.SIF.IPFplot
                                 string seriesLabel2 = GetSeriesLabel(fileIdx, settings);
 
                                 // Find corresponding point in other timeseries
-                                IPFPoint ipfPoint2 = FindPoint(ipfFile2, ipfFileDictionaries, ipfPoint, id, pointIdx, baseIPFFile, fileIdx, settings, logIndentLevel);
+                                IPFPoint ipfPoint2 = FindPoint(ipfFile2, ipfFileDictionaries, ipfPoint, id, pointIdx, baseIPFFile, fileIdx, settings, logIndentLevel + 1);
                                 
                                 // Process other timeseries if found
                                 if (ipfPoint2 != null)
                                 {
-                                    IPFTimeseries ipfTimeseries2 = GetIPFTimeSeries(ipfPoint2, pointIdx, id, inputFilenames, settings);
-                                    if (ipfTimeseries2 != null)
+                                    XYSeries xySeries2 = GetXYSeries(ipfPoint2, pointIdx, id, inputFilenames, settings);
+                                    if (xySeries2 != null)
                                     {
-                                        int valueListIdx2 = GetValueListIndex(ipfTimeseries2, settings, fileIdx);
+                                        int valueListIdx2 = GetValueListIndex(xySeries2, settings, fileIdx);
 
-                                        SetMinMaxDate(ipfTimeseries2, ref minDate, ref maxDate);
-                                        AddSeries(ref isDataMissing, zedGraphControl, ipfTimeseries2, valueListIdx2, seriesLabel2, colors, markerTypes[fileIdx], lineTypes[fileIdx], lineSizes[fileIdx], fileIdx, inputFilenames.Length, settings);
+                                        UpdatePlotXAxis(xySeries2, ref minXValue, ref maxXValue, settings);
+                                        AddSeries(ref isDataMissing, xySeries2, valueListIdx2, seriesLabel2, colors, markerTypes[fileIdx], lineTypes[fileIdx], lineSizes[fileIdx], fileIdx, inputFilenames.Length, settings);
                                     }
                                     else
                                     {
@@ -214,9 +218,9 @@ namespace Sweco.SIF.IPFplot
                             }
                         }
                     }
-                    if (!IsSkipped(isDataMissing, settings))
+                    if (!IsPlotSkipped(isDataMissing, settings))
                     {
-                        WriteResult(ipfTimeseries, id, pointIdx, minDate, maxDate, zedGraphControl, outputPath, settings);
+                        WritePlot(xySeries, id, pointIdx, minXValue, maxXValue, outputPath, settings);
                         plotCount++;
                     }
                     else
@@ -231,7 +235,17 @@ namespace Sweco.SIF.IPFplot
             return exitcode;
         }
 
-        protected bool IsSkipped(bool isDataMissing, SIFToolSettings settings)
+        protected virtual void ClearPlotSeries()
+        {
+            zedGraphControl.GraphPane.CurveList.Clear();
+        }
+
+        protected virtual void SetPlotTitle(string text, SIFToolSettings settings)
+        {
+            zedGraphControl.GraphPane.Title.Text = text;
+        }
+
+        protected bool IsPlotSkipped(bool isDataMissing, SIFToolSettings settings)
         {
             return isDataMissing && settings.IsMissingPointExcluded;
         }
@@ -269,11 +283,11 @@ namespace Sweco.SIF.IPFplot
         /// <summary>
         /// Retrieve valuelist index in associated file for specified timeseries and file index
         /// </summary>
-        /// <param name="ipfTimeseries"></param>
+        /// <param name="xySeries"></param>
         /// <param name="settings"></param>
         /// <param name="fileIdx">zero based index in input IPF-files/plotrefs</param>
         /// <returns></returns>
-        protected int GetValueListIndex(IPFTimeseries ipfTimeseries, SIFToolSettings settings, int fileIdx)
+        protected int GetValueListIndex(XYSeries xySeries, SIFToolSettings settings, int fileIdx)
         {
             int valueListIdx = ((settings.ValueListNumbers != null) && (fileIdx < settings.ValueListNumbers.Count)) ? settings.ValueListNumbers[fileIdx] - 1 : 0;
             return valueListIdx;
@@ -283,15 +297,20 @@ namespace Sweco.SIF.IPFplot
         /// Rertrieve first filename that matches with specified filter
         /// </summary>
         /// <param name="filenameFilter"></param>
-        /// <returns></returns>
+        /// <returns>expanded filename or existing string if no filename is found</returns>
         protected static string ExpandFilenameFilter(string filenameFilter)
         {
-            string fname = null;
+            string fname = filenameFilter;
 
             try
             {
                 string path = Path.GetDirectoryName(filenameFilter);
                 string filter = Path.GetFileName(filenameFilter);
+                if (path.Equals(string.Empty))
+                {
+                    path = ".";
+                }
+
                 string[] files = Directory.GetFiles(path, filter);
 
                 if (files.Length > 0)
@@ -301,7 +320,7 @@ namespace Sweco.SIF.IPFplot
             }
             catch (Exception)
             {
-                // ignore, leave null
+                // ignore, leave existing value
             }
 
             return fname;
@@ -378,9 +397,18 @@ namespace Sweco.SIF.IPFplot
             {
                 string inputFilename = inputFilenames[ipfFileIdx];
 
+                inputFilename = ExpandFilenameFilter(inputFilename);
                 if (!File.Exists(inputFilename))
                 {
                     // Not a file, but it may be a constant value or column name
+                    if (!float.TryParse(inputFilename, NumberStyles.Float, EnglishCultureInfo, out float testValue))
+                    {
+                        if (inputFilename.Contains("\\") && !Path.GetExtension(inputFilename).Equals(string.Empty))
+                        {
+                            log.AddWarning("Defined series looks like a filename, but is not found and will be interpreted as columnname:\n" + inputFilename, logIndentLevel);
+                        }
+                    }
+
                     ipfFiles.Add(null);
                     ipfFileDictionaries.Add(null);
                     log.AddInfo("Constant value: " + inputFilename, logIndentLevel);
@@ -469,14 +497,15 @@ namespace Sweco.SIF.IPFplot
             graphPane.LineType = LineType.Normal;
 
             // graphPane.CurveList.Clear();
-            graphPane.XAxis.Title = new AxisLabel("Date", "Arial", 14, Color.Black, true, false, false);
+            graphPane.XAxis.Title = new AxisLabel(SIFToolSettings.PlotXAxisTitle, "Arial", 14, Color.Black, true, false, false);
             graphPane.YAxis.Title = new AxisLabel("Level (m+NAP)", "Arial", 14, Color.Black, true, false, false);
             graphPane.XAxis.Title.FontSpec.Border.IsVisible = false;
             graphPane.YAxis.Title.FontSpec.Border.IsVisible = false;
             graphPane.YAxis.MajorGrid.IsZeroLine = false;
 
             graphPane.XAxis.Type = AxisType.Date;
-            graphPane.XAxis.Scale.Format = "yyyy-MM-dd";
+            graphPane.XAxis.Scale.Format = SIFToolSettings.PlotXAxisFormatString;
+
             // graphPane.XAxis.Scale.MinGrace = 0;
             // graphPane.XAxis.Scale.MaxGrace = 0;
             // graphPane.XAxis.Scale.MajorUnit = DateUnit.Month;
@@ -583,47 +612,60 @@ namespace Sweco.SIF.IPFplot
             return id;
         }
 
-        protected virtual IPFTimeseries GetIPFTimeSeries(IPFPoint ipfPoint, int pointIdx, string id, string[] inputFilenames, SIFToolSettings settings)
+        protected virtual XYSeries GetXYSeries(IPFPoint ipfPoint, int pointIdx, string id, string[] inputFilenames, SIFToolSettings settings)
         {
             IPFTimeseries ipfTimeseries = null;
             try
             {
                 ipfTimeseries = ipfPoint.Timeseries;
+                return ipfTimeseries; // ToXYSeries(ipfTimeseries);
             }
             catch (Exception)
             {
-                throw new ToolException("Invalid timeseries file for point " + (pointIdx + 1) + ", " + id + "(" + ipfPoint.ToString(0) + ")" + " in file: " + Path.GetFileName(inputFilenames[0]));
-            }
-
-            return ipfTimeseries;
-        }
-
-        protected virtual void CheckColumnIndex(IPFTimeseries ipfTimeseries, SIFToolSettings settings, int valueListIdx)
-        {
-            if ((valueListIdx < 0) || (valueListIdx >= ipfTimeseries.ValueColumns.Count))
-            {
-                throw new ToolException("Value column number (" + (valueListIdx + 1) + " is not valid for associated file '" + Path.GetFileName(ipfTimeseries.Filename) + "' with " + ipfTimeseries.ValueColumns.Count + " column(s)");
+                if (settings.IsMissingPointExcluded)
+                {
+                    return null;
+                }
+                else
+                {
+                    throw new ToolException("Invalid timeseries file for point " + (pointIdx + 1) + ", " + id + "(" + ipfPoint.ToString(0) + ")" + " in file: " + Path.GetFileName(inputFilenames[0]));
+                }
             }
         }
 
-        private void SetMinMaxDate(IPFTimeseries ipfTimeseries, ref DateTime minDate, ref DateTime maxDate)
+        protected XYSeries ToXYSeries(IPFTimeseries ipfTimeseries)
         {
-            if ((ipfTimeseries.Timestamps.Count > 0) && (ipfTimeseries.Timestamps[0] < minDate))
+            XYSeries xySeries = new XYSeries(ipfTimeseries.Timestamps.ToDouble(), ipfTimeseries.ValueColumns, ipfTimeseries.NoDataValues);
+
+            return xySeries;
+        }
+
+        protected virtual void CheckColumnIndex(XYSeries xySeries, SIFToolSettings settings, int valueListIdx)
+        {
+            if ((valueListIdx < 0) || (valueListIdx >= xySeries.ValueColumns.Count))
             {
-                minDate = ipfTimeseries.Timestamps[0];
-            }
-            if ((ipfTimeseries.Timestamps.Count > 0) && (ipfTimeseries.Timestamps[ipfTimeseries.Timestamps.Count - 1] > maxDate))
-            {
-                maxDate = ipfTimeseries.Timestamps[ipfTimeseries.Timestamps.Count - 1];
+                throw new ToolException("Value column number (" + (valueListIdx + 1) + " is not valid for series with " + xySeries.ValueColumns.Count + " column(s)");
             }
         }
 
-        protected virtual void AddSeries(ref bool isDataMissing, ZedGraphControl zedGraphControl, IPFTimeseries ipfTimeseries, int valueListIdx, string seriesLabel, List<Color> colors, SymbolType symbolType, DashStyle? lineType, float lineSize, int fileIdx, int fileCount, SIFToolSettings settings)
+        protected virtual void UpdatePlotXAxis(XYSeries xySeries, ref double minXValue, ref double maxXValue, SIFToolSettings settings)
         {
-            float avgValue = ipfTimeseries.CalculateAverage(valueListIdx);
-            if (!avgValue.Equals(ipfTimeseries.NoDataValue) && !avgValue.Equals(float.NaN))
+            if ((xySeries.XValues.Count > 0) && (xySeries.XValues[0] < minXValue))
             {
-                AddTimeseries(zedGraphControl, ipfTimeseries, valueListIdx, seriesLabel, colors[fileIdx], symbolType, settings, lineType, lineSize);
+                minXValue = xySeries.XValues[0];
+            }
+            if ((xySeries.XValues.Count > 0) && (xySeries.XValues[xySeries.XValues.Count - 1] > maxXValue))
+            {
+                maxXValue = xySeries.XValues[xySeries.XValues.Count - 1];
+            }
+        }
+
+        protected virtual void AddSeries(ref bool isDataMissing, XYSeries xySeries, int valueListIdx, string seriesLabel, List<Color> colors, SymbolType symbolType, DashStyle? lineType, float lineSize, int fileIdx, int fileCount, SIFToolSettings settings)
+        {
+            float avgValue = xySeries.CalculateAverage(valueListIdx);
+            if (!avgValue.Equals(xySeries.NoDataValue) && !avgValue.Equals(float.NaN))
+            {
+                AddTimeseries(xySeries, valueListIdx, seriesLabel, colors[fileIdx], symbolType, settings, lineType, lineSize);
             }
             else if (fileIdx >= 0)
             {
@@ -631,16 +673,18 @@ namespace Sweco.SIF.IPFplot
             }
         }
         
-        protected LineItem AddTimeseries(ZedGraphControl zedGraphControl, IPFTimeseries ipfTimeseries, int valueListIdx, string label, Color color, SymbolType symbolType, SIFToolSettings settings, DashStyle? lineDashStyle = DashStyle.Solid, float lineThickness = 1)
+        protected LineItem AddTimeseries(XYSeries xySeries, int valueListIdx, string label, Color color, SymbolType symbolType, SIFToolSettings settings, DashStyle? lineDashStyle = DashStyle.Solid, float lineThickness = 1)
         {
             List<double> dblList1 = new List<double>();
             List<double> dblList2 = new List<double>();
-            for (int i = 0; i < ipfTimeseries.Timestamps.Count; i++)
+
+            List<double> xvalues = xySeries.XValues;
+            for (int i = 0; i < xvalues.Count; i++)
             {
-                float value = ipfTimeseries.ValueColumns[valueListIdx][i];
-                DateTime time = ipfTimeseries.Timestamps[i];
-                float noDataValue = ipfTimeseries.NoDataValues[valueListIdx];
-                HandleNoDataValues(value, time, ref dblList1, ref dblList2, noDataValue, settings);
+                float value = xySeries.ValueColumns[valueListIdx][i];
+                double xValue = xvalues[i];
+                float noDataValue = xySeries.NoDataValues[valueListIdx];
+                HandleNoDataValues(xValue, value, ref dblList1, ref dblList2, noDataValue, settings);
             }
 
             LineItem rasterCurve = zedGraphControl.GraphPane.AddCurve(label, new PointPairList(dblList1.ToArray(), dblList2.ToArray()), color, symbolType);
@@ -654,18 +698,19 @@ namespace Sweco.SIF.IPFplot
             return rasterCurve;
         }
 
-        protected virtual void HandleNoDataValues(float value, DateTime time, ref List<double> dblList1, ref List<double> dblList2, float noDataValue, SIFToolSettings settings)
+        protected virtual void HandleNoDataValues(double xValue, float value, ref List<double> dblList1, ref List<double> dblList2, float noDataValue, SIFToolSettings settings)
         {
             if (!value.Equals(noDataValue))
             {
-                dblList1.Add(new XDate(time));
+                dblList1.Add(xValue);
                 dblList2.Add(value);
             }
         }
 
-        protected virtual LineItem AddConstantTimeseries(ZedGraphControl zedGraphControl, float constantValue, DateTime dateTime1, DateTime dateTime2, string label, Color color, int fileIdx, DashStyle lineDashStyle = DashStyle.Solid, float lineThickness = 1)
+        protected virtual LineItem AddConstantTimeseries(float constantValue, double xValue1, double xValue2, string label, Color color, int fileIdx, DashStyle lineDashStyle = DashStyle.Solid, float lineThickness = 1)
         {
-            double[] dummyDates = new double[] { new XDate(dateTime1), new XDate(dateTime2) };
+            double[] dummyDates = new double[] { xValue1, xValue2
+            };
             double[] constantValues = new double[] { constantValue, constantValue };
 
             LineItem rasterCurve = zedGraphControl.GraphPane.AddCurve(label, new PointPairList(dummyDates, constantValues), color, ZedGraph.SymbolType.None);
@@ -723,10 +768,17 @@ namespace Sweco.SIF.IPFplot
             IPFPoint ipfPoint2 = null;
             if (IsIdDefined(settings, fileIdx))
             {
-                ipfPoint2 = ipfFileDictionaries[fileIdx][id];
-                if (ipfPoint2 == null)
+                if (ipfFileDictionaries[fileIdx] == null)
                 {
-                    Log.AddInfo("Point " + ((id != null) ? id : ipfPoint.ToString()) + " not found by ID in series " + (fileIdx + 1) + " and is skipped.");
+                    throw new Exception("No data found for series " + (fileIdx + 1) + ", ensure that it is referring to an existing IPF-file, column or constant value");
+                }
+                if (!ipfFileDictionaries[fileIdx].ContainsKey(id))
+                {
+                    Log.AddInfo("Point " + ((id != null) ? id : ipfPoint.ToString()) + " not found by ID in series " + (fileIdx + 1) + " and is skipped", logIndentLevel);
+                }
+                else
+                {
+                    ipfPoint2 = ipfFileDictionaries[fileIdx][id];
                 }
             }
             else if (ipfFile2.PointCount == baseIPFFile.PointCount)
@@ -758,19 +810,19 @@ namespace Sweco.SIF.IPFplot
             return ipfPoint2;
         }
 
-        protected virtual void WriteResult(IPFTimeseries ipfTimeseries, string id, int pointIdx, DateTime minDate, DateTime maxDate, ZedGraphControl zedGraphControl, string outputPath, SIFToolSettings settings)
+        protected virtual void WritePlot(XYSeries xySeries, string id, int pointIdx, double minXValue, double maxXValue, string outputPath, SIFToolSettings settings)
         {
-            CreateWindow(zedGraphControl, minDate, maxDate, settings);
-            RefreshWindow(zedGraphControl, outputPath, id, pointIdx);
+            CreateWindow(xySeries, minXValue, maxXValue, settings);
+            RefreshWindow(outputPath, id, pointIdx);
         }
 
-        protected virtual void CreateWindow(ZedGraphControl zedGraphControl, DateTime minDate, DateTime maxDate, SIFToolSettings settings, IPFTimeseries ipfTimeSeries = null)
+        protected virtual void CreateWindow(XYSeries xySeries, double minXValue, double maxXValue, SIFToolSettings settings)
         {
-            zedGraphControl.GraphPane.XAxis.Scale.Min = new XDate(minDate);
-            zedGraphControl.GraphPane.XAxis.Scale.Max = new XDate(maxDate);
+            zedGraphControl.GraphPane.XAxis.Scale.Min = minXValue;
+            zedGraphControl.GraphPane.XAxis.Scale.Max = maxXValue;
         }
 
-        protected void RefreshWindow(ZedGraphControl zedGraphControl, string outputPath, string id, int pointIdx)
+        protected void RefreshWindow(string outputPath, string id, int pointIdx)
         {
             zedGraphControl.AxisChange();
             zedGraphControl.Invalidate();

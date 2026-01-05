@@ -41,6 +41,8 @@ namespace Sweco.SIF.IPFplot
         public const float DefaultLineSize = 1.0F;
         public const DashStyle DefaultLineType = DashStyle.Solid;
         public const SymbolType DefaultMarkerType = SymbolType.None;
+        public const string PlotXAxisFormatString = "yyyy-MM-dd";
+        public const string PlotXAxisTitle = "Date";
 
         public string Plotrefs { get; set; }
         public string OutputPath { get; set; }
