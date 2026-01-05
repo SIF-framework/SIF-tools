@@ -27,6 +27,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Sweco.SIF.Common;
 using Sweco.SIF.iMOD.Utils;
+using Sweco.SIF.iMOD.Values;
 
 namespace Sweco.SIF.iMOD
 {
@@ -80,76 +81,54 @@ namespace Sweco.SIF.iMOD
     /// <summary>
     /// Class for storing and processing timeseries data. One column of timestamps can be stored together with one or more value columns.
     /// </summary>
-    public class Timeseries
+    public class Timeseries : XYSeries
     {
-        // Note: this implementation stores timestamps and values in different arrays to allow new value series/columns to be added easil
+        // Note: this implementation stores timestamps and values in different arrays to allow new value series/columns to be added easily
 
         /// <summary>
-        /// Default value for NoData
+        /// XValues will return a List of converted OADate (OLE Automation Date) doubles; 
+        /// note1: each get-call may result in a conversion of all timestamps to double; store result in base.XValues for faster access.
+        /// note2: base.XValues is not updated for changes in Timestamp, this is the responsibility of the user.
+        /// note3: each set-call will result in a conversion of all doubles to timestamps
         /// </summary>
-        public const float DefaultNoDataValue = -99999f;
+        public override List<double> XValues 
+        { 
+            get
+            {
+                if (base.XValues == null)
+                {
+                    if (Timestamps != null)
+                    {
+                        return Timestamps.ToDouble();
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
+                else
+                {
+                    return base.XValues;
+                }
+            }
+            set 
+            {
+                Timestamps = value.ToDateTime();
+                base.XValues = null;
+            } 
+        }
 
         /// <summary>
-        /// Language definition for english culture as used in SIFToolSettings
-        /// </summary>
-        protected static CultureInfo englishCultureInfo = new CultureInfo("en-GB", false);
-
-        /// <summary>
-        /// List of all timestamps (dates/times) for this timeseries
+        /// List with all timestamps (dates/times) for this timeseries
         /// </summary>
         public List<DateTime> Timestamps { get; set; }
 
         /// <summary>
-        /// List with defined value columns (series), with each column (serie) a list on itself. 
-        /// Used for storing one or more columns (series) of values that correspond with the timestamps in the timeseries
-        /// </summary>
-        public List<List<float>> ValueColumns { get; set; }
-
-        /// <summary>
-        /// Retrieve values from first value series
-        /// </summary>
-        public List<float> Values
-        {
-            get { return ValueColumns[0]; }
-        }
-
-        /// <summary>
-        /// NoData-values of each value column (series). Note: changing this value does NOT change the current NoData values.
-        /// </summary>
-        public List<float> NoDataValues { get; set; }
-
-        /// <summary>
-        /// NoData-value of first value column (series)
-        /// </summary>
-        public float NoDataValue
-        {
-            get { return NoDataValues[0]; }
-            set
-            {
-                if (NoDataValues == null)
-                {
-                    NoDataValues = new List<float>();
-                }
-
-                if (NoDataValues.Count == 0)
-                {
-                    NoDataValues.Add(value);
-                }
-                else
-                {
-                    NoDataValues[0] = value;
-                }
-            }
-        }
-
-        /// <summary>
         /// Creates an empty Timeseries object
         /// </summary>
-        protected Timeseries()
+        protected Timeseries() : base()
         {
             Timestamps = null;
-            ValueColumns = new List<List<float>>();
-            NoDataValues = new List<float>();
         }
 
         /// <summary>
@@ -164,11 +143,9 @@ namespace Sweco.SIF.iMOD
             {
                 throw new ToolException("Number of values (" + values.Count + ") does not equal number of timestamps (" + timestamps.Count + ")");
             }
-            this.Timestamps = timestamps;
-            this.ValueColumns = new List<List<float>>();
-            this.ValueColumns.Add(values);
-            this.NoDataValues = new List<float>();
-            this.NoDataValues.Add(!noDataValue.Equals(float.NaN) ? noDataValue : DefaultNoDataValue);
+            Timestamps = timestamps;
+            ValueColumns = new List<List<float>>() { values };
+            NoDataValues = new List<float> { !noDataValue.Equals(float.NaN) ? noDataValue : DefaultNoDataValue };
         }
 
         /// <summary>
@@ -185,9 +162,10 @@ namespace Sweco.SIF.iMOD
             }
             for (int colIdx = 0; colIdx < valueColumns.Count; colIdx++)
             {
-                if (valueColumns[colIdx].Count != timestamps.Count)
+                int valueCount = (valueColumns[colIdx] == null) ? 0 : valueColumns[colIdx].Count;
+                if (valueCount != timestamps.Count)
                 {
-                    throw new ToolException("Number of values in list at index " + colIdx + "(" + valueColumns[colIdx].Count + ") does not equal number of timestamps (" + timestamps.Count + ")");
+                    throw new ToolException("Number of values in list at index " + colIdx + " (" + valueCount + ") does not equal number of timestamps (" + timestamps.Count + ")");
                 }
             }
             if ((noDataValues != null) && (noDataValues.Count != valueColumns.Count))
@@ -209,33 +187,6 @@ namespace Sweco.SIF.iMOD
             {
                 this.NoDataValues = noDataValues;
             }
-        }
-
-        /// <summary>
-        /// Calculates average values over all non-data values in specified column
-        /// </summary>
-        /// <param name="valueColIdx">zero-based column index</param>
-        /// <returns></returns>
-        public float CalculateAverage(int valueColIdx = 0)
-        {
-            if (valueColIdx >= ValueColumns.Count)
-            {
-                throw new Exception("No timeseries values defined for column index " + valueColIdx);
-            }
-            List<float> selectedColValues = ValueColumns[valueColIdx];
-            float noDataValue = NoDataValues[valueColIdx];
-
-            float valueSum = 0;
-            long valueCount = 0;
-            foreach (float value in selectedColValues)
-            {
-                if (!value.Equals(noDataValue))
-                {
-                    valueSum += value;
-                    valueCount++;
-                }
-            }
-            return valueSum / valueCount;
         }
 
         /// <summary>
@@ -288,6 +239,11 @@ namespace Sweco.SIF.iMOD
                 throw new Exception("No timeseries values defined for column index " + valueColIdx);
             }
 
+            if ((Timestamps == null) || (Timestamps.Count() == 0))
+            {
+                return CreateEmptyTimeseries(valueColIdx);
+            }
+
             if (fromDate == null)
             {
                 fromDate = Timestamps[0];
@@ -297,78 +253,85 @@ namespace Sweco.SIF.iMOD
                 toDate = Timestamps[Timestamps.Count() - 1];
             }
 
-            int fromIdx = -1;
             int dateIdx = 0;
+
             // find index for fromDate
-            while ((dateIdx < Timestamps.Count()) && (fromIdx < 0))
+            int fromIdx = -1;
+            if (fromDate > Timestamps[Timestamps.Count() - 1])
             {
-                if (Timestamps[dateIdx].Equals(fromDate))
-                {
-                    fromIdx = dateIdx;
-                }
-                else if (Timestamps[dateIdx] > fromDate)
-                {
-                    // if excludeSurroundingValues, use next value if not equal, otherwise use previous date 
-                    fromIdx = excludeSurroundingValues ? dateIdx : dateIdx - 1;
-                    if (fromIdx < 0)
-                    {
-                        fromIdx = 0;
-                    }
-                }
-                dateIdx++;
+                // Searched begin date is after last date of series, timeseries is outside specified period, return empty result
+                return CreateEmptyTimeseries(valueColIdx);
             }
-            if (fromIdx < 0)
+            else
             {
-                // No dates found, return dummy, empty result
-                List<DateTime> noDates = new List<DateTime>();
-                Timeseries dummyTs = null;
-
-                if (valueColIdx == -1)
+                while ((dateIdx < Timestamps.Count()) && (fromIdx < 0))
                 {
-                    List<List<float>> noValueLists = new List<List<float>>();
-                    List<float> noDataValueList = new List<float>();
-                    for (int colIdx = 0; colIdx < this.ValueColumns.Count; colIdx++)
+                    if (Timestamps[dateIdx].Equals(fromDate))
                     {
-                        // Copy NoData-values per valuecolumn
-                        noDataValueList.Add(NoDataValues[colIdx]);
-
-                        // Add empty value list per value column
-                        noValueLists.Add(new List<float>());
+                        fromIdx = dateIdx;
                     }
-
-                    dummyTs = new Timeseries(noDates, noValueLists, noDataValueList);
+                    else if (Timestamps[dateIdx] > fromDate)
+                    {
+                        // if excludeSurroundingValues, use next value if not equal, otherwise use previous date 
+                        fromIdx = excludeSurroundingValues ? dateIdx : dateIdx - 1;
+                        if (fromIdx < 0)
+                        {
+                            fromIdx = 0;
+                        }
+                    }
+                    else
+                    {
+                        dateIdx++;
+                    }
                 }
-                else
+                if (fromIdx < 0)
                 {
-                    List<float> noValues = new List<float>();
-                    dummyTs = new Timeseries(noDates, noValues);
+                    // No dates found, this should not happen
+                    throw new Exception("Unexpected error: impossible result, no date found ...");
                 }
-                return dummyTs;
             }
 
             // find index for toData
             int toIdx = -1;
-            while ((dateIdx < Timestamps.Count()) && (toIdx < 0))
+            if (toDate < Timestamps[0])
             {
-                if (Timestamps[dateIdx].Equals(toDate))
+                // Searched end date is before first date of series, return empty result
+                return CreateEmptyTimeseries(valueColIdx);
+            }
+            else if (toDate > Timestamps[Timestamps.Count() - 1])
+            {
+                // Searched end date is after last date of series, use last date
+                toIdx = Timestamps.Count() - 1;
+            }
+            else
+            {
+                // Searched end date is before last date of series, find first date equal or after search end date
+                while ((dateIdx < Timestamps.Count()) && (toIdx < 0))
                 {
-                    toIdx = dateIdx;
-                }
-                else if (Timestamps[dateIdx] > toDate)
-                {
-                    // if excludeSurroundingValues, use previous date if not equal, otherwise use next date
-                    toIdx = excludeSurroundingValues ? (dateIdx - 1) : dateIdx;
-                    if (toIdx < 0)
+                    if (Timestamps[dateIdx].Equals(toDate))
                     {
-                        toIdx = 0;
+                        toIdx = dateIdx;
+                    }
+                    else if (Timestamps[dateIdx] > toDate)
+                    {
+                        // if excludeSurroundingValues, use previous date if not equal, otherwise use this date
+                        toIdx = excludeSurroundingValues ? (dateIdx - 1) : dateIdx;
+                        if (toIdx < 0)
+                        {
+                            // Force loop to exit
+                            dateIdx = Timestamps.Count();
+                        }
+                    }
+                    else
+                    {
+                        dateIdx++;
                     }
                 }
-                dateIdx++;
-            }
-            if (toIdx < 0)
-            {
-                // specified toDate is not found, use last date available
-                toIdx = Timestamps.Count() - 1;
+                if (toIdx < 0)
+                {
+                    // No dates found, return empty result
+                    return CreateEmptyTimeseries(valueColIdx);
+                }
             }
 
             List<int> selValueColIndices = new List<int>();
@@ -403,6 +366,35 @@ namespace Sweco.SIF.iMOD
             Timeseries selectedTimeseries = new Timeseries(selectedDates, selectedValueColumns, selectedNoDataValues);
 
             return selectedTimeseries;
+        }
+
+        private Timeseries CreateEmptyTimeseries(int valueColIdx)
+        {
+            List<DateTime> noDates = new List<DateTime>();
+            Timeseries dummyTs = null;
+
+            if (valueColIdx == -1)
+            {
+                List<List<float>> noValueLists = new List<List<float>>();
+                List<float> noDataValueList = new List<float>();
+                for (int colIdx = 0; colIdx < this.ValueColumns.Count; colIdx++)
+                {
+                    // Copy NoData-values per valuecolumn
+                    noDataValueList.Add(NoDataValues[colIdx]);
+
+                    // Add empty value list per value column
+                    noValueLists.Add(new List<float>());
+                }
+
+                dummyTs = new Timeseries(noDates, noValueLists, noDataValueList);
+            }
+            else
+            {
+                List<float> noValues = new List<float>();
+                dummyTs = new Timeseries(noDates, noValues);
+            }
+
+            return dummyTs;
         }
 
         /// <summary>
@@ -869,7 +861,7 @@ namespace Sweco.SIF.iMOD
         /// </summary>
         /// <param name="value"></param>
         /// <param name="valueColIdx">zero-based value column index</param>
-        public void Remove(float value, int valueColIdx = 0)
+        public override void Remove(float value, int valueColIdx = 0)
         {
             if (ValueColumns != null)
             {
@@ -885,6 +877,7 @@ namespace Sweco.SIF.iMOD
                     if (selectedColValues[valueIdx].Equals(value))
                     {
                         Timestamps.RemoveAt(valueIdx);
+
                         for (int colIdx = 0; colIdx < ValueColumns.Count; colIdx++)
                         {
                             ValueColumns[colIdx].RemoveAt(valueIdx);
@@ -927,7 +920,7 @@ namespace Sweco.SIF.iMOD
 
             return 0;
         }
-        
+
         /// <summary>
         /// Change all (non-noData) values in specified column to their absolute values
         /// </summary>
@@ -1609,7 +1602,7 @@ namespace Sweco.SIF.iMOD
         /// <param name="valueColIdx">zero based column index</param>
         public void Replace(float replacedValue, float newValue, int valueColIdx = 0)
         {
-            if (ValueColumns!= null)
+            if (ValueColumns != null)
             {
                 if (valueColIdx >= ValueColumns.Count)
                 {
@@ -1647,4 +1640,53 @@ namespace Sweco.SIF.iMOD
             return result;
         }
     }
+
+    /// <summary>
+    /// Utility methods for DateTime objects
+    /// </summary>
+    public static class DateTimeUtils
+    {
+        /// <summary>
+        /// Extension method to convert List of Datetime objects to List of doubles, converted to OADate (OLE Automation Date). 
+        /// </summary>
+        /// <param name="timestamps"></param>
+        /// <returns></returns>
+        public static List<double> ToDouble(this List<DateTime> timestamps)
+        {
+            if (timestamps == null)
+            {
+                return null;
+            }
+
+            List<double> doubles = new List<double>(timestamps.Count);
+            foreach (DateTime ts in timestamps)
+            {
+                doubles.Add(ts.ToOADate());
+            }
+
+            return doubles;
+        }
+
+        /// <summary>
+        /// Extension method to convert List of double objects to List of DateTime objects; doubles are assumed to be OADate values (OLE Automation Date). 
+        /// </summary>
+        /// <param name="aoDates"></param>
+        /// <returns></returns>
+        public static List<DateTime> ToDateTime(this List<double> aoDates)
+        {
+            if (aoDates == null)
+            {
+                return null;
+            }
+
+            List<DateTime> timestamps = new List<DateTime>(aoDates.Count);
+            foreach (double aoDate in aoDates)
+            {
+                timestamps.Add(DateTime.FromOADate(aoDate));
+            }
+
+            return timestamps;
+        }
+    }
+
 }
