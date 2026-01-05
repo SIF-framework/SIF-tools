@@ -143,6 +143,7 @@ namespace Sweco.SIF.Common
 
         /// <summary>
         /// Defines if log should be appended to current logfile when writing log with WriteFile. The default is false, and will overwrite an existing logfile
+        /// After the first flush/write of this Log object this will be set to true for the remainder of the existance of this Log object.
         /// </summary>
         public bool IsWriteFileAppend { get; set; }
 
@@ -227,7 +228,8 @@ namespace Sweco.SIF.Common
         public void AddError(string category, string filename, string message, int indentLevel = 0)
         {
             Errors.Add(new LogMessage(category, filename, message));
-            AddMessage(LogLevel.Error, ErrorPrefix + message, indentLevel);
+            message = FormatMessage(message, ErrorPrefix, indentLevel);
+            AddMessage(LogLevel.Error, message, indentLevel);
         }
 
         /// <summary>
@@ -238,7 +240,8 @@ namespace Sweco.SIF.Common
         public void AddError(string message, int indentLevel = 0)
         {
             Errors.Add(new LogMessage(message));
-            AddMessage(LogLevel.Error, ErrorPrefix + message, indentLevel);
+            message = FormatMessage(message, ErrorPrefix, indentLevel);
+            AddMessage(LogLevel.Error, message, indentLevel);
         }
 
         /// <summary>
@@ -251,7 +254,8 @@ namespace Sweco.SIF.Common
         public void AddWarning(string category, string filename, string message, int indentLevel = 0)
         {
             Warnings.Add(new LogMessage(category, filename, message));
-            AddMessage(LogLevel.Warning, WarningPrefix + message, indentLevel);
+            message = FormatMessage(message, WarningPrefix, indentLevel);
+            AddMessage(LogLevel.Warning, message, indentLevel);
         }
 
         /// <summary>
@@ -262,7 +266,8 @@ namespace Sweco.SIF.Common
         public void AddWarning(string message, int indentLevel = 0)
         {
             Warnings.Add(new LogMessage(message));
-            AddMessage(LogLevel.Warning, WarningPrefix + message, indentLevel);
+            message = FormatMessage(message, WarningPrefix, indentLevel);
+            AddMessage(LogLevel.Warning, message, indentLevel);
         }
 
         /// <summary>
@@ -273,10 +278,7 @@ namespace Sweco.SIF.Common
         /// <param name="isEolAdded">true if an end-of-line should be added after the message</param>
         public void AddInfo(string message = null, int indentLevel = 0, bool isEolAdded = true)
         {
-            if (message == null)
-            {
-                message = string.Empty;
-            }
+            message = FormatMessage(message, indentLevel);
             AddMessage(LogLevel.Info, message, indentLevel, isEolAdded);
         }
 
@@ -290,10 +292,7 @@ namespace Sweco.SIF.Common
         public void AddMessage(LogLevel logLevel, string message, int indentLevel = 0, bool isEolAdded = true)
         {
             // Add indentation
-            for (int i = 0; i < indentLevel; i++)
-            {
-                message = IndentString + message;
-            }
+            message = AddIntentation(message, indentLevel);
 
             // Process log request for each of the providers
 
@@ -401,6 +400,9 @@ namespace Sweco.SIF.Common
                     {
                         AddInfo("\r\nLogfile has been written to " + Path.GetFileName(logfilename), logIndentLevel);
                     }
+
+                    // After the first write always set IsWriteFileAppend to true, to append remaining log messages.
+                    IsWriteFileAppend = true;
                 }
                 catch (Exception ex)
                 {
@@ -533,6 +535,67 @@ namespace Sweco.SIF.Common
             {
                 return 50;
             }
+        }
+
+        /// <summary>
+        /// Format logmessage: add prefix and add specified indentation after each end-of-line occurance
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="prefix"></param>
+        /// <param name="indentLevel"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        protected string FormatMessage(string message, string prefix, int indentLevel)
+        {
+            if (message == null)
+            {
+                message = string.Empty;
+            }
+            return prefix + message.Replace("\n", "\n" + GetIndentation(indentLevel, prefix.Length));
+        }
+
+        /// <summary>
+        /// Format logmessage: add specified indentation after each end-of-line occurance
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="indentLevel"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        protected string FormatMessage(string message, int indentLevel)
+        {
+            return FormatMessage(message, string.Empty, indentLevel);
+        }
+
+        /// <summary>
+        /// Add specificied number of indentation strings before given string
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="indentLevel"></param>
+        /// <returns></returns>
+        protected string AddIntentation(string message, int indentLevel)
+        {
+            return GetIndentation(indentLevel) + message;
+        }
+
+        /// <summary>
+        /// Retrieve indentation string for specified indentation level
+        /// </summary>
+        /// <param name="indentLevel">number of indentations</param>
+        /// <param name="length">number of spaces to add as well</param>
+        /// <returns></returns>
+        protected string GetIndentation(int indentLevel, int length = 0)
+        {
+            string indentation = string.Empty;
+            for (int i = 0; i < indentLevel; i++)
+            {
+                indentation += IndentString;
+            }
+            for (int i = 0; i < length; i++)
+            {
+                indentation += " ";
+            }
+
+            return indentation;
         }
     }
 

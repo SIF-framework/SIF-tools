@@ -223,6 +223,59 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
+        /// Return true if the specified path has any wildcards
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        public static bool HasWildCards(string path)
+        {
+            return (path != null) && (path.Contains('*') || path.Contains('?'));
+        }
+
+        /// <summary>
+        /// Return true if the specified path refers to either an existing directory or file
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="allowWildCards">if true, wildcards in the filename are allowed and evaluated</param>
+        /// <returns></returns>
+        public static bool IsExistingPath(string path, bool allowWildCards = false)
+        {
+            if ((path == null) || path.Equals(string.Empty))
+            {
+                return false;
+            }
+
+            try
+            {
+                if (allowWildCards)
+                {
+                    string filename = Path.GetFileName(path);
+                    if (FileUtils.HasWildCards(filename))
+                    {
+                        string directory = Path.GetDirectoryName(path);
+                        string[] filenames = Directory.GetFiles(directory, filename, SearchOption.AllDirectories);
+                        return filenames.Length > 0;
+                    }
+                }
+
+                if (Directory.Exists(path))
+                {
+                    return true;
+                }
+                if (File.Exists(path))
+                {
+                    return true;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            return false;
+        }
+        
+        /// <summary>
         /// Returns true if the specified path is a root path (e.g. "C:\") or a network path (e.g. "\\someserver\...")
         /// </summary>
         /// <param name="path"></param>
@@ -403,15 +456,22 @@ namespace Sweco.SIF.Common
             }
 
             string relativeFilename = string.Empty;
-            leftOverBasePath = basePath.Replace(matchingPath, string.Empty);
-            slashIdx = leftOverBasePath.IndexOf(Path.DirectorySeparatorChar, 0);
-            while (slashIdx >= 0)
+            if (matchingPath.Length > 0)
             {
-                relativeFilename += "..\\";
-                slashIdx = leftOverBasePath.IndexOf(Path.DirectorySeparatorChar, slashIdx + 1);
-            }
+                leftOverBasePath = basePath.Replace(matchingPath, string.Empty);
+                slashIdx = leftOverBasePath.IndexOf(Path.DirectorySeparatorChar, 0);
+                while (slashIdx >= 0)
+                {
+                    relativeFilename += "..\\";
+                    slashIdx = leftOverBasePath.IndexOf(Path.DirectorySeparatorChar, slashIdx + 1);
+                }
 
-            relativeFilename += filename.Substring(matchingPath.Length + 1);
+                relativeFilename += filename.Substring(matchingPath.Length + 1);
+            }
+            else
+            {
+                relativeFilename = filename;
+            }
 
             return relativeFilename;
         }

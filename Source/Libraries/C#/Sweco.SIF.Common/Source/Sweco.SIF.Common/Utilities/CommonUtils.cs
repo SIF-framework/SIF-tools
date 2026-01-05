@@ -25,12 +25,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Management;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace Sweco.SIF.Common
 {
@@ -776,6 +774,11 @@ namespace Sweco.SIF.Common
         /// <returns></returns>
         public static string GetCommonLeftSubstring(string str1, string str2)
         {
+            if ((str1 == null) || (str2 == null))
+            {
+                return string.Empty;
+            }
+
             int strIdx = 0;
             while ((strIdx < str1.Length) && (strIdx < str2.Length) && str1[strIdx].Equals(str2[strIdx]))
             {

@@ -72,6 +72,7 @@ namespace Sweco.SIF.Common
             if (log != null)
             {
                 log.AddError(messages);
+                log.AddInfo();
                 log.AddInfo("Application is exiting...");
             }
             else

@@ -42,7 +42,7 @@ namespace Sweco.SIF.Common
         /// <summary>
         /// Current version of this SIF/license-type 
         /// </summary>
-        protected const string SIFVersion = "2.1.0.0";
+        protected const string SIFVersion = "2.3.0.0";
 
         /// <summary>
         /// Short name of license holder as used in written text
@@ -139,7 +139,7 @@ namespace Sweco.SIF.Common
         /// </summary>
         protected virtual string AcceptancePrefix
         {
-            get { return SIFLicenseName + " " + SIFVersion + ", licentie geaccepteerd door"; }
+            get { return SIFLicenseName + " " + SIFVersion + ", licentie geaccepteerd door "; }
         }
 
         /// <summary>
@@ -156,6 +156,17 @@ namespace Sweco.SIF.Common
         protected virtual string AcceptanceString
         {
             get { return AcceptancePrefix + FullUsername + ", " + DateTime.Now.ToShortDateString() + " " + DateTime.Now.ToShortTimeString(); }
+        }
+
+        /// <summary>
+        /// First part of license file, including header and license text, until the first user acceptance line
+        /// </summary>
+        public virtual string LicenseFileTextPart1
+        {
+            get
+            {
+                return SIFLicenseName + " " + SIFVersion + "\r\n\r\n" + ReplaceSpecialChars(LicenseText) + "\r\n";
+            }
         }
 
         /// <summary>
@@ -212,52 +223,101 @@ namespace Sweco.SIF.Common
         /// </summary>
         public void CheckLicense()
         {
-            string licenseText = LicenseText;
-            string licenseFileTextPart1 = SIFLicenseName + " " + SIFVersion + "\r\n\r\n" + ReplaceSpecialChars(licenseText) + "\r\n";
+            // Retrieve all license paths that are checked. 
+            List<string> licensePaths = new List<string>() { GetLicensePath1(), GetLicensePath2(), GetLicensePath3() };
 
-            string licensePath = GetLicensePath1();
-            try
+            // Check for a valid license for current SIF-tool instance in one of the license paths
+            foreach (string licensePath in licensePaths)
             {
-                if (!Directory.Exists(licensePath))
+                if (Directory.Exists(licensePath))
                 {
-                    Directory.CreateDirectory(licensePath);
+                    string[] licenseFilenames = Directory.GetFiles(licensePath, LicenseFilenameFilter);
+                    foreach (string licenseFilename in licenseFilenames)
+                    {
+                        if (HasValidLicense(licenseFilename, FullUsername))
+                        {
+                            return;
+                        }
+                    }
                 }
             }
-            catch (Exception)
-            {
-                // ignore
-            }
-            if (!Directory.Exists(licensePath))
-            {
-                // If path was not created successfully, try location of tool
-                licensePath = GetLicensePath2();
-            }
 
-            // Check all selected license filenames for requested license
-            StringBuilder licenseFileText = null;
-            string[] licenseFilenames = Directory.GetFiles(licensePath, LicenseFilenameFilter);
-            foreach (string licenseFilename in licenseFilenames)
+            // Show license form, ask user to accept license or cancel
+            bool hasAccepted = ShowLicenseForm(LicenseText);
+
+            if (!hasAccepted)
             {
+                System.Console.WriteLine("License not accepted, exiting");
+                Environment.Exit(-1);
+            }
+            else
+            {
+                // Try to write acceptance of this user to ALL license path(s)
+                // Note: it is important to add license to all paths since Windows paths could be emptied overnight (which happens sometimes on network/virtual systems).
+                // Later, the user could remove one of these paths if necessary, as long as one path remains. Otherwise the LicenseCheck is shown again.
+                bool isWritten = false;
+                foreach (string licensePath in licensePaths)
+                {
+                    string licenseFilename = Path.Combine(licensePath, LicenseFilename);
+                    isWritten |= WriteLicenseFile(licenseFilename);
+                }
+
+                if (!isWritten)
+                {
+                    MessageBox.Show("License file could not be saved in: " + CommonUtils.ToString(licensePaths, "\n") + "\n\nEnsure write access to prevent license-check for each run.", "Write error for SIF-license", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks if the specified license file is a valid license file for the current SIF-tool instance; 
+        /// Optionally check if the specified user has accepted the license
+        /// </summary>
+        /// <param name="licenseFilename"></param>
+        /// <param name="username">if non-empty, it is checked if this user has accepted the license</param>
+        /// <returns></returns>
+        protected virtual bool HasValidLicense(string licenseFilename, string username = null)
+        {
+            bool hasValidLicense = false;
+
+            if (File.Exists(licenseFilename))
+            {
+                // Check all selected license filenames for requested license
+                StringBuilder licenseFileText = null;
                 StreamReader sr = null;
                 licenseFileText = new StringBuilder();
                 try
                 {
+                    // Read file until first user acceptance line is found or end-of-file is reached
                     FileStream fs = new FileStream(licenseFilename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                     sr = new StreamReader(fs);
                     while (!sr.EndOfStream)
                     {
                         string line = sr.ReadLine();
                         licenseFileText.AppendLine(line);
-                        if (line.StartsWith(AcceptancePrefix) && line.Contains(FullUsername))
+                        if (line.StartsWith(AcceptancePrefix))
                         {
                             // Check that first part of file starts with licensetext
-                            if (licenseFileText.ToString().StartsWith(licenseFileTextPart1))
+                            if (licenseFileText.ToString().StartsWith(LicenseFileTextPart1))
                             {
-                                // license has been accepted already
-                                return;
+                                if (username == null)
+                                {
+                                    hasValidLicense = true;
+                                    break;
+                                }
+                                else if (line.Contains(username))
+                                {
+                                    // license has already been accepted by this user
+                                    hasValidLicense = true;
+                                    break;
+                                }
                             }
                         }
                     }
+                }
+                catch (Exception)
+                {
+                    // ignore exceptions, these are threated as an invalid license file
                 }
                 finally
                 {
@@ -268,24 +328,17 @@ namespace Sweco.SIF.Common
                 }
             }
 
-            string newLicenseFilename = Path.Combine(licensePath, LicenseFilename);
-
-            // Show license, ask user to accept and write to file or cancel
-            ShowLicenseForm(newLicenseFilename, licenseText, licenseFileText, licenseFileTextPart1, AcceptanceString);
+            return hasValidLicense;
         }
 
         /// <summary>
         /// Show license form with current license and write license to specified filename
         /// </summary>
-        /// <param name="licenseFilename">filename to write license and acceptance to</param>
         /// <param name="licenseText">full license text to show in form</param>
-        /// <param name="licenseFileText">license text that is currently in the license file, or empty if no license file yet exists</param>
-        /// <param name="licenseFileTextPart1">license text to write to file, except string for acceptance by user</param>
-        /// <param name="acceptanceString">line to add after licensetext </param>
-        protected void ShowLicenseForm(string licenseFilename, string licenseText, StringBuilder licenseFileText, string licenseFileTextPart1, string acceptanceString)
+        /// <returns>true if license has been accepted by user; false otherwise</returns>
+        protected bool ShowLicenseForm(string licenseText)
         {
             int buttonHeight = 23;
-
             Form licenseForm = new Form();
             System.Windows.Forms.TextBox textBox;
             System.Windows.Forms.Button okButton;
@@ -317,30 +370,8 @@ namespace Sweco.SIF.Common
             okButton.UseVisualStyleBackColor = true;
             okButton.Click += new System.EventHandler(delegate (object sender, EventArgs e)
             {
+                licenseForm.DialogResult = DialogResult.Yes;
                 licenseForm.Close();
-                StreamWriter sw = null;
-                try
-                {
-                    if ((licenseFileText != null) && licenseFileText.ToString().StartsWith(licenseFileTextPart1))
-                    {
-                        // License file starts with correct licensetext, just write license acceptance of this user
-                        sw = new StreamWriter(licenseFilename, true);
-                        sw.WriteLine(AcceptanceString);
-                    }
-                    else
-                    {
-                        sw = new StreamWriter(licenseFilename);
-                        sw.Write(licenseFileTextPart1);
-                        sw.WriteLine(AcceptanceString);
-                    }
-                }
-                finally
-                {
-                    if (sw != null)
-                    {
-                        sw.Close();
-                    }
-                }
             });
 
             cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
@@ -355,9 +386,8 @@ namespace Sweco.SIF.Common
             cancelButton.UseVisualStyleBackColor = true;
             cancelButton.Click += new System.EventHandler(delegate (object sender, EventArgs e)
             {
+                licenseForm.DialogResult = DialogResult.No;
                 licenseForm.Close();
-                System.Console.WriteLine("License not accepted, exiting");
-                Environment.Exit(-1);
             });
 
             licenseForm.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -377,11 +407,53 @@ namespace Sweco.SIF.Common
             licenseForm.PerformLayout();
 
             cancelButton.Select();
-            licenseForm.ShowDialog();
+
+            DialogResult result = licenseForm.ShowDialog();
+            return (result == DialogResult.Yes);
         }
 
         /// <summary>
-        /// Retrieve path with license file for current SIF-version, that is first checked.
+        /// Add acceptance line for current user to specified license file or create new file if it does not yet exist
+        /// </summary>
+        /// <param name="licenseFilename"></param>
+        protected virtual bool WriteLicenseFile(string licenseFilename)
+        {
+            StreamWriter sw = null;
+            try
+            {
+                if (File.Exists(licenseFilename))
+                {
+                    // License file starts with correct licensetext, just add license acceptance of this user
+                    sw = new StreamWriter(licenseFilename, true);
+                    sw.WriteLine(AcceptanceString);
+                }
+                else
+                {
+                    FileUtils.EnsureFolderExists(licenseFilename);
+
+                    sw = new StreamWriter(licenseFilename);
+                    sw.Write(LicenseFileTextPart1);
+                    sw.WriteLine(AcceptanceString);
+                }
+
+                return true;
+            }
+            catch (Exception)
+            {
+                // Specified license file could be not written
+                return false;
+            }
+            finally
+            {
+                if (sw != null)
+                {
+                    sw.Close();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Retrieve path with license file for current SIF-version, that is first checked, which is like: Users\{User}\AppData\Local\Sweco\SIF
         /// </summary>
         /// <returns></returns>
         protected string GetLicensePath1()
@@ -390,12 +462,22 @@ namespace Sweco.SIF.Common
         }
 
         /// <summary>
-        /// Retrieve path with license file for current SIF-version, that is checked secondly.
+        /// Retrieve path with license file for current SIF-version, that is checked secondly: the path with the current tool
         /// </summary>
         /// <returns></returns>
         protected string GetLicensePath2()
         {
             return Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location);
+        }
+
+        /// <summary>
+        /// Retrieve path with license file for current SIF-version, that is checked last: a temporary path generated by Windows
+        /// </summary>
+        /// <returns></returns>
+        protected string GetLicensePath3()
+        {
+            string tmpPath = Path.GetTempPath();
+            return Path.Combine(Path.Combine(tmpPath, LicenseHolderName), SIFInstrumentName.Replace(" ", "-"));
         }
 
         /// <summary>
