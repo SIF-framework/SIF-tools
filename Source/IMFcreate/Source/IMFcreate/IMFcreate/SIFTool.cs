@@ -95,12 +95,17 @@ namespace Sweco.SIF.IMFcreate
             // Retrieve tool settings that have been parsed from the command-line arguments 
             SIFToolSettings settings = (SIFToolSettings) Settings;
 
-            IMFCreator imfCreator = new IMFCreator();
+            IMFCreator imfCreator = RetrieveIMFCreator();
             imfCreator.StartProcess(settings, Log);
 
             ToolSuccessMessage = "Finished processing";
 
             return exitcode;
+        }
+
+        public virtual IMFCreator RetrieveIMFCreator()
+        {
+            return new IMFCreator();
         }
     }
 }

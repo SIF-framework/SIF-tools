@@ -21,6 +21,7 @@
 // along with IMFcreate. If not, see <https://www.gnu.org/licenses/>.
 using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
+using Sweco.SIF.IMFcreate.REGISVersions;
 using Sweco.SIF.iMOD.DLF;
 using Sweco.SIF.iMOD.GEN;
 using Sweco.SIF.iMOD.IDF;
@@ -165,7 +166,7 @@ namespace Sweco.SIF.IMFcreate
             }
             catch (Exception ex)
             {
-                    throw new Exception("Unexpected error when reading INI-file: " + Path.GetFileName(inputFile), ex);
+                throw new Exception("Unexpected error when reading INI-file: " + Path.GetFileName(inputFile), ex);
             }
             finally
             {
@@ -324,7 +325,7 @@ namespace Sweco.SIF.IMFcreate
                         {
                             throw new ToolException("REGISORDER filename not found: " + regisOrderFilename);
                         }
-                        log.AddInfo("reading REGISORDER-file ...", 2);
+                        log.AddInfo("reading REGISORDER-file '" + Path.GetFileName(regisOrderFilename) + "' ...", 2);
                         ReadOrderFile(regisOrderFilename, log);
 
                         line = srINIFile.ReadLine();
@@ -752,6 +753,7 @@ namespace Sweco.SIF.IMFcreate
                             GENLegend genLegend = new GENLegend(thickness, color);
                             string alias = (aliasDefinition != null) ? aliasDefinition + "_" + Path.GetFileNameWithoutExtension(iMODFilename) : null;
                             imfFile.AddMap(new Map(genLegend, iMODFilename, alias));
+                            log.AddInfo("added " + Path.GetFileName(iMODFilename), 2);
                         }
                     }
                     else if (iMODFilename.ToUpper().EndsWith(IFFExtension))
@@ -762,11 +764,12 @@ namespace Sweco.SIF.IMFcreate
                             GENLegend iffLegend = new GENLegend(thickness, color);
                             string alias = (aliasDefinition != null) ? aliasDefinition + "_" + Path.GetFileNameWithoutExtension(iMODFilename) : null;
                             imfFile.AddMap(new Map(iffLegend, iMODFilename, alias));
+                            log.AddInfo("added " + Path.GetFileName(iMODFilename), 2);
                         }
                     }
                     else if (iMODFilename.ToUpper().EndsWith(IPFExtension))
                     {
-                        log.AddInfo("added " + Path.GetFileName(iMODFilename), 2);
+                        prevFileExtension = IPFExtension;
                         IPFMap ipfMap = null;
                         if ((legFilename != null) && (legFilename.Length > 0))
                         {
@@ -783,7 +786,6 @@ namespace Sweco.SIF.IMFcreate
                         {
                             if (!parameters.IsAddOnce || !imfFile.ContainsMap(iMODFilename))
                             {
-                                prevFileExtension = IPFExtension;
                                 IPFLegend defaultIPFLegend = IPFLegend.CreateLegend("default IPF legend", "All values", color);
                                 ipfMap = new IPFMap(defaultIPFLegend, iMODFilename);
                                 ipfMap.SColor = CommonUtils.Color2Long(color);
@@ -819,6 +821,7 @@ namespace Sweco.SIF.IMFcreate
                                 ipfMap.DLFFile = DLFFile.ReadFile(dlfFilename);
                             }
                             imfFile.AddMap(ipfMap);
+                            log.AddInfo("added " + Path.GetFileName(iMODFilename), 2);
                         }
                     }
                     else
@@ -1019,12 +1022,20 @@ namespace Sweco.SIF.IMFcreate
         private int CreateREGIS2DEntry(IMFFile imfFile, string regisDirectory, INIParameters parameters, Dictionary<string, Color> regisColorDictionary, Log log, SIFToolSettings settings)
         {
             List<string> fileNamesOrdered = ReadAndOrderRegisDirectory(regisDirectory, log);
-            foreach (string file in fileNamesOrdered)
+            if (fileNamesOrdered.Count == 0)
             {
-                string fullPath = regisDirectory + "\\" + file;
-                string[] filenameParts = file.Split('-');
-                string regisLayerString = filenameParts[0];
-                string topOrbot = filenameParts[1];
+                return 0;
+            }
+
+            REGISVersion regisVersion = RetrieveREGISVersion(fileNamesOrdered[0]);
+            foreach (string filename in fileNamesOrdered)
+            {
+                string fullPath = regisDirectory + "\\" + filename;
+
+                string layername = regisVersion.CorrectLayerLevelName(filename);
+                string[] layernameParts = layername.Split('-');
+                string regisLayerString = layernameParts[0];
+                string topOrbot = layernameParts[1];
                 IDFMap regisIDFMap = null;
                 if (File.Exists(fullPath))
                 {
@@ -1459,6 +1470,11 @@ namespace Sweco.SIF.IMFcreate
                     regisFilenames.Add(file.Name);
                 }
 
+                if (regisFilenames.Count == 0)
+                {
+                    log.AddWarning("No REGIS-filenames found");
+                }
+
                 List<string> regisUnitsOrdered = regisEenheden;
                 if (layerOrderPrefixIdxDictionary != null)
                 {
@@ -1469,31 +1485,37 @@ namespace Sweco.SIF.IMFcreate
                     }
                 }
 
-                foreach (string regisEenheid in regisUnitsOrdered)
+                REGISVersion regisVersion = RetrieveREGISVersion(regisFilenames[0]);
+
+                foreach (string regisUnit in regisUnitsOrdered)
                 {
                     int fileIdx = 0;
                     while (fileIdx < regisFilenames.Count)
                     {
                         string filename = regisFilenames[fileIdx];
-                        string[] filenameParts = filename.Split('-');
-                        string filenameREGISEenheid = filenameParts[0];
-                        string filenameREGISEenheidPart = filenameParts[0].Split('_')[0];
-                        // If full regis eenheid is present in orderlist, compare full name (including postfix), otherwise just test main part
+
+                        // Correct for alternative REGIS name formats
+                        string layername = regisVersion.CorrectLayerLevelName(filename);
+
+                        string[] layernameParts = layername.Split('-');
+                        string reigsLayerUnit = layernameParts[0];
+                        string regisLayerUnitPart = layernameParts[0].Split('_')[0];
+                        // If full regis unit is present in orderlist, compare full name (including postfix), otherwise just test main part
                         bool hasMatch = false;
-                        if (regisUnitsOrdered.Contains(filenameREGISEenheid.ToUpper()))
+                        if (regisUnitsOrdered.Contains(reigsLayerUnit.ToUpper()))
                         {
-                            hasMatch = filenameREGISEenheid.ToUpper().Equals(regisEenheid.ToUpper());
+                            hasMatch = reigsLayerUnit.ToUpper().Equals(regisUnit.ToUpper());
                         }
                         else
                         {
-                            hasMatch = filenameREGISEenheidPart.ToUpper().Equals(regisEenheid.ToUpper());
+                            hasMatch = regisLayerUnitPart.ToUpper().Equals(regisUnit.ToUpper());
                         }
                         if (hasMatch)
                         {
-                            if (filenameParts[1].ToLower().Equals("b"))
+                            if ((layernameParts.Length > 1)  && layernameParts[1].ToLower().Equals("b"))
                             {
                                 // First add top-file when existing
-                                string topFilename = filenameParts[1].Equals("b") ? filename.Replace("-b-", "-t-") : filename.Replace("-B-", "-T-");
+                                string topFilename = regisVersion.GetTOPFilename(filename);
                                 if (File.Exists(Path.Combine(regisPath, topFilename)))
                                 {
                                     fileNamesOrdered.Add(topFilename);
@@ -1506,14 +1528,14 @@ namespace Sweco.SIF.IMFcreate
                                 fileNamesOrdered.Add(filename);
                                 regisFilenames.Remove(filename);
                             }
-                            else if (filenameParts[1].ToLower().Equals("t"))
+                            else if ((layernameParts.Length > 1) && layernameParts[1].ToLower().Equals("t"))
                             {
                                 // First add top-file
                                 fileNamesOrdered.Add(filename);
                                 regisFilenames.Remove(filename);
 
                                 // Now check for bot-file
-                                string botFilename = filenameParts[1].Equals("t") ? filename.Replace("-t-", "-b-") : filename.Replace("-T-", "-B-");
+                                string botFilename = regisVersion.GetBOTFilename(filename);
                                 if (File.Exists(Path.Combine(regisPath, botFilename)))
                                 {
                                     fileNamesOrdered.Add(botFilename);
@@ -1526,6 +1548,7 @@ namespace Sweco.SIF.IMFcreate
                             }
                             else
                             {
+                                // Note, file may be a thickness- or kh/kv-file, do not log all these files
                                 fileIdx++;
                             }
                         }
@@ -1538,6 +1561,11 @@ namespace Sweco.SIF.IMFcreate
             }
 
             return fileNamesOrdered;
+        }
+
+        protected virtual REGISVersion RetrieveREGISVersion(string regisFilename)
+        {
+            return REGISVersionFactory.RetrieveVersion(regisFilename);
         }
 
         protected void ReadOrderFile(string orderTextFilename, Log log)
@@ -1632,6 +1660,5 @@ namespace Sweco.SIF.IMFcreate
             ipfMap.Filename = ipfFilename;
             return ipfMap;
         }
-
     }
 }

@@ -68,6 +68,9 @@
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
     <Compile Include="REGISColorDef.cs" />
+    <Compile Include="REGISVersions\REGISVersion.cs" />
+    <Compile Include="REGISVersions\REGISIIVersion.cs" />
+    <Compile Include="REGISVersions\REGISVersionFactory.cs" />
     <Compile Include="SIFTool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SIFToolSettings.cs" />
@@ -82,6 +85,7 @@
   <ItemGroup>
     <Content Include="Sweco.ico" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>REM Ensure Libraries folder exists
