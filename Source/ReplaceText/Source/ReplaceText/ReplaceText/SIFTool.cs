@@ -24,6 +24,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -53,10 +54,11 @@ namespace Sweco.SIF.ReplaceText
         {
             int exitcode = -1;
             SIFTool tool = null;
+            SIFToolSettings settings = null;
             try
             {
                 // Use SwecoTool Framework to handle license check, write of toolname and version, parsing arguments, writing of logfile and if specified so handling exeptions
-                SIFToolSettings settings = new SIFToolSettings(args);
+                settings = new SIFToolSettings(args);
 
                 tool = new SIFTool(settings);
 
@@ -83,12 +85,12 @@ namespace Sweco.SIF.ReplaceText
             catch (ToolException ex)
             {
                 ExceptionHandler.HandleToolException(ex, tool?.Log);
-                exitcode = 1;
+                exitcode = ((settings != null) && settings.IsMatchCountReturned) ? -1 : 1;
             }
             catch (Exception ex)
             {
                 ExceptionHandler.HandleException(ex, tool?.Log);
-                exitcode = 1;
+                exitcode = ((settings != null) && settings.IsMatchCountReturned) ? -1 : 1;
             }
             finally
             {
