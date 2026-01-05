@@ -54,7 +54,7 @@ namespace Sweco.SIF.iMODValidator.Settings
     public class iMODValidatorSettings
     {
         public string TooloutputPrefix;
-        public string DefaultInputRunfile;
+        public string DefaultInputRUNFile1;
         public string DefaultOutputFolder;
         public string DefaultSurfaceLevelFilename;
         public bool UseSmartSurfaceLevelMethod;
@@ -88,13 +88,14 @@ namespace Sweco.SIF.iMODValidator.Settings
         public bool UseSparseMatrix;
         public bool UseIPFWarningForExistingPoints;
         public bool UseIPFWarningForColumnMismatch;
+        public int ComparedDecimalCount;
         public List<GENFileSettings> GENFiles;
         public MetadataSettings Metadata;
 
         public iMODValidatorSettings()
         {
             TooloutputPrefix = "iMODValidator";
-            DefaultInputRunfile = "<please select or type a valid runfilename>";
+            DefaultInputRUNFile1 = "<please select or type a valid RUN/PRJ-filename>";
             DefaultOutputFolder = "<please select or type enter a valid outputfolder>";
 
             DefaultSurfaceLevelFilename = "<please enter a valid surfacelevel filename>";
@@ -115,10 +116,12 @@ namespace Sweco.SIF.iMODValidator.Settings
             SplitValidationrunOption = SplitValidationrunSettings.Options.None;
             DefaultSummaryMinCellSize = 100;
 
-            iMODExecutablePath = @"iMOD\iMOD_V5_6.exe";
+            iMODExecutablePath = @"iMOD\iMOD_V5_6_1.exe";
             IsIMODOpened = true;
             IsExcelOpened = true;
             IsRelativePathIMFAdded = false;
+
+            ComparedDecimalCount = 7;
 
             GENFiles = new List<GENFileSettings>();
             // Note: do not add GEN-files here, since these will be added by JsonSerializer to the GEN-files that are present in actual ssettingsfiles
@@ -145,13 +148,6 @@ namespace Sweco.SIF.iMODValidator.Settings
             // Force some default setting to show example daa in generated default settings XML-file
             GENFiles.Add(new GENFileSettings(@"C:\Tools\iMODValidator\Shapes\Provincies.GEN", "100,100,100", 2, true));
             GENFiles.Add(new GENFileSettings(@"Shapes\T250WTR.GEN", "0,128,182", 2, false));
-        }
-
-        public ComparisonMethod ComparisonMethod { 
-            get 
-            {
-                return ((SIFToolSettings)SIFTool.Instance.Settings).ComparisonMethod; 
-            } 
         }
     }
 

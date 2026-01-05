@@ -134,6 +134,12 @@ namespace Sweco.SIF.iMODValidator
         /// </summary>
         public float NoDataComparisonValue { get; set; }
 
+        /// <summary>
+        /// Method for comparison of rasters: 
+        /// 'Auto' to try both a factor and subtraction for the comparison between both models; 
+        /// 'Subtraction' to use only subtraction for comparison
+        public ComparisonMethod ComparisonMethod { get; set; }
+
         public Validator(Log log)
         {
             cultureInfo = new CultureInfo("en-GB", false);
@@ -150,6 +156,7 @@ namespace Sweco.SIF.iMODValidator
             this.Model = null;
 
             this.NoDataComparisonValue = 0;
+            this.ComparisonMethod = ComparisonMethod.Auto;
         }
 
         public virtual void Run()
@@ -255,7 +262,7 @@ namespace Sweco.SIF.iMODValidator
             PropagateSettings();
             CheckFileExistance();
             ISGRIVConverter.ClearCache();
-            LogSettings(Log);
+            LogSettings(Log, IsModelCompared);
 
             // Write current intermediate logfile 
             Log.Flush();
@@ -282,7 +289,7 @@ namespace Sweco.SIF.iMODValidator
             }
         }
 
-        protected void LogSettings(Log log)
+        protected void LogSettings(Log log, bool isCompared)
         {
             if (log == null)
             {
@@ -304,6 +311,22 @@ namespace Sweco.SIF.iMODValidator
             {
                 log.AddInfo("Sparse matrices: sparse matrices are use to store IDF-data");
             }
+            if (isCompared)
+            {
+                if (NoDataComparisonValue.Equals(float.NaN))
+                {
+                    log.AddInfo("NoData-values in compared IDF-files will result in NoData-value in result");
+                }
+                else
+                {
+                    log.AddInfo("NoData-values in compared IDF-files are replaced with value: " + NoDataComparisonValue);
+                }
+                log.AddInfo("Comparison method: " + ComparisonMethod.ToString());
+                if (iMODValidatorSettingsManager.Settings.ComparedDecimalCount >= 0)
+                {
+                    log.AddInfo("Compared decimal count: " + iMODValidatorSettingsManager.Settings.ComparedDecimalCount);
+                }
+            }
             log.AddInfo(string.Empty);
 
             log.AddMessage(LogLevel.Debug, "Allocated memory at start of validation: " + GC.GetTotalMemory(true) / 1000000 + "Mb");
@@ -318,6 +341,8 @@ namespace Sweco.SIF.iMODValidator
 
             Log.AddMessage(LogLevel.Debug, "Allocated memory after reading base runfile: " + GC.GetTotalMemory(true) / 1000000 + "Mb");
             Log.AddMessage(LogLevel.Debug, string.Empty);
+
+            Log.Flush();
 
             return model;
         }
@@ -426,8 +451,9 @@ namespace Sweco.SIF.iMODValidator
             Model comparedModel = comparedRunfile.ReadModel(log);
             ModelComparerResultHandler resultHandler = new ModelComparerResultHandler(model, comparedModel, NoDataValue, Extent, SIFTool.Instance.ToolName + "-tool" + ((SIFTool.Instance.ToolVersion != null) ? (", " + SIFTool.Instance.ToolVersion) : string.Empty));
             SetResultHandlerSettings(resultHandler);
-            ModelComparator modelComparer = new ModelComparator();
-            modelComparer.NoDataComparisonValue = NoDataComparisonValue;
+            ModelComparator modelComparator = new ModelComparator();
+            modelComparator.NoDataComparisonValue = NoDataComparisonValue;
+            modelComparator.ComparisonMethod = ComparisonMethod;
 
             // Create output name
             string commonString = CommonUtils.GetCommonLeftSubstringParts(Path.GetFileNameWithoutExtension(model.RUNFilename), Path.GetFileNameWithoutExtension(comparedModel.RUNFilename), "_", true);
@@ -436,7 +462,7 @@ namespace Sweco.SIF.iMODValidator
             string comparisonFilesSubdirName = "diff_" + modelRunfileString + "-" + comparedRunfileString;
 
             CheckManager.Instance.CheckForAbort();
-            modelComparer.Run(model, comparedModel, resultHandler, comparisonFilesSubdirName, log);
+            modelComparator.Run(model, comparedModel, resultHandler, comparisonFilesSubdirName, log);
 
             if (iMODValidatorSettingsManager.Settings.UseLazyLoading)
             {

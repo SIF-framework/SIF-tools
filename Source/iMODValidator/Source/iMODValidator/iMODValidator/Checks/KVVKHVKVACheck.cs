@@ -322,9 +322,9 @@ namespace Sweco.SIF.iMODValidator.Checks
                 log.AddWarning(this.Name, model.RUNFilename, "BOT-package is not active. " + this.Name + " is skipped.", 1);
                 return;
             }
-            if ((kvvPackage == null) || !kvvPackage.IsActive)
+            if (((kvvPackage == null) || !kvvPackage.IsActive) && ((kvaPackage == null) || !kvaPackage.IsActive))
             {
-                log.AddWarning(this.Name, model.RUNFilename, "KVV-package is not active. " + this.Name + " is skipped.", 1);
+                log.AddWarning(this.Name, model.RUNFilename, "KVV-package and/or KVA-package is not active. " + this.Name + " is skipped.", 1);
                 return;
             }
             if ((khvPackage == null) || !khvPackage.IsActive)
@@ -362,7 +362,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                 IDFFile topIDFFile = topPackage.GetIDFFile(entryIdx);
                 IDFFile botIDFFile = botPackage.GetIDFFile(entryIdx);
                 IDFFile khvIDFFile = khvPackage.GetIDFFile(entryIdx);
-                IDFFile kvvIDFFile = (entryIdx < kvvPackage.GetEntryCount()) ? kvvPackage.GetIDFFile(entryIdx) : null; // Check for non-existing last kvv-layer
+                IDFFile kvvIDFFile = ((kvvPackage != null) && (entryIdx < kvvPackage.GetEntryCount())) ? kvvPackage.GetIDFFile(entryIdx) : null; // Check for non-existing last kvv-layer
                 IDFFile kvaIDFFile = (kvaPackage != null) ? kvaPackage.GetIDFFile(entryIdx) : null;
                 IDFFile lowerTOPIDFFile = ((topPackage != null) && (entryIdx < topPackage.GetEntryCount() - 1)) ? topPackage.GetIDFFile(entryIdx + 1) : null; // If there is a layer below the current layer retrieve its TOP-file
                 IDFFile lowerBOTIDFFile = ((botPackage != null) && (entryIdx < botPackage.GetEntryCount() - 1)) ? botPackage.GetIDFFile(entryIdx + 1) : null; // If there is a layer below the current layer retrieve its BOT-file
@@ -383,7 +383,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                     log.AddWarning(khvPackage.Key, null, "KHV IDF-file missing for entry " + (entryIdx + 1) + ", check is canceled", 1);
                     return;
                 }
-                if ((kvvIDFFile == null) && (entryIdx < kvvPackage.GetEntryCount()))
+                if ((kvvPackage != null) && (kvvIDFFile == null) && (entryIdx < kvvPackage.GetEntryCount()))
                 {
                     log.AddWarning(kvvPackage.Key, null, "KVV IDF-file missing for entry " + (entryIdx + 1) + ", check is canceled", 1);
                     return;
@@ -398,7 +398,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                     log.AddWarning(botPackage.Key, null, "BOT IDF-file missing for entry " + (entryIdx + 2) + ", check is canceled", 1);
                     return;
                 }
-                if (kvaIDFFile == null)
+                if ((kvaPackage != null) && (kvaIDFFile == null))
                 {
                     log.AddWarning(kvaPackage.Key, null, "KVA IDF-file not defined for entry " + (entryIdx + 1) + ", using default value 0", 1);
                     kvaIDFFile = new ConstantIDFFile(0);
@@ -732,7 +732,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                                     if (botValue.Equals(lowerTOPValue) || (botValue < lowerTOPValue))
                                     {
                                         // aquitard has no thickness, KVV should be zero or NoData
-                                        if (!kvvValue.Equals(0) && !kvvValue.Equals(kvvIDFFile.NoDataValue))
+                                        if ((kvvIDFFile != null) && !kvvValue.Equals(0) && !kvvValue.Equals(kvvIDFFile.NoDataValue))
                                         {
                                             resultHandler.AddCheckResult(kvvWarningLayer, x, y, KVVNotZeroValueWarning);
 
@@ -820,7 +820,7 @@ namespace Sweco.SIF.iMODValidator.Checks
                             else
                             {
                                 // topvalue of aquitard is not defined
-                                if (!kvvValue.Equals(0) && !kvvValue.Equals(kvvIDFFile.NoDataValue))
+                                if ((kvvIDFFile != null) && !kvvValue.Equals(0) && !kvvValue.Equals(kvvIDFFile.NoDataValue))
                                 {
                                     // KVV-value is defined, inconsistent aquitard definition
                                     resultHandler.AddCheckResult(kvvErrorLayer, x, y, KVVInconsistentValuesError);
@@ -946,7 +946,10 @@ namespace Sweco.SIF.iMODValidator.Checks
                 botIDFFile.ReleaseMemory(false);
 
                 khvPackage.ReleaseMemory(false);
-                kvvPackage.ReleaseMemory(false);
+                if (kvvPackage != null)
+                {
+                    kvvPackage.ReleaseMemory(false);
+                }
                 if (kvaPackage != null)
                 {
                     kvaPackage.ReleaseMemory(false);

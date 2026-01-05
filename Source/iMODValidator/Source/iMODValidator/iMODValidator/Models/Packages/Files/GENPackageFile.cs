@@ -136,12 +136,12 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
             return metadata;
         }
 
-        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, float noDataCalculationValue, Log log, int indentLevel = 0)
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, ComparisonMethod comparisonMethod, float noDataCalculationValue, Log log, int indentLevel = 0)
         {
-            return CreateDifferenceFile(comparedPackageFile, useLazyLoading, OutputFoldername, null, noDataCalculationValue, log, indentLevel);
+            return CreateDifferenceFile(comparedPackageFile, useLazyLoading, OutputFoldername, null, comparisonMethod, noDataCalculationValue, log, indentLevel);
         }
 
-        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, Extent extent, float noDataCalculationValue, Log log, int indentLevel = 0)
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, Extent extent, ComparisonMethod comparisonMethod, float noDataCalculationValue, Log log, int indentLevel = 0)
         {
             if (!this.Exists())
             {

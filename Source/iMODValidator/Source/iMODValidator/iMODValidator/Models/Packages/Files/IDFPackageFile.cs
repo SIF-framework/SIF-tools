@@ -153,12 +153,12 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
             return clippedIDFPackageFile;
         }
 
-        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, float noDataCalculationValue, Log log, int indentLevel = 0)
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, ComparisonMethod comparisonMethod, float noDataCalculationValue, Log log, int indentLevel = 0)
         {
-            return CreateDifferenceFile(comparedPackageFile, useLazyLoading, OutputFoldername, null, noDataCalculationValue, log, indentLevel);
+            return CreateDifferenceFile(comparedPackageFile, useLazyLoading, OutputFoldername, null, comparisonMethod, noDataCalculationValue, log, indentLevel);
         }
 
-        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, Extent extent, float noDataCalculationValue, Log log, int indentLevel = 0)
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, Extent extent, ComparisonMethod comparisonMethod, float noDataCalculationValue, Log log, int indentLevel = 0)
         {
             if (!this.Exists())
             {
@@ -191,16 +191,18 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
                     log.AddInfo("Difference in IMP-value: " + this.IMP + " vs " + comparedPackageFile.IMP, indentLevel);
                 }
 
-                bool isFactorDiffChecked = iMODValidatorSettingsManager.Settings.ComparisonMethod == ComparisonMethod.Auto;
-                if (isFactorDiffChecked)
+                switch (comparisonMethod)
                 {
-                    diffIDFPackageFile.IDFFile = thisProcessedIDFFile.CreateDifferenceFile(otherProcessedIDFFile, OutputFoldername, noDataCalculationValue, true, extent);
-                    // Note: corresponding legend will be added by CreateDifferenceFile() method
-                    // diffIDFPackageFile.IDFFile.Legend = diffIDFPackageFile.IDFFile.CreateDivisionLegend(null, true);
-                }
-                else
-                {
-                    diffIDFPackageFile.IDFFile = thisProcessedIDFFile.CreateDifferenceFile(otherProcessedIDFFile, OutputFoldername, noDataCalculationValue, extent);
+                    case ComparisonMethod.Auto:
+                        diffIDFPackageFile.IDFFile = thisProcessedIDFFile.CreateDifferenceFile(otherProcessedIDFFile, OutputFoldername, noDataCalculationValue, true, extent);
+                        // Note: corresponding legend will be added by CreateDifferenceFile() method
+                        // diffIDFPackageFile.IDFFile.Legend = diffIDFPackageFile.IDFFile.CreateDivisionLegend(null, true);
+                        break;
+                    case ComparisonMethod.Subtraction:
+                        diffIDFPackageFile.IDFFile = thisProcessedIDFFile.CreateDifferenceFile(otherProcessedIDFFile, OutputFoldername, noDataCalculationValue, extent);
+                        break;
+                    default:
+                        throw new Exception("Undefined Comparison Method: " + comparisonMethod.ToString());
                 }
 
                 diffIDFPackageFile.FName = diffIDFPackageFile.IDFFile.Filename;

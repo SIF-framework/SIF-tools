@@ -36,13 +36,12 @@ using System.Runtime;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
 
 namespace Sweco.SIF.iMODValidator.Forms
 {
     public partial class MainForm : Form
     {
-        protected string ProductVersionDate = "31-05-2018";
-
         protected SIFTool ToolInstance { get; set; }
         protected string SettingsFilename { get; }
 
@@ -93,6 +92,16 @@ namespace Sweco.SIF.iMODValidator.Forms
                 validator.IsModelValidated = isModelValidatedCheckBox.Checked;
                 validator.IsModelCompared = isModelComparedCheckBox.Checked;
                 validator.ComparedRUNFilename = comparedRUNFileTextBox.Text;
+                switch (comparisonMethodComboBox.Text)
+                {
+                    case "Auto": validator.ComparisonMethod = ComparisonMethod.Auto;
+                        break;
+                    case "Subtraction":
+                        validator.ComparisonMethod = ComparisonMethod.Subtraction;
+                        break;
+                    default:
+                        throw new ToolException("Undefined comparison method: " + comparisonMethodComboBox.Text);
+                }
 
                 // Start validation
                 validator.Run();
@@ -133,23 +142,27 @@ namespace Sweco.SIF.iMODValidator.Forms
         {
             HelpForm helpForm = new HelpForm();
             helpForm.SetHelpText(
-                "iMODValidator\r\n" +
-                "Version " + SIFTool.Instance.ToolVersion + ", " + ProductVersionDate + "\r\n\r\n" +
-                "With this tool the inputfiles of a given runfile can be checked for consistency and other errors.\r\n" +
-                "Some settings (such as default in- or outputfolder) can be modified in the iMODValidator.xml file.\r\n\r\n" +
+                "iMODValidator, version " + SIFTool.Instance.ToolVersion + "\r\n\r\n" +
+                "With this tool iMOD groundwatermodel can be checked automatically for consistencty issues and other errors.\r\n" +
+                "Also iMOD-model can be compared. Existing RUN/PRJ-file(s) can be specified for validation or comparison.\r\n" +
+                "Some settings (such as default in- or outputfolder) can be modified in the iMODValidator.xml file.\r\n" +
+                "\r\n" +
+                "Check the seperate iMODValidator report for details.\r\n" +
+                "\r\n" +
                 "For questions or remarks:\r\n" +
                 "Koen van der Hauw\r\n" +
-                "Adviseur Waterbeheer\r\n" +
                 "koen.vanderhauw@sweco.nl\r\n" +
                 "Sweco Nederland B.V.\r\n" +
                 "www.sweco.nl\r\n" +
-                "Copyright © 2013-2018, Sweco Nederland B.V.\r\n" +
-                "\r\n" +
+                "Copyright © 2013, Sweco Nederland B.V.\r\n" +
                 "\r\n" +
                 "Credits go to:\r\n" +
                 "- AZURE Consortium for contributing in the development of the tool:\r\n" +
+                "- NHI for contributing in the development of the tool:\r\n" +
+                "- WSDD for contributing in the development of the tool:\r\n" +
                 "- Json.NET open source library for JSON serialization\r\n" +
-                "- NPOI open source library for manipulating Excelfiles \r\n" +
+                "- EPPlus open source library for manipulating Excelfiles\r\n" +
+                "- Microsoft for usage of the Community 2022 version of Visual Studio\r\n" +
                 "");
             helpForm.ShowDialog();
         }
@@ -195,7 +208,7 @@ namespace Sweco.SIF.iMODValidator.Forms
             }
 
             // Set default runfiles
-            runfileTextBox.Text = iMODValidatorSettingsManager.Settings.DefaultInputRunfile;
+            runfileTextBox.Text = iMODValidatorSettingsManager.Settings.DefaultInputRUNFile1;
             if ((iMODValidatorSettingsManager.Settings.DefaultOutputFolder != null) && (!iMODValidatorSettingsManager.Settings.DefaultOutputFolder.Equals(string.Empty)))
             {
                 outputPathTextBox.Text = iMODValidatorSettingsManager.Settings.DefaultOutputFolder;
@@ -316,6 +329,7 @@ namespace Sweco.SIF.iMODValidator.Forms
             // Set default error margin
             float levelErrorMargin = iMODValidatorSettingsManager.Settings.LevelErrorMargin;
             levelErrorMarginTextBox.Text = (levelErrorMargin > 0) ? levelErrorMargin.ToString() : "0";
+            comparedDecimalCountTextBox.Text = iMODValidatorSettingsManager.Settings.ComparedDecimalCount.ToString();
 
             // Set default first/maximum timestep
             int firstTimeStep = -1;
@@ -365,9 +379,17 @@ namespace Sweco.SIF.iMODValidator.Forms
             logLevelComboBox.Items.Add(LogLevel.Trace.ToString());
             logLevelComboBox.SelectedIndex = 1;
 
-            noDataComparisonValueTextBox.Text = "0";
+            comparedRUNFileTextBox.Text = "<please select or type a valid RUN/PRJ-filename>";
             useNoDataAsComparisonValueCheckBox.Checked = true;
-            useNoDataAsComparisonValueCheckBox.Enabled = isModelComparedCheckBox.Checked;
+            // useNoDataAsComparisonValueCheckBox.ForeColor = Color.FromArgb(200, 200, 200);
+            noDataComparisonValueTextBox.Text = "0";
+            noDataComparisonValueTextBox.Enabled = isModelComparedCheckBox.Checked;
+            comparisonMethodComboBox.Enabled = false;
+
+            // Add ComparisonMethod options
+            comparisonMethodComboBox.Items.Add(ComparisonMethod.Auto.ToString());
+            comparisonMethodComboBox.Items.Add(ComparisonMethod.Subtraction.ToString());
+            comparisonMethodComboBox.SelectedIndex = 0;
 
             // Turn on warning for CheckLevel change 
             WELCheckSettings.IsCheckLevelWarningDisabled = false;
@@ -403,31 +425,51 @@ namespace Sweco.SIF.iMODValidator.Forms
 
             validator.NoDataValue = iMODValidatorSettingsManager.Settings.DefaultNoDataValue;
 
-            // Retrieve and check selected runfile filename
+            if (!IsActionSelected())
+            {
+                MessageBox.Show("Please specify an action to perform");
+                return false;
+            }
+
+            // Retrieve and check selected filename for RUN/PRJ-file #1
             try
             {
-                if (!IsActionSelected())
-                {
-                    MessageBox.Show("Please specify an action to perform");
-                    return false;
-                }
-
                 if (File.Exists(runfileTextBox.Text))
                 {
                     validator.RUNFilename = runfileTextBox.Text;
                 }
                 else
                 {
-                    MessageBox.Show("RUN-file doesn't exist, please specifiy an existing runfilename");
+                    MessageBox.Show("RUN/PRJ-file #1 doesn't exist, please specifiy an existing RUN/PRJ-filename");
                     runfileTextBox.Focus();
                     return false;
                 }
             }
             catch (Exception)
             {
-                MessageBox.Show("Please enter a valid runfilename");
+                MessageBox.Show("Please enter a valid filename for RUN/PRJ-file #1");
                 runfileTextBox.Focus();
                 return false;
+            }
+
+            if (isModelComparedCheckBox.Checked)
+            {
+                // Retrieve and check selected filename for RUN/PRJ-file #2
+                try
+                {
+                    if (!File.Exists(runfileTextBox.Text))
+                    {
+                        MessageBox.Show("RUN/PRJ-file #2 doesn't exist, please specifiy an existing RUN/PRJ-filename");
+                        comparedRUNFileTextBox.Focus();
+                        return false;
+                    }
+                }
+                catch (Exception)
+                {
+                    MessageBox.Show("Please enter a valid filename for RUN/PRJ-file #2");
+                    comparedRUNFileTextBox.Focus();
+                    return false;
+                }
             }
 
             // Retrieve defined outputpath
@@ -533,6 +575,32 @@ namespace Sweco.SIF.iMODValidator.Forms
                 levelErrorMarginTextBox.Focus();
                 MessageBox.Show("Level error margin is incorrect");
                 return false;
+            }
+            // Retrieve and check compared decimal count
+            if (!comparedDecimalCountTextBox.Text.Equals(string.Empty))
+            {
+                if (int.TryParse(comparedDecimalCountTextBox.Text, out int comparedDecimalCount))
+                {
+                    if (comparedDecimalCount < 0)
+                    {
+                        tabControl1.SelectTab(3);
+                        comparedDecimalCountTextBox.Focus();
+                        MessageBox.Show("Compared Decimal Count should be empty or positive");
+                        return false;
+                    }
+                    iMODValidatorSettingsManager.Settings.ComparedDecimalCount = comparedDecimalCount;
+                }
+                else
+                {
+                    tabControl1.SelectTab(3);
+                    comparedDecimalCountTextBox.Focus();
+                    MessageBox.Show("Compared Decimal Count is incorrect");
+                    return false;
+                }
+            }
+            else
+            {
+                iMODValidatorSettingsManager.Settings.ComparedDecimalCount = -1;
             }
 
             // Retrieve and check min/max timestep setting
@@ -685,7 +753,7 @@ namespace Sweco.SIF.iMODValidator.Forms
                 }
                 catch (Exception)
                 {
-                    tabControl1.SelectTab(1);
+                    tabControl1.SelectTab(0);
                     noDataComparisonValueTextBox.Focus();
                     MessageBox.Show("Invalid NoData comparison value");
                     return false;
@@ -700,7 +768,7 @@ namespace Sweco.SIF.iMODValidator.Forms
         {
             String filename = null;
             FileDialog fileDialog = new OpenFileDialog();
-            fileDialog.Title = "Choose a runfile";
+            fileDialog.Title = "Choose a RUN/PRJ-file";
             fileDialog.CheckFileExists = true;
             if (runfileTextBox.Text.Length > 0)
             {
@@ -717,9 +785,9 @@ namespace Sweco.SIF.iMODValidator.Forms
             {
                 try
                 {
-                    if (File.Exists(iMODValidatorSettingsManager.Settings.DefaultInputRunfile))
+                    if (File.Exists(iMODValidatorSettingsManager.Settings.DefaultInputRUNFile1))
                     {
-                        fileDialog.InitialDirectory = Path.GetDirectoryName(iMODValidatorSettingsManager.Settings.DefaultInputRunfile);
+                        fileDialog.InitialDirectory = Path.GetDirectoryName(iMODValidatorSettingsManager.Settings.DefaultInputRUNFile1);
                     }
                 }
                 catch (Exception)
@@ -727,7 +795,7 @@ namespace Sweco.SIF.iMODValidator.Forms
                     // ignore
                 }
             }
-            fileDialog.Filter = "All files (*.*)|*.*|PRJ-files (*.PRJ)|*.PRJ|RUN-files (*.RUN)|*.RUN";
+            fileDialog.Filter = "RUN/PRJ-files (*.PRJ;*.RUN)|*.PRJ;*.RUN|PRJ-files (*.PRJ)|*.PRJ|RUN-files (*.RUN)|*.RUN|All files (*.*)|*.*";
             DialogResult result = fileDialog.ShowDialog();
             if (result == DialogResult.OK)
             {
@@ -736,6 +804,15 @@ namespace Sweco.SIF.iMODValidator.Forms
                     filename = fileDialog.FileName;
                 }
                 runfileTextBox.Text = filename;
+                //if (outputPathTextBox.Text.Equals(iMODValidatorSettingsManager.Settings.DefaultOutputFolder))
+                //{
+                //    // Output path is still equal to default path, check if this is a valid path
+                //    if (FileUtils.HasInvalidPathCharacters(outputPathTextBox.Text))
+                //    {
+                //        // Default path is not valid, use directory of input RUN/PRJ-file 
+                //        outputPathTextBox.Text = Path.Combine(Path.GetDirectoryName(filename), iMODValidatorSettingsManager.ApplicationName + "\\" + "comparison");
+                //    }
+                //}
                 runfileTextBox.Focus();
             }
         }
@@ -787,7 +864,7 @@ namespace Sweco.SIF.iMODValidator.Forms
             }
             else
             {
-                fileDialog.InitialDirectory = iMODValidatorSettingsManager.Settings.DefaultInputRunfile;
+                fileDialog.InitialDirectory = iMODValidatorSettingsManager.Settings.DefaultInputRUNFile1;
             }
             fileDialog.Filter = "IDF grid (*.IDF)|*.IDF|ASCI grid (*.ASC)|*.ASC|All files (*.*)|*.*";
             DialogResult result = fileDialog.ShowDialog();
@@ -967,14 +1044,17 @@ namespace Sweco.SIF.iMODValidator.Forms
         {
             comparedRUNFileTextBox.Enabled = isModelComparedCheckBox.Checked;
             comparedRUNFileButton.Enabled = isModelComparedCheckBox.Checked;
-            useNoDataAsComparisonValueCheckBox.Enabled = isModelComparedCheckBox.Checked;
+            comparisonMethodComboBox.Enabled = isModelComparedCheckBox.Checked;
+            useNoDataAsComparisonValueCheckBox.ForeColor = isModelComparedCheckBox.Checked ? Color.White : Color.FromArgb(200,200,200);
+            noDataComparisonValueTextBox.Enabled = (isModelComparedCheckBox.Checked && useNoDataAsComparisonValueCheckBox.Checked);
+            //comparisonMethodLabel.Enabled = isModelComparedCheckBox.Checked;
         }
 
         private void comparedRUNFileButton_Click(object sender, EventArgs e)
         {
             String filename = null;
             FileDialog fileDialog = new OpenFileDialog();
-            fileDialog.Title = "Choose a runfile";
+            fileDialog.Title = "Choose a RUN/PRJ-file";
             fileDialog.CheckFileExists = true;
             if (comparedRUNFileTextBox.Text.Length > 0)
             {
@@ -991,9 +1071,9 @@ namespace Sweco.SIF.iMODValidator.Forms
             {
                 try
                 {
-                    if (File.Exists(iMODValidatorSettingsManager.Settings.DefaultInputRunfile))
+                    if (File.Exists(iMODValidatorSettingsManager.Settings.DefaultInputRUNFile1))
                     {
-                        fileDialog.InitialDirectory = Path.GetDirectoryName(iMODValidatorSettingsManager.Settings.DefaultInputRunfile);
+                        fileDialog.InitialDirectory = Path.GetDirectoryName(iMODValidatorSettingsManager.Settings.DefaultInputRUNFile1);
                     }
                 }
                 catch (Exception)
@@ -1001,7 +1081,7 @@ namespace Sweco.SIF.iMODValidator.Forms
                     // ignore
                 }
             }
-            fileDialog.Filter = "All files (*.*)|*.*|PRJ-files (*.PRJ)|*.PRJ|RUN-files (*.RUN)|*.RUN";
+            fileDialog.Filter = "RUN/PRJ-files (*.PRJ;*.RUN)|*.PRJ;*.RUN|PRJ-files (*.PRJ)|*.PRJ|RUN-files (*.RUN)|*.RUN|All files (*.*)|*.*";
             DialogResult result = fileDialog.ShowDialog();
             if (result == DialogResult.OK)
             {
@@ -1016,7 +1096,7 @@ namespace Sweco.SIF.iMODValidator.Forms
 
         private void useNoDataAsComparisonValueCheckBox_CheckedChanged(object sender, EventArgs e)
         {
-            noDataComparisonValueTextBox.Enabled = useNoDataAsComparisonValueCheckBox.Checked;
+            noDataComparisonValueTextBox.Enabled = isModelComparedCheckBox.Checked && useNoDataAsComparisonValueCheckBox.Checked;
         }
     }
 }

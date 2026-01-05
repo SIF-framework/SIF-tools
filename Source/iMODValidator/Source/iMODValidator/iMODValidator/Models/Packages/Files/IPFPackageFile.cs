@@ -135,12 +135,12 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
             return clippedIPFPackageFile;
         }
 
-        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, float noDataCalculationValue, Log log, int indentLevel = 0)
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, ComparisonMethod comparisonMethod, float noDataCalculationValue, Log log, int indentLevel = 0)
         {
-            return CreateDifferenceFile(comparedPackageFile, useLazyLoading, OutputFoldername, null, noDataCalculationValue, log, indentLevel);
+            return CreateDifferenceFile(comparedPackageFile, useLazyLoading, OutputFoldername, null, comparisonMethod, noDataCalculationValue, log, indentLevel);
         }
 
-        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, Extent extent, float noDataCalculationValue, Log log, int indentLevel = 0)
+        public override PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string OutputFoldername, Extent extent, ComparisonMethod comparisonMethod, float noDataCalculationValue, Log log, int indentLevel = 0)
         {
             if (!this.Exists())
             {
@@ -156,8 +156,14 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
             if (comparedPackageFile is IPFPackageFile)
             {
                 IPFPackageFile diffIPFPackageFile = new IPFPackageFile(this.Package, this.FName, this.ILAY, this.FCT, this.IMP, this.StressPeriod);
-                diffIPFPackageFile.IPFFile = ipfFile.CreateDifferenceFile(((IPFPackageFile)comparedPackageFile).IPFFile, OutputFoldername, noDataCalculationValue, extent);
                 diffIPFPackageFile.IPFFile.UseLazyLoading = useLazyLoading;
+                diffIPFPackageFile.IPFFile = ipfFile.CreateDifferenceFile(((IPFPackageFile)comparedPackageFile).IPFFile, OutputFoldername, noDataCalculationValue, extent);
+
+                if ((diffIPFPackageFile.IPFFile != null) && (diffIPFPackageFile.IPFFile.PointCount == 0))
+                {
+                    diffIPFPackageFile = null;
+                }
+
                 return diffIPFPackageFile;
             }
             else

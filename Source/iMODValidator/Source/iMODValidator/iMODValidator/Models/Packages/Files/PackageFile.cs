@@ -22,6 +22,8 @@
 using Sweco.SIF.Common;
 using Sweco.SIF.GIS;
 using Sweco.SIF.iMOD;
+using Sweco.SIF.iMOD.IDF;
+using Sweco.SIF.iMODValidator.Settings;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -149,6 +151,19 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
                         IMODFile otherIMODFile = other.IMODFile;
                         if ((thisIMODFile != null) && (other.IMODFile != null))
                         {
+                            if (iMODValidatorSettingsManager.Settings.ComparedDecimalCount >= 0)
+                            {
+                                // Round values to specified number of decimals since no more decimals are shown in iMOD
+                                if (thisIMODFile is IDFFile)
+                                {
+                                    ((IDFFile)thisIMODFile).RoundValues(iMODValidatorSettingsManager.Settings.ComparedDecimalCount);
+                                }
+                                if (otherIMODFile is IDFFile)
+                                {
+                                    ((IDFFile)otherIMODFile).RoundValues(iMODValidatorSettingsManager.Settings.ComparedDecimalCount);
+                                }
+                            }
+
                             return thisIMODFile.HasEqualContent(otherIMODFile, extent, isNoDataCompared);
                         }
                         else
@@ -233,11 +248,12 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
         /// <param name="comparedPackageFile"></param>
         /// <param name="useLazyLoading"></param>
         /// <param name="comparisonOutputFoldername"></param>
+        /// <param name="comparisonMethod"></param>
         /// <param name="noDataCalculationValue"></param>
         /// <param name="log"></param>
         /// <param name="indentLevel"></param>
         /// <returns></returns>
-        public abstract PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string comparisonOutputFoldername, float noDataCalculationValue, Log log, int indentLevel = 0);
+        public abstract PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string comparisonOutputFoldername, ComparisonMethod comparisonMethod, float noDataCalculationValue, Log log, int indentLevel = 0);
 
         /// <summary>
         /// Create difference iMOD-file between two iMOD-files
@@ -246,10 +262,11 @@ namespace Sweco.SIF.iMODValidator.Models.Packages.Files
         /// <param name="useLazyLoading"></param>
         /// <param name="comparisonOutputFoldername"></param>
         /// <param name="extent"></param>
+        /// <param name="comparisonMethod"></param>
         /// <param name="noDataCalculationValue"></param>
         /// <param name="log"></param>
         /// <param name="indentLevel"></param>
         /// <returns></returns>
-        public abstract PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string comparisonOutputFoldername, Extent extent, float noDataCalculationValue, Log log, int indentLevel = 0);
+        public abstract PackageFile CreateDifferenceFile(PackageFile comparedPackageFile, bool useLazyLoading, string comparisonOutputFoldername, Extent extent, ComparisonMethod comparisonMethod, float noDataCalculationValue, Log log, int indentLevel = 0);
     }
 }

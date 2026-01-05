@@ -21,6 +21,7 @@
 // along with iMODValidator. If not, see <https://www.gnu.org/licenses/>.
 using Sweco.SIF.Common;
 using Sweco.SIF.iMOD;
+using Sweco.SIF.iMOD.IDF;
 using Sweco.SIF.iMODPlus;
 using Sweco.SIF.iMODValidator.Checks;
 using Sweco.SIF.iMODValidator.Models;
@@ -55,6 +56,13 @@ namespace Sweco.SIF.iMODValidator
         /// float.NaN will result in NoData in a cell when one of the IDF-files has a NoData-value in that cell.</param>
         /// </summary>
         public float NoDataComparisonValue { get; set; } = 0;
+
+        /// <summary>
+        /// Method for comparison of rasters: 
+        /// 'Auto' to try both a factor and subtraction for the comparison between both models; 
+        /// 'Subtraction' to use only subtraction for comparison
+        /// </summary>
+        public ComparisonMethod ComparisonMethod { get; set; } = ComparisonMethod.Auto;
 
         public void Run(Model model, Model comparedModel, ModelComparerResultHandler resultHandler, string comparisonFilesSubdirName, Log log)
         {
@@ -497,7 +505,7 @@ namespace Sweco.SIF.iMODValidator
                                         log.AddMessage(LogLevel.Trace, "File " + Path.GetFileName(packageFile.FName) + " is different in compared model!");
                                     }
 
-                                    PackageFile diffPackageFile = comparedPackageFile.CreateDifferenceFile(packageFile, true, comparisonOutputFoldername, model.GetExtent(), NoDataComparisonValue, log, 2);
+                                    PackageFile diffPackageFile = packageFile.CreateDifferenceFile(comparedPackageFile, true, comparisonOutputFoldername, model.GetExtent(), ComparisonMethod, NoDataComparisonValue, log, 2);
                                     if (diffPackageFile != null)
                                     {
                                         Metadata diffMetadata = diffPackageFile.CreateMetadata(model);
@@ -549,6 +557,22 @@ namespace Sweco.SIF.iMODValidator
                                     else
                                     {
                                         log.AddInfo("UNDEFINED");
+                                    }
+                                }
+
+                                // Check for different cellsize of IDF-files; even if a difference is found, the user should be informed as it can lead to unexpected results
+                                if (packageFile is IDFPackageFile)
+                                {
+                                    IDFFile idfFile1 = ((IDFPackageFile)packageFile).IDFFile;
+                                    IDFFile idfFile2 = ((IDFPackageFile)comparedPackageFile).IDFFile;
+
+                                    if ((idfFile1 != null) && (idfFile2 != null))
+                                    {
+                                        if (!idfFile1.XCellsize.Equals(idfFile2.XCellsize) || !idfFile1.YCellsize.Equals(idfFile2.YCellsize))
+                                        {
+                                            log.AddWarning(package.Key, Path.GetFileName(idfFile1.Filename),
+                                                "IDF-file has different cellsize (" + idfFile1.XCellsize + "x" + idfFile1.YCellsize + ") than compared IDF-file (" + idfFile2.XCellsize + "x" + idfFile2.YCellsize + ")", 2);
+                                        }
                                     }
                                 }
                             }

@@ -207,6 +207,7 @@ namespace Sweco.SIF.iMODValidator
             validator.IsResultSheetOpened = (settings.IsResultSheetOpened != null) ? (bool)settings.IsResultSheetOpened : validator.IsResultSheetOpened;
 
             validator.NoDataComparisonValue = settings.NoDataComparisonValue;
+            validator.ComparisonMethod = settings.ComparisonMethod;
 
             // Load check settings
             foreach (Check check in CheckManager.Instance.Checks)

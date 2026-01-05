@@ -73,9 +73,12 @@
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.label16 = new System.Windows.Forms.Label();
+            this.comparisonMethodLabel = new System.Windows.Forms.Label();
+            this.comparisonMethodComboBox = new System.Windows.Forms.ComboBox();
+            this.comparedRUNFileTextBox = new System.Windows.Forms.TextBox();
             this.noDataComparisonValueTextBox = new System.Windows.Forms.TextBox();
             this.useNoDataAsComparisonValueCheckBox = new System.Windows.Forms.CheckBox();
-            this.comparedRUNFileTextBox = new System.Windows.Forms.TextBox();
             this.comparedRUNFileButton = new System.Windows.Forms.Button();
             this.isModelComparedCheckBox = new System.Windows.Forms.CheckBox();
             this.isModelValidatedCheckBox = new System.Windows.Forms.CheckBox();
@@ -104,6 +107,8 @@
             this.label8 = new System.Windows.Forms.Label();
             this.exitButton = new System.Windows.Forms.Button();
             this.helpButton = new System.Windows.Forms.Button();
+            this.comparedDecimalCountTextBox = new System.Windows.Forms.TextBox();
+            this.label15 = new System.Windows.Forms.Label();
             this.groupBox2.SuspendLayout();
             this.tabPage3.SuspendLayout();
             this.tabControl1.SuspendLayout();
@@ -145,7 +150,7 @@
             this.surfacelevelMetaSWAPradioButton.Location = new System.Drawing.Point(241, 21);
             this.surfacelevelMetaSWAPradioButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.surfacelevelMetaSWAPradioButton.Name = "surfacelevelMetaSWAPradioButton";
-            this.surfacelevelMetaSWAPradioButton.Size = new System.Drawing.Size(256, 20);
+            this.surfacelevelMetaSWAPradioButton.Size = new System.Drawing.Size(253, 20);
             this.surfacelevelMetaSWAPradioButton.TabIndex = 5;
             this.surfacelevelMetaSWAPradioButton.Text = "use MetaSWAP/CAPSIM surface level";
             this.surfacelevelMetaSWAPradioButton.UseVisualStyleBackColor = true;
@@ -157,7 +162,7 @@
             this.surfaceLevelSmartRadioButton.Location = new System.Drawing.Point(9, 21);
             this.surfaceLevelSmartRadioButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.surfaceLevelSmartRadioButton.Name = "surfaceLevelSmartRadioButton";
-            this.surfaceLevelSmartRadioButton.Size = new System.Drawing.Size(210, 20);
+            this.surfaceLevelSmartRadioButton.Size = new System.Drawing.Size(207, 20);
             this.surfaceLevelSmartRadioButton.TabIndex = 4;
             this.surfaceLevelSmartRadioButton.TabStop = true;
             this.surfaceLevelSmartRadioButton.Text = "find surface level automatically";
@@ -168,7 +173,7 @@
             this.surfacelevelFileButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.surfacelevelFileButton.ForeColor = System.Drawing.Color.Black;
             this.surfacelevelFileButton.Location = new System.Drawing.Point(1213, 44);
-            this.surfacelevelFileButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.surfacelevelFileButton.Margin = new System.Windows.Forms.Padding(4);
             this.surfacelevelFileButton.Name = "surfacelevelFileButton";
             this.surfacelevelFileButton.Size = new System.Drawing.Size(32, 28);
             this.surfacelevelFileButton.TabIndex = 3;
@@ -193,7 +198,7 @@
             this.surfacelevelFileRadioButton.Location = new System.Drawing.Point(241, 48);
             this.surfacelevelFileRadioButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.surfacelevelFileRadioButton.Name = "surfacelevelFileRadioButton";
-            this.surfacelevelFileRadioButton.Size = new System.Drawing.Size(167, 20);
+            this.surfacelevelFileRadioButton.Size = new System.Drawing.Size(164, 20);
             this.surfacelevelFileRadioButton.TabIndex = 1;
             this.surfacelevelFileRadioButton.Text = "use file as surface level";
             this.surfacelevelFileRadioButton.UseVisualStyleBackColor = true;
@@ -204,7 +209,7 @@
             this.surfacelevelOLFRadioButton.Location = new System.Drawing.Point(9, 48);
             this.surfacelevelOLFRadioButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.surfacelevelOLFRadioButton.Name = "surfacelevelOLFRadioButton";
-            this.surfacelevelOLFRadioButton.Size = new System.Drawing.Size(175, 20);
+            this.surfacelevelOLFRadioButton.Size = new System.Drawing.Size(172, 20);
             this.surfacelevelOLFRadioButton.TabIndex = 0;
             this.surfacelevelOLFRadioButton.Text = "use OLF as surface level";
             this.surfacelevelOLFRadioButton.UseVisualStyleBackColor = true;
@@ -212,6 +217,8 @@
             // tabPage3
             // 
             this.tabPage3.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(32)))), ((int)(((byte)(78)))));
+            this.tabPage3.Controls.Add(this.comparedDecimalCountTextBox);
+            this.tabPage3.Controls.Add(this.label15);
             this.tabPage3.Controls.Add(this.addRelativePathIMFCheckBox);
             this.tabPage3.Controls.Add(this.label13);
             this.tabPage3.Controls.Add(this.splitValidationrunOptionComboBox);
@@ -238,7 +245,7 @@
             this.tabPage3.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage3.Name = "tabPage3";
             this.tabPage3.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage3.Size = new System.Drawing.Size(1264, 652);
+            this.tabPage3.Size = new System.Drawing.Size(1271, 652);
             this.tabPage3.TabIndex = 2;
             this.tabPage3.Text = "Advanced settings";
             // 
@@ -249,9 +256,9 @@
             this.addRelativePathIMFCheckBox.Location = new System.Drawing.Point(20, 295);
             this.addRelativePathIMFCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.addRelativePathIMFCheckBox.Name = "addRelativePathIMFCheckBox";
-            this.addRelativePathIMFCheckBox.Size = new System.Drawing.Size(302, 20);
+            this.addRelativePathIMFCheckBox.Size = new System.Drawing.Size(291, 20);
             this.addRelativePathIMFCheckBox.TabIndex = 28;
-            this.addRelativePathIMFCheckBox.Text = "Add iMOD-projectfile (IMF) with relatieve paths";
+            this.addRelativePathIMFCheckBox.Text = "Add iMOD-projectfile (IMF) with relative paths";
             this.addRelativePathIMFCheckBox.UseVisualStyleBackColor = true;
             // 
             // label13
@@ -272,7 +279,7 @@
             this.splitValidationrunOptionComboBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.splitValidationrunOptionComboBox.Name = "splitValidationrunOptionComboBox";
             this.splitValidationrunOptionComboBox.Size = new System.Drawing.Size(100, 24);
-            this.splitValidationrunOptionComboBox.TabIndex = 26;
+            this.splitValidationrunOptionComboBox.TabIndex = 12;
             // 
             // firstTimeStepTextBox
             // 
@@ -300,7 +307,7 @@
             this.useIPFWarningForColumnMismatchCheckBox.Location = new System.Drawing.Point(20, 258);
             this.useIPFWarningForColumnMismatchCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.useIPFWarningForColumnMismatchCheckBox.Name = "useIPFWarningForColumnMismatchCheckBox";
-            this.useIPFWarningForColumnMismatchCheckBox.Size = new System.Drawing.Size(309, 20);
+            this.useIPFWarningForColumnMismatchCheckBox.Size = new System.Drawing.Size(306, 20);
             this.useIPFWarningForColumnMismatchCheckBox.TabIndex = 24;
             this.useIPFWarningForColumnMismatchCheckBox.Text = "Give warning for mismatch in IPF column values";
             this.useIPFWarningForColumnMismatchCheckBox.UseVisualStyleBackColor = true;
@@ -312,7 +319,7 @@
             this.useIPFWarningForExistingPointCheckBox.Location = new System.Drawing.Point(20, 219);
             this.useIPFWarningForExistingPointCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.useIPFWarningForExistingPointCheckBox.Name = "useIPFWarningForExistingPointCheckBox";
-            this.useIPFWarningForExistingPointCheckBox.Size = new System.Drawing.Size(234, 20);
+            this.useIPFWarningForExistingPointCheckBox.Size = new System.Drawing.Size(231, 20);
             this.useIPFWarningForExistingPointCheckBox.TabIndex = 23;
             this.useIPFWarningForExistingPointCheckBox.Text = "Give warning for existing IPF points";
             this.useIPFWarningForExistingPointCheckBox.UseVisualStyleBackColor = true;
@@ -324,7 +331,7 @@
             this.useSparseMatrixCheckBox.Location = new System.Drawing.Point(20, 182);
             this.useSparseMatrixCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.useSparseMatrixCheckBox.Name = "useSparseMatrixCheckBox";
-            this.useSparseMatrixCheckBox.Size = new System.Drawing.Size(167, 20);
+            this.useSparseMatrixCheckBox.Size = new System.Drawing.Size(164, 20);
             this.useSparseMatrixCheckBox.TabIndex = 22;
             this.useSparseMatrixCheckBox.Text = "Use sparse result grids";
             this.useSparseMatrixCheckBox.UseVisualStyleBackColor = true;
@@ -335,7 +342,7 @@
             this.maxLayerNumberTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.maxLayerNumberTextBox.Name = "maxLayerNumberTextBox";
             this.maxLayerNumberTextBox.Size = new System.Drawing.Size(59, 22);
-            this.maxLayerNumberTextBox.TabIndex = 15;
+            this.maxLayerNumberTextBox.TabIndex = 16;
             this.maxLayerNumberTextBox.Text = "999";
             // 
             // label9
@@ -354,7 +361,7 @@
             this.firstLayerNumberTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.firstLayerNumberTextBox.Name = "firstLayerNumberTextBox";
             this.firstLayerNumberTextBox.Size = new System.Drawing.Size(59, 22);
-            this.firstLayerNumberTextBox.TabIndex = 14;
+            this.firstLayerNumberTextBox.TabIndex = 15;
             this.firstLayerNumberTextBox.Text = "1";
             // 
             // label11
@@ -401,7 +408,7 @@
             this.summaryMinCellSizeTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.summaryMinCellSizeTextBox.Name = "summaryMinCellSizeTextBox";
             this.summaryMinCellSizeTextBox.Size = new System.Drawing.Size(59, 22);
-            this.summaryMinCellSizeTextBox.TabIndex = 12;
+            this.summaryMinCellSizeTextBox.TabIndex = 13;
             // 
             // label7
             // 
@@ -431,7 +438,7 @@
             this.logLevelComboBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.logLevelComboBox.Name = "logLevelComboBox";
             this.logLevelComboBox.Size = new System.Drawing.Size(100, 24);
-            this.logLevelComboBox.TabIndex = 11;
+            this.logLevelComboBox.TabIndex = 14;
             // 
             // label2
             // 
@@ -449,7 +456,7 @@
             this.levelErrorMarginTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.levelErrorMarginTextBox.Name = "levelErrorMarginTextBox";
             this.levelErrorMarginTextBox.Size = new System.Drawing.Size(100, 22);
-            this.levelErrorMarginTextBox.TabIndex = 9;
+            this.levelErrorMarginTextBox.TabIndex = 2;
             // 
             // levelErrorMarginLabel
             // 
@@ -558,7 +565,7 @@
             this.openIMODCheckBox.Location = new System.Drawing.Point(7, 629);
             this.openIMODCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.openIMODCheckBox.Name = "openIMODCheckBox";
-            this.openIMODCheckBox.Size = new System.Drawing.Size(162, 20);
+            this.openIMODCheckBox.Size = new System.Drawing.Size(159, 20);
             this.openIMODCheckBox.TabIndex = 8;
             this.openIMODCheckBox.Text = "Open iMod with results";
             this.openIMODCheckBox.UseVisualStyleBackColor = true;
@@ -569,7 +576,7 @@
             this.packageExtentRadioButton.Location = new System.Drawing.Point(9, 58);
             this.packageExtentRadioButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.packageExtentRadioButton.Name = "packageExtentRadioButton";
-            this.packageExtentRadioButton.Size = new System.Drawing.Size(173, 20);
+            this.packageExtentRadioButton.Size = new System.Drawing.Size(170, 20);
             this.packageExtentRadioButton.TabIndex = 3;
             this.packageExtentRadioButton.Text = "use package (file) extent";
             this.packageExtentRadioButton.UseVisualStyleBackColor = true;
@@ -586,7 +593,7 @@
             this.tabControl1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(1272, 681);
+            this.tabControl1.Size = new System.Drawing.Size(1279, 681);
             this.tabControl1.TabIndex = 50;
             this.tabControl1.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.tabControl1_KeyPress);
             // 
@@ -601,7 +608,7 @@
             this.tabPage1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage1.Size = new System.Drawing.Size(1264, 652);
+            this.tabPage1.Size = new System.Drawing.Size(1271, 652);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Start";
             // 
@@ -609,9 +616,12 @@
             // 
             this.groupBox3.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.groupBox3.Controls.Add(this.label16);
+            this.groupBox3.Controls.Add(this.comparisonMethodLabel);
+            this.groupBox3.Controls.Add(this.comparisonMethodComboBox);
+            this.groupBox3.Controls.Add(this.comparedRUNFileTextBox);
             this.groupBox3.Controls.Add(this.noDataComparisonValueTextBox);
             this.groupBox3.Controls.Add(this.useNoDataAsComparisonValueCheckBox);
-            this.groupBox3.Controls.Add(this.comparedRUNFileTextBox);
             this.groupBox3.Controls.Add(this.comparedRUNFileButton);
             this.groupBox3.Controls.Add(this.isModelComparedCheckBox);
             this.groupBox3.Controls.Add(this.isModelValidatedCheckBox);
@@ -619,49 +629,79 @@
             this.groupBox3.Controls.Add(this.runfileTextBox);
             this.groupBox3.Controls.Add(this.runfileButton);
             this.groupBox3.ForeColor = System.Drawing.Color.White;
-            this.groupBox3.Location = new System.Drawing.Point(3, 5);
-            this.groupBox3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox3.Location = new System.Drawing.Point(7, 5);
+            this.groupBox3.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.groupBox3.Size = new System.Drawing.Size(1284, 158);
-            this.groupBox3.TabIndex = 46;
+            this.groupBox3.Padding = new System.Windows.Forms.Padding(4);
+            this.groupBox3.Size = new System.Drawing.Size(1254, 144);
+            this.groupBox3.TabIndex = 0;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Input specifications";
             // 
-            // noDataComparisonValueTextBox
+            // label16
             // 
-            this.noDataComparisonValueTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.noDataComparisonValueTextBox.Enabled = false;
-            this.noDataComparisonValueTextBox.Location = new System.Drawing.Point(407, 112);
-            this.noDataComparisonValueTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.noDataComparisonValueTextBox.Name = "noDataComparisonValueTextBox";
-            this.noDataComparisonValueTextBox.Size = new System.Drawing.Size(92, 22);
-            this.noDataComparisonValueTextBox.TabIndex = 11;
-            this.noDataComparisonValueTextBox.Text = "0";
+            this.label16.AutoSize = true;
+            this.label16.Location = new System.Drawing.Point(8, 114);
+            this.label16.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label16.Name = "label16";
+            this.label16.Size = new System.Drawing.Size(84, 16);
+            this.label16.TabIndex = 15;
+            this.label16.Text = "RUNFILE #2:";
             // 
-            // useNoDataAsComparisonValueCheckBox
+            // comparisonMethodLabel
             // 
-            this.useNoDataAsComparisonValueCheckBox.AutoSize = true;
-            this.useNoDataAsComparisonValueCheckBox.Location = new System.Drawing.Point(164, 114);
-            this.useNoDataAsComparisonValueCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.useNoDataAsComparisonValueCheckBox.Name = "useNoDataAsComparisonValueCheckBox";
-            this.useNoDataAsComparisonValueCheckBox.Size = new System.Drawing.Size(217, 20);
-            this.useNoDataAsComparisonValueCheckBox.TabIndex = 10;
-            this.useNoDataAsComparisonValueCheckBox.Text = "Use &NoData comparison value:";
-            this.useNoDataAsComparisonValueCheckBox.UseVisualStyleBackColor = true;
-            this.useNoDataAsComparisonValueCheckBox.CheckedChanged += new System.EventHandler(this.useNoDataAsComparisonValueCheckBox_CheckedChanged);
+            this.comparisonMethodLabel.AutoSize = true;
+            this.comparisonMethodLabel.Location = new System.Drawing.Point(682, 52);
+            this.comparisonMethodLabel.Name = "comparisonMethodLabel";
+            this.comparisonMethodLabel.Size = new System.Drawing.Size(131, 16);
+            this.comparisonMethodLabel.TabIndex = 0;
+            this.comparisonMethodLabel.Text = "Comparison method:";
+            // 
+            // comparisonMethodComboBox
+            // 
+            this.comparisonMethodComboBox.Enabled = false;
+            this.comparisonMethodComboBox.FormattingEnabled = true;
+            this.comparisonMethodComboBox.Location = new System.Drawing.Point(819, 47);
+            this.comparisonMethodComboBox.MaxDropDownItems = 4;
+            this.comparisonMethodComboBox.Name = "comparisonMethodComboBox";
+            this.comparisonMethodComboBox.Size = new System.Drawing.Size(121, 24);
+            this.comparisonMethodComboBox.TabIndex = 5;
+            this.comparisonMethodComboBox.Text = "Auto";
             // 
             // comparedRUNFileTextBox
             // 
             this.comparedRUNFileTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.comparedRUNFileTextBox.Enabled = false;
-            this.comparedRUNFileTextBox.Location = new System.Drawing.Point(164, 80);
-            this.comparedRUNFileTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.comparedRUNFileTextBox.Location = new System.Drawing.Point(105, 111);
+            this.comparedRUNFileTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.comparedRUNFileTextBox.Name = "comparedRUNFileTextBox";
-            this.comparedRUNFileTextBox.Size = new System.Drawing.Size(1047, 22);
+            this.comparedRUNFileTextBox.Size = new System.Drawing.Size(1100, 22);
             this.comparedRUNFileTextBox.TabIndex = 8;
+            // 
+            // noDataComparisonValueTextBox
+            // 
+            this.noDataComparisonValueTextBox.Enabled = false;
+            this.noDataComparisonValueTextBox.Location = new System.Drawing.Point(487, 49);
+            this.noDataComparisonValueTextBox.Margin = new System.Windows.Forms.Padding(4);
+            this.noDataComparisonValueTextBox.Name = "noDataComparisonValueTextBox";
+            this.noDataComparisonValueTextBox.Size = new System.Drawing.Size(46, 22);
+            this.noDataComparisonValueTextBox.TabIndex = 4;
+            this.noDataComparisonValueTextBox.Text = "0";
+            // 
+            // useNoDataAsComparisonValueCheckBox
+            // 
+            this.useNoDataAsComparisonValueCheckBox.AutoSize = true;
+            this.useNoDataAsComparisonValueCheckBox.Checked = true;
+            this.useNoDataAsComparisonValueCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.useNoDataAsComparisonValueCheckBox.Location = new System.Drawing.Point(261, 51);
+            this.useNoDataAsComparisonValueCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.useNoDataAsComparisonValueCheckBox.Name = "useNoDataAsComparisonValueCheckBox";
+            this.useNoDataAsComparisonValueCheckBox.Size = new System.Drawing.Size(214, 20);
+            this.useNoDataAsComparisonValueCheckBox.TabIndex = 3;
+            this.useNoDataAsComparisonValueCheckBox.Text = "Use &NoData comparison value:";
+            this.useNoDataAsComparisonValueCheckBox.UseVisualStyleBackColor = true;
+            this.useNoDataAsComparisonValueCheckBox.CheckedChanged += new System.EventHandler(this.useNoDataAsComparisonValueCheckBox_CheckedChanged);
             // 
             // comparedRUNFileButton
             // 
@@ -669,8 +709,8 @@
             this.comparedRUNFileButton.BackColor = System.Drawing.SystemColors.ButtonFace;
             this.comparedRUNFileButton.Enabled = false;
             this.comparedRUNFileButton.ForeColor = System.Drawing.Color.Black;
-            this.comparedRUNFileButton.Location = new System.Drawing.Point(1220, 79);
-            this.comparedRUNFileButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.comparedRUNFileButton.Location = new System.Drawing.Point(1213, 108);
+            this.comparedRUNFileButton.Margin = new System.Windows.Forms.Padding(4);
             this.comparedRUNFileButton.Name = "comparedRUNFileButton";
             this.comparedRUNFileButton.Size = new System.Drawing.Size(32, 28);
             this.comparedRUNFileButton.TabIndex = 9;
@@ -681,12 +721,12 @@
             // isModelComparedCheckBox
             // 
             this.isModelComparedCheckBox.AutoSize = true;
-            this.isModelComparedCheckBox.Location = new System.Drawing.Point(16, 86);
+            this.isModelComparedCheckBox.Location = new System.Drawing.Point(11, 51);
             this.isModelComparedCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.isModelComparedCheckBox.Name = "isModelComparedCheckBox";
-            this.isModelComparedCheckBox.Size = new System.Drawing.Size(126, 20);
-            this.isModelComparedCheckBox.TabIndex = 7;
-            this.isModelComparedCheckBox.Text = "&Compare model";
+            this.isModelComparedCheckBox.Size = new System.Drawing.Size(171, 20);
+            this.isModelComparedCheckBox.TabIndex = 2;
+            this.isModelComparedCheckBox.Text = "&Compare models #1 - #2";
             this.isModelComparedCheckBox.UseVisualStyleBackColor = true;
             this.isModelComparedCheckBox.CheckedChanged += new System.EventHandler(this.isModelComparedCheckBox_CheckedChanged);
             // 
@@ -695,44 +735,44 @@
             this.isModelValidatedCheckBox.AutoSize = true;
             this.isModelValidatedCheckBox.Checked = true;
             this.isModelValidatedCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.isModelValidatedCheckBox.Location = new System.Drawing.Point(16, 57);
+            this.isModelValidatedCheckBox.Location = new System.Drawing.Point(11, 27);
             this.isModelValidatedCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.isModelValidatedCheckBox.Name = "isModelValidatedCheckBox";
-            this.isModelValidatedCheckBox.Size = new System.Drawing.Size(120, 20);
-            this.isModelValidatedCheckBox.TabIndex = 6;
-            this.isModelValidatedCheckBox.Text = "&Validate model";
+            this.isModelValidatedCheckBox.Size = new System.Drawing.Size(134, 20);
+            this.isModelValidatedCheckBox.TabIndex = 1;
+            this.isModelValidatedCheckBox.Text = "&Validate model #1";
             this.isModelValidatedCheckBox.UseVisualStyleBackColor = true;
             // 
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(12, 30);
+            this.label1.Location = new System.Drawing.Point(8, 84);
             this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(140, 16);
+            this.label1.Size = new System.Drawing.Size(84, 16);
             this.label1.TabIndex = 0;
-            this.label1.Text = "Basemodel RUNFILE:";
+            this.label1.Text = "RUNFILE #1:";
             // 
             // runfileTextBox
             // 
             this.runfileTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.runfileTextBox.Location = new System.Drawing.Point(164, 27);
-            this.runfileTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.runfileTextBox.Location = new System.Drawing.Point(105, 81);
+            this.runfileTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.runfileTextBox.Name = "runfileTextBox";
-            this.runfileTextBox.Size = new System.Drawing.Size(1047, 22);
-            this.runfileTextBox.TabIndex = 1;
+            this.runfileTextBox.Size = new System.Drawing.Size(1100, 22);
+            this.runfileTextBox.TabIndex = 6;
             // 
             // runfileButton
             // 
             this.runfileButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.runfileButton.BackColor = System.Drawing.SystemColors.ButtonFace;
             this.runfileButton.ForeColor = System.Drawing.Color.Black;
-            this.runfileButton.Location = new System.Drawing.Point(1220, 26);
-            this.runfileButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.runfileButton.Location = new System.Drawing.Point(1213, 78);
+            this.runfileButton.Margin = new System.Windows.Forms.Padding(4);
             this.runfileButton.Name = "runfileButton";
             this.runfileButton.Size = new System.Drawing.Size(32, 28);
-            this.runfileButton.TabIndex = 2;
+            this.runfileButton.TabIndex = 7;
             this.runfileButton.Text = "...";
             this.runfileButton.UseVisualStyleBackColor = false;
             this.runfileButton.Click += new System.EventHandler(this.runfileButton_Click);
@@ -745,45 +785,45 @@
             this.groupBox1.Controls.Add(this.outputPathTextBox);
             this.groupBox1.Controls.Add(this.outputFolderButton);
             this.groupBox1.ForeColor = System.Drawing.Color.White;
-            this.groupBox1.Location = new System.Drawing.Point(3, 170);
-            this.groupBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox1.Location = new System.Drawing.Point(7, 157);
+            this.groupBox1.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.groupBox1.Size = new System.Drawing.Size(1284, 58);
-            this.groupBox1.TabIndex = 45;
+            this.groupBox1.Padding = new System.Windows.Forms.Padding(4);
+            this.groupBox1.Size = new System.Drawing.Size(1254, 58);
+            this.groupBox1.TabIndex = 0;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Output specifications";
             // 
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(19, 30);
+            this.label4.Location = new System.Drawing.Point(8, 29);
             this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(77, 16);
-            this.label4.TabIndex = 9;
+            this.label4.TabIndex = 0;
             this.label4.Text = "Output path:";
             // 
             // outputPathTextBox
             // 
             this.outputPathTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.outputPathTextBox.Location = new System.Drawing.Point(109, 26);
-            this.outputPathTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.outputPathTextBox.Location = new System.Drawing.Point(105, 26);
+            this.outputPathTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.outputPathTextBox.Name = "outputPathTextBox";
-            this.outputPathTextBox.Size = new System.Drawing.Size(1101, 22);
-            this.outputPathTextBox.TabIndex = 11;
+            this.outputPathTextBox.Size = new System.Drawing.Size(1100, 22);
+            this.outputPathTextBox.TabIndex = 12;
             // 
             // outputFolderButton
             // 
             this.outputFolderButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.outputFolderButton.BackColor = System.Drawing.SystemColors.ButtonFace;
             this.outputFolderButton.ForeColor = System.Drawing.Color.Black;
-            this.outputFolderButton.Location = new System.Drawing.Point(1220, 23);
-            this.outputFolderButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.outputFolderButton.Location = new System.Drawing.Point(1214, 23);
+            this.outputFolderButton.Margin = new System.Windows.Forms.Padding(4);
             this.outputFolderButton.Name = "outputFolderButton";
             this.outputFolderButton.Size = new System.Drawing.Size(32, 28);
-            this.outputFolderButton.TabIndex = 12;
+            this.outputFolderButton.TabIndex = 13;
             this.outputFolderButton.Text = "...";
             this.outputFolderButton.UseVisualStyleBackColor = false;
             this.outputFolderButton.Click += new System.EventHandler(this.outputFolderButton_Click);
@@ -794,11 +834,11 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.resultTextBox.Location = new System.Drawing.Point(7, 242);
-            this.resultTextBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.resultTextBox.Margin = new System.Windows.Forms.Padding(4);
             this.resultTextBox.Multiline = true;
             this.resultTextBox.Name = "resultTextBox";
             this.resultTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.resultTextBox.Size = new System.Drawing.Size(1247, 399);
+            this.resultTextBox.Size = new System.Drawing.Size(1254, 399);
             this.resultTextBox.TabIndex = 30;
             this.resultTextBox.WordWrap = false;
             this.resultTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.resultTextBox_KeyPress);
@@ -825,7 +865,7 @@
             this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage2.Size = new System.Drawing.Size(1264, 652);
+            this.tabPage2.Size = new System.Drawing.Size(1271, 652);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Settings";
             // 
@@ -956,7 +996,7 @@
             this.customExtentRadioButton.Location = new System.Drawing.Point(241, 21);
             this.customExtentRadioButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.customExtentRadioButton.Name = "customExtentRadioButton";
-            this.customExtentRadioButton.Size = new System.Drawing.Size(134, 20);
+            this.customExtentRadioButton.Size = new System.Drawing.Size(131, 20);
             this.customExtentRadioButton.TabIndex = 1;
             this.customExtentRadioButton.Text = "use custom extent";
             this.customExtentRadioButton.UseVisualStyleBackColor = true;
@@ -969,7 +1009,7 @@
             this.modelExtentRadioButton.Location = new System.Drawing.Point(9, 21);
             this.modelExtentRadioButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.modelExtentRadioButton.Name = "modelExtentRadioButton";
-            this.modelExtentRadioButton.Size = new System.Drawing.Size(175, 20);
+            this.modelExtentRadioButton.Size = new System.Drawing.Size(172, 20);
             this.modelExtentRadioButton.TabIndex = 0;
             this.modelExtentRadioButton.TabStop = true;
             this.modelExtentRadioButton.Text = "use model (runfile) extent";
@@ -985,7 +1025,7 @@
             this.openExcelCheckBox.Location = new System.Drawing.Point(352, 629);
             this.openExcelCheckBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.openExcelCheckBox.Name = "openExcelCheckBox";
-            this.openExcelCheckBox.Size = new System.Drawing.Size(165, 20);
+            this.openExcelCheckBox.Size = new System.Drawing.Size(162, 20);
             this.openExcelCheckBox.TabIndex = 9;
             this.openExcelCheckBox.Text = "Open Excel with results";
             this.openExcelCheckBox.UseVisualStyleBackColor = true;
@@ -996,7 +1036,7 @@
             this.startButton.BackColor = System.Drawing.SystemColors.ButtonFace;
             this.startButton.ForeColor = System.Drawing.Color.Black;
             this.startButton.Location = new System.Drawing.Point(13, 699);
-            this.startButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.startButton.Margin = new System.Windows.Forms.Padding(4);
             this.startButton.Name = "startButton";
             this.startButton.Size = new System.Drawing.Size(100, 28);
             this.startButton.TabIndex = 47;
@@ -1020,7 +1060,7 @@
             this.exitButton.BackColor = System.Drawing.SystemColors.ButtonFace;
             this.exitButton.ForeColor = System.Drawing.Color.Black;
             this.exitButton.Location = new System.Drawing.Point(129, 699);
-            this.exitButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.exitButton.Margin = new System.Windows.Forms.Padding(4);
             this.exitButton.Name = "exitButton";
             this.exitButton.Size = new System.Drawing.Size(100, 28);
             this.exitButton.TabIndex = 48;
@@ -1033,8 +1073,8 @@
             this.helpButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.helpButton.BackColor = System.Drawing.SystemColors.ButtonFace;
             this.helpButton.ForeColor = System.Drawing.Color.Black;
-            this.helpButton.Location = new System.Drawing.Point(1185, 699);
-            this.helpButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.helpButton.Location = new System.Drawing.Point(1192, 699);
+            this.helpButton.Margin = new System.Windows.Forms.Padding(4);
             this.helpButton.Name = "helpButton";
             this.helpButton.Size = new System.Drawing.Size(100, 28);
             this.helpButton.TabIndex = 49;
@@ -1042,19 +1082,37 @@
             this.helpButton.UseVisualStyleBackColor = false;
             this.helpButton.Click += new System.EventHandler(this.helpButton_Click);
             // 
+            // comparedDecimalCountTextBox
+            // 
+            this.comparedDecimalCountTextBox.Location = new System.Drawing.Point(488, 16);
+            this.comparedDecimalCountTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.comparedDecimalCountTextBox.Name = "comparedDecimalCountTextBox";
+            this.comparedDecimalCountTextBox.Size = new System.Drawing.Size(100, 22);
+            this.comparedDecimalCountTextBox.TabIndex = 3;
+            // 
+            // label15
+            // 
+            this.label15.AutoSize = true;
+            this.label15.ForeColor = System.Drawing.Color.White;
+            this.label15.Location = new System.Drawing.Point(291, 17);
+            this.label15.Name = "label15";
+            this.label15.Size = new System.Drawing.Size(191, 16);
+            this.label15.TabIndex = 29;
+            this.label15.Text = "Compared number of decimals";
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(32)))), ((int)(((byte)(78)))));
-            this.ClientSize = new System.Drawing.Size(1296, 738);
+            this.ClientSize = new System.Drawing.Size(1303, 738);
             this.Controls.Add(this.tabControl1);
             this.Controls.Add(this.startButton);
             this.Controls.Add(this.label8);
             this.Controls.Add(this.exitButton);
             this.Controls.Add(this.helpButton);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "MainForm";
             this.Text = "iMODValidator";
             this.Load += new System.EventHandler(this.MainForm_Load);
@@ -1161,5 +1219,10 @@
         protected System.Windows.Forms.CheckBox isModelComparedCheckBox;
         protected System.Windows.Forms.TextBox noDataComparisonValueTextBox;
         protected System.Windows.Forms.CheckBox useNoDataAsComparisonValueCheckBox;
+        private System.Windows.Forms.Label comparisonMethodLabel;
+        private System.Windows.Forms.ComboBox comparisonMethodComboBox;
+        protected System.Windows.Forms.Label label16;
+        protected System.Windows.Forms.TextBox comparedDecimalCountTextBox;
+        protected System.Windows.Forms.Label label15;
     }
 }

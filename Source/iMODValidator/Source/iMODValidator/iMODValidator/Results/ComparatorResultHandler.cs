@@ -29,6 +29,7 @@ using Sweco.SIF.iMODValidator.Results;
 using Sweco.SIF.Spreadsheets.Excel;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -69,10 +70,25 @@ namespace Sweco.SIF.iMODValidator.Results
                     IDFFile summaryIDFFile = (IDFFile)(summaryLayer.ResultFile);
 
                     IDFFile diffIDFFile = IMODUtils.ConvertToIDF(differenceFile, extent, summaryIDFFile.XCellsize, noDataValue);
-                    diffIDFFile = diffIDFFile.IsGreaterEqual(0.001f);
+
+                    // Replace no value/difference cells with 0 depending on factor/sum-difference
+                    if (Path.GetFileNameWithoutExtension(diffIDFFile.Filename).StartsWith(IDFFile.FactorDiffPrefix))
+                    {
+                        // Round to 6 decimals as iMOD is accurate (for single precision) upto 7 decimals
+                        diffIDFFile.RoundValues(6);
+
+                        // Process cells with NoData-value in factor difference (both IDF-files have a NoData-value) as if the factor difference is 1.0
+                        diffIDFFile.ReplaceValues(diffIDFFile.NoDataValue, 1.0f);
+
+                        diffIDFFile = diffIDFFile.IsNotEqual(1.0f);
+                    }
+                    else
+                    {
+                        diffIDFFile = diffIDFFile.IsNotEqual(0.0f) * diffIDFFile.IsNotEqual(diffIDFFile.NoDataValue);
+                    }
                     diffIDFFile.NoDataCalculationValue = 0;
                     diffIDFFile.ReplaceValues(0, diffIDFFile.NoDataValue);
-                    // diffIDFFile.ReplaceValues(diffIDFFile, 1);
+
                     string summaryFilename = summaryIDFFile.Filename;
                     summaryLayer.ResultFile = summaryIDFFile + diffIDFFile;
                     summaryLayer.ResultFile.Filename = summaryFilename;

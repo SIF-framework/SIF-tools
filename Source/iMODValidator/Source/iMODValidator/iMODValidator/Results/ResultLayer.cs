@@ -447,7 +447,7 @@ namespace Sweco.SIF.iMODValidator.Results
             string stressperiodString = string.Empty;
             if (StressPeriod != null)
             {
-                stressperiodString = "_" + StressPeriod.SNAME;
+                stressperiodString = "_" + StressPeriod.SNAME.Replace("-", string.Empty).Replace(":", string.Empty);
             }
 
             string resultFilePath = outputPath;
